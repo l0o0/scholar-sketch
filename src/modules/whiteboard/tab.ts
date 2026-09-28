@@ -37,6 +37,12 @@ import {
 import { ProgressiveSourceScheduler } from "./source-scheduler";
 import { sourceCacheKey } from "../../../packages/whiteboard/src/whiteboard/sourceState";
 import { getZoteroNoteTemplateRepository } from "./template-repository";
+import {
+  decodeEmbeddedFileData,
+  MAX_ATTACHMENT_BYTES,
+  requiresExplicitSave,
+  safeEmbeddedFilename,
+} from "./embedded-file";
 
 import { injectWhiteboardStyles } from "./styles";
 
@@ -120,7 +126,7 @@ function attachmentTitle(item: Zotero.Item) {
 function refreshTabTitle(session: WhiteboardSession) {
   const dirty = isDirty(session) ? " *" : "";
   if (session.surface === "window") {
-    session.win.document.title = `${session.title}${dirty} · Scholar Canvas`;
+    session.win.document.title = `${session.title}${dirty} · Scholar Sketch`;
     return;
   }
   const tabs = (session.win as _ZoteroTypes.MainWindow).Zotero_Tabs;
@@ -368,6 +374,97 @@ function openZoteroItem(payload: {
   if (payload.itemID) {
     pane.selectItem(payload.itemID);
   }
+}
+
+function embeddedFileNodeRaw(
+  snapshot: CanvasDocument,
+  nodeId: string,
+): unknown {
+  const node = snapshot.nodes.find((candidate) => candidate.id === nodeId);
+  return node && "data" in node ? node.data : undefined;
+}
+
+function embeddedFilePath(data: {
+  title: string;
+  contentType: string;
+}): string {
+  const token = (() => {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+  })();
+  return PathUtils.join(
+    Zotero.getTempDirectory().path,
+    "bamboo-whiteboard-embedded",
+    `${token}-${safeEmbeddedFilename(data.title, data.contentType, {
+      forOpen: true,
+    })}`,
+  );
+}
+
+async function openEmbeddedFile(session: WhiteboardSession, nodeId: string) {
+  if (session.transitioning || session.closing) return;
+  const editor = session.editor;
+  if (!editor) throw new Error(getString("whiteboard-file-unavailable"));
+  const shot = await editor.requestSnapshot();
+  // The snapshot is asynchronous; discard it if this surface was replaced or closed.
+  if (session.editor !== editor || session.transitioning || session.closing)
+    return;
+  const raw = embeddedFileNodeRaw(shot.snapshot, nodeId);
+  if (
+    raw &&
+    typeof raw === "object" &&
+    Number.isSafeInteger((raw as { size?: unknown }).size) &&
+    ((raw as { size: number }).size > MAX_ATTACHMENT_BYTES ||
+      (raw as { size: number }).size < 0)
+  ) {
+    throw new Error(getString("whiteboard-file-too-large"));
+  }
+  const data = decodeEmbeddedFileData(raw);
+  if (!data) throw new Error(getString("whiteboard-file-unavailable"));
+
+  if (requiresExplicitSave(data.title, data.contentType)) {
+    const filename = safeEmbeddedFilename(data.title, data.contentType);
+    const picked = await new ztoolkit.FilePicker(
+      getString("whiteboard-file-open"),
+      "save",
+      [[getString("whiteboard-file-generic"), "*.*"]],
+      filename,
+      session.win,
+    ).open();
+    if (
+      !picked ||
+      session.editor !== editor ||
+      session.transitioning ||
+      session.closing
+    )
+      return;
+    await IOUtils.write(picked, data.bytes);
+    toast(getString("whiteboard-file-open"), "success");
+    return;
+  }
+
+  const path = embeddedFilePath(data);
+  const directory = PathUtils.parent(path);
+  if (!directory) throw new Error(getString("whiteboard-file-unavailable"));
+  await IOUtils.makeDirectory(directory, {
+    ignoreExisting: true,
+    createAncestors: true,
+  });
+  await IOUtils.write(path, data.bytes);
+  if (session.editor !== editor || session.transitioning || session.closing)
+    return;
+  const launchFile = (
+    Zotero as unknown as {
+      launchFile?: (filePath: string) => unknown;
+    }
+  ).launchFile;
+  if (typeof launchFile !== "function") {
+    throw new Error(getString("whiteboard-file-unavailable"));
+  }
+  await launchFile(path);
 }
 
 type ZoteroDragTransfer = Pick<DataTransfer, "types" | "getData">;
@@ -913,6 +1010,20 @@ function mountWhiteboardUI(
       addFrame: getString("whiteboard-add-frame"),
       addPdf: getString("whiteboard-add-pdf"),
       addFile: getString("whiteboard-add-file"),
+      fileImage: getString("whiteboard-file-image"),
+      filePdf: getString("whiteboard-file-pdf"),
+      fileText: getString("whiteboard-file-text"),
+      fileAudio: getString("whiteboard-file-audio"),
+      fileVideo: getString("whiteboard-file-video"),
+      fileGeneric: getString("whiteboard-file-generic"),
+      fileOpen: getString("whiteboard-file-open"),
+      fileDetails: getString("whiteboard-file-details"),
+      filePreview: getString("whiteboard-file-preview"),
+      fileTooLarge: getString("whiteboard-file-too-large"),
+      fileImportFailed: getString("whiteboard-file-import-failed"),
+      fileUnavailable: getString("whiteboard-file-unavailable"),
+      fileDimensions: getString("whiteboard-file-dimensions"),
+      filePages: getString("whiteboard-file-pages"),
       addText: getString("whiteboard-add-text"),
       addRect: getString("whiteboard-add-rect"),
       addRoundedRect: getString("whiteboard-add-rounded-rect"),
@@ -1122,6 +1233,19 @@ function mountWhiteboardUI(
     onOpenLink(href) {
       const item = Zotero.Items.get(session.itemID);
       if (item) navigateDocumentLink(item, win, href);
+    },
+    onOpenFile(payload) {
+      void openEmbeddedFile(session, payload.nodeId).catch((error) => {
+        ztoolkit.log("Failed to open embedded whiteboard file", error);
+        const message = error instanceof Error ? error.message : String(error);
+        const unavailable = getString("whiteboard-file-unavailable");
+        const tooLarge = getString("whiteboard-file-too-large");
+        toast(
+          message === unavailable || message === tooLarge
+            ? message
+            : getString("whiteboard-file-import-failed"),
+        );
+      });
     },
     onSave() {
       void saveSession(session);

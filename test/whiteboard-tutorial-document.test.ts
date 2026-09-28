@@ -17,11 +17,13 @@ import {
 } from "../packages/whiteboard/src/model/tutorial.ts";
 
 const english: TutorialCanvasLabels = {
-  title: "Scholar Canvas academic whiteboard",
+  title: "Scholar Sketch academic whiteboard",
   welcome: "Welcome",
   welcomeBody: "Follow this path to turn reading into connected thinking.",
+  quickStart: "Quick controls",
+  quickStartBody: "Hold Space and drag to pan. Shift+1 fits the board.",
   sourceNotice:
-    "Sample cards come from your library; Scholar Canvas does not change the source items.",
+    "Sample cards come from your library; Scholar Sketch does not change the source items.",
   addLiterature: "Add Literature",
   addLiteratureBody: "Drag a Zotero item onto the canvas.",
   browseQuotes: "Browse Quotes",
@@ -60,10 +62,12 @@ const english: TutorialCanvasLabels = {
 };
 
 const chinese: TutorialCanvasLabels = {
-  title: "Scholar Canvas 学术白板",
+  title: "Scholar Sketch 学术白板",
   welcome: "欢迎",
   welcomeBody: "沿着这条路径，把阅读变成相互连接的思考。",
-  sourceNotice: "示例卡片来自你的文库；Scholar Canvas 不会修改来源条目。",
+  quickStart: "常用操作",
+  quickStartBody: "按住空格键拖动画布。Shift+1 查看全图。",
+  sourceNotice: "示例卡片来自你的文库；Scholar Sketch 不会修改来源条目。",
   addLiterature: "添加文献",
   addLiteratureBody: "把 Zotero 条目拖到画布上。",
   browseQuotes: "浏览引文",
@@ -173,6 +177,13 @@ test("builds valid localized static tutorials along a stable guided path", () =>
     assert.equal(welcome.badge, labels.welcome);
     assert.equal(welcome.content, labels.welcomeBody);
 
+    const quickStart = byId.get("tutorial-quick-start");
+    assert.ok(quickStart?.kind === "note");
+    assert.equal(quickStart.badge, labels.quickStart);
+    assert.equal(quickStart.content, labels.quickStartBody);
+    assert.ok(title.position.y + title.height <= quickStart.position.y);
+    assert.ok(quickStart.position.y + quickStart.height < welcome.position.y);
+
     const sourceNotice = byId.get("tutorial-source-notice");
     assert.ok(sourceNotice?.kind === "text");
     assert.equal(sourceNotice.data.title, labels.sourceNotice);
@@ -235,7 +246,7 @@ test("builds valid localized static tutorials along a stable guided path", () =>
     }
     const image = byId.get("tutorial-image");
     assert.ok(
-      image?.kind === "pdf" &&
+      image?.kind === "attachment" &&
         image.data.image?.startsWith("data:image/svg+xml"),
     );
     const attachment = byId.get("tutorial-attachment");

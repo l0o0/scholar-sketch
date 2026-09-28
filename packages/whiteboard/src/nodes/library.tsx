@@ -1,5 +1,9 @@
 import type { NodeProps } from "@xyflow/react";
 import { useWhiteboardLabels } from "../chrome/labels";
+import {
+  inferAttachmentContentType,
+  isSafeImagePreview,
+} from "../model/file-attachment";
 import { nodeTextStyle } from "../whiteboard/document";
 import { CardShell } from "./CardShell";
 import type { CanvasFlowNode } from "./types";
@@ -32,17 +36,30 @@ export function PdfNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
   const model = data.model;
   if (model.kind !== "pdf") return null;
+  const contentType =
+    model.data.contentType?.split(";", 1)[0]?.toLowerCase() ||
+    inferAttachmentContentType(model.data.title);
+  const imageOnly =
+    Boolean(model.data.image) && contentType.startsWith("image/");
+  const imagePreview = previewImage(model.data.image, model.data.fileData);
+  const kindLabel = imageOnly
+    ? ((labels as unknown as Record<string, unknown>).fileImage as string) ||
+      "Image"
+    : labels.addPdf;
+  const unavailableLabel =
+    ((labels as unknown as Record<string, unknown>)
+      .fileUnavailable as string) || labels.attachmentNotDownloaded;
   return (
     <CardShell
       kind="pdf"
-      kindLabel={labels.addPdf}
+      kindLabel={kindLabel}
       selected={selected}
       nodeStyle={model.style}
     >
-      {model.data.image ? (
+      {imagePreview ? (
         <img
           className="zmd-board-pdf-image"
-          src={model.data.image}
+          src={imagePreview}
           alt={model.data.title || labels.addPdf}
         />
       ) : model.data.source ? null : (
@@ -62,7 +79,7 @@ export function PdfNode({ data, selected }: NodeProps<CanvasFlowNode>) {
         </p>
       ) : null}
       {model.data.availability === "not-downloaded" ? (
-        <p className="zmd-board-card-meta">{labels.attachmentNotDownloaded}</p>
+        <p className="zmd-board-card-meta">{unavailableLabel}</p>
       ) : null}
     </CardShell>
   );
@@ -72,10 +89,34 @@ export function AttachmentNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
   const model = data.model;
   if (model.kind !== "attachment") return null;
+  const contentType =
+    model.data.contentType?.split(";", 1)[0]?.toLowerCase() ||
+    inferAttachmentContentType(model.data.title);
+  const kind = attachmentKind(contentType);
+  const imagePreview = previewImage(model.data.image, model.data.fileData);
+  const preview = model.data.preview?.slice(0, 600);
+  const label = (key: string, fallback: string): string => {
+    const value = (labels as unknown as Record<string, unknown>)[key];
+    return typeof value === "string" && value ? value : fallback;
+  };
+  const details = [
+    kind === "generic" ? model.data.contentType : undefined,
+    formatAttachmentSize(model.data.size),
+    model.data.pageCount
+      ? `${label("filePages", "Pages")}: ${model.data.pageCount}`
+      : undefined,
+    model.data.imageWidth && model.data.imageHeight
+      ? `${label("fileDimensions", "Dimensions")}: ${model.data.imageWidth} × ${model.data.imageHeight}`
+      : undefined,
+  ].filter(Boolean);
+  const kindLabel = attachmentKindLabel(kind, label);
+  const metadata = details.length
+    ? `${label("fileDetails", "Details")}: ${details.join(" · ")}`
+    : model.data.subtitle;
   return (
     <CardShell
       kind="attachment"
-      kindLabel={labels.addFile}
+      kindLabel={kindLabel}
       selected={selected}
       nodeStyle={model.style}
     >
@@ -85,22 +126,84 @@ export function AttachmentNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       >
         {model.data.title}
       </h3>
-      {model.data.subtitle || model.data.contentType ? (
+      {imagePreview ? (
+        <img
+          className="zmd-board-pdf-image"
+          src={imagePreview}
+          alt={model.data.title || label("fileImage", "Image")}
+        />
+      ) : null}
+      {metadata ? <p className="zmd-board-card-meta">{metadata}</p> : null}
+      {model.data.availability === "not-downloaded" ? (
         <p className="zmd-board-card-meta">
-          {model.data.subtitle || model.data.contentType}
+          {label("fileUnavailable", labels.attachmentNotDownloaded)}
         </p>
       ) : null}
-      {model.data.availability === "not-downloaded" ? (
-        <p className="zmd-board-card-meta">{labels.attachmentNotDownloaded}</p>
-      ) : null}
-      {model.data.preview ? (
+      {preview && kind === "text" ? (
         <p
           className="zmd-board-attachment-preview"
           style={nodeTextStyle(model.style ?? {})}
         >
-          {model.data.preview}
+          <span className="zmd-board-card-meta">
+            {label("filePreview", "Preview")}
+          </span>
+          {preview}
         </p>
       ) : null}
     </CardShell>
   );
+}
+
+function attachmentKindLabel(
+  kind: AttachmentKind,
+  label: (key: string, fallback: string) => string,
+): string {
+  switch (kind) {
+    case "image":
+      return label("fileImage", "Image");
+    case "pdf":
+      return label("filePdf", "PDF");
+    case "text":
+      return label("fileText", "Text");
+    case "audio":
+      return label("fileAudio", "Audio");
+    case "video":
+      return label("fileVideo", "Video");
+    case "generic":
+      return label("fileGeneric", "File");
+  }
+}
+
+type AttachmentKind = "image" | "pdf" | "text" | "audio" | "video" | "generic";
+
+function attachmentKind(contentType: string | undefined): AttachmentKind {
+  if (contentType === "application/pdf") return "pdf";
+  if (contentType?.startsWith("image/")) return "image";
+  if (
+    contentType?.startsWith("text/") ||
+    contentType === "application/json" ||
+    contentType === "application/xml" ||
+    contentType === "application/javascript"
+  ) {
+    return "text";
+  }
+  if (contentType?.startsWith("audio/")) return "audio";
+  if (contentType?.startsWith("video/")) return "video";
+  return "generic";
+}
+
+function formatAttachmentSize(size: number | undefined): string | undefined {
+  if (!Number.isFinite(size) || size === undefined || size < 0)
+    return undefined;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function previewImage(
+  image: string | undefined,
+  fileData: string | undefined,
+): string | undefined {
+  if (image && isSafeImagePreview(image)) return image;
+  return fileData && isSafeImagePreview(fileData) ? fileData : undefined;
 }

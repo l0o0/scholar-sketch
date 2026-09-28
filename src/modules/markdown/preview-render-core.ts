@@ -10,6 +10,10 @@ import { highlightFencedCode } from "./code-highlight";
 import { parseDocumentLink, isPdfDocumentLink } from "./document-link-shared";
 import { parseNoteLink } from "./note-links";
 import { parseHtmlImage } from "./images/html";
+import {
+  isSafeAttachmentDataUrl,
+  MAX_ATTACHMENT_BYTES,
+} from "../../../packages/whiteboard/src/model/file-attachment";
 
 const MarkdownItCtor: typeof MarkdownIt =
   typeof MarkdownIt === "function"
@@ -111,6 +115,25 @@ md.renderer.rules.zmd_wikilink = (tokens, index) => {
 
 md.validateLink = isSafeLinkUrl;
 
+// markdown-it validates image destinations with the same callback as links.
+// Temporarily allow one validated raster data URL only while its image rule is
+// parsing `![alt](...)`; ordinary links continue through isSafeLinkUrl.
+const defaultImageRule = md.inline.ruler.__rules__.find(
+  (rule) => rule.name === "image",
+)?.fn;
+if (!defaultImageRule) throw new Error("Markdown image rule is unavailable.");
+md.inline.ruler.at("image", (state, silent) => {
+  const safeDataUrl = safeRasterImageDestination(state);
+  if (!safeDataUrl) return defaultImageRule(state, silent);
+  const validateLink = state.md.validateLink;
+  state.md.validateLink = (url) => url === safeDataUrl || validateLink(url);
+  try {
+    return defaultImageRule(state, silent);
+  } finally {
+    state.md.validateLink = validateLink;
+  }
+});
+
 const defaultLinkOpen =
   md.renderer.rules.link_open ||
   ((tokens, idx, options, _env, self) =>
@@ -128,6 +151,39 @@ md.renderer.rules.image = (tokens, idx, options, env, self) => {
   tokens[idx].attrSet("referrerpolicy", "no-referrer");
   return defaultImage(tokens, idx, options, env, self);
 };
+
+function safeRasterImageDestination(
+  state: Parameters<NonNullable<typeof defaultImageRule>>[0],
+): string | undefined {
+  if (
+    state.src.charCodeAt(state.pos) !== 33 ||
+    state.src.charCodeAt(state.pos + 1) !== 91
+  ) {
+    return undefined;
+  }
+  const labelEnd = state.md.helpers.parseLinkLabel(state, state.pos + 1, false);
+  if (labelEnd < 0 || state.src.charCodeAt(labelEnd + 1) !== 40) {
+    return undefined;
+  }
+  let pos = labelEnd + 2;
+  while (pos < state.posMax && /\s/u.test(state.src[pos]!)) pos += 1;
+  const result = state.md.helpers.parseLinkDestination(
+    state.src,
+    pos,
+    state.posMax,
+  );
+  if (!result.ok) return undefined;
+  const href = state.md.normalizeLink(result.str);
+  if (
+    !/^data:image\/(?:png|jpe?g|gif|webp|avif|bmp)(?:;[^,]*)?;base64,/iu.test(
+      href,
+    ) ||
+    !isSafeAttachmentDataUrl(href, MAX_ATTACHMENT_BYTES)
+  ) {
+    return undefined;
+  }
+  return href;
+}
 
 function escapeHtml(value: string): string {
   return value

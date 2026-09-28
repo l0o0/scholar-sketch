@@ -185,6 +185,7 @@ export function applyResolvedAcquisitionToCanvasNode(
     acquisition.kind === "attachment"
   ) {
     const nextKind =
+      node.kind === "pdf" &&
       acquisition.snapshot.contentType?.toLowerCase() === "application/pdf"
         ? "pdf"
         : "attachment";

@@ -2,7 +2,7 @@
  * Public in-process API for Bamboo.
  *
  * Exposed to other plugins / MCP bridges as the
- * `Zotero.scholarcanvas.api.markdown` namespace.
+ * `Zotero.ScholarSketch.api.markdown` namespace.
  * All methods are async, JSON-friendly, and throw `MarkdownApiError` with a
  * stable `code` on failure.
  *

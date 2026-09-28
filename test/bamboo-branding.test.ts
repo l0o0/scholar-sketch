@@ -4,14 +4,14 @@ import test from "node:test";
 
 const read = (path: string) => readFile(path, "utf8");
 
-test("uses Scholar Canvas branding with stable Bamboo compatibility identifiers", async () => {
+test("uses Scholar Sketch branding with stable Bamboo compatibility identifiers", async () => {
   const pkg = JSON.parse(await read("package.json"));
 
-  assert.equal(pkg.name, "scholarcanvas");
-  assert.equal(pkg.config.addonName, "Scholar Canvas");
+  assert.equal(pkg.name, "scholarsketch");
+  assert.equal(pkg.config.addonName, "Scholar Sketch");
   assert.equal(pkg.config.addonID, "bamboo@@linxzh.com");
   assert.equal(pkg.config.addonRef, "bamboo");
-  assert.equal(pkg.config.addonInstance, "scholarcanvas");
+  assert.equal(pkg.config.addonInstance, "ScholarSketch");
   assert.equal(pkg.config.prefsPrefix, "extensions.zotero.bamboo");
   assert.equal(
     pkg.repository.url,
@@ -66,30 +66,30 @@ test("packaged chrome pages use the Bamboo content namespace", async () => {
   assert.doesNotMatch(combined, /chrome:\/\/zoteromarkdown\/content\//);
 });
 
-test("uses a versioned Scholar Canvas XPI name in build and CI", async () => {
+test("uses a versioned Scholar Sketch XPI name in build and CI", async () => {
   const scaffold = await read("zotero-plugin.config.ts");
   const [ci, release] = await Promise.all([
     read(".github/workflows/ci.yml"),
     read(".github/workflows/release.yml"),
   ]);
 
-  assert.match(scaffold, /xpiName:\s*`scholarcanvas-v\$\{pkg\.version\}`/);
+  assert.match(scaffold, /xpiName:\s*`scholarsketch-v\$\{pkg\.version\}`/);
   for (const workflow of [ci, release]) {
     assert.match(workflow, /id:\s*package/);
     assert.match(
       workflow,
-      /name:\s*scholarcanvas-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
+      /name:\s*scholarsketch-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
     );
     assert.match(
       workflow,
-      /\.scaffold\/build\/scholarcanvas-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
+      /\.scaffold\/build\/scholarsketch-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
     );
     assert.doesNotMatch(workflow, /zotero-markdown-xpi/);
     assert.doesNotMatch(workflow, /name:\s*build-result/);
   }
 });
 
-test("documents repository and Scholar Canvas public API", async () => {
+test("documents repository and Scholar Sketch public API", async () => {
   const readmes = await Promise.all([
     read("README.md"),
     read("doc/README-zhCN.md"),
@@ -97,20 +97,61 @@ test("documents repository and Scholar Canvas public API", async () => {
   const combined = readmes.join("\n");
 
   assert.match(combined, /github\.com\/l0o0\/scholarcanvas\/releases/);
-  assert.match(combined, /Zotero\.scholarcanvas\.api\.markdown/);
-  assert.match(combined, /Zotero\.scholarcanvas\.api\.version/);
+  assert.match(combined, /Zotero\.ScholarSketch\.api\.markdown/);
+  assert.match(combined, /Zotero\.ScholarSketch\.api\.version/);
   assert.doesNotMatch(combined, /github\.com\/l0o0\/zotero-markdown/);
   assert.doesNotMatch(combined, /Zotero\.ZoteroMarkdown/);
 });
 
-test("current architecture docs describe Scholar Canvas with the stable chrome namespace", async () => {
+test("current architecture docs describe Scholar Sketch with the stable chrome namespace", async () => {
   const docs = await Promise.all([
     read("docs/architecture.md"),
     read("docs/editor/codemirror-iframe-plan.md"),
   ]);
   const combined = docs.join("\n");
 
-  assert.match(combined, /Scholar Canvas/);
+  assert.match(combined, /Scholar Sketch/);
   assert.doesNotMatch(combined, /chrome:\/\/zoteromarkdown/);
   assert.doesNotMatch(combined, /content\/scripts\/zoteromarkdown\.js/);
+});
+
+test("registers only the ScholarSketch global and reuses it on reload", async () => {
+  const { transpileModule, ScriptTarget } = await import("typescript");
+  const { runInNewContext } = await import("node:vm");
+  const pkg = JSON.parse(await read("package.json"));
+  const source = (await read("src/index.ts")).replace(/^import .*;\n/gm, "");
+  const { outputText: code } = transpileModule(source, {
+    compilerOptions: { target: ScriptTarget.ESNext },
+  });
+  const zotero: Record<string, unknown> = {};
+  let created = 0;
+  const load = () => {
+    const sandbox: Record<string, unknown> = {};
+    const context = {
+      _globalThis: sandbox,
+      config: pkg.config,
+      BasicTool: class {
+        getGlobal() {
+          return zotero;
+        }
+      },
+      Addon: class {
+        data = { ztoolkit: {} };
+        constructor() {
+          created++;
+        }
+      },
+      get addon() {
+        return sandbox.addon;
+      },
+    };
+    runInNewContext(code, context);
+    return sandbox;
+  };
+  const first = load();
+  assert.ok(zotero.ScholarSketch);
+  assert.equal(first.addon, zotero.ScholarSketch);
+  assert.equal(load().addon, first.addon);
+  assert.deepEqual(Object.keys(zotero), ["ScholarSketch"]);
+  assert.equal(created, 1);
 });

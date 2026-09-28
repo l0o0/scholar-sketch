@@ -21,6 +21,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
+  type DragEvent,
   type ReactElement,
   type CSSProperties,
 } from "react";
@@ -132,6 +134,13 @@ import {
 } from "./export";
 import { exportCanvasPng, type PngScale } from "./png";
 import {
+  canAcceptNativeFileTransfer,
+  fileImportFailureMessage,
+  importWhiteboardFiles,
+  isEditingImportSessionCurrent,
+  type ImportedWhiteboardFile,
+} from "./file-import";
+import {
   acceptAnnotationListFailure,
   acceptAnnotationListResult,
   closeAnnotationBrowserSession,
@@ -193,7 +202,24 @@ import {
   type NoteRefreshRuntime,
 } from "./noteRefresh";
 
-const DEFAULT_LABELS: WhiteboardLabels = {
+type FileLabelKey =
+  | "fileImage"
+  | "filePdf"
+  | "fileText"
+  | "fileAudio"
+  | "fileVideo"
+  | "fileGeneric"
+  | "fileOpen"
+  | "fileDetails"
+  | "filePreview"
+  | "fileTooLarge"
+  | "fileImportFailed"
+  | "fileUnavailable"
+  | "fileDimensions"
+  | "filePages";
+type FileLabelValues = Partial<Record<FileLabelKey, string>>;
+
+const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   canvas: "Canvas",
   selection: "Selection",
   select: "Select (V)",
@@ -219,6 +245,20 @@ const DEFAULT_LABELS: WhiteboardLabels = {
   addRoundedRect: "Rounded rectangle",
   addDiamond: "Diamond",
   attachmentNotDownloaded: "Not downloaded",
+  fileImage: "Image",
+  filePdf: "PDF",
+  fileText: "Text",
+  fileAudio: "Audio",
+  fileVideo: "Video",
+  fileGeneric: "File",
+  fileOpen: "Open file",
+  fileDetails: "File details",
+  filePreview: "Preview",
+  fileTooLarge: "Files must be 15 MB or smaller, up to 30 MB per batch.",
+  fileImportFailed: "The file could not be imported.",
+  fileUnavailable: "The file is unavailable.",
+  fileDimensions: "Dimensions",
+  filePages: "Pages",
   addEllipse: "Oval",
   addLine: "Line",
   addArrow: "Arrow",
@@ -391,6 +431,14 @@ const DEFAULT_LABELS: WhiteboardLabels = {
   shortcutRedo: "Redo",
 };
 
+function fileLabel(
+  labels: WhiteboardLabels,
+  key: FileLabelKey,
+  fallback: string,
+): string {
+  return (labels as WhiteboardLabels & FileLabelValues)[key] ?? fallback;
+}
+
 export interface WhiteboardAppProps {
   theme: WhiteboardTheme;
   labels?: WhiteboardLabels;
@@ -413,6 +461,7 @@ export interface WhiteboardAppProps {
     attachmentID?: number;
     pdfPage?: number;
   }) => void;
+  onOpenFile?: (payload: { nodeId: string }) => void;
   onDropAcademicSources: (
     requestId: string,
     nodeId: string,
@@ -647,6 +696,88 @@ interface DrawSession {
   pointerId: number;
 }
 
+interface EmbeddedFileInfo {
+  title: string;
+  contentType: string;
+  size: number;
+  fileData: string;
+  image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  pageCount?: number;
+}
+
+function embeddedFileInfo(model: CanvasNode): EmbeddedFileInfo | undefined {
+  if (model.kind !== "attachment" && model.kind !== "pdf") return undefined;
+  const data = model.data as Record<string, unknown>;
+  if (typeof data.fileData !== "string") return undefined;
+  return {
+    title: typeof data.title === "string" ? data.title : "File",
+    contentType: typeof data.contentType === "string" ? data.contentType : "",
+    size: typeof data.size === "number" ? data.size : 0,
+    fileData: data.fileData,
+    ...(typeof data.image === "string" ? { image: data.image } : {}),
+    ...(typeof data.imageWidth === "number"
+      ? { imageWidth: data.imageWidth }
+      : {}),
+    ...(typeof data.imageHeight === "number"
+      ? { imageHeight: data.imageHeight }
+      : {}),
+    ...(typeof data.pageCount === "number"
+      ? { pageCount: data.pageCount }
+      : {}),
+  };
+}
+
+function embeddedImageInfo(model: CanvasNode): EmbeddedFileInfo | undefined {
+  if (model.kind !== "attachment" && model.kind !== "pdf") return undefined;
+  const data = model.data as Record<string, unknown>;
+  const image =
+    typeof data.image === "string"
+      ? data.image
+      : typeof data.fileData === "string" &&
+          typeof data.contentType === "string" &&
+          data.contentType.startsWith("image/")
+        ? data.fileData
+        : undefined;
+  if (!image) return undefined;
+  return {
+    title: typeof data.title === "string" ? data.title : "Image",
+    contentType:
+      typeof data.contentType === "string" ? data.contentType : "image/*",
+    size: typeof data.size === "number" ? data.size : 0,
+    fileData: typeof data.fileData === "string" ? data.fileData : image,
+    image,
+    ...(typeof data.imageWidth === "number"
+      ? { imageWidth: data.imageWidth }
+      : {}),
+    ...(typeof data.imageHeight === "number"
+      ? { imageHeight: data.imageHeight }
+      : {}),
+    ...(typeof data.pageCount === "number"
+      ? { pageCount: data.pageCount }
+      : {}),
+  };
+}
+
+function dataUrlBlob(value: string): Blob | undefined {
+  if (!/^data:[^,]+,/i.test(value)) return undefined;
+  const comma = value.indexOf(",");
+  const metadata = value.slice(5, comma);
+  const body = value.slice(comma + 1);
+  const base64 = /;base64$/i.test(metadata);
+  try {
+    const bytes = base64
+      ? Uint8Array.from(atob(body), (character) => character.charCodeAt(0))
+      : new TextEncoder().encode(decodeURIComponent(body));
+    return new Blob([bytes], {
+      type: metadata.replace(/;base64$/i, "") || "application/octet-stream",
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 function nodeSize(node: CanvasFlowNode) {
   return {
     width:
@@ -708,6 +839,7 @@ function createCanvasNode(
 
 function hasOpenTarget(node: CanvasFlowNode): boolean {
   const model = node.data.model;
+  if (embeddedFileInfo(model)) return true;
   if (sourceDescriptor(model)) return true;
   if (!("data" in model)) return false;
   return (
@@ -889,9 +1021,14 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     nodeId: string;
     value: string;
   } | null>(null);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const editingRevisionRef = useRef(0);
   const [edgeEditorHeight, setEdgeEditorHeight] = useState(32);
   const [editingEdge, setEditingEdge] = useState<EdgeEditingState | null>(null);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [imageViewer, setImageViewer] = useState<EmbeddedFileInfo | null>(null);
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -931,6 +1068,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const viewAnnotationsRef = useRef<HTMLButtonElement | null>(null);
   const detailsButtonRef = useRef<HTMLButtonElement | null>(null);
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const filePickerModeRef = useRef<"attachment" | "markdown">("attachment");
+  const filePickerPositionRef = useRef<{ x: number; y: number } | undefined>(
+    undefined,
+  );
+  const mountedRef = useRef(true);
+  const importGenerationRef = useRef(0);
   const holdEditFocusRef = useRef(false);
 
   const runtimeRef = useRef<WhiteboardRuntime | null>(null);
@@ -942,6 +1086,14 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const frameDragRef = useRef<FrameDragState | null>(null);
   const activeToolRef = useRef(activeTool);
   activeToolRef.current = activeTool;
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+      importGenerationRef.current += 1;
+    },
+    [],
+  );
 
   const cancelIdleResolution = useCallback(() => {
     cancelIdleResolutionRef.current?.();
@@ -1024,6 +1176,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   const loadSnapshot = useCallback(
     (value: CanvasDocument) => {
+      importGenerationRef.current += 1;
       cancelIdleResolution();
       annotationBrowserRef.current = replaceDocumentAnnotationBrowserSession(
         annotationBrowserRef.current,
@@ -1573,6 +1726,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       if (editOnCreate) {
         setDetailsTarget(null);
         setEditingEdge(null);
+        editingRevisionRef.current += 1;
         setEditing({ nodeId, value: flowNodeText(created) });
       }
     },
@@ -1592,7 +1746,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       flowPosition?: { x: number; y: number },
     ) => {
       const width = 220;
-      const height = 280;
+      const height = 340;
       setMenu({
         x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
         y: Math.max(
@@ -1614,6 +1768,255 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       }
     );
   }, []);
+
+  const reportFileFailures = useCallback(
+    (
+      failures: Awaited<ReturnType<typeof importWhiteboardFiles>>["failures"],
+    ) => {
+      if (!failures.length) return;
+      setFileNotice(
+        failures
+          .map((failure) =>
+            fileImportFailureMessage(failure, {
+              fileTooLarge: fileLabel(
+                labels,
+                "fileTooLarge",
+                "Files must be 15 MB or smaller, up to 30 MB per batch.",
+              ),
+              fileImportFailed: fileLabel(
+                labels,
+                "fileImportFailed",
+                "The file could not be imported.",
+              ),
+            }),
+          )
+          .join(" "),
+      );
+    },
+    [labels],
+  );
+
+  const addImportedFiles = useCallback(
+    async (input: Iterable<File>, origin?: { x: number; y: number }) => {
+      const generation = importGenerationRef.current;
+      const result = await importWhiteboardFiles(input);
+      if (!mountedRef.current || generation !== importGenerationRef.current)
+        return;
+      reportFileFailures(result.failures);
+      if (!result.files.length) return;
+      const point =
+        origin ?? flowPoint(window.innerWidth / 2, window.innerHeight / 2);
+      const imported = result.files.map((file, index) => {
+        const model = createBasicNode(
+          "attachment",
+          {
+            x: point.x + (index % 3) * 280,
+            y: point.y + Math.floor(index / 3) * 260,
+          },
+          newId("attachment"),
+        );
+        model.data = {
+          ...model.data,
+          title: file.title,
+          subtitle: file.contentType,
+          contentType: file.contentType,
+          size: file.size,
+          fileData: file.fileData,
+          ...(file.preview !== undefined ? { preview: file.preview } : {}),
+          ...(file.image !== undefined ? { image: file.image } : {}),
+          ...(file.imageWidth !== undefined
+            ? { imageWidth: file.imageWidth }
+            : {}),
+          ...(file.imageHeight !== undefined
+            ? { imageHeight: file.imageHeight }
+            : {}),
+        } as typeof model.data;
+        if (file.image || file.contentType.startsWith("image/")) {
+          model.height = 220;
+        } else if (file.preview) {
+          model.height = 180;
+        }
+        return canvasDocumentToFlow({
+          version: 2,
+          nodes: [model],
+          connections: [],
+        }).nodes[0];
+      });
+      pushHistory();
+      setNodes((current) => [
+        ...current.map((node) => ({ ...node, selected: false })),
+        ...imported.map((node) => ({ ...node, selected: true })),
+      ]);
+      bump();
+    },
+    [bump, flowPoint, pushHistory, reportFileFailures, setNodes],
+  );
+
+  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const insertImportedImages = useCallback(
+    (
+      images: readonly ImportedWhiteboardFile[],
+      nodeId: string,
+      selection?: { start: number; end: number },
+      expected?: { revision: number; value: string },
+    ) => {
+      if (!images.length) return;
+      const current = editingRef.current;
+      if (!current || current.nodeId !== nodeId) return;
+      if (
+        expected &&
+        !isEditingImportSessionCurrent(
+          { ...current, revision: editingRevisionRef.current },
+          { nodeId, value: expected.value, revision: expected.revision },
+        )
+      )
+        return;
+      const textarea = editingTextareaRef.current;
+      const start = Math.min(
+        selection?.start ?? textarea?.selectionStart ?? current.value.length,
+        current.value.length,
+      );
+      const end = Math.min(
+        selection?.end ?? textarea?.selectionEnd ?? start,
+        current.value.length,
+      );
+      const markdown = images
+        .filter((file) => file.image || file.contentType.startsWith("image/"))
+        .map(
+          (file) =>
+            `![${file.title.replace(/[\\\]\r\n]/g, "\\$&")}](${file.fileData})`,
+        )
+        .join("\n");
+      if (!markdown) return;
+      const value = `${current.value.slice(0, start)}${markdown}${current.value.slice(end)}`;
+      editingRevisionRef.current += 1;
+      setEditing({ nodeId, value });
+      window.requestAnimationFrame(() => {
+        if (!editingTextareaRef.current) return;
+        const caret = start + markdown.length;
+        editingTextareaRef.current.setSelectionRange(caret, caret);
+      });
+    },
+    [],
+  );
+
+  const addImagesToEditing = useCallback(
+    async (input: Iterable<File>, nodeId: string) => {
+      const generation = importGenerationRef.current;
+      const session = editingRef.current;
+      if (!session || session.nodeId !== nodeId) return;
+      const revision = editingRevisionRef.current;
+      const selection = {
+        start:
+          editingTextareaRef.current?.selectionStart ??
+          editingRef.current?.value.length ??
+          0,
+        end:
+          editingTextareaRef.current?.selectionEnd ??
+          editingTextareaRef.current?.value.length ??
+          0,
+      };
+      const result = await importWhiteboardFiles(input);
+      if (!mountedRef.current || generation !== importGenerationRef.current)
+        return;
+      reportFileFailures(result.failures);
+      insertImportedImages(result.files, nodeId, selection, {
+        revision,
+        value: session.value,
+      });
+    },
+    [insertImportedImages, reportFileFailures],
+  );
+
+  const openFilePicker = useCallback(
+    (mode: "attachment" | "markdown", position?: { x: number; y: number }) => {
+      filePickerModeRef.current = mode;
+      filePickerPositionRef.current = position;
+      const input = fileInputRef.current;
+      if (!input) return;
+      input.value = "";
+      input.click();
+    },
+    [],
+  );
+
+  const handleFileInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = event.currentTarget.files;
+      if (!files?.length) return;
+      const input = Array.from(files);
+      const activeEditing = editingRef.current;
+      if (filePickerModeRef.current === "markdown" && activeEditing) {
+        void addImagesToEditing(input, activeEditing.nodeId);
+      } else {
+        void addImportedFiles(input, filePickerPositionRef.current);
+      }
+      filePickerPositionRef.current = undefined;
+      event.currentTarget.value = "";
+    },
+    [addImagesToEditing, addImportedFiles],
+  );
+
+  const openEmbeddedFile = useCallback(
+    (node: CanvasFlowNode) => {
+      const file = embeddedFileInfo(node.data.model);
+      if (!file) {
+        setFileNotice(
+          fileLabel(labels, "fileUnavailable", "The file is unavailable."),
+        );
+        return;
+      }
+      const handler = propsRef.current.onOpenFile;
+      if (handler) {
+        handler({ nodeId: node.id });
+        return;
+      }
+      if (!/^data:[^,]+,/i.test(file.fileData)) {
+        setFileNotice(
+          fileLabel(labels, "fileUnavailable", "The file is unavailable."),
+        );
+        return;
+      }
+      const blob = dataUrlBlob(file.fileData);
+      if (!blob) {
+        setFileNotice(
+          fileLabel(labels, "fileUnavailable", "The file is unavailable."),
+        );
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = file.title;
+      anchor.rel = "noopener";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    [labels],
+  );
+
+  const isNativeFileTransfer = useCallback(canAcceptNativeFileTransfer, []);
+
+  const onCanvasDragOver = useCallback(
+    (event: DragEvent) => {
+      if (!isNativeFileTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [isNativeFileTransfer],
+  );
+
+  const onCanvasDrop = useCallback(
+    (event: DragEvent) => {
+      if (!isNativeFileTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      void addImportedFiles(
+        Array.from(event.dataTransfer.files),
+        flowPoint(event.clientX, event.clientY),
+      );
+    },
+    [addImportedFiles, flowPoint, isNativeFileTransfer],
+  );
 
   const cancelDraw = useCallback(() => {
     const session = drawRef.current;
@@ -1748,6 +2151,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     setEditingEdge(null);
     setActiveTool("select");
     setNodes(transition.nodes);
+    editingRevisionRef.current += 1;
     setEditing(transition.editing);
   }, []);
 
@@ -1758,6 +2162,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       );
       if (!edge) return;
       const connection = edge.data?.connection;
+      editingRevisionRef.current += 1;
       setEditing(null);
       setDetailsTarget(null);
       setMenu(null);
@@ -1781,6 +2186,15 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const openNode = useCallback(
     (node: CanvasFlowNode) => {
       const model = node.data.model;
+      const embeddedImage = embeddedImageInfo(model);
+      if (model.kind === "pdf" && embeddedImage) {
+        setImageViewer(embeddedImage);
+        return;
+      }
+      if (embeddedFileInfo(model)) {
+        openEmbeddedFile(node);
+        return;
+      }
       const academicSource = sourceDescriptor(model);
       if (academicSource) {
         requestSources("selected", [
@@ -1808,12 +2222,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         startEdit(node.id);
       }
     },
-    [requestSources, startEdit],
+    [openEmbeddedFile, requestSources, startEdit],
   );
 
   const commitEdit = useCallback(() => {
     if (!editing) return;
     const { nodeId, value } = editing;
+    editingRevisionRef.current += 1;
     setEditing(null);
     const node = nodesRef.current.find((item) => item.id === nodeId);
     if (!node) {
@@ -1835,6 +2250,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [editing, updateNode]);
 
   const cancelEdit = useCallback(() => {
+    editingRevisionRef.current += 1;
     setEditing(null);
     setNodes((current) =>
       current.map((item) => ({ ...item, className: undefined })),
@@ -1946,6 +2362,15 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     };
     const onPaste = (event: ClipboardEvent) => {
       if (!allowed(event) || !event.clipboardData) return;
+      const imageItem = Array.from(event.clipboardData.items ?? []).find(
+        (item) => item.type.startsWith("image/"),
+      );
+      const imageFile = imageItem?.getAsFile();
+      if (imageFile) {
+        event.preventDefault();
+        void addImportedFiles([imageFile]);
+        return;
+      }
       const document = parseSelection(
         event.clipboardData.getData("text/plain"),
       );
@@ -1959,7 +2384,14 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       window.removeEventListener("copy", onCopy);
       window.removeEventListener("paste", onPaste);
     };
-  }, [editing, editingEdge, nodesRef, snapshotNow, pasteSelection]);
+  }, [
+    addImportedFiles,
+    editing,
+    editingEdge,
+    nodesRef,
+    snapshotNow,
+    pasteSelection,
+  ]);
 
   const deleteNode = useCallback(
     (nodeId: string) => {
@@ -2266,6 +2698,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const closeEditing = useCallback(() => {
+    editingRevisionRef.current += 1;
     setEditing(null);
     setEditingEdge(null);
     setDetailsTarget(null);
@@ -2387,6 +2820,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && imageViewer) {
+        event.preventDefault();
+        event.stopPropagation();
+        setImageViewer(null);
+        return;
+      }
       if (
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === "f" &&
@@ -2447,6 +2886,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [
     editing,
     editingEdge,
+    imageViewer,
     cancelDraw,
     deleteCanvasElements,
     edgesRef,
@@ -2817,6 +3257,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}`}
         data-theme={theme}
         tabIndex={-1}
+        onDragOver={onCanvasDragOver}
+        onDrop={onCanvasDrop}
         onDoubleClick={(event) => {
           if (activeTool !== "select" || editing || editingEdge) return;
           const target = event.target as HTMLElement | null;
@@ -2861,6 +3303,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           selectedEdgeCount={selectedEdges.length}
           onUndo={undoCanvas}
           onRedo={redoCanvas}
+          onAddFile={() => openFilePicker("attachment")}
           onSave={() => propsRef.current.onSave()}
           onSwitchWindow={props.onSwitchWindow}
           onExportPng={() => exportAs("png")}
@@ -2885,6 +3328,14 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onEdgeArrow={() =>
             selectedEdges[0] && toggleEdgeArrow(selectedEdges[0].id)
           }
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          onChange={handleFileInputChange}
+          aria-hidden="true"
         />
         {searchOpen ? (
           <div
@@ -2971,6 +3422,42 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           notice={canvasNotice}
           onDismiss={clearCanvasNotice}
         />
+        {fileNotice ? (
+          <div className="zmd-board-notice" data-tone="error">
+            <span role="alert">{fileNotice}</span>
+            <button
+              type="button"
+              aria-label={labels.close}
+              onClick={() => setFileNotice(null)}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        ) : null}
+        {imageViewer ? (
+          <div
+            className="zmd-board-image-viewer-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-label={fileLabel(labels, "filePreview", "Preview")}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setImageViewer(null);
+            }}
+          >
+            <div className="zmd-board-image-viewer">
+              <button
+                type="button"
+                className="zmd-board-image-viewer-close"
+                aria-label={labels.close}
+                onClick={() => setImageViewer(null)}
+              >
+                ×
+              </button>
+              <img src={imageViewer.image} alt={imageViewer.title} />
+              <span>{imageViewer.title}</span>
+            </div>
+          </div>
+        ) : null}
         <PropertiesPanel
           labels={labels}
           node={propertyNode}
@@ -3089,6 +3576,18 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onConnect={onConnect}
           onReconnect={onReconnect}
           onNodeClick={(event, node) => {
+            const image = (event.target as Element).closest?.(
+              ".zmd-board-pdf-image, .zmd-board-attachment-image, .zmd-board-card img",
+            );
+            if (image) {
+              const info = embeddedImageInfo(node.data.model);
+              if (info) {
+                event.preventDefault();
+                event.stopPropagation();
+                setImageViewer(info);
+                return;
+              }
+            }
             const link = (event.target as Element).closest?.(
               "a[href], [data-zmd-wikilink]",
             );
@@ -3146,6 +3645,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                   shape: node.data.model.style?.shape,
                 })
               ) {
+                editingRevisionRef.current += 1;
                 setEditing(null);
                 setDetailsTarget(null);
                 return;
@@ -3269,6 +3769,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                   <textarea
                     cols={editingStroke ? 1 : undefined}
                     ref={(element) => {
+                      editingTextareaRef.current = element;
                       if (
                         element &&
                         (editingNode.type === "note" ||
@@ -3306,12 +3807,24 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                         : {}),
                       lineHeight: editingNode.type === "note" ? 1.45 : 1.25,
                     }}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      editingRevisionRef.current += 1;
                       setEditing({
                         nodeId: editing.nodeId,
                         value: event.target.value,
-                      })
-                    }
+                      });
+                    }}
+                    onPaste={(event) => {
+                      const item = Array.from(
+                        event.clipboardData.items ?? [],
+                      ).find((candidate) =>
+                        candidate.type.startsWith("image/"),
+                      );
+                      const file = item?.getAsFile();
+                      if (!file) return;
+                      event.preventDefault();
+                      void addImagesToEditing([file], editing.nodeId);
+                    }}
                     onBlur={() => {
                       handleEditBlur(holdEditFocusRef, commitEdit);
                     }}
@@ -3345,6 +3858,22 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       }
                     }}
                   />
+                  {editingNode.type === "note" ||
+                  editingNode.type === "text" ? (
+                    <button
+                      type="button"
+                      className="zmd-board-edit-file"
+                      aria-label={labels.addFile}
+                      title={labels.addFile}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        armEditFocusHold(holdEditFocusRef);
+                        openFilePicker("markdown");
+                      }}
+                    >
+                      {labels.addFile}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -3384,9 +3913,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                   >
                     <IconOpen />
                     <span>
-                      {sourceDescriptor(menuNode.data.model)
-                        ? labels.openSource
-                        : labels.openItem}
+                      {embeddedFileInfo(menuNode.data.model)
+                        ? fileLabel(labels, "fileOpen", "Open file")
+                        : sourceDescriptor(menuNode.data.model)
+                          ? labels.openSource
+                          : labels.openItem}
                     </span>
                   </button>
                 )}
@@ -3435,6 +3966,17 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                 >
                   <IconEdit />
                   <span>{labels.addNote}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const position = menu.flowPosition;
+                    setMenu(null);
+                    openFilePicker("attachment", position);
+                  }}
+                >
+                  <IconOpen />
+                  <span>{labels.addFile}</span>
                 </button>
                 <button
                   type="button"

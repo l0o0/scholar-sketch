@@ -337,6 +337,8 @@ function tutorialLabels(): TutorialCanvasLabels {
     title: getString("whiteboard-tutorial-title"),
     welcome: getString("whiteboard-tutorial-welcome"),
     welcomeBody: getString("whiteboard-tutorial-welcome-body"),
+    quickStart: getString("whiteboard-tutorial-quick-start"),
+    quickStartBody: getString("whiteboard-tutorial-quick-start-body"),
     sourceNotice: getString("whiteboard-tutorial-source-notice"),
     addLiterature: getString("whiteboard-tutorial-add-literature"),
     addLiteratureBody: getString("whiteboard-tutorial-add-literature-body"),

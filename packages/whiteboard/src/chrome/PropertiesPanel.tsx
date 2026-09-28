@@ -201,6 +201,68 @@ function propertiesLabel(
   );
 }
 
+type FileDetails = {
+  title: string;
+  contentType?: string;
+  size?: number;
+  fileData?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  pageCount?: number;
+};
+
+function fileLabel(
+  labels: WhiteboardLabels,
+  key: keyof Pick<
+    WhiteboardLabels,
+    | "fileOpen"
+    | "fileDetails"
+    | "fileUnavailable"
+    | "fileDimensions"
+    | "filePages"
+  >,
+  fallback: string,
+): string {
+  return labels[key] || fallback;
+}
+
+function fileDetailsForNode(node: CanvasFlowNode): FileDetails | null {
+  const model = node.data.model;
+  if (model.kind !== "attachment" && model.kind !== "pdf") return null;
+  const data = model.data as Record<string, unknown>;
+  return {
+    title: typeof data.title === "string" ? data.title : "File",
+    ...(typeof data.contentType === "string"
+      ? { contentType: data.contentType }
+      : {}),
+    ...(typeof data.size === "number" ? { size: data.size } : {}),
+    ...(typeof data.fileData === "string" ? { fileData: data.fileData } : {}),
+    ...(typeof data.imageWidth === "number"
+      ? { imageWidth: data.imageWidth }
+      : {}),
+    ...(typeof data.imageHeight === "number"
+      ? { imageHeight: data.imageHeight }
+      : {}),
+    ...(typeof data.pageCount === "number"
+      ? { pageCount: data.pageCount }
+      : {}),
+  };
+}
+
+function formatFileSize(size: number | undefined): string | undefined {
+  if (!Number.isFinite(size) || size === undefined || size < 0)
+    return undefined;
+  if (size < 1024) return `${size} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = size;
+  let unit = -1;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 10 || Number.isInteger(value) ? 0 : 1)} ${units[unit]}`;
+}
+
 type PropertiesPanelProps = {
   labels: WhiteboardLabels;
   node: CanvasFlowNode | null;
@@ -244,9 +306,12 @@ function PropertiesPanelView(
     ("data" in model && "source" in model.data && !!model.data.source);
   const kindLabel = nodeKindLabel(labels, model.kind);
   const data = "data" in model ? model.data : undefined;
+  const fileDetails = fileDetailsForNode(node);
+  const hasEmbeddedFile = Boolean(fileDetails?.fileData);
   const canOpen = !!(
     data &&
-    (("source" in data && data.source) ||
+    (hasEmbeddedFile ||
+      ("source" in data && data.source) ||
       ("itemID" in data && data.itemID) ||
       ("attachmentID" in data && data.attachmentID))
   );
@@ -313,12 +378,20 @@ function PropertiesPanelView(
         {hasSource ? (
           <button type="button" onClick={() => props.onOpen(node)}>
             <IconOpen />
-            <span>{labels.openSource}</span>
+            <span>
+              {hasEmbeddedFile
+                ? fileLabel(labels, "fileOpen", "Open file")
+                : labels.openSource}
+            </span>
           </button>
         ) : canOpen ? (
           <button type="button" onClick={() => props.onOpen(node)}>
             <IconOpen />
-            <span>{labels.openItem}</span>
+            <span>
+              {hasEmbeddedFile
+                ? fileLabel(labels, "fileOpen", "Open file")
+                : labels.openItem}
+            </span>
           </button>
         ) : null}
         {model.kind === "literature" ? (
@@ -356,6 +429,44 @@ function PropertiesPanelView(
             </p>
           ) : null}
         </div>
+        {fileDetails ? (
+          <section
+            className="zmd-board-file-details"
+            aria-label={fileLabel(labels, "fileDetails", "File details")}
+          >
+            <h3>{fileLabel(labels, "fileDetails", "File details")}</h3>
+            <dl>
+              <dt>Name</dt>
+              <dd>{fileDetails.title}</dd>
+              {fileDetails.contentType ? (
+                <>
+                  <dt>MIME</dt>
+                  <dd>{fileDetails.contentType}</dd>
+                </>
+              ) : null}
+              {formatFileSize(fileDetails.size) ? (
+                <>
+                  <dt>Size</dt>
+                  <dd>{formatFileSize(fileDetails.size)}</dd>
+                </>
+              ) : null}
+              {fileDetails.imageWidth && fileDetails.imageHeight ? (
+                <>
+                  <dt>{fileLabel(labels, "fileDimensions", "Dimensions")}</dt>
+                  <dd>
+                    {fileDetails.imageWidth} × {fileDetails.imageHeight}
+                  </dd>
+                </>
+              ) : null}
+              {fileDetails.pageCount ? (
+                <>
+                  <dt>{fileLabel(labels, "filePages", "Pages")}</dt>
+                  <dd>{fileDetails.pageCount}</dd>
+                </>
+              ) : null}
+            </dl>
+          </section>
+        ) : null}
         {model.kind === "note" && props.noteTemplates ? (
           <NoteTemplateControls
             labels={labels}

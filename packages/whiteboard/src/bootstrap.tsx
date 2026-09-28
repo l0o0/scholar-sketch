@@ -182,6 +182,7 @@ function boot() {
       onOpenLink={(href) =>
         postToParent({ type: "openLink", payload: { href } })
       }
+      onOpenFile={(payload) => postToParent({ type: "openFile", payload })}
       onOpenItem={(payload) => postToParent({ type: "openItem", payload })}
       onDropAcademicSources={(requestId, nodeId, sources) =>
         postToParent({

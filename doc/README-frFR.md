@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="../docs/icons/scholar-canvas-logo.png" alt="Scholar Canvas — Read · Organize · Think" width="640" />
+  <img src="../docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Canvas
+# Scholar Sketch
 
 **Markdown & Whiteboard for Zotero**
 

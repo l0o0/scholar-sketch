@@ -67,6 +67,20 @@ export interface WhiteboardLabels {
   addFrame: string;
   addPdf: string;
   addFile: string;
+  fileImage: string;
+  filePdf: string;
+  fileText: string;
+  fileAudio: string;
+  fileVideo: string;
+  fileGeneric: string;
+  fileOpen: string;
+  fileDetails: string;
+  filePreview: string;
+  fileTooLarge: string;
+  fileImportFailed: string;
+  fileUnavailable: string;
+  fileDimensions: string;
+  filePages: string;
   addText: string;
   addRect: string;
   addRoundedRect: string;
@@ -531,6 +545,7 @@ export type WhiteboardToParentBody =
   | { type: "save" }
   | { type: "switchWindow" }
   | { type: "openLink"; payload: { href: string } }
+  | { type: "openFile"; payload: { nodeId: string } }
   | { type: "error"; payload: { message: string } }
   | {
       type: "openItem";
@@ -612,6 +627,7 @@ const activeWhiteboardToParentTypes = {
   error: true,
   pickAcademicSource: true,
   openLink: true,
+  openFile: true,
   openItem: true,
   dropAcademicSources: true,
   resolveAcademicSources: true,
@@ -835,6 +851,20 @@ const whiteboardLabelStringKeys: Record<
   addFrame: true,
   addPdf: true,
   addFile: true,
+  fileImage: true,
+  filePdf: true,
+  fileText: true,
+  fileAudio: true,
+  fileVideo: true,
+  fileGeneric: true,
+  fileOpen: true,
+  fileDetails: true,
+  filePreview: true,
+  fileTooLarge: true,
+  fileImportFailed: true,
+  fileUnavailable: true,
+  fileDimensions: true,
+  filePages: true,
   addText: true,
   addRect: true,
   addRoundedRect: true,
@@ -1463,6 +1493,13 @@ function validateWhiteboardToParentMessageForChannel(
         hasExactKeys(payload, ["href"]) &&
         isString(payload.href) &&
         payload.href.length < 8192
+      );
+    case "openFile":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(payload, ["nodeId"]) &&
+        isNonEmptyString(payload.nodeId)
       );
     case "openItem":
       return (

@@ -145,6 +145,18 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
     const pane = container.querySelector(".react-flow__pane")!;
+    // OS file drags expose only the type until drop (protected data store).
+    const fileTransfer = { types: ["Files"], files: [], dropEffect: "none" };
+    const fileDrag = new window.Event("dragover", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(fileDrag, "dataTransfer", { value: fileTransfer });
+    await act(async () => {
+      pane.dispatchEvent(fileDrag);
+    });
+    assert.equal(fileDrag.defaultPrevented, true);
+    assert.equal(fileTransfer.dropEffect, "copy");
     const dispatch = async (
       target: Element,
       type: string,

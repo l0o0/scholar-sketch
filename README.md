@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="docs/icons/scholar-canvas-logo.png" alt="Scholar Canvas — Read · Organize · Think" width="640" />
+  <img src="docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Canvas
+# Scholar Sketch
 
 **Markdown & Whiteboard for Zotero**
 
 [![Zotero compatibility](https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
-[![version](https://img.shields.io/badge/version-0.1.10-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
+[![version](https://img.shields.io/badge/version-0.2.0-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](./LICENSE)
 
 **Write Markdown and connect your research on a visual whiteboard, inside Zotero.** Create, edit, and preview native `.md` attachments, then organize literature, quotes, and notes on `.canvas` whiteboards.
@@ -20,7 +20,7 @@
 
 Zotero is excellent for collecting and organizing research. In the AI era, **plain Markdown files** are the common currency of knowledge tools (Obsidian, LLMs, static sites, git).
 
-[Better Notes](https://github.com/windingwind/zotero-better-notes) greatly improves Zotero's built-in **Notes**, but those notes are still Zotero notes — not native `.md` files on disk. **Scholar Canvas** fills that gap: it complements Better Notes without touching Notes, and its Markdown files are drop-in plain text for Obsidian and AI workflows.
+[Better Notes](https://github.com/windingwind/zotero-better-notes) greatly improves Zotero's built-in **Notes**, but those notes are still Zotero notes — not native `.md` files on disk. **Scholar Sketch** fills that gap: it complements Better Notes without touching Notes, and its Markdown files are drop-in plain text for Obsidian and AI workflows.
 
 ---
 
@@ -40,6 +40,7 @@ Zotero is excellent for collecting and organizing research. In the AI era, **pla
 ### Canvas whiteboards
 
 - Create a blank `.canvas` whiteboard or start from a Zotero collection; drag in literature, PDF attachments, and other sources.
+- Add local files from the **File** tool or the canvas context menu, drag files onto the board, or paste a screenshot. Unified file cards show image previews, text excerpts, or file metadata, with preview, details, and open actions. Imported bytes travel with the saved board (15 MB per file, 30 MB per batch); Zotero attachments keep their source references.
 - Browse source annotations and connect Note, Question, Viewpoint, Evidence, and Summary cards with labeled, styled connections.
 - Read Markdown directly on note cards, including headings, lists, code, links, math, and footnotes; edit the underlying text in place.
 - Group cards in Frames; copy a whole selection, including group members and internal connections, and paste it into another whiteboard. Undo/redo applies to the whole paste.
@@ -55,7 +56,7 @@ Zotero is excellent for collecting and organizing research. In the AI era, **pla
 - **Workspace restore**: reopen previously open Markdown/Canvas tabs or windows. Markdown remembers its mode, cursor, and scroll position; Canvas retains its saved viewport.
 - **Multiple monitors**: move documents between Zotero tabs and resizable standalone windows, saving before switching or closing.
 
-Local history contains document text/card data, not image or PDF files, and stays on this device. Annotation conversion includes text and comments, not image-only excerpts. Cross-board paste preserves source references rather than copying source files or relative image assets.
+Local history contains document text/card data, including files embedded in Canvas, and stays on this device. It does not back up separately referenced images or PDFs. Annotation conversion includes text and comments, not image-only excerpts. Cross-board paste carries embedded files and preserves source references; it does not copy separately referenced source files or relative image assets.
 
 See [link and export conventions](docs/obsidian-links.md), [save protection and recovery](docs/file-safety.md), and [feature usage and boundaries](docs/markdown-canvas-release-features.md) (the latter two guides are in Chinese).
 
@@ -68,14 +69,14 @@ See [link and export conventions](docs/obsidian-links.md), [save protection and 
 
 ## Install
 
-Download the latest `scholarcanvas-v{version}.xpi` from [Releases](https://github.com/l0o0/scholarcanvas/releases), then in Zotero: **Tools → Plugins → gear → Install Plugin From File…** and restart if prompted.
+Download the latest `scholarsketch-v{version}.xpi` from [Releases](https://github.com/l0o0/scholarcanvas/releases), then in Zotero: **Tools → Plugins → gear → Install Plugin From File…** and restart if prompted.
 
 ### Development build
 
 ```bash
 pnpm install
 pnpm run build
-# XPI: .scaffold/build/scholarcanvas-v{version}.xpi
+# XPI: .scaffold/build/scholarsketch-v{version}.xpi
 ```
 
 ---
@@ -120,7 +121,7 @@ Drag existing `.md` files into Zotero (or attach linked files) — double-click 
 5. Use **More → Auto layout** to arrange the selection, or **Ctrl/Cmd+F** to locate a card. Press **Enter / Shift+Enter** to move through search results.
 6. Reopen boards from **Tools → Recent Whiteboards** or their `.canvas` attachments.
 
-For a guided introduction, choose **Help → Scholar Canvas: Create Example Whiteboard**. This creates a new board and a **Start writing.md** notebook with three hands-on exercises: summarize a reading, add a task, and insert an image. It also explains Live / Source modes and saving, then guides you back to the whiteboard to connect evidence and share your work. Existing tutorial boards are kept as they are.
+For a guided introduction, choose **Help → Scholar Sketch: Create Example Whiteboard**. This creates a new board and a **Start writing.md** notebook with three hands-on exercises: summarize a reading, add a task, and insert an image. It also explains Live / Source modes and saving, then guides you back to the whiteboard to connect evidence and share your work. Existing tutorial boards are kept as they are.
 
 To share a board, use **More → Export PNG** (2×), or right-click empty canvas space and choose **Export PNG · 1× / 2× / 4×**. The image includes the entire board with padding, uses the current theme, and excludes editor controls. Very large exports ask you to choose a lower resolution instead of silently reducing quality.
 
@@ -172,7 +173,7 @@ for agent inspection, supported APIs, and manual adoption in other plugins.
 
 ## Configuration
 
-**Edit → Settings → Scholar Canvas**
+**Edit → Settings → Scholar Sketch**
 
 - **Enable Markdown editor for .md attachments** — when off, Zotero opens `.md` with the system handler again
 
@@ -180,15 +181,15 @@ for agent inspection, supported APIs, and manual adoption in other plugins.
 
 ## API for other plugins
 
-Scholar Canvas was previously named Bamboo. The public API is `Zotero.scholarcanvas`, and packages use `scholarcanvas-v{version}.xpi`. The repository is now `l0o0/scholarcanvas`. The add-on ID, preference keys, chrome resource namespace, and existing canvas data fields retain their compatibility identifiers.
+Scholar Sketch was previously named Scholar Canvas (and earlier, Bamboo). The public API is `Zotero.ScholarSketch`; the old `Zotero.scholarcanvas` namespace is no longer supported. Integrations must use the new namespace (breaking change). New packages use `scholarsketch-v{version}.xpi`. The repository remains `l0o0/scholarcanvas`, so download and update links continue to work. The add-on ID, preference keys, chrome resource namespace, clipboard format, and existing data/history paths retain their compatibility identifiers.
 
-Scholar Canvas exposes its in-process API at `Zotero.scholarcanvas.api.markdown`
+Scholar Sketch exposes its in-process API at `Zotero.ScholarSketch.api.markdown`
 for other plugins / MCP bridges to create and edit `.md` documents inside Zotero.
 All methods are async, JSON-friendly, and reject with `MarkdownApiError`
 (`error.code` is stable).
 
 ```js
-const md = Zotero.scholarcanvas.api.markdown;
+const md = Zotero.ScholarSketch.api.markdown;
 
 // List markdown attachments in the user library
 const docs = await md.list({ q: "note" });
@@ -230,14 +231,14 @@ Notes:
   changes — `force: true` permits that API update, but does not bypass external file conflict checks.
 - `rename` renames the underlying file; for linked attachments this renames
   the file on disk.
-- API version: `Zotero.scholarcanvas.api.version` (currently `2`).
+- API version: `Zotero.ScholarSketch.api.version` (currently `2`).
 
 ---
 
 ## FAQ
 
 **Does this replace Better Notes?**  
-No. Better Notes improves Zotero Notes. Scholar Canvas handles **real Markdown files** and **Canvas whiteboards** as attachments. Install both if you want.
+No. Better Notes improves Zotero Notes. Scholar Sketch handles **real Markdown files** and **Canvas whiteboards** as attachments. Install both if you want.
 
 **Where are files stored?**
 

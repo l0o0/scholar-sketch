@@ -37,6 +37,7 @@ function renderToolbar(selectedNodeCount: number, selectedEdgeCount: number) {
       selectedEdgeCount,
       onUndo: () => {},
       onRedo: () => {},
+      onAddFile: () => {},
       onSave: () => {},
       onFitView: () => {},
       onAutoLayout: () => {},
@@ -123,6 +124,7 @@ test("optional selection actions stay hidden until wired and then expose labels"
       selectedEdgeCount: 0,
       onUndo: () => {},
       onRedo: () => {},
+      onAddFile: () => {},
       onSave: () => {},
       onFitView: () => {},
       onFitSelection: () => {},
@@ -191,6 +193,7 @@ test("toolbar exposes Literature as its only library acquisition tool", () => {
       selectedEdgeCount: 0,
       onUndo: () => {},
       onRedo: () => {},
+      onAddFile: () => {},
       onSave: () => {},
       onFitView: () => {},
       onAutoLayout: () => {},
@@ -204,5 +207,6 @@ test("toolbar exposes Literature as its only library acquisition tool", () => {
   );
   assert.deepEqual(libraryTools(), ["literature"]);
   assert.match(renderedToolbar, /Add literature/);
-  assert.doesNotMatch(renderedToolbar, /Add PDF|Add file/);
+  assert.doesNotMatch(renderedToolbar, /Add PDF/);
+  assert.match(renderedToolbar, /Add file/);
 });

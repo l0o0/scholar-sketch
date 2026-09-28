@@ -1,13 +1,13 @@
 {
-  "name": "scholarcanvas",
+  "name": "scholarsketch",
   "type": "module",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "Markdown & Whiteboard for Zotero — edit Markdown files and connect literature, notes, and ideas on a visual canvas.",
   "config": {
-    "addonName": "Scholar Canvas",
+    "addonName": "Scholar Sketch",
     "addonID": "bamboo@@linxzh.com",
     "addonRef": "bamboo",
-    "addonInstance": "scholarcanvas",
+    "addonInstance": "ScholarSketch",
     "prefsPrefix": "extensions.zotero.bamboo"
   },
   "repository": {

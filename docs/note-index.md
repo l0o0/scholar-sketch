@@ -1,6 +1,6 @@
 # Markdown 持久化索引
 
-Scholar Canvas 使用 Zotero 的 `DBConnection`，在 Zotero 数据目录中创建
+Scholar Sketch 使用 Zotero 的 `DBConnection`，在 Zotero 数据目录中创建
 `scholar-canvas-index.sqlite`。这是插件自己的可重建缓存，不修改 Zotero 核心表，
 也不通过 Zotero 附件同步上传。Markdown 附件仍是原始数据。
 

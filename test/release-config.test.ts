@@ -12,7 +12,7 @@ test("release bump updates package.json", async () => {
 test("release download uses the configured versioned XPI name", async () => {
   const config = await readFile("zotero-plugin.config.ts", "utf8");
 
-  assert.match(config, /xpiName:\s*`scholarcanvas-v\$\{pkg\.version\}`/);
+  assert.match(config, /xpiName:\s*`scholarsketch-v\$\{pkg\.version\}`/);
   assert.match(config, /\{\{xpiName\}\}\.xpi/);
 });
 

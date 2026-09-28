@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="../docs/icons/scholar-canvas-logo.png" alt="Scholar Canvas — Read · Organize · Think" width="640" />
+  <img src="../docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Canvas
+# Scholar Sketch
 
 **Markdown & Whiteboard for Zotero**
 
 Zotero 中的 Markdown 编辑器与可视化白板
 
 [![Zotero compatibility](https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
-[![version](https://img.shields.io/badge/version-0.1.10-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
+[![version](https://img.shields.io/badge/version-0.2.0-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](../LICENSE)
 
 **在 Zotero 中书写 Markdown，用可视化白板连接文献与想法。** 创建、编辑和预览原生 `.md` 附件，并在 `.canvas` 白板上组织文献、摘录和笔记。
@@ -22,7 +22,7 @@ Zotero 中的 Markdown 编辑器与可视化白板
 
 Zotero 擅长文献收集与组织。在 AI 时代，**纯 Markdown 文件**才是知识工具之间的通用货币（Obsidian、大模型、静态站点、Git）。
 
-[Better Notes](https://github.com/windingwind/zotero-better-notes) 大幅增强了 Zotero 自带的 **Note**，但那仍然是 Zotero 笔记，不是磁盘上的原生 `.md` 文件。**Scholar Canvas** 补上这块短板：与 Better Notes **互补**、不触碰 Note，让 Markdown 文件成为 Obsidian 与 AI 工作流里直接可用的纯文本。
+[Better Notes](https://github.com/windingwind/zotero-better-notes) 大幅增强了 Zotero 自带的 **Note**，但那仍然是 Zotero 笔记，不是磁盘上的原生 `.md` 文件。**Scholar Sketch** 补上这块短板：与 Better Notes **互补**、不触碰 Note，让 Markdown 文件成为 Obsidian 与 AI 工作流里直接可用的纯文本。
 
 ---
 
@@ -42,6 +42,7 @@ Zotero 擅长文献收集与组织。在 AI 时代，**纯 Markdown 文件**才�
 ### Canvas 白板
 
 - 新建空白 `.canvas` 白板，或从 Zotero 分类创建白板；拖入文献、PDF 附件及其他来源。
+- 使用工具栏“文件”或画布右键菜单添加本地文件，也可直接拖入文件或粘贴截图。统一文件卡片按类型展示图片、文本摘要或文件信息，支持预览、详情与打开。导入文件嵌入白板保存（单文件最多 15 MB，每批最多 30 MB）；Zotero 附件继续保留来源引用。
 - 浏览来源批注，创建笔记、问题、观点、证据和总结卡片，用带标签及样式的连线组织想法。
 - 在笔记卡片中直接阅读 Markdown，包括标题、列表、代码、链接、公式与脚注，并就地编辑源码。
 - 使用分组框整理卡片；整组选区可连同组内成员及内部连线一起复制、跨白板粘贴，并一步撤销或重做。
@@ -57,7 +58,7 @@ Zotero 擅长文献收集与组织。在 AI 时代，**纯 Markdown 文件**才�
 - **工作状态恢复**：重新打开上次仍打开的 Markdown / Canvas 标签页或独立窗口。Markdown 记住模式、光标与滚动位置，Canvas 保留已保存的视口。
 - **多屏使用**：在 Zotero 标签页与可调整大小的独立窗口之间切换，切换与关闭前保存内容。
 
-本地历史仅包含正文或卡片数据，不包含图片、PDF 原件，也不参与同步。批注转换处理文字摘录和评论，不包含纯图片摘录。跨白板粘贴保留来源引用，不复制原始文献或相对路径图片资源。
+本地历史包含正文或卡片数据，以及已嵌入 Canvas 的文件，不备份单独引用的图片或 PDF，也不参与同步。批注转换处理文字摘录和评论，不包含纯图片摘录。跨白板粘贴携带嵌入文件并保留来源引用，不复制单独引用的原始文献或相对路径图片资源。
 
 详见[双链与导出约定](../docs/obsidian-links.md)、[保存保护与历史恢复](../docs/file-safety.md)及[补充功能使用说明](../docs/markdown-canvas-release-features.md)。
 
@@ -70,14 +71,14 @@ Zotero 擅长文献收集与组织。在 AI 时代，**纯 Markdown 文件**才�
 
 ## 安装
 
-从 [Releases](https://github.com/l0o0/scholarcanvas/releases) 下载最新的 `scholarcanvas-v{version}.xpi`，在 Zotero 中：**工具 → 插件 → 齿轮 → 从文件安装插件…**，如有提示重启 Zotero。
+从 [Releases](https://github.com/l0o0/scholarcanvas/releases) 下载最新的 `scholarsketch-v{version}.xpi`，在 Zotero 中：**工具 → 插件 → 齿轮 → 从文件安装插件…**，如有提示重启 Zotero。
 
 ### 本地构建
 
 ```bash
 pnpm install
 pnpm run build
-# 产物：.scaffold/build/scholarcanvas-v{version}.xpi
+# 产物：.scaffold/build/scholarsketch-v{version}.xpi
 ```
 
 ---
@@ -120,7 +121,7 @@ pnpm run build
 5. 使用 **更多 → 自动布局** 整理选区，或用 **Ctrl/Cmd+F** 搜索卡片；**Enter / Shift+Enter** 定位下一条或上一条结果。
 6. 从 **工具 → 最近白板** 或 `.canvas` 附件重新打开白板。
 
-选择 **帮助 → Scholar Canvas：创建示例白板** 可生成新版教程和一份 **开始写作.md** 练习本，带你完成一句话总结、待办事项和插图三个练习，了解 Live / 源码模式与保存方式，再回到白板连接证据并导出分享。已有示例白板会保留。
+选择 **帮助 → Scholar Sketch：创建示例白板** 可生成新版教程和一份 **开始写作.md** 练习本，带你完成一句话总结、待办事项和插图三个练习，了解 Live / 源码模式与保存方式，再回到白板连接证据并导出分享。已有示例白板会保留。
 
 分享时，使用 **更多 → 导出 PNG**（2×），或右键画布空白处选择 **导出 PNG · 1× / 2× / 4×**。图片包含整张白板及留白，沿用当前主题，不包含编辑控件。超大图片会提示尝试较低分辨率，不会静默降低清晰度。
 
@@ -168,7 +169,7 @@ pnpm start          # 构建并启动 Zotero，支持热重载
 
 ## 设置
 
-**编辑 → 设置 → Scholar Canvas**
+**编辑 → 设置 → Scholar Sketch**
 
 - **使用 Markdown 编辑器打开 .md 附件** — 关闭后，`.md` 恢复为系统默认程序打开
 
@@ -176,12 +177,12 @@ pnpm start          # 构建并启动 Zotero，支持热重载
 
 ## 供其他插件调用的 API
 
-Scholar Canvas 原名 Bamboo。公开 API 已更新为 `Zotero.scholarcanvas`，安装包使用 `scholarcanvas-v{version}.xpi`。仓库地址已更新为 `l0o0/scholarcanvas`；插件 ID、偏好设置键、chrome 资源命名空间和已有白板数据字段继续使用兼容标识。
+Scholar Sketch 原名 Scholar Canvas，更早名为 Bamboo。公开 API 为 `Zotero.ScholarSketch`；旧入口 `Zotero.scholarcanvas` 不再提供，集成插件需更新为新名称（破坏性变更）。新安装包使用 `scholarsketch-v{version}.xpi`。仓库仍位于 `l0o0/scholarcanvas`，下载和自动更新链接继续有效。插件 ID、偏好设置键、chrome 资源命名空间、剪贴板格式以及已有数据和历史目录保留兼容标识。
 
-Scholar Canvas 在 `Zotero.scholarcanvas.api.markdown` 暴露进程内 API，供其他插件 / MCP 桥接层在 Zotero 内创建与编辑 `.md` 文档。所有方法均为异步、JSON 友好，失败时抛出 `MarkdownApiError`（`error.code` 稳定不变）。
+Scholar Sketch 在 `Zotero.ScholarSketch.api.markdown` 暴露进程内 API，供其他插件 / MCP 桥接层在 Zotero 内创建与编辑 `.md` 文档。所有方法均为异步、JSON 友好，失败时抛出 `MarkdownApiError`（`error.code` 稳定不变）。
 
 ```js
-const md = Zotero.scholarcanvas.api.markdown;
+const md = Zotero.ScholarSketch.api.markdown;
 
 // 列出用户文库中的 markdown 附件
 const docs = await md.list({ q: "note" });
@@ -220,14 +221,14 @@ await md.closeTab(tabID);
 - 所有写入都走与编辑器相同的持久化路径（写文件、图片资源清理、标题同步、Zotero 文件同步标记）。
 - `update` 在编辑器 Tab 存在未保存修改时返回 `WRITE_CONFLICT`——传 `force: true` 可允许该 API 更新，但不会绕过外部文件修改检查。
 - `rename` 会重命名底层文件；对 linked 附件会直接重命名磁盘上的文件。
-- API 版本号：`Zotero.scholarcanvas.api.version`（当前 `2`）。
+- API 版本号：`Zotero.ScholarSketch.api.version`（当前 `2`）。
 
 ---
 
 ## 常见问题
 
 **会取代 Better Notes 吗？**  
-不会。Better Notes 增强 Zotero Note；Scholar Canvas 管理真正的 **Markdown 文件**和 **Canvas 白板**附件。可以同时安装。
+不会。Better Notes 增强 Zotero Note；Scholar Sketch 管理真正的 **Markdown 文件**和 **Canvas 白板**附件。可以同时安装。
 
 **文件存在哪里？**
 

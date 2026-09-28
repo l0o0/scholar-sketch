@@ -1,5 +1,5 @@
-startup-begin = Scholar Canvas加载中
-startup-finish = Scholar Canvas已就绪
+startup-begin = Scholar Sketch加载中
+startup-finish = Scholar Sketch已就绪
 menuitem-create-md = 新建 Markdown…
 menuitem-create-standalone-md = 新建独立 Markdown…
 menuitem-create-item-md = 新建条目 Markdown…
@@ -20,11 +20,11 @@ whiteboard-unsaved-title = 未保存的白板
 whiteboard-unsaved-prompt = 白板有未保存的更改，关闭前要保存吗？
 whiteboard-pdf-page-title = PDF 页面
 whiteboard-pdf-page-prompt = 要把哪一页截取为卡片图片？
-whiteboard-tutorial-title = Scholar Canvas 学术白板.canvas
-menuitem-create-example-whiteboard = Scholar Canvas：创建示例白板
+whiteboard-tutorial-title = Scholar Sketch 学术白板.canvas
+menuitem-create-example-whiteboard = Scholar Sketch：创建示例白板
 whiteboard-tutorial-welcome = 欢迎
 whiteboard-tutorial-welcome-body = 沿着这条路径，把阅读变成相互连接的思考。
-whiteboard-tutorial-source-notice = 示例卡片来自你的文库；Scholar Canvas 不会修改来源条目。
+whiteboard-tutorial-source-notice = 示例卡片来自你的文库；Scholar Sketch 不会修改来源条目。
 whiteboard-tutorial-add-literature = 添加文献
 whiteboard-tutorial-add-literature-body = 点击顶部“添加文献”，或把 Zotero 条目拖到画布上。
 whiteboard-tutorial-browse-quotes = 浏览引文
@@ -45,7 +45,21 @@ whiteboard-add-question = 问题
 whiteboard-add-claim = 观点
 whiteboard-add-frame = 框架
 whiteboard-add-pdf = PDF
-whiteboard-add-file = 附件
+whiteboard-add-file = 文件
+whiteboard-file-image = 图片
+whiteboard-file-pdf = PDF
+whiteboard-file-text = 文本
+whiteboard-file-audio = 音频
+whiteboard-file-video = 视频
+whiteboard-file-generic = 文件
+whiteboard-file-open = 打开文件
+whiteboard-file-details = 文件详情
+whiteboard-file-preview = 预览
+whiteboard-file-too-large = 文件过大（单个文件最多 15 MB，每批最多 30 MB）
+whiteboard-file-import-failed = 文件导入失败
+whiteboard-file-unavailable = 文件不可用
+whiteboard-file-dimensions = 图片尺寸
+whiteboard-file-pages = 页数
 whiteboard-add-text = 文字
 whiteboard-add-rect = 矩形
 whiteboard-add-rounded-rect = 圆角矩形
@@ -220,7 +234,7 @@ whiteboard-shortcut-delete = 删除选中内容
 whiteboard-shortcut-undo = 撤销
 whiteboard-shortcut-redo = 重做
 menuitem-open-whiteboard = 打开白板
-prefs-title = Scholar Canvas
+prefs-title = Scholar Sketch
 
 sidebar-section-label =
     .label = Markdown
@@ -241,7 +255,7 @@ sidebar-attachment-gone = 附件已不存在
 document-link-unresolved = 无法解析文档链接
 document-link-unsupported = 不支持此链接类型
 document-link-ambiguous = 有多个文档匹配，请选择一个（{ $count }）
-document-link-choose = 选择 Scholar Canvas 文档
+document-link-choose = 选择 Scholar Sketch 文档
 document-link-kind-markdown = Markdown 文档
 document-link-kind-canvas = Canvas 白板
 document-link-kind-regular = Zotero 条目
@@ -544,7 +558,7 @@ whiteboard-font-family = 字体
 
 file-conflict = 文件已在编辑器外被修改，已停止覆盖。当前草稿可在附件右键菜单的“本地历史”中恢复。
 file-history = 本地历史…
-file-history-description = 预览保存版本及冲突草稿，另存恢复副本，不覆盖当前文件。历史仅保存在本机，包含正文和卡片数据，不包含图片或 PDF 文件。
+file-history-description = 预览保存版本及冲突草稿，另存恢复副本，不覆盖当前文件。历史仅保存在本机，包含正文和卡片数据，以及白板内嵌文件；单独引用的图片和 PDF 资源不包含在内。
 file-history-version = 版本
 file-history-preview = 版本预览
 file-history-conflict = 冲突草稿
@@ -572,3 +586,11 @@ annotation-export-toggle = 全选 / 全不选
 annotation-export-failed = 创建笔记失败，请重试。
 
 annotation-export-read-only = 当前文库为只读，无法在此创建批注笔记。
+
+whiteboard-tutorial-quick-start = 常用操作
+whiteboard-tutorial-quick-start-body =
+    - 非文字编辑时，按住**空格键**并拖动，即可移动画布。
+    - 在画布空白处滚动滚轮缩放；**Shift+1** 查看全图，**Shift+2** 聚焦选区。
+    - 双击画布空白处新建笔记；双击卡片正文编辑文字。
+    - **Ctrl/Cmd+Z** 撤销，**Ctrl/Cmd+Shift+Z** 重做。
+    - **Ctrl/Cmd+F** 搜索卡片；更多操作见**更多 → 快捷键**。

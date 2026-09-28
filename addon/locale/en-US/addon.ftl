@@ -1,5 +1,5 @@
-startup-begin = Scholar Canvas is loading
-startup-finish = Scholar Canvas is ready
+startup-begin = Scholar Sketch is loading
+startup-finish = Scholar Sketch is ready
 menuitem-create-md = New Markdown…
 menuitem-create-standalone-md = New Standalone Markdown…
 menuitem-create-item-md = New Item Markdown…
@@ -20,11 +20,11 @@ whiteboard-unsaved-title = Unsaved board
 whiteboard-unsaved-prompt = This board has unsaved changes. Save before closing?
 whiteboard-pdf-page-title = PDF Page
 whiteboard-pdf-page-prompt = Which page should be snapshotted as the card image?
-whiteboard-tutorial-title = Scholar Canvas Academic Whiteboard.canvas
-menuitem-create-example-whiteboard = Scholar Canvas: Create Example Whiteboard
+whiteboard-tutorial-title = Scholar Sketch Academic Whiteboard.canvas
+menuitem-create-example-whiteboard = Scholar Sketch: Create Example Whiteboard
 whiteboard-tutorial-welcome = Welcome
 whiteboard-tutorial-welcome-body = Follow this path to turn reading into connected thinking.
-whiteboard-tutorial-source-notice = Sample cards come from your library; Scholar Canvas does not change the source items.
+whiteboard-tutorial-source-notice = Sample cards come from your library; Scholar Sketch does not change the source items.
 whiteboard-tutorial-add-literature = Add Literature
 whiteboard-tutorial-add-literature-body = Click Add literature above, or drag a Zotero item onto the canvas.
 whiteboard-tutorial-browse-quotes = Browse Quotes
@@ -46,6 +46,20 @@ whiteboard-add-claim = Viewpoint
 whiteboard-add-frame = Frame
 whiteboard-add-pdf = PDF
 whiteboard-add-file = File
+whiteboard-file-image = Image
+whiteboard-file-pdf = PDF
+whiteboard-file-text = Text
+whiteboard-file-audio = Audio
+whiteboard-file-video = Video
+whiteboard-file-generic = File
+whiteboard-file-open = Open file
+whiteboard-file-details = File details
+whiteboard-file-preview = Preview
+whiteboard-file-too-large = File too large (15 MB per file, 30 MB per batch)
+whiteboard-file-import-failed = File import failed
+whiteboard-file-unavailable = File unavailable
+whiteboard-file-dimensions = Dimensions
+whiteboard-file-pages = Pages
 whiteboard-add-text = Text
 whiteboard-add-rect = Rect
 whiteboard-add-rounded-rect = Rounded rectangle
@@ -220,7 +234,7 @@ whiteboard-shortcut-delete = Delete selection
 whiteboard-shortcut-undo = Undo
 whiteboard-shortcut-redo = Redo
 menuitem-open-whiteboard = Open Whiteboard
-prefs-title = Scholar Canvas
+prefs-title = Scholar Sketch
 
 sidebar-section-label =
     .label = Markdown
@@ -241,7 +255,7 @@ sidebar-attachment-gone = Attachment no longer exists
 document-link-unresolved = Document link could not be resolved
 document-link-unsupported = This link type is not supported
 document-link-ambiguous = Multiple documents match; choose one ({ $count })
-document-link-choose = Choose a Scholar Canvas document
+document-link-choose = Choose a Scholar Sketch document
 document-link-kind-markdown = Markdown
 document-link-kind-canvas = Canvas
 document-link-kind-regular = Zotero item
@@ -544,7 +558,7 @@ whiteboard-font-family = Font
 
 file-conflict = The file changed outside this editor. Saving was stopped. Your draft is available in the attachment’s Local history menu.
 file-history = Local history…
-file-history-description = Preview saved versions and conflicting drafts. Save a recovery copy without changing the current file. History is local to this device and contains document text/card data, not image or PDF files.
+file-history-description = Preview saved versions and conflicting drafts. Save a recovery copy without changing the current file. History is local to this device and contains document text/card data, including files embedded in the canvas; separately referenced image and PDF resources are excluded.
 file-history-version = Version
 file-history-preview = Version preview
 file-history-conflict = Conflicting draft
@@ -572,3 +586,11 @@ annotation-export-toggle = Select all / none
 annotation-export-failed = Could not create the note. Please try again.
 
 annotation-export-read-only = This library is read-only. Annotations cannot be saved as a new note here.
+
+whiteboard-tutorial-quick-start = Quick controls
+whiteboard-tutorial-quick-start-body =
+    - Hold **Space** and drag to pan the canvas when not editing text.
+    - Scroll over empty canvas to zoom; **Shift+1** fits the board, **Shift+2** focuses the selection.
+    - Double-click empty canvas to create a note; double-click card text to edit.
+    - **Ctrl/Cmd+Z** undoes; **Ctrl/Cmd+Shift+Z** redoes.
+    - **Ctrl/Cmd+F** finds cards. See **More → Keyboard shortcuts** for other controls.

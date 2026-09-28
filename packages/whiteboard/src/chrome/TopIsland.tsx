@@ -19,6 +19,7 @@ import {
   IconDistributeV,
   IconEllipse,
   IconEraser,
+  IconFile,
   IconFitView,
   IconFrame,
   IconHand,
@@ -75,6 +76,7 @@ export function TopIsland(props: {
   selectedEdgeCount: number;
   onUndo: () => void;
   onRedo: () => void;
+  onAddFile: () => void;
   onSave: () => void;
   onSwitchWindow?: () => void;
   onExportPng?: () => void;
@@ -416,6 +418,16 @@ export function TopIsland(props: {
           </button>
           <button type="button" title={labels.redo} onClick={props.onRedo}>
             <IconRedo />
+          </button>
+        </div>
+        <div className="zmd-board-top-group">
+          <button
+            type="button"
+            title={labels.addFile}
+            aria-label={labels.addFile}
+            onClick={props.onAddFile}
+          >
+            <IconFile />
           </button>
         </div>
         <div className="zmd-board-more">

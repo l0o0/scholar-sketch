@@ -76,6 +76,25 @@ test("rejects unsafe link schemes, including obfuscated ones", () => {
   );
 });
 
+test("renders bounded raster data URLs only in Markdown image syntax", () => {
+  const png =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  const image = renderMarkdown(`![tiny](${png})`);
+  assert.match(image, /<img src="data:image\/png;base64,/);
+  assert.match(image, /alt="tiny"/);
+  assert.doesNotMatch(renderMarkdown(`[download](${png})`), /<a /);
+  assert.doesNotMatch(
+    renderMarkdown("![html](data:text/html;base64,PGh0bWw+)"),
+    /<img /,
+  );
+  assert.doesNotMatch(
+    renderMarkdown(
+      "![svg](data:image/svg+xml;base64,PHN2Zz48c2NyaXB0Lz48L3N2Zz4=)",
+    ),
+    /<img /,
+  );
+});
+
 test("hardens rendered links and remote images", () => {
   const html = renderMarkdown(
     "[x](https://example.com) ![img](https://example.com/a.png)",

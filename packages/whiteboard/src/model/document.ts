@@ -27,6 +27,11 @@ import type {
   CanvasPoint,
   CanvasViewport,
 } from "./core";
+import {
+  isValidAttachmentDataUrl,
+  isSafeImagePreview,
+  MAX_ATTACHMENT_BYTES,
+} from "./file-attachment";
 
 export const CANVAS_DOCUMENT_VERSION = 2 as const;
 
@@ -451,13 +456,11 @@ function parsePdfData(value: unknown): PdfNodeData | undefined {
   const attachmentID = parseOptionalNumber(common.value, "attachmentID");
   const itemID = parseOptionalNumber(common.value, "itemID");
   const pdfPage = parseOptionalNumber(common.value, "pdfPage");
-  const image = parseOptionalString(common.value, "image");
   const asset = parseOptionalString(common.value, "asset");
   if (
     attachmentID === INVALID ||
     itemID === INVALID ||
     pdfPage === INVALID ||
-    image === INVALID ||
     asset === INVALID
   ) {
     return undefined;
@@ -468,7 +471,6 @@ function parsePdfData(value: unknown): PdfNodeData | undefined {
     ...(itemID !== undefined ? { itemID } : {}),
     ...(attachmentID !== undefined ? { attachmentID } : {}),
     ...(pdfPage !== undefined ? { pdfPage } : {}),
-    ...(image !== undefined ? { image } : {}),
     ...(asset !== undefined ? { asset } : {}),
   };
 }
@@ -498,16 +500,55 @@ function parseAttachmentFields(value: Record<string, unknown>) {
     "not-downloaded",
   ] as const);
   const contentType = parseOptionalString(value, "contentType");
+  const fileData = parseOptionalString(value, "fileData");
+  const image = parseOptionalString(value, "image");
+  const size = parseOptionalNumber(value, "size");
+  const imageWidth = parseOptionalNumber(value, "imageWidth");
+  const imageHeight = parseOptionalNumber(value, "imageHeight");
+  const pageCount = parseOptionalNumber(value, "pageCount");
   if (
     (has(value, "source") && !source) ||
     availability === INVALID ||
-    contentType === INVALID
+    contentType === INVALID ||
+    fileData === INVALID ||
+    image === INVALID ||
+    size === INVALID ||
+    imageWidth === INVALID ||
+    imageHeight === INVALID ||
+    pageCount === INVALID ||
+    (fileData !== undefined &&
+      !isValidAttachmentDataUrl(fileData, MAX_ATTACHMENT_BYTES)) ||
+    (image !== undefined &&
+      image.startsWith("data:") &&
+      !isSafeImagePreview(image)) ||
+    (size !== undefined &&
+      (!Number.isSafeInteger(size) ||
+        size < 0 ||
+        size > MAX_ATTACHMENT_BYTES)) ||
+    (imageWidth !== undefined &&
+      (!Number.isSafeInteger(imageWidth) ||
+        imageWidth <= 0 ||
+        imageWidth > 100_000)) ||
+    (imageHeight !== undefined &&
+      (!Number.isSafeInteger(imageHeight) ||
+        imageHeight <= 0 ||
+        imageHeight > 100_000)) ||
+    (pageCount !== undefined &&
+      (!Number.isSafeInteger(pageCount) ||
+        pageCount <= 0 ||
+        pageCount > 100_000))
   )
     return undefined;
   return {
     ...(source ? { source } : {}),
     ...(availability !== undefined ? { availability } : {}),
     ...(contentType !== undefined ? { contentType } : {}),
+    ...(fileData !== undefined ? { fileData } : {}),
+    ...(image !== undefined ? { image } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(imageWidth !== undefined ? { imageWidth } : {}),
+    ...(imageHeight !== undefined ? { imageHeight } : {}),
+    ...(pageCount !== undefined ? { pageCount } : {}),
   };
 }
 

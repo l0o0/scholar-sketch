@@ -5,5 +5,6 @@ export * from "./note-template";
 export * from "./connection";
 export * from "./document";
 export * from "./canvas-file";
+export * from "./file-attachment";
 export * from "./protocol";
 export * from "./tutorial";

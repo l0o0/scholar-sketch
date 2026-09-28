@@ -13,7 +13,7 @@ Markdown, Zotero items, PDF annotations, and AI-assisted tools.
 
 ## Product Purpose
 
-Scholar Canvas makes Markdown and spatial research canvases native to Zotero. It keeps
+Scholar Sketch makes Markdown and spatial research canvases native to Zotero. It keeps
 research material portable and inspectable while providing a focused surface for
 turning sources, excerpts, notes, questions, and claims into connected thinking.
 Success means users can move between collecting, reading, and writing without

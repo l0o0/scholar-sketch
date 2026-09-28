@@ -33,7 +33,7 @@ function setup(t: TestContext) {
   }
   const globals = {
     addon: {
-      data: { config: { addonName: "Scholar Canvas", addonRef: "bamboo" } },
+      data: { config: { addonName: "Scholar Sketch", addonRef: "bamboo" } },
     },
     ztoolkit: { log: () => {}, ProgressWindow },
     Zotero: {

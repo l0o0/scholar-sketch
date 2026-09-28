@@ -1,6 +1,6 @@
 # Architecture
 
-Scholar Canvas is a Zotero chrome plugin with isolated `chrome://bamboo` CodeMirror and
+Scholar Sketch is a Zotero chrome plugin with isolated `chrome://bamboo` CodeMirror and
 whiteboard iframes. The active iframe owns its canonical document; Zotero-side
 code owns sessions, files, chrome UI, and all access to Zotero data.
 

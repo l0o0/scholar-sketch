@@ -15,6 +15,10 @@ import {
 import type { CanvasNodeStyle } from "../model/core";
 import type { CanvasDocument } from "../model/document";
 import { isConnectionSide } from "../model/connection";
+import {
+  isSafeAttachmentDataUrl,
+  isSafeImagePreview,
+} from "../model/file-attachment";
 
 export function connectionEndpoint(
   node: Pick<CanvasNode, "position" | "width" | "height">,
@@ -465,6 +469,47 @@ export function buildCanvasSvg(
           : "";
       return `<g><line${attribute("x1", x + from.x)}${attribute("y1", y + from.y)}${attribute("x2", x + to.x)}${attribute("y2", y + to.y)}${attribute("stroke", stroke)}${attribute("stroke-width", strokeWidth)}${attribute("stroke-opacity", style.strokeOpacity)}${attribute("stroke-dasharray", dash)}${marker}/>${label}</g>`;
     }
+    if (node.kind === "pdf" || node.kind === "attachment") {
+      const preview =
+        node.data.image && isSafeImagePreview(node.data.image)
+          ? node.data.image
+          : node.data.fileData && isSafeImagePreview(node.data.fileData)
+            ? node.data.fileData
+            : undefined;
+      if (preview) {
+        const previewWidth = Math.max(1, width - 24);
+        const previewHeight = Math.max(
+          1,
+          Math.min(height * 0.56, Math.max(1, height - 42)),
+        );
+        const sourceWidth = node.data.imageWidth ?? 16;
+        const sourceHeight = node.data.imageHeight ?? 9;
+        const geometry = containGeometry(
+          sourceWidth,
+          sourceHeight,
+          previewWidth,
+          previewHeight,
+        );
+        const textHeight = Math.max(1, height - previewHeight - 8);
+        const textNode = {
+          ...node,
+          position: { x, y: y + previewHeight + 8 },
+          height: textHeight,
+        };
+        definitions.set(
+          clipId,
+          `<clipPath id="${clipId}"><rect x="${x}" y="${y + previewHeight + 8}" width="${width}" height="${textHeight}"/></clipPath>`,
+        );
+        const fileHref = attachmentExportHref(node);
+        const opening = fileHref
+          ? `<a href="${escapeXml(fileHref)}" download="${escapeXml(node.data.title)}">`
+          : "";
+        const closing = fileHref ? "</a>" : "";
+        const rx = style.radius ?? defaults.radius;
+        const surface = `<rect${attribute("x", x)}${attribute("y", y)}${attribute("width", width)}${attribute("height", height)}${attribute("rx", rx)}${common}/>`;
+        return `<g>${opening}${surface}<image${attribute("x", x + 12 + geometry.x)}${attribute("y", y + 12 + geometry.y)}${attribute("width", geometry.width)}${attribute("height", geometry.height)} preserveAspectRatio="none" href="${escapeXml(preview)}"/>${textElement(textNode, width, textHeight, clipId)}${closing}</g>`;
+      }
+    }
     if (node.style?.shape === "diamond") {
       const points = `${x + width / 2},${y} ${x + width},${y + height / 2} ${x + width / 2},${y + height} ${x},${y + height / 2}`;
       return `<g><polygon${attribute("points", points)}${common}/>${text}</g>`;
@@ -647,6 +692,26 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
     for (const node of basicNodes) {
       const text = inlineText(canvasNodeText(node)) || node.kind;
       lines.push(`- ${basicKindLabel(node.kind)}: ${text} [${node.id}]`);
+      if (node.kind === "attachment" || node.kind === "pdf") {
+        const preview =
+          node.data.image && isSafeImagePreview(node.data.image)
+            ? node.data.image
+            : node.data.fileData && isSafeImagePreview(node.data.fileData)
+              ? node.data.fileData
+              : undefined;
+        if (preview) {
+          lines.push(
+            `  ![${escapeMarkdownImageAlt(node.data.title)}](${preview})`,
+          );
+        } else {
+          const fileHref = attachmentExportHref(node);
+          if (fileHref) {
+            lines.push(
+              `  [${escapeMarkdownImageAlt(node.data.title)}](${fileHref})`,
+            );
+          }
+        }
+      }
     }
     lines.push("");
   }
@@ -679,6 +744,24 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
   }
 
   return lines.join("\n") + "\n";
+}
+
+function attachmentExportHref(
+  node: Extract<CanvasNode, { kind: "attachment" | "pdf" }>,
+): string | undefined {
+  const fileData = node.data.fileData;
+  if (!fileData || !isSafeAttachmentDataUrl(fileData)) return undefined;
+  const mimeType = fileData.slice(5, fileData.indexOf(",")).split(";", 1)[0];
+  if (
+    /^(?:text\/html|application\/xhtml\+xml|image\/svg\+xml)$/iu.test(mimeType)
+  ) {
+    return undefined;
+  }
+  return fileData;
+}
+
+function escapeMarkdownImageAlt(value: string): string {
+  return value.replace(/[[\]\\]/g, "\\$&").replace(/[\r\n]/g, " ");
 }
 
 export function svgToPngDataUrl(

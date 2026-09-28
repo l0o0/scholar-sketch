@@ -13,7 +13,7 @@ function placeholder() {
   }).nodes;
 }
 
-test("attachment acquisitions become PDF cards with stable source data", () => {
+test("PDF acquisitions use unified file cards with stable source data", () => {
   const [node] =
     resolveAcademicPlaceholder(placeholder(), "pending", {
       kind: "attachment",
@@ -24,8 +24,8 @@ test("attachment acquisitions become PDF cards with stable source data", () => {
         availability: "available",
       },
     }) ?? [];
-  assert.equal(node?.data.model.kind, "pdf");
-  if (node?.data.model.kind !== "pdf") return;
+  assert.equal(node?.data.model.kind, "attachment");
+  if (node?.data.model.kind !== "attachment") return;
   assert.equal(node.data.model.data.title, "paper.pdf");
   assert.equal(node.data.model.data.contentType, "application/pdf");
   assert.deepEqual(node.data.model.data.source, {
@@ -73,8 +73,8 @@ test("source refresh keeps the React Flow renderer kind in sync with MIME change
       availability: "available",
     },
   });
-  assert.equal(updated.type, "pdf");
-  assert.equal(updated.data.model.kind, "pdf");
+  assert.equal(updated.type, "attachment");
+  assert.equal(updated.data.model.kind, "attachment");
   const withoutMime = applyResolvedAcquisition(updated, {
     kind: "attachment",
     source: { library: { type: "user" }, attachmentKey: "FILE" },
@@ -89,4 +89,35 @@ test("source refresh keeps the React Flow renderer kind in sync with MIME change
     assert.equal(withoutMime.data.model.data.contentType, undefined);
     assert.equal(withoutMime.data.model.data.subtitle, undefined);
   }
+});
+
+test("legacy PDF source refresh preserves its page and preview", () => {
+  const [legacy] = canvasDocumentToFlow({
+    version: 2,
+    nodes: [
+      {
+        ...createBasicNode("pdf", { x: 0, y: 0 }, "legacy-pdf"),
+        data: {
+          title: "paper.pdf",
+          pdfPage: 3,
+          image: "data:image/png;base64,aGVsbG8=",
+          source: { library: { type: "user" }, attachmentKey: "PDF" },
+        },
+      },
+    ],
+    connections: [],
+  }).nodes;
+  const updated = applyResolvedAcquisition(legacy, {
+    kind: "attachment",
+    source: { library: { type: "user" }, attachmentKey: "PDF" },
+    snapshot: {
+      filename: "paper.pdf",
+      contentType: "application/pdf",
+      availability: "available",
+    },
+  });
+  assert.equal(updated.data.model.kind, "pdf");
+  if (updated.data.model.kind !== "pdf") return;
+  assert.equal(updated.data.model.data.pdfPage, 3);
+  assert.equal(updated.data.model.data.image, "data:image/png;base64,aGVsbG8=");
 });

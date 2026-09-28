@@ -10,6 +10,7 @@ import {
 } from "../packages/whiteboard/src/chrome/PropertiesPanel.tsx";
 import { StyleBar } from "../packages/whiteboard/src/chrome/StyleBar.tsx";
 import { createAcademicNode } from "../packages/whiteboard/src/model/academic.ts";
+import { createBasicNode } from "../packages/whiteboard/src/model/basic.ts";
 import type { CanvasNodeStyle } from "../packages/whiteboard/src/model/core.ts";
 import { createBuiltinNoteTemplates } from "../packages/whiteboard/src/model/note-template.ts";
 import type { WhiteboardLabels } from "../packages/whiteboard/src/model/protocol.ts";
@@ -74,6 +75,7 @@ function toolbarProps(
     selectedEdgeCount: 0,
     onUndo: () => {},
     onRedo: () => {},
+    onAddFile: () => {},
     onSave: () => {},
     onFitView: () => {},
     onAutoLayout: () => {},
@@ -469,6 +471,57 @@ test("properties show full details immediately and reset per node", async (t) =>
     root.render(createElement(PropertiesPanel, panelProps(first))),
   );
   assert.ok(container.querySelector("aside"));
+  await act(async () => root.unmount());
+});
+
+test("file properties keep metadata visible and expose embedded open", async (t) => {
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  const model = createBasicNode("attachment", { x: 0, y: 0 }, "file-node");
+  model.data = {
+    ...model.data,
+    title: "paper.png",
+    contentType: "image/png",
+    size: 2048,
+    fileData: "data:image/png;base64,AA==",
+    imageWidth: 640,
+    imageHeight: 480,
+    pageCount: 3,
+  };
+  let opened = 0;
+  await act(async () =>
+    root.render(
+      createElement(PropertiesPanel, {
+        labels,
+        node: {
+          id: model.id,
+          type: model.kind,
+          position: model.position,
+          data: { model },
+        },
+        onOpen: () => {
+          opened += 1;
+        },
+        onRefreshSource: () => {},
+        onViewAnnotations: () => {},
+        onCopy: () => {},
+        onDelete: () => {},
+      }),
+    ),
+  );
+  assert.match(container.textContent ?? "", /paper\.png/);
+  assert.match(container.textContent ?? "", /image\/png/);
+  assert.match(container.textContent ?? "", /2 KB/);
+  assert.match(container.textContent ?? "", /640 × 480/);
+  assert.match(container.textContent ?? "", /3/);
+  const open = Array.from(container.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes("fileOpen"),
+  );
+  assert.ok(open);
+  await act(async () => open?.click());
+  assert.equal(opened, 1);
   await act(async () => root.unmount());
 });
 

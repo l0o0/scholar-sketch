@@ -17,7 +17,7 @@ export default defineConfig({
   name: pkg.config.addonName,
   id: pkg.config.addonID,
   namespace: pkg.config.addonRef,
-  xpiName: `scholarcanvas-v${pkg.version}`,
+  xpiName: `scholarsketch-v${pkg.version}`,
   updateURL: `https://github.com/{{owner}}/{{repo}}/releases/download/release/${
     pkg.version.includes("-") ? "update-beta.json" : "update.json"
   }`,

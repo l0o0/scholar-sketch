@@ -307,6 +307,12 @@ function payloadSchema(kind: unknown): PayloadSchema | undefined {
     source: { library: LIBRARY_SCHEMA, attachmentKey: true },
     contentType: true,
     availability: true,
+    fileData: true,
+    image: true,
+    size: true,
+    imageWidth: true,
+    imageHeight: true,
+    pageCount: true,
   };
   switch (kind) {
     case "item":
@@ -317,7 +323,6 @@ function payloadSchema(kind: unknown): PayloadSchema | undefined {
         data: {
           ...attachmentData,
           pdfPage: true,
-          image: true,
           asset: true,
         },
       };

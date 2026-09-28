@@ -3,11 +3,14 @@ import { createBasicNode } from "./basic";
 import { createAcademicConnection } from "./connection";
 import { CANVAS_DOCUMENT_VERSION, type CanvasDocument } from "./document";
 import type { AcademicAcquisition } from "./protocol";
+import { tutorialLogo } from "./tutorial-logo";
 
 export interface TutorialCanvasLabels {
   title: string;
   welcome: string;
   welcomeBody: string;
+  quickStart: string;
+  quickStartBody: string;
   sourceNotice: string;
   addLiterature: string;
   addLiteratureBody: string;
@@ -209,7 +212,7 @@ export function tutorialCanvasDocument(
     frameId: practice.id,
   };
   const image = {
-    ...createBasicNode("pdf", { x: 0, y: 650 }, "tutorial-image"),
+    ...createBasicNode("attachment", { x: 0, y: 650 }, "tutorial-image"),
     width: 280,
     height: 200,
     data: {
@@ -439,6 +442,32 @@ export function tutorialCanvasDocument(
       }
     }
   }
+
+  // Make room for the navigation hints before the existing reading exercises.
+  // Frame members use absolute positions, so move them together with their frame.
+  for (const node of nodes) {
+    if (node.id !== title.id) node.position.y += 260;
+  }
+  nodes.splice(
+    1,
+    0,
+    note(
+      "tutorial-quick-start",
+      0,
+      120,
+      1080,
+      220,
+      labels.quickStart,
+      labels.quickStartBody,
+    ),
+    {
+      ...createBasicNode("attachment", { x: 1150, y: 120 }, "tutorial-logo"),
+      width: 300,
+      height: 220,
+      data: { title: "Scholar Sketch", image: tutorialLogo },
+      style: { ...sampleStyle },
+    },
+  );
 
   return {
     version: CANVAS_DOCUMENT_VERSION,

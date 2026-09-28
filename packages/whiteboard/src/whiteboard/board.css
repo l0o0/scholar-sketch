@@ -359,6 +359,39 @@
   font-size: 11px;
 }
 
+.zmd-board-file-details {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--zmd-board-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--zmd-board-hover, #f3f4f6);
+  font-size: 11px;
+}
+
+.zmd-board-file-details h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.zmd-board-file-details dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  margin: 0;
+}
+
+.zmd-board-file-details dt {
+  color: var(--zmd-board-muted, #6b7280);
+}
+
+.zmd-board-file-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .zmd-board-properties-details-body {
   grid-column: 1 / -1;
   display: grid;
@@ -1139,14 +1172,17 @@
   font-size: 11px;
 }
 
-.zmd-board-pdf-image {
+.zmd-board-card-body > .zmd-board-pdf-image {
+  box-sizing: border-box;
   display: block;
+  flex-shrink: 1;
+  min-height: 0;
   width: 100%;
   max-height: 160px;
   margin-bottom: 10px;
   border: 1px solid var(--zmd-board-border, #e5e7eb);
   border-radius: 4px;
-  object-fit: cover;
+  object-fit: contain;
   background: var(--zmd-board-surface, #fff);
 }
 
@@ -2086,6 +2122,68 @@
   background: var(--zmd-board-hover, #f3f4f6);
 }
 
+.zmd-board-edit-file {
+  align-self: flex-end;
+  margin: 2px 8px 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--zmd-board-border, #d1d5db);
+  border-radius: 5px;
+  background: var(--zmd-board-surface, #fff);
+  color: var(--zmd-board-muted, #6b7280);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.zmd-board-edit-file:hover {
+  color: var(--zmd-board-text, #111827);
+  background: var(--zmd-board-hover, #f3f4f6);
+}
+
+.zmd-board-image-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.zmd-board-image-viewer {
+  position: relative;
+  display: flex;
+  max-width: min(96vw, 1200px);
+  max-height: 92vh;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+.zmd-board-image-viewer img {
+  display: block;
+  max-width: 92vw;
+  max-height: 84vh;
+  object-fit: contain;
+}
+
+.zmd-board-image-viewer-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 html[data-theme="dark"],
 .zmd-board-host[data-theme="dark"] {
   --zmd-board-literature-accent: #a2b3c8;
@@ -2194,6 +2292,11 @@ html[data-theme="dark"] .zmd-board-pdf-page,
   overflow-wrap: anywhere;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.zmd-board-attachment-preview > .zmd-board-card-meta {
+  display: block;
+  margin-bottom: 6px;
 }
 
 /* Frames let pointer events through their interior, but resizing stays interactive. */

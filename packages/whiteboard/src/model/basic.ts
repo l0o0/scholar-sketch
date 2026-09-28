@@ -18,7 +18,18 @@ export interface ItemNodeData {
   itemID?: number;
 }
 
-export interface PdfNodeData {
+interface AttachmentPreviewData extends Record<string, unknown> {
+  /** Original bytes as a bounded base64 data URL for offline canvas round trips. */
+  fileData?: string;
+  /** Safe raster (or legacy inert SVG) preview data URL. */
+  image?: string;
+  size?: number;
+  imageWidth?: number;
+  imageHeight?: number;
+  pageCount?: number;
+}
+
+export interface PdfNodeData extends AttachmentPreviewData {
   title: string;
   subtitle?: string;
   preview?: string;
@@ -32,7 +43,7 @@ export interface PdfNodeData {
   contentType?: string;
 }
 
-export interface AttachmentNodeData {
+export interface AttachmentNodeData extends AttachmentPreviewData {
   title: string;
   subtitle?: string;
   preview?: string;

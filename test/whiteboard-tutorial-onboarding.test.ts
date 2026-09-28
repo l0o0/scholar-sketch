@@ -12,9 +12,11 @@ import {
 } from "../src/modules/whiteboard/tutorial.ts";
 
 const labels: TutorialCanvasLabels = {
-  title: "Scholar Canvas Tutorial.canvas",
+  title: "Scholar Sketch Tutorial.canvas",
   welcome: "Welcome",
-  welcomeBody: "Learn Scholar Canvas",
+  welcomeBody: "Learn Scholar Sketch",
+  quickStart: "Quick controls",
+  quickStartBody: "Hold Space and drag to pan.",
   sourceNotice: "Your sources stay unchanged",
   addLiterature: "Add literature",
   addLiteratureBody: "Drag an item here",

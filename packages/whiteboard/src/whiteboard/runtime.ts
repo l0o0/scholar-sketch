@@ -313,12 +313,11 @@ export function resolveAcademicPlaceholder(
             content: acquisition.content,
           }
         : (() => {
-            const kind =
-              acquisition.snapshot.contentType?.toLowerCase() ===
-              "application/pdf"
-                ? "pdf"
-                : "attachment";
-            const basic = createBasicNode(kind, placeholder.position, nodeId);
+            const basic = createBasicNode(
+              "attachment",
+              placeholder.position,
+              nodeId,
+            );
             const { subtitle: _defaultSubtitle, ...basicData } = basic.data;
             return {
               ...basic,

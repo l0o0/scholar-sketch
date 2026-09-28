@@ -118,11 +118,11 @@ jobs:
           set -euo pipefail
           VERIFY_DIR="$RUNNER_TEMP/scholar-release-verification"
           mkdir -p "$VERIFY_DIR"
-          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "scholarcanvas-v$VERSION.xpi" --dir "$VERIFY_DIR"
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "scholarsketch-v$VERSION.xpi" --dir "$VERIFY_DIR"
           MANIFEST=update.json
           if [[ "$VERSION" == *-* ]]; then MANIFEST=update-beta.json; fi
           gh release download release --repo "$GITHUB_REPOSITORY" --pattern "$MANIFEST" --dir "$VERIFY_DIR"
-          cmp ".scaffold/build/scholarcanvas-v$VERSION.xpi" "$VERIFY_DIR/scholarcanvas-v$VERSION.xpi"
+          cmp ".scaffold/build/scholarsketch-v$VERSION.xpi" "$VERIFY_DIR/scholarsketch-v$VERSION.xpi"
           python3 - <<'PYVERIFY'
           import hashlib, json, os
           from pathlib import Path
@@ -132,7 +132,7 @@ jobs:
           manifest = "update-beta.json" if "-" in version else "update.json"
           updates = json.loads((directory / manifest).read_text())["addons"][package["config"]["addonID"]]["updates"]
           entry = next(update for update in updates if update["version"] == version)
-          filename = f"scholarcanvas-v{version}.xpi"
+          filename = f"scholarsketch-v{version}.xpi"
           expected_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/v{version}/{filename}"
           assert entry["update_link"] == expected_url, "Update manifest points to the wrong repository or asset"
           digest = hashlib.sha512((directory / filename).read_bytes()).hexdigest()
@@ -143,8 +143,8 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: scholarcanvas-v${{ steps.package.outputs.version }}.xpi
-          path: .scaffold/build/scholarcanvas-v${{ steps.package.outputs.version }}.xpi
+          name: scholarsketch-v${{ steps.package.outputs.version }}.xpi
+          path: .scaffold/build/scholarsketch-v${{ steps.package.outputs.version }}.xpi
           if-no-files-found: error
 
       - name: Comment on linked issues/PRs
