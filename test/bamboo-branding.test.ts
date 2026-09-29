@@ -93,6 +93,7 @@ test("documents repository and Scholar Sketch public API", async () => {
   const readmes = await Promise.all([
     read("README.md"),
     read("doc/README-zhCN.md"),
+    read("docs/markdown-api.md"),
   ]);
   const combined = readmes.join("\n");
 
