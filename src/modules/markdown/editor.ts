@@ -1,3 +1,9 @@
+import { attachMarkdownIframeDrop } from "./iframe-drop";
+import {
+  normalizeTheme,
+  normalizeFontFamily,
+  normalizeBackgroundColor,
+} from "./preferences";
 import type { DocumentViewState } from "./editor-view-state";
 /**
  * Parent-side markdown editor: mounts a chrome:// iframe that runs
@@ -25,6 +31,12 @@ import {
 
 export type { EditorMode };
 
+const preferenceRefreshers = new Set<() => void>();
+
+export function applyMarkdownEditorPreferences() {
+  for (const refresh of preferenceRefreshers) refresh();
+}
+
 export interface MarkdownEditorHandle {
   ready: Promise<void>;
   view: {
@@ -51,6 +63,7 @@ export interface MarkdownEditorHandle {
   revealPosition: (position: number) => void;
   /** Push light/dark to the iframe CM theme (also auto-synced from OS/Zotero). */
   setTheme: (theme: EditorTheme) => void;
+  applyPreferences: () => void;
   /** Switch Live Preview vs full Source mode inside the iframe. */
   setMode: (mode: EditorMode) => void;
   setReadOnly: (readOnly: boolean) => void;
@@ -60,6 +73,10 @@ export interface MarkdownEditorHandle {
 
 /** Shared dark-mode detection (Zotero follows prefers-color-scheme). */
 export function resolveEditorTheme(win?: Window): EditorTheme {
+  if (typeof Zotero !== "undefined") {
+    const preference = normalizeTheme(getPref("theme"));
+    if (preference !== "system") return preference;
+  }
   try {
     if (win?.matchMedia?.("(prefers-color-scheme: dark)")?.matches) {
       return "dark";
@@ -95,6 +112,7 @@ type PendingCommand = Extract<
       | "requestMeasure"
       | "setTheme"
       | "setFontSize"
+      | "setAppearance"
       | "setReadOnly"
       | "setMode"
       | "setImageAssets"
@@ -121,6 +139,15 @@ function changesDocument(command: PendingCommand): boolean {
 function editorPageURL(): string {
   const ref = addon.data.config.addonRef;
   return `chrome://${ref}/content/editor/index.html`;
+}
+
+function resolveAppearance() {
+  return {
+    fontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
+    backgroundColor: normalizeBackgroundColor(
+      getPref("markdownBackgroundColor"),
+    ),
+  };
 }
 
 function resolveFontSize(): number {
@@ -176,6 +203,7 @@ export function createMarkdownEditor(
     onLinkSearch,
     onOpenLink,
   } = options;
+  let currentReadOnly = readOnly;
   const surface = options.surface ?? "default";
 
   const ownerWin =
@@ -235,6 +263,11 @@ export function createMarkdownEditor(
   parent.appendChild(wrap);
 
   let destroyed = false;
+  const detachNativeDrop = attachMarkdownIframeDrop(
+    wrap,
+    iframe,
+    () => !destroyed && !currentReadOnly,
+  );
   let iframeReady = false;
   let lastValue = doc;
   let lastStats: EditorStats = computeStats(doc);
@@ -287,6 +320,7 @@ export function createMarkdownEditor(
       } else if (
         message.type === "setTheme" ||
         message.type === "setFontSize" ||
+        message.type === "setAppearance" ||
         message.type === "setReadOnly" ||
         message.type === "setMode"
       ) {
@@ -360,6 +394,7 @@ export function createMarkdownEditor(
             viewState: options.viewState,
             readOnly,
             fontSize: resolveFontSize(),
+            appearance: resolveAppearance(),
             theme: currentTheme,
             mode: currentMode,
             surface,
@@ -481,7 +516,7 @@ export function createMarkdownEditor(
         break;
       }
       case "pasteImage": {
-        onPasteImage?.(data.payload);
+        if (!currentReadOnly) onPasteImage?.(data.payload);
         break;
       }
       case "imageDebug": {
@@ -555,6 +590,26 @@ export function createMarkdownEditor(
       resolveReady();
     }
   }, 8000) as unknown as number;
+
+  const applyPreferences = () => {
+    if (destroyed) return;
+    const theme = resolveEditorTheme(ownerWin);
+    applyTheme(theme);
+    const root = parent.closest(".zotero-markdown-root");
+    root?.classList.toggle("theme-dark", theme === "dark");
+    root?.classList.toggle("theme-light", theme === "light");
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setFontSize",
+      payload: { fontSize: resolveFontSize() },
+    });
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setAppearance",
+      payload: resolveAppearance(),
+    });
+  };
+  preferenceRefreshers.add(applyPreferences);
 
   return {
     ready,
@@ -653,6 +708,7 @@ export function createMarkdownEditor(
         payload: { position },
       });
     },
+    applyPreferences,
     setTheme: (theme: EditorTheme) => {
       applyTheme(theme);
     },
@@ -666,6 +722,7 @@ export function createMarkdownEditor(
       });
     },
     setReadOnly: (readOnly: boolean) => {
+      currentReadOnly = readOnly;
       sendOrQueue({
         source: EDITOR_MESSAGE_SOURCE,
         type: "setReadOnly",
@@ -682,6 +739,8 @@ export function createMarkdownEditor(
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      detachNativeDrop();
+      preferenceRefreshers.delete(applyPreferences);
       if (readyTimer != null) {
         ownerWin?.clearTimeout?.(readyTimer);
         readyTimer = null;

@@ -276,7 +276,7 @@ export const canvasApi = {
             return {
               ...createBasicNode("attachment", position, nodeID),
               data: {
-                title: acquired.snapshot.filename,
+                title: acquired.snapshot.title || acquired.snapshot.filename,
                 source: acquired.source,
                 contentType: acquired.snapshot.contentType,
                 availability: acquired.snapshot.availability,

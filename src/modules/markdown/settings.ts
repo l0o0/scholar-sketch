@@ -1,9 +1,11 @@
+import { applyMarkdownEditorPreferences, resolveEditorTheme } from "./editor";
 import {
   createMarkdownModalController,
   applySettings,
   type SettingsModalData,
 } from "./modal";
 import { injectMarkdownStyles } from "./styles";
+import type { SettingsPageID } from "./settings-pages";
 
 let activeSettingsDestroy: (() => void) | null = null;
 
@@ -19,11 +21,17 @@ export async function saveMarkdownSettings(
   settings: SettingsModalData,
 ): Promise<void> {
   applySettings(settings);
+  applyMarkdownEditorPreferences();
   const { registerShortcuts } = await import("./menu");
   registerShortcuts();
+  const { applyWhiteboardSettings } = await import("../whiteboard/tab");
+  applyWhiteboardSettings();
 }
 
-export function openMarkdownSettings(win?: _ZoteroTypes.MainWindow): void {
+export function openMarkdownSettings(
+  win?: _ZoteroTypes.MainWindow,
+  page?: SettingsPageID,
+): void {
   const target =
     win ||
     (Zotero.getMainWindow() as _ZoteroTypes.MainWindow | undefined) ||
@@ -34,10 +42,7 @@ export function openMarkdownSettings(win?: _ZoteroTypes.MainWindow): void {
   injectMarkdownStyles(target);
   const host = target.document.createElement("div");
   host.className = "zotero-markdown-root zotero-markdown-settings-host";
-  host.classList.toggle(
-    "theme-dark",
-    !!target.matchMedia?.("(prefers-color-scheme: dark)")?.matches,
-  );
+  host.classList.toggle("theme-dark", resolveEditorTheme(target) === "dark");
   target.document.documentElement.appendChild(host);
 
   const destroy = () => {
@@ -55,7 +60,11 @@ export function openMarkdownSettings(win?: _ZoteroTypes.MainWindow): void {
         target.setTimeout(destroy, 0);
       },
     },
-    { mount: host, about: markdownSettingsAbout() },
+    {
+      mount: host,
+      about: markdownSettingsAbout(),
+      initialSettingsPage: page,
+    },
   );
   activeSettingsDestroy = destroy;
   controller.open("settings");

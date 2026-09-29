@@ -2,6 +2,7 @@ import type { NodeProps } from "@xyflow/react";
 import { useWhiteboardLabels } from "../chrome/labels";
 import { canvasNodeSurfaceDefaults } from "../model/academic";
 import { labelTextStyle, verticalAlignmentStyle } from "../whiteboard/document";
+import { IconText } from "../whiteboard/icons";
 import {
   CardShell,
   NodeHandles,
@@ -32,6 +33,8 @@ export function TextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     <CardShell
       kind="text"
       kindLabel={labels.addText}
+      kindIcon={<IconText />}
+      showKindLabel={false}
       selected={selected}
       nodeStyle={model.style}
     >

@@ -1,7 +1,8 @@
 import { getString } from "../../utils/locale";
 import type { FluentMessageId } from "../../../typings/i10n";
 
-export type SettingsPageID = "general" | "editor" | "shortcuts" | "about";
+export type SettingsPageID =
+  "general" | "editor" | "whiteboard" | "shortcuts" | "about";
 
 export interface SettingsPage {
   id: SettingsPageID;
@@ -11,6 +12,7 @@ export interface SettingsPage {
 export const SETTINGS_PAGES: readonly SettingsPage[] = [
   { id: "general", icon: "settings" },
   { id: "editor", icon: "type" },
+  { id: "whiteboard", icon: "settings" },
   { id: "shortcuts", icon: "keyboard" },
   { id: "about", icon: "info" },
 ];

@@ -298,6 +298,7 @@ const activeIframeToHostMessages = [
   },
   { ...protocolBase, type: "save" },
   { ...protocolBase, type: "switchWindow" },
+  { ...protocolBase, type: "openSettings" },
   { ...protocolBase, type: "error", payload: { message: "render failed" } },
   {
     ...protocolBase,
@@ -401,6 +402,11 @@ const activeHostToIframeMessages = [
     payload: { theme: "dark", snapshot: emptyDocument },
   },
   { ...protocolBase, type: "setTheme", payload: { theme: "light" } },
+  {
+    ...protocolBase,
+    type: "setColorScheme",
+    payload: { colorScheme: "traditional" },
+  },
   {
     ...protocolBase,
     type: "loadSnapshot",
@@ -1490,4 +1496,23 @@ test("tab refocus sends a versioned protocol message", () => {
     hooks,
     /channel: `\$\{tab\.id\}:\$\{tab\.data\?\.canvasId \?\? ""\}`,[\s\S]*v: WHITEBOARD_PROTOCOL_VERSION,[\s\S]*type: "focus"/,
   );
+});
+
+test("color schemes accept known values only on init and updates", () => {
+  for (const value of ["traditional", "classic", "unknown", null, 1, {}]) {
+    const expected = value === "traditional" || value === "classic";
+    for (const type of ["init", "setColorScheme"]) {
+      const payload =
+        type === "init"
+          ? { theme: "light", colorScheme: value }
+          : { colorScheme: value };
+      assert.equal(
+        isParentToWhiteboardMessageForChannel(
+          { ...protocolBase, type, payload },
+          "tab-9:canvas-a",
+        ),
+        expected,
+      );
+    }
+  }
 });

@@ -95,6 +95,7 @@ more-unavailable = { $label } is planned
 ## Settings pages
 settings-page-general = General
 settings-page-editor = Editor
+settings-page-whiteboard = Whiteboard
 settings-page-shortcuts = Shortcuts
 settings-page-about = About
 settings-tablist-label = Settings categories
@@ -112,6 +113,9 @@ settings-shortcut-unset = Not set
 settings-about-name = Plugin
 settings-about-version = Version
 settings-about-build-time = Built at
+settings-whiteboard-color-scheme = Color scheme
+settings-whiteboard-color-scheme-traditional = Chinese traditional
+settings-whiteboard-color-scheme-classic = Classic
 
 ## Document modal
 modal-close = Close

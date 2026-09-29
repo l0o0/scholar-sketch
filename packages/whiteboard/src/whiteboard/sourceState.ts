@@ -215,7 +215,7 @@ export function applyResolvedAcquisitionToCanvasNode(
       kind: nextKind,
       data: {
         ...cleanData,
-        title: acquisition.snapshot.filename,
+        title: acquisition.snapshot.title || acquisition.snapshot.filename,
         ...(acquisition.snapshot.contentType
           ? { subtitle: acquisition.snapshot.contentType }
           : {}),
@@ -301,7 +301,8 @@ export function sourceSnapshotChanged(
     acquisition.kind === "attachment"
   ) {
     return (
-      model.data.title !== acquisition.snapshot.filename ||
+      model.data.title !==
+        (acquisition.snapshot.title || acquisition.snapshot.filename) ||
       model.data.subtitle !== acquisition.snapshot.contentType ||
       model.data.availability !== acquisition.snapshot.availability
     );

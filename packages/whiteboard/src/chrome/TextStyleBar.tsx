@@ -1,9 +1,11 @@
+import { IconZotero } from "../whiteboard/icons";
 import { useState } from "react";
 import {
   canvasThemePalette,
   effectiveCanvasNodeTextStyle,
 } from "../model/academic";
 import type { CanvasNodeStyle } from "../model/core";
+import type { ColorSchemeID } from "../model/colorSchemes";
 import type { WhiteboardLabels } from "../model/protocol";
 import type { WhiteboardTheme } from "../model/protocol";
 import type { CanvasFlowNode } from "../nodes";
@@ -59,6 +61,8 @@ export function TextStyleBar(props: {
   anchor?: FloatingStyleBarAnchor;
   labels: WhiteboardLabels;
   theme: WhiteboardTheme;
+  colorScheme?: ColorSchemeID;
+  onAddItem?: () => void;
   onChange: (patch: Partial<CanvasNodeStyle>) => void;
   onHoldFocus?: () => void;
 }) {
@@ -76,7 +80,7 @@ export function TextStyleBar(props: {
   const align = effective.textAlign;
   const valign = effective.verticalAlign;
   const fontSize = effective.fontSize;
-  const fontFamily = effective.fontFamily;
+  const fontFamily = style.fontFamily || "";
   const color = style.textColor || canvasThemePalette(props.theme).text;
 
   return (
@@ -90,6 +94,19 @@ export function TextStyleBar(props: {
         if (!isEditableControl(event.target)) event.preventDefault();
       }}
     >
+      {props.onAddItem ? (
+        <button
+          type="button"
+          title={props.labels.addItem}
+          aria-label={props.labels.addItem}
+          onClick={() => {
+            setMenu(null);
+            props.onAddItem?.();
+          }}
+        >
+          <IconZotero />
+        </button>
+      ) : null}
       <StyleMenu
         preferAbove
         label={props.labels.format}
@@ -172,7 +189,7 @@ export function TextStyleBar(props: {
           labels={props.labels}
           color={color}
           defaultColor={canvasThemePalette(props.theme).text}
-          presets={colorPalette(props.theme === "dark")}
+          presets={colorPalette(props.theme === "dark", props.colorScheme)}
           onReset={() =>
             props.onChange({ textColor: undefined, textOpacity: undefined })
           }
@@ -190,6 +207,7 @@ export function TextStyleBar(props: {
             props.onChange({ fontFamily: event.target.value })
           }
         >
+          <option value="">{props.labels.fontDefault}</option>
           {FONTS.map((font) => (
             <option key={font.value} value={font.value}>
               {props.labels[font.label]}

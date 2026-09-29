@@ -375,8 +375,13 @@ function attachmentAcquisition(
   if (!item.isAttachment()) throw new SourceIntegrityError("wrong-kind");
   const filename = attachmentFilename(item);
   const contentType = attachmentContentType(item);
+  const title =
+    (typeof item.getDisplayTitle === "function"
+      ? String(item.getDisplayTitle() || "").trim()
+      : "") || textField(item, "title");
   const snapshot: AttachmentSnapshot = {
     filename,
+    ...(title ? { title } : {}),
     ...(contentType ? { contentType } : {}),
     availability,
   };

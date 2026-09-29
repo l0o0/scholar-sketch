@@ -866,3 +866,12 @@ test("cards and shapes have four distinct handles that can each start a connecti
     );
   }
 });
+
+test("default frame caption is empty while named frames retain their title", () => {
+  const frame = createAcademicNode("frame", { x: 0, y: 0 }, "frame-empty");
+  assert.equal(frame.title, "");
+  const legacy = renderNode({ ...frame, title: "Localized frame" });
+  assert.match(legacy, /<h3[^>]*><\/h3>/);
+  const named = renderNode({ ...frame, title: "Research questions" });
+  assert.match(named, /Research questions<\/h3>/);
+});

@@ -6,12 +6,13 @@ import {
   settingsPageLabelKey,
 } from "../src/modules/markdown/settings-pages.ts";
 
-test("defines the four settings pages in a stable order", () => {
+test("defines the five settings pages in a stable order", () => {
   assert.deepEqual(
     SETTINGS_PAGES.map(({ id, icon }) => [id, icon]),
     [
       ["general", "settings"],
       ["editor", "type"],
+      ["whiteboard", "settings"],
       ["shortcuts", "keyboard"],
       ["about", "info"],
     ],
@@ -27,5 +28,6 @@ test("maps every settings page to a localized label key", () => {
 test("wraps keyboard navigation across settings pages", () => {
   assert.equal(nextSettingsPage("general", 1), "editor");
   assert.equal(nextSettingsPage("general", -1), "about");
+  assert.equal(nextSettingsPage("editor", 1), "whiteboard");
   assert.equal(nextSettingsPage("about", 1), "general");
 });

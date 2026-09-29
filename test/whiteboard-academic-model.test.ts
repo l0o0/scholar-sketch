@@ -17,7 +17,7 @@ test("creates the editable academic object kinds with explicit defaults", () => 
   assert.equal(note.kind, "note");
   assert.equal(note.content, "");
   assert.equal(frame.kind, "frame");
-  assert.equal(frame.title, "Frame");
+  assert.equal(frame.title, "");
 });
 
 test("creates one Note kind with optional content and badge", () => {

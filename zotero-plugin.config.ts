@@ -12,7 +12,7 @@ const releaseBumpp = {
 };
 
 export default defineConfig({
-  source: ["src", "addon"],
+  source: ["src", "addon", "packages/whiteboard/src"],
   dist: ".scaffold/build",
   name: pkg.config.addonName,
   id: pkg.config.addonID,

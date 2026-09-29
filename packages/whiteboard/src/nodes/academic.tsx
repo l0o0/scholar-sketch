@@ -1,3 +1,5 @@
+import { IconZotero } from "../whiteboard/icons";
+import { IconFile } from "../whiteboard/icons";
 import { IconGroup } from "../whiteboard/icons";
 import { useMemo } from "react";
 import { renderMarkdownCore } from "../../../../src/modules/markdown/preview-render-core";
@@ -115,6 +117,80 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       badge={getNoteTitle(model)}
       selected={selected}
       nodeStyle={model.style}
+      footer={
+        model.references?.length || model.attachments?.length ? (
+          <>
+            {model.references?.length ? (
+              <div
+                className="zmd-board-note-attachments nowheel"
+                role="group"
+                aria-label={labels.addItem}
+              >
+                {model.references.map((reference) => (
+                  <button
+                    key={reference.id}
+                    type="button"
+                    className="zmd-board-note-attachment"
+                    data-zmd-note-reference={reference.id}
+                    title={reference.title}
+                    aria-label={`${labels.fileOpen}: ${reference.title}`}
+                  >
+                    <span
+                      className="zmd-board-note-attachment-icon"
+                      aria-hidden="true"
+                    >
+                      {reference.kind === "attachment" ? (
+                        <IconFile />
+                      ) : (
+                        <IconZotero />
+                      )}
+                    </span>
+                    <span className="zmd-board-note-attachment-title">
+                      {reference.title}
+                      {reference.kind === "literature" &&
+                      (reference.creators || reference.year) ? (
+                        <small style={{ display: "block" }}>
+                          {[reference.creators, reference.year]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </small>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {model.attachments?.length ? (
+              <div
+                className="zmd-board-note-attachments nowheel"
+                role="group"
+                aria-label={labels.fileOpen}
+              >
+                {model.attachments.slice(0, 100).map((attachment) => (
+                  <button
+                    key={attachment.id}
+                    type="button"
+                    className="zmd-board-note-attachment"
+                    data-zmd-note-attachment={attachment.id}
+                    title={attachment.title}
+                    aria-label={`${labels.fileOpen}: ${attachment.title}`}
+                  >
+                    <span
+                      className="zmd-board-note-attachment-icon"
+                      aria-hidden="true"
+                    >
+                      <IconFile />
+                    </span>
+                    <span className="zmd-board-note-attachment-title">
+                      {attachment.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : undefined
+      }
     >
       {model.content === "" ? (
         <p className="zmd-board-card-content is-placeholder">
@@ -161,7 +237,9 @@ export function FrameNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     >
       <header className="zmd-board-frame-title">
         <IconGroup />
-        <h3 style={nodeTextStyle(style)}>{model.title}</h3>
+        <h3 style={nodeTextStyle(style)}>
+          {["Frame", labels.kindFrame].includes(model.title) ? "" : model.title}
+        </h3>
       </header>
       {(["top", "right", "bottom", "left"] as const).map((edge) => (
         <span

@@ -536,11 +536,155 @@ export function markdownModalCSS(): string {
   gap: 16px;
 }
 
+.zotero-markdown-settings-select {
+  min-block-size: 32px;
+  max-inline-size: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--zmd-border-strong);
+  border-radius: 6px;
+  background: var(--zmd-bg);
+  color: var(--zmd-text);
+  font: inherit;
+}
+
+.zotero-markdown-settings-color-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zotero-markdown-settings-color-inline input[type="color"] {
+  inline-size: 42px;
+  block-size: 30px;
+  padding: 2px;
+  border: 1px solid var(--zmd-border-strong);
+  border-radius: 6px;
+  background: var(--zmd-bg);
+}
+
 .zotero-markdown-settings-shortcut-controls {
   position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.zotero-markdown-settings-shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block-end: 4px;
+}
+
+.zotero-markdown-settings-shortcuts-header .zotero-markdown-settings-description {
+  margin-block: 0;
+}
+
+.zotero-markdown-settings-shortcut-list {
+  border-block-start: 1px solid var(--zmd-border);
+}
+
+.zotero-markdown-settings-shortcut-keys {
+  min-inline-size: 132px;
+  color: var(--zmd-text-muted);
+  font: inherit;
+  font-size: 12px;
+}
+
+.zotero-markdown-settings-shortcut-row.is-editable {
+  margin-block-start: 10px;
+  border-block-start: 1px solid var(--zmd-border);
+}
+
+.zotero-markdown-settings-color-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-block-size: 64px;
+  border-block-end: 1px solid var(--zmd-border);
+  color: var(--zmd-text);
+  font-size: 13px;
+}
+
+.zotero-markdown-settings-color-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zotero-markdown-settings-color-select {
+  min-block-size: 32px;
+  max-inline-size: 180px;
+  padding: 4px 8px;
+  border: 1px solid var(--zmd-border-strong);
+  border-radius: 6px;
+  background: var(--zmd-bg);
+  color: var(--zmd-text);
+  font: inherit;
+}
+
+.zotero-markdown-settings-palette-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.zotero-markdown-settings-palette {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  display: grid;
+  grid-template-columns: repeat(6, 16px);
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 6px;
+  background: var(--zmd-surface);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+}
+
+.zotero-markdown-settings-palette-sample {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 112px;
+  block-size: 34px;
+  margin-block-end: 2px;
+}
+
+.zotero-markdown-settings-palette-sample-card {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  inline-size: 52px;
+  block-size: 24px;
+  border: 2px solid;
+  border-radius: 5px;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+.zotero-markdown-settings-palette-sample-line {
+  display: block;
+  inline-size: 28px;
+  block-size: 3px;
+  border-radius: 2px;
+}
+
+.zotero-markdown-settings-palette[hidden] {
+  display: none;
+}
+
+.zotero-markdown-settings-palette-swatch {
+  box-sizing: border-box;
+  inline-size: 16px;
+  block-size: 16px;
+  border: 1px solid rgb(15 23 42 / 18%);
+  border-radius: 3px;
 }
 
 .zotero-markdown-shortcut-overflow {
@@ -646,7 +790,8 @@ export function markdownModalCSS(): string {
   }
 
   .zotero-markdown-settings-row,
-  .zotero-markdown-settings-shortcut-row {
+  .zotero-markdown-settings-shortcut-row,
+  .zotero-markdown-settings-color-row {
     align-items: flex-start;
     flex-direction: column;
     padding-block: 12px;
@@ -654,6 +799,20 @@ export function markdownModalCSS(): string {
 
   .zotero-markdown-settings-shortcut-controls {
     inline-size: 100%;
+  }
+
+  .zotero-markdown-settings-shortcuts-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .zotero-markdown-settings-select {
+    max-inline-size: none;
+  }
+
+  .zotero-markdown-settings-color-controls {
+    inline-size: 100%;
+    align-items: flex-start;
   }
 }
 

@@ -1,6 +1,7 @@
 import { useState, type Ref } from "react";
 import { ColorPicker } from "./ColorPicker";
 import { colorPalette } from "./color";
+import type { ColorSchemeID } from "../model/colorSchemes";
 import { useFloatingStyleBar } from "./FloatingStyleBar";
 import type { CanvasNodeStyle } from "../model/core";
 import {
@@ -40,6 +41,7 @@ export function StyleBar(props: {
   anchor?: { x: number; y: number; width: number; height: number };
   labels: WhiteboardLabels;
   theme: WhiteboardTheme;
+  colorScheme?: ColorSchemeID;
   onEdit?: () => void;
   onToggleDetails?: () => void;
   detailsOpen?: boolean;
@@ -141,6 +143,7 @@ export function StyleBar(props: {
                     target === "fill"
                       ? props.theme === "light"
                       : props.theme === "dark",
+                    props.colorScheme,
                   )}
                   defaultColor={defaults[target]}
                   allowTransparent={target === "fill"}

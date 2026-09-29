@@ -1,3 +1,9 @@
+import type { EditorAppearance } from "../modules/markdown/editor-protocol";
+import {
+  appearanceFontFamily,
+  normalizeBackgroundColor,
+  normalizeFontFamily,
+} from "../modules/markdown/preferences";
 import { EditorView } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Extension } from "@codemirror/state";
@@ -510,15 +516,35 @@ export function livePreviewGeometryStyles(surface: EditorSurface = "default") {
   };
 }
 
+export function appearanceTheme(
+  theme: EditorTheme,
+  backgroundColor?: string,
+): EditorTheme {
+  const color = normalizeBackgroundColor(backgroundColor);
+  if (!color) return theme;
+  const [r, g, b] = [1, 3, 5].map((start) =>
+    parseInt(color.slice(start, start + 2), 16),
+  );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 140 ? "dark" : "light";
+}
+
 export function editorThemeExtension(
   theme: EditorTheme,
   fontSize: number,
   mode: EditorMode = "source",
   surface: EditorSurface = "default",
+  appearance?: EditorAppearance,
 ): Extension {
+  const backgroundColor = normalizeBackgroundColor(appearance?.backgroundColor);
+  theme = appearanceTheme(theme, backgroundColor);
   const size = Math.min(22, Math.max(11, fontSize || 14));
   const isLive = mode === "live";
-  const fontFamily = isLive ? FONT_PROSE : FONT_MONO;
+  const fontFamily =
+    normalizeFontFamily(appearance?.fontFamily) === "system"
+      ? isLive
+        ? FONT_PROSE
+        : FONT_MONO
+      : appearanceFontFamily(appearance?.fontFamily);
   const lineHeight = isLive ? "1.7" : "1.55";
   const liveGeometry = liveEditorGeometry(surface);
   const livePreviewStyles = createLivePreviewStyles(liveGeometry);
@@ -532,7 +558,7 @@ export function editorThemeExtension(
           height: "100%",
           fontSize: `${size}px`,
           fontFamily,
-          backgroundColor: tokens.surface,
+          backgroundColor: backgroundColor || tokens.surface,
           color: tokens.text,
           "--zmd-code-block-bg": tokens.codeBlockBg,
           "--zmd-table-bg": tokens.tableBg,
@@ -627,7 +653,7 @@ export function editorThemeExtension(
       height: "100%",
       fontSize: `${size}px`,
       fontFamily,
-      backgroundColor: tokens.surface,
+      backgroundColor: backgroundColor || tokens.surface,
       color: tokens.text,
       "--zmd-code-block-bg": tokens.codeBlockBg,
       "--zmd-table-bg": tokens.tableBg,

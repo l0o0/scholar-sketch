@@ -861,3 +861,35 @@ test("SVG includes localized empty-note chrome and styled connection labels", ()
     svg.indexOf('rx="8" fill="#ffffff"') > svg.indexOf('<path d="M130,152'),
   );
 });
+
+test("SVG honors canvas display defaults without overriding explicit fonts or mutating data", () => {
+  const document = canonicalDocument();
+  document.nodes[0].style = { fontFamily: "Times New Roman" };
+  const before = structuredClone(document);
+  const svg = buildCanvasSvg(document, undefined, {
+    fontFamily: "Georgia, serif",
+    backgroundColor: "#fff4dc",
+  });
+  assert.match(svg, /fill="#fff4dc"/);
+  assert.match(svg, /font-family="Georgia, serif"/);
+  assert.match(svg, /font-family="Times New Roman"/);
+  assert.deepEqual(document, before);
+});
+
+test("dark SVG defaults remain visible against the configured background", () => {
+  const arrow = createBasicNode("arrow", { x: 0, y: 0 }, "arrow");
+  delete arrow.style?.stroke;
+  const svg = buildCanvasSvg(
+    {
+      version: 2,
+      nodes: [arrow],
+      connections: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    },
+    undefined,
+    { fontFamily: "Georgia", backgroundColor: "#12141a", theme: "dark" },
+  );
+  assert.match(svg, /fill="#12141a"/);
+  assert.match(svg, /stroke="#6b7280"/);
+  assert.doesNotMatch(svg, /stroke="#1f2937"/);
+});

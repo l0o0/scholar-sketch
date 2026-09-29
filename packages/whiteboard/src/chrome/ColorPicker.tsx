@@ -16,7 +16,9 @@ export function ColorPicker(props: {
   presets: string[];
   allowTransparent?: boolean;
   opacity?: number;
+  showReset?: boolean;
   onChange: (color: string) => void;
+  onChangeEnd?: () => void;
   onReset: () => void;
   onOpacityChange?: (opacity: number) => void;
 }) {
@@ -55,7 +57,10 @@ export function ColorPicker(props: {
             aria-label={item}
             title={item}
             style={{ backgroundColor: item }}
-            onClick={() => props.onChange(item)}
+            onClick={() => {
+              props.onChange(item);
+              props.onChangeEnd?.();
+            }}
           />
         ))}
       </div>
@@ -67,7 +72,10 @@ export function ColorPicker(props: {
             aria-label={props.labels.transparent}
             aria-pressed={transparent}
             className={transparent ? "is-active" : ""}
-            onClick={() => props.onChange("transparent")}
+            onClick={() => {
+              props.onChange("transparent");
+              props.onChangeEnd?.();
+            }}
           >
             <span
               className="zmd-board-color-swatch is-transparent"
@@ -76,19 +84,21 @@ export function ColorPicker(props: {
             {!props.compact ? props.labels.transparent : null}
           </button>
         ) : null}
-        <button
-          type="button"
-          title={props.labels.resetColor}
-          aria-label={props.labels.resetColor}
-          onClick={props.onReset}
-        >
-          <span
-            className={`zmd-board-color-swatch${props.defaultColor === "transparent" ? " is-transparent" : ""}`}
-            style={{ backgroundColor: props.defaultColor }}
-            aria-hidden="true"
-          />
-          {props.compact ? <IconUndo /> : props.labels.resetColor}
-        </button>
+        {props.showReset !== false ? (
+          <button
+            type="button"
+            title={props.labels.resetColor}
+            aria-label={props.labels.resetColor}
+            onClick={props.onReset}
+          >
+            <span
+              className={`zmd-board-color-swatch${props.defaultColor === "transparent" ? " is-transparent" : ""}`}
+              style={{ backgroundColor: props.defaultColor }}
+              aria-hidden="true"
+            />
+            {props.compact ? <IconUndo /> : props.labels.resetColor}
+          </button>
+        ) : null}
         <button
           type="button"
           className="zmd-board-custom-color-toggle"
@@ -106,7 +116,11 @@ export function ColorPicker(props: {
         className="zmd-board-custom-color-body"
         hidden={!customOpen}
       >
-        <HexColorPicker color={color} onChange={props.onChange} />
+        <HexColorPicker
+          color={color}
+          onChange={props.onChange}
+          onChangeEnd={props.onChangeEnd}
+        />
         <label className="zmd-board-color-hex">
           <span>Hex</span>
           <HexColorInput

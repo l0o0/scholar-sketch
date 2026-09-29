@@ -100,6 +100,8 @@ export function nodeContentAlignmentStyle(
 export function CardShell(props: {
   kind: CanvasNodeKind;
   kindLabel: string;
+  kindIcon?: ReactNode;
+  showKindLabel?: boolean;
   badge?: string;
   noteType?: NoteType;
   selected?: boolean;
@@ -131,6 +133,15 @@ export function CardShell(props: {
               : "solid"),
       }
     : nodeStyle;
+  const kindIcon =
+    props.kindIcon ??
+    (props.kind === "literature" ? (
+      <IconItem />
+    ) : props.kind === "quote" ? (
+      <IconQuote />
+    ) : props.kind === "note" ? (
+      <NoteTypeIcon type={props.noteType ?? "note"} />
+    ) : null);
   return (
     <article
       className={`zmd-board-card is-${props.kind}${props.selected ? " is-selected" : ""}`}
@@ -156,15 +167,27 @@ export function CardShell(props: {
       }
     >
       <NodeHandles />
-      <header className="zmd-board-card-header" title={props.kindLabel}>
-        {props.kind === "literature" ? (
-          <IconItem />
-        ) : props.kind === "quote" ? (
-          <IconQuote />
-        ) : props.kind === "note" ? (
-          <NoteTypeIcon type={props.noteType ?? "note"} />
+      <header
+        className="zmd-board-card-header"
+        title={props.kindLabel}
+        aria-label={props.kindLabel}
+      >
+        {kindIcon ? (
+          props.showKindLabel === false ? (
+            <span
+              className="zmd-board-card-kind-icon"
+              role="img"
+              aria-label={props.kindLabel}
+            >
+              {kindIcon}
+            </span>
+          ) : (
+            kindIcon
+          )
         ) : null}
-        <span className="zmd-board-card-kind">{props.kindLabel}</span>
+        {props.showKindLabel === false ? null : (
+          <span className="zmd-board-card-kind">{props.kindLabel}</span>
+        )}
         {props.badge ? (
           <>
             <span aria-hidden="true">·</span>

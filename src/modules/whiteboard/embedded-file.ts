@@ -1,3 +1,4 @@
+import type { CanvasDocument } from "./snapshot";
 import {
   decodeAttachmentDataUrl,
   inferAttachmentContentType,
@@ -182,4 +183,21 @@ export function safeEmbeddedFilename(
 
 export function isEmbeddedFileData(value: unknown): value is EmbeddedFileData {
   return decodeEmbeddedFileData(value) !== null;
+}
+
+/** Resolve original bytes from the current canvas snapshot, never from message data. */
+export function embeddedFileNodeRaw(
+  snapshot: CanvasDocument,
+  nodeId: string,
+  attachmentId?: string,
+): unknown {
+  const node = snapshot.nodes.find((candidate) => candidate.id === nodeId);
+  if (attachmentId !== undefined) {
+    return node?.kind === "note"
+      ? node.attachments?.find((attachment) => attachment.id === attachmentId)
+      : undefined;
+  }
+  return node && (node.kind === "attachment" || node.kind === "pdf")
+    ? node.data
+    : undefined;
 }

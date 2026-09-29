@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  appearanceTheme,
   liveEditorGeometry,
   livePreviewGeometryStyles,
 } from "../src/editor/theme.ts";
@@ -48,4 +49,11 @@ test("themes define distinct syntax tokens", () => {
   assert.equal(THEME_TOKENS.dark.codeString, "#86efac");
   assert.notEqual(THEME_TOKENS.light.codeComment, THEME_TOKENS.light.text);
   assert.notEqual(THEME_TOKENS.dark.codeComment, THEME_TOKENS.dark.text);
+});
+
+test("custom editor backgrounds choose readable theme tokens", () => {
+  assert.equal(appearanceTheme("dark", "#fff4dc"), "light");
+  assert.equal(appearanceTheme("light", "#181818"), "dark");
+  assert.equal(appearanceTheme("dark", ""), "dark");
+  assert.equal(appearanceTheme("light", "invalid"), "light");
 });

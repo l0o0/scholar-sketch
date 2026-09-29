@@ -100,6 +100,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
   window.document.body.append(container);
   const root = createRoot(container);
   let runtime: WhiteboardRuntime;
+  let bootstrapped = false;
   const errors: string[] = [];
   const previousConsoleError = console.error;
   console.error = (...args: unknown[]) =>
@@ -110,11 +111,14 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     };
     const noop = () => {};
     const openedItems: unknown[] = [];
+    const openedFiles: unknown[] = [];
     const openedSources: unknown[] = [];
+    const pickedSources: [string, string][] = [];
     await act(async () =>
       root.render(
         createElement(app.WhiteboardApp, {
           theme: "light",
+          appearance: { fontFamily: "system", backgroundColor: "" },
           initialSnapshot: {
             version: 2,
             nodes: [
@@ -132,11 +136,21 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
           },
           onReady: (api) => {
             runtime = api;
+            if (!bootstrapped) {
+              bootstrapped = true;
+              api.setTheme("dark");
+              api.setAppearance({
+                fontFamily: "serif",
+                backgroundColor: "#123456",
+              });
+            }
           },
           onChange: noop,
           onSave: noop,
-          onPickAcademicSource: noop,
+          onPickAcademicSource: (requestId, nodeId) =>
+            pickedSources.push([requestId, nodeId]),
           onOpenItem: (payload) => openedItems.push(payload),
+          onOpenFile: (payload) => openedFiles.push(payload),
           onOpenAcademicSource: (_requestId, _nodeId, source) =>
             openedSources.push(source),
           onDropAcademicSources: noop,
@@ -149,6 +163,24 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
+    const boardHost = container.querySelector<HTMLElement>(".zmd-board-host")!;
+    assert.equal(boardHost.style.getPropertyValue("--zmd-board-bg"), "#123456");
+    assert.match(
+      boardHost.style.getPropertyValue("--zmd-board-font-family"),
+      /Georgia/,
+    );
+    assert.ok(container.querySelector(".react-flow.dark"));
+    const unchanged = runtime!.getSnapshot();
+    await act(async () => {
+      runtime!.setTheme("light");
+      runtime!.setAppearance({ fontFamily: "system", backgroundColor: "" });
+    });
+    assert.deepEqual(
+      runtime!.getSnapshot(),
+      unchanged,
+      "display settings must not modify the canvas document",
+    );
+    assert.equal(boardHost.style.getPropertyValue("--zmd-board-bg"), "#fbfbfc");
     const pane = container.querySelector(".react-flow__pane")!;
     // OS file drags expose only the type until drop (protected data store).
     const fileTransfer = { types: ["Files"], files: [], dropEffect: "none" };
@@ -531,28 +563,23 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       "click",
     );
     const beforeNodeBatch = runtime!.getSnapshot();
-    const strokeInput = nodeBatch.querySelector<HTMLInputElement>(
-      'input[aria-label="Stroke"]',
-    )!;
+    const strokeSwatch = (color: string) =>
+      nodeBatch.querySelector<HTMLButtonElement>(
+        `button[aria-label="${color}"]`,
+      )!;
     assert.equal(
-      strokeInput.value,
-      "#111111",
+      strokeSwatch("#ed5736").getAttribute("aria-pressed"),
+      "false",
       "batch color starts at the first selected card's actual color",
     );
-    await act(async () => {
-      strokeInput.value = "#059669";
-      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
-    });
-    await act(async () => {
-      strokeInput.value = "#dc2626";
-      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
-      strokeInput.dispatchEvent(new window.Event("change", { bubbles: true }));
-    });
+    await act(async () => strokeSwatch("#ed5736").click());
+    const firstBatchNodes = runtime!.getSnapshot().nodes;
+    await act(async () => strokeSwatch("#f2be45").click());
     const batchNodes = runtime!.getSnapshot().nodes;
     for (const id of ["style-a", "style-b"]) {
       assert.equal(
         batchNodes.find((node) => node.id === id)?.style?.stroke,
-        "#dc2626",
+        "#f2be45",
       );
     }
     for (const node of beforeNodeBatch.nodes.filter(
@@ -564,16 +591,11 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
         "unselected nodes remain unchanged",
       );
     }
-    await act(async () => {
-      strokeInput.value = "#2563eb";
-      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
-      strokeInput.dispatchEvent(new window.Event("change", { bubbles: true }));
-    });
     await act(async () => runtime!.undo());
     assert.deepEqual(
       runtime!.getSnapshot().nodes,
-      batchNodes,
-      "a second native color choice has its own undo entry",
+      firstBatchNodes,
+      "a second palette color choice has its own undo entry",
     );
     await act(async () => runtime!.undo());
     assert.deepEqual(runtime!.getSnapshot().nodes, beforeNodeBatch.nodes);
@@ -609,10 +631,10 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       "click",
     );
     assert.equal(
-      restoredBatch.querySelector<HTMLInputElement>(
-        'input[aria-label="Stroke"]',
-      )!.value,
-      "#111111",
+      restoredBatch
+        .querySelector<HTMLButtonElement>('button[aria-label="#ed5736"]')!
+        .getAttribute("aria-pressed"),
+      "false",
       "undo restores the batch color display",
     );
     // In marquee mode React Flow clears selection on pointer-up, not click.
@@ -902,19 +924,15 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
           button.textContent === name ||
           button.getAttribute("aria-label") === name,
       )!;
-    const edgeColorInput = batch.querySelector<HTMLInputElement>(
-      'input[aria-label="Edge color"]',
-    )!;
-    await act(async () => {
-      edgeColorInput.value = "#dc2626";
-      edgeColorInput.dispatchEvent(
-        new window.Event("input", { bubbles: true }),
-      );
-    });
+    await act(async () =>
+      batch
+        .querySelector<HTMLButtonElement>('button[aria-label="#ed5736"]')!
+        .click(),
+    );
     assert.ok(
       runtime!
         .getSnapshot()
-        .connections.every((edge) => edge.color === "#dc2626"),
+        .connections.every((edge) => edge.color === "#ed5736"),
       "color selection immediately applies to all selected edges",
     );
     await dispatch(batchButton("Solid"), "click");
@@ -1160,9 +1178,25 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
         "click",
       );
       assert.equal(
-        Boolean(container.querySelector(".zmd-board-edit-file")),
-        kind === "note",
+        container.querySelector(
+          '.zmd-board-style-bar [aria-label="Attach file"]',
+        ),
+        null,
       );
+      if (kind === "frame") {
+        const frameEditor = container.querySelector<HTMLElement>(
+          '.zmd-board-editor[data-kind="frame"]',
+        )!;
+        assert.equal(window.getComputedStyle(frameEditor).paddingLeft, "35px");
+        assert.equal(window.getComputedStyle(frameEditor).paddingTop, "10px");
+        assert.equal(
+          Number(
+            container.querySelector<HTMLTextAreaElement>("textarea")!.rows,
+          ),
+          1,
+        );
+        assert.ok(container.querySelector(".zmd-board-frame-title > svg"));
+      }
       const file = new window.File(["image"], "paste.png", {
         type: "image/png",
       });
@@ -1191,6 +1225,271 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
           "plain text editors must not receive image data URLs",
         );
     }
+    // A mixed file drop belongs to the targeted note and is a single undo step.
+    const editingContentBeforeImport =
+      container.querySelector<HTMLTextAreaElement>("textarea")!.value;
+    const topFileButton = container.querySelector(
+      '.zmd-board-top-island [aria-label="File"]',
+    )!;
+    assert.ok(topFileButton);
+    await dispatch(topFileButton, "click");
+    const noteFileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(noteFileInput, "files", {
+      configurable: true,
+      value: [
+        new window.File(["Hi"], "inside-note.txt", { type: "text/plain" }),
+      ],
+    });
+    await act(async () => {
+      noteFileInput.dispatchEvent(
+        new window.Event("change", { bubbles: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    });
+    const noteWithFile = runtime!.getSnapshot().nodes[0];
+    assert.equal(runtime!.getSnapshot().nodes.length, 1);
+    assert.equal(
+      noteWithFile.kind === "note" && noteWithFile.attachments?.[0].title,
+      "inside-note.txt",
+    );
+    assert.equal(
+      container.querySelector<HTMLTextAreaElement>("textarea")!.value,
+      editingContentBeforeImport,
+    );
+
+    // Both Zotero entry points attach references to the currently edited note.
+    const notePicker = container.querySelector(
+      '.zmd-board-style-bar.is-text [aria-label="Add Zotero materials"]',
+    )!;
+    assert.ok(notePicker);
+    await dispatch(notePicker, "click");
+    const [referenceRequest, referenceNode] = pickedSources.at(-1)!;
+    await act(async () =>
+      runtime!.resolveAcademicAcquisitionBatch(
+        referenceRequest,
+        referenceNode,
+        [
+          {
+            index: 0,
+            acquisition: {
+              kind: "literature",
+              source: { library: { type: "user" }, itemKey: "ITEM1234" },
+              snapshot: { title: "Paper", creators: "Author", year: "2026" },
+            },
+          },
+          {
+            index: 1,
+            acquisition: {
+              kind: "attachment",
+              source: { library: { type: "user" }, attachmentKey: "FILE1234" },
+              snapshot: {
+                title: "Full text",
+                filename: "stored.pdf",
+                availability: "available",
+              },
+            },
+          },
+        ],
+        [],
+      ),
+    );
+    let referenced = runtime!.getSnapshot().nodes[0];
+    assert.equal(runtime!.getSnapshot().nodes.length, 1);
+    assert.equal(referenced.kind, "note");
+    if (referenced.kind !== "note") throw new Error("Expected note");
+    assert.equal(referenced.references?.length, 2);
+    assert.equal(referenced.references?.[1].title, "Full text");
+    assert.ok(
+      container.querySelector("textarea"),
+      "reference import keeps editing active",
+    );
+    await dispatch(
+      container.querySelector(
+        '.zmd-board-top-island [aria-label="Add Zotero materials"]',
+      )!,
+      "click",
+    );
+    const [cancelledRequest, cancelledNode] = pickedSources.at(-1)!;
+    assert.equal(cancelledNode, referenceNode);
+    await act(async () =>
+      runtime!.rejectAcademicRequest(
+        cancelledRequest,
+        cancelledNode,
+        "picker-cancelled",
+      ),
+    );
+    assert.equal(runtime!.getSnapshot().nodes.length, 1);
+    await exitTextEditing();
+    await dispatch(
+      container.querySelector("[data-zmd-note-reference]")!,
+      "click",
+    );
+    assert.deepEqual(openedSources.at(-1), {
+      kind: "literature",
+      source: { library: { type: "user" }, itemKey: "ITEM1234" },
+    });
+    await act(async () => runtime!.undo());
+    referenced = runtime!.getSnapshot().nodes[0];
+    assert.equal(
+      referenced.kind === "note" && !!referenced.references?.length,
+      false,
+    );
+
+    await act(async () =>
+      runtime!.loadSnapshot({
+        version: 2,
+        nodes: [
+          {
+            id: "attachment-note",
+            kind: "note",
+            content: "Original",
+            position: { x: 200, y: 200 },
+            width: 260,
+            height: 180,
+          },
+        ],
+        connections: [],
+      }),
+    );
+    const dropFiles = async (target: Element) => {
+      const event = new window.Event("drop", {
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(event, "dataTransfer", {
+        value: {
+          types: ["Files"],
+          files: [
+            new window.File(["Hi"], "notes.txt", { type: "text/plain" }),
+            new window.File(["image"], "chart.png", { type: "image/png" }),
+          ],
+        },
+      });
+      Object.defineProperties(event, {
+        clientX: { value: 250 },
+        clientY: { value: 250 },
+      });
+      await act(async () => {
+        target.dispatchEvent(event);
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      });
+    };
+    await dropFiles(
+      container.querySelector('.react-flow__node[data-id="attachment-note"]')!,
+    );
+    let imported = runtime!.getSnapshot().nodes[0];
+    assert.equal(runtime!.getSnapshot().nodes.length, 1);
+    assert.equal(imported.kind, "note");
+    if (imported.kind !== "note") throw new Error("Expected note");
+    assert.equal(imported.attachments?.[0].title, "notes.txt");
+    assert.match(imported.content, /!\[chart\.png\]\(data:image\/png;base64,/);
+    const attachmentId = imported.attachments![0].id;
+    await dispatch(
+      container.querySelector("[data-zmd-note-attachment]")!,
+      "click",
+    );
+    assert.deepEqual(openedFiles.at(-1), {
+      nodeId: "attachment-note",
+      attachmentId,
+    });
+    await act(async () => runtime!.undo());
+    assert.equal(runtime!.getSnapshot().nodes[0].kind, "note");
+    assert.deepEqual(runtime!.getSnapshot().nodes[0], {
+      id: "attachment-note",
+      kind: "note",
+      content: "Original",
+      position: { x: 200, y: 200 },
+      width: 260,
+      height: 180,
+    });
+    await dispatch(
+      container.querySelector('.react-flow__node[data-id="attachment-note"]')!,
+      "click",
+    );
+    await dispatch(
+      container.querySelector(".zmd-board-selection-edit")!,
+      "click",
+    );
+    await dropFiles(container.querySelector("textarea")!);
+    imported = runtime!.getSnapshot().nodes[0];
+    assert.equal(
+      runtime!.getSnapshot().nodes.length,
+      1,
+      "editor overlay drop must not create standalone files",
+    );
+    assert.equal(imported.kind, "note");
+    if (imported.kind !== "note") throw new Error("Expected note");
+    assert.equal(imported.attachments?.[0].title, "notes.txt");
+    assert.match(
+      container.querySelector<HTMLTextAreaElement>("textarea")!.value,
+      /chart\.png/,
+    );
+    assert.ok(
+      container
+        .querySelector("[data-zmd-note-attachment]")
+        ?.closest(".zmd-board-card-footer"),
+    );
+    assert.equal(
+      container.querySelector(
+        ".zmd-board-card-body [data-zmd-note-attachment]",
+      ),
+      null,
+    );
+
+    await act(async () =>
+      runtime!.loadSnapshot({
+        version: 2,
+        nodes: [
+          {
+            id: "switch-a",
+            kind: "note",
+            content: "First",
+            position: { x: 100, y: 100 },
+            width: 260,
+            height: 180,
+          },
+          {
+            id: "switch-b",
+            kind: "note",
+            content: "Second",
+            position: { x: 450, y: 100 },
+            width: 260,
+            height: 180,
+          },
+        ],
+        connections: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      }),
+    );
+    await dispatch(container.querySelector('[data-id="switch-a"]')!, "click");
+    await dispatch(
+      container.querySelector(".zmd-board-selection-edit")!,
+      "click",
+    );
+    await dropFiles(container.querySelector("textarea")!);
+    // No textarea blur: focus may already have moved into a floating toolbar.
+    await dispatch(
+      container.querySelector('[data-id="switch-b"]')!,
+      "pointerdown",
+    );
+    await dispatch(container.querySelector('[data-id="switch-b"]')!, "click");
+    assert.equal(container.querySelector(".zmd-board-style-bar.is-text"), null);
+    assert.equal(container.querySelector(".zmd-board-editor"), null);
+    const savedFirst = runtime!
+      .getSnapshot()
+      .nodes.find((node) => node.id === "switch-a")!;
+    assert.equal(savedFirst.kind, "note");
+    if (savedFirst.kind !== "note") throw new Error("Expected note");
+    assert.match(savedFirst.content, /chart\.png/);
+    await dispatch(
+      container.querySelector(".zmd-board-selection-edit")!,
+      "click",
+    );
+    assert.equal(
+      container.querySelector<HTMLTextAreaElement>("textarea")!.value,
+      "Second",
+    );
     assert.deepEqual(errors, [], "workflow must render without React errors");
   } finally {
     console.error = previousConsoleError;

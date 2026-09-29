@@ -6,5 +6,6 @@ export * from "./connection";
 export * from "./document";
 export * from "./canvas-file";
 export * from "./file-attachment";
+export * from "./colorSchemes";
 export * from "./protocol";
 export * from "./tutorial";

@@ -3,6 +3,8 @@
  */
 /// <reference lib="dom" />
 
+import { normalizeColorScheme, type ColorSchemeID } from "./model/colorSchemes";
+
 import { createRoot, type Root } from "react-dom/client";
 import { WhiteboardApp, type WhiteboardRuntime } from "./whiteboard/app";
 import {
@@ -11,6 +13,7 @@ import {
   dispatchWhiteboardParentMessageEvent,
   type ParentToWhiteboardMessage,
   type WhiteboardToParentBody,
+  type WhiteboardAppearance,
   type WhiteboardTheme,
 } from "./model/protocol";
 import { emptyCanvasDocument, type CanvasDocument } from "./model/document";
@@ -22,7 +25,12 @@ import {
 
 const channel = new URL(window.location.href).searchParams.get("channel") || "";
 
+let colorScheme: ColorSchemeID = "traditional";
 let theme: WhiteboardTheme = "light";
+let appearance: WhiteboardAppearance = {
+  fontFamily: "system",
+  backgroundColor: "",
+};
 let pendingSnapshot: CanvasDocument | null = null;
 let pendingTemplates: NoteTemplate[] = [];
 const deferredLabels = createDeferredLabels();
@@ -56,7 +64,13 @@ function postToParent(message: WhiteboardToParentBody) {
 function applyDocumentTheme(next: WhiteboardTheme) {
   theme = next;
   document.documentElement.dataset.theme = next;
-  document.body.style.background = next === "dark" ? "#1a1d24" : "#fbfbfc";
+  applyDocumentAppearance(appearance);
+}
+
+function applyDocumentAppearance(next: WhiteboardAppearance) {
+  appearance = next;
+  document.body.style.background =
+    next.backgroundColor || (theme === "dark" ? "#1a1d24" : "#fbfbfc");
 }
 
 function handleParentMessage(data: ParentToWhiteboardMessage) {
@@ -64,16 +78,33 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
   switch (data.type) {
     case "init":
       applyDocumentTheme(data.payload.theme);
+      applyDocumentAppearance(
+        data.payload.appearance ?? {
+          fontFamily: "system",
+          backgroundColor: "",
+        },
+      );
+      colorScheme = normalizeColorScheme(data.payload.colorScheme);
+      runtime?.setColorScheme(colorScheme);
       pendingSnapshot = data.payload.snapshot ?? null;
       pendingTemplates = data.payload.templates ?? [];
       deferredLabels.receive(data.payload.labels);
       runtime?.setTheme(data.payload.theme);
+      runtime?.setAppearance(appearance);
       runtime?.setTemplates(pendingTemplates);
       if (data.payload.snapshot) runtime?.loadSnapshot(data.payload.snapshot);
+      break;
+    case "setColorScheme":
+      colorScheme = data.payload.colorScheme;
+      runtime?.setColorScheme(colorScheme);
       break;
     case "setTheme":
       applyDocumentTheme(data.payload.theme);
       runtime?.setTheme(data.payload.theme);
+      break;
+    case "setAppearance":
+      applyDocumentAppearance(data.payload.appearance);
+      runtime?.setAppearance(appearance);
       break;
     case "loadSnapshot":
       pendingSnapshot = data.payload.snapshot;
@@ -152,6 +183,8 @@ function boot() {
   reactRoot.render(
     <WhiteboardApp
       theme={theme}
+      colorScheme={colorScheme}
+      appearance={appearance}
       labels={deferredLabels.current}
       initialSnapshot={pendingSnapshot ?? emptyCanvasDocument()}
       onReady={(next) => {
@@ -159,6 +192,8 @@ function boot() {
         deferredLabels.attach(next);
         if (pendingSnapshot) next.loadSnapshot(pendingSnapshot);
         next.setTheme(theme);
+        next.setAppearance(appearance);
+        next.setColorScheme(colorScheme);
         next.setTemplates(pendingTemplates);
       }}
       onChange={(nextRev) => {
@@ -166,6 +201,7 @@ function boot() {
         postToParent({ type: "change", payload: { rev } });
       }}
       onSave={() => postToParent({ type: "save" })}
+      onOpenSettings={() => postToParent({ type: "openSettings" })}
       onSwitchWindow={() => postToParent({ type: "switchWindow" })}
       onSaveNoteTemplate={(template) =>
         postToParent({ type: "saveNoteTemplate", payload: { template } })

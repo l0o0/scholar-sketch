@@ -15,7 +15,10 @@ import {
   parseFrontmatter,
 } from "../src/modules/markdown/frontmatter.ts";
 import { persistMarkdownContent } from "../src/modules/markdown/persist.ts";
-import { createMarkdownEditor } from "../src/modules/markdown/editor.ts";
+import {
+  createMarkdownEditor,
+  applyMarkdownEditorPreferences,
+} from "../src/modules/markdown/editor.ts";
 import { ensureDOMGlobals } from "../src/utils/dom.ts";
 import {
   EDITOR_MESSAGE_SOURCE,
@@ -212,7 +215,7 @@ function editorHarness(
     (globalThis as any).ztoolkit = previousToolkit;
     browser.close();
   });
-  return { editor, iframe, posted, ready };
+  return { editor, iframe, posted, ready, fake };
 }
 
 test("editor keeps ordered edits queued before the iframe is ready", (t) => {
@@ -398,4 +401,44 @@ test("editor restores and reports view state only on its own channel", (t) => {
   assert.deepEqual(states, []);
   report("markdown-test", view);
   assert.deepEqual(states, [view]);
+});
+
+test("appearance preferences reach pending and live editors and stop after destroy", (t) => {
+  const { editor, posted, ready, fake } = editorHarness(t);
+  const set = (name: string, value: string | number) =>
+    fake.Zotero.Prefs.set(`extensions.zotero.bamboo.${name}`, value, true);
+  set("theme", "dark");
+  set("markdownFontFamily", "serif");
+  set("markdownBackgroundColor", "#F7EFE0");
+  set("fontSize", 18);
+  applyMarkdownEditorPreferences();
+  assert.equal(posted.length, 0);
+  ready();
+  const init = posted.find((message) => message.type === "init");
+  assert.equal(init.payload.theme, "dark");
+  assert.equal(init.payload.fontSize, 18);
+  assert.deepEqual(init.payload.appearance, {
+    fontFamily: "serif",
+    backgroundColor: "#f7efe0",
+  });
+  assert.deepEqual(
+    posted.findLast((message) => message.type === "setAppearance").payload,
+    init.payload.appearance,
+  );
+  set("markdownFontFamily", "mono");
+  set("markdownBackgroundColor", "");
+  set("theme", "light");
+  applyMarkdownEditorPreferences();
+  assert.deepEqual(
+    posted.findLast((message) => message.type === "setAppearance").payload,
+    { fontFamily: "mono", backgroundColor: "" },
+  );
+  assert.equal(
+    posted.findLast((message) => message.type === "setTheme").payload.theme,
+    "light",
+  );
+  editor.destroy();
+  const count = posted.length;
+  applyMarkdownEditorPreferences();
+  assert.equal(posted.length, count);
 });

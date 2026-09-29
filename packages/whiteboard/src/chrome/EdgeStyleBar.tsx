@@ -3,6 +3,7 @@ import { ColorPicker } from "./ColorPicker";
 import { colorPalette } from "./color";
 import { useFloatingStyleBar } from "./FloatingStyleBar";
 import type { WhiteboardLabels, WhiteboardTheme } from "../model/protocol";
+import type { ColorSchemeID } from "../model/colorSchemes";
 import type { CanvasFlowEdge } from "../whiteboard/document";
 import { StyleMenu, StyleOption } from "./StyleMenu";
 import { IconEdit, IconStrokePreview } from "../whiteboard/icons";
@@ -23,6 +24,7 @@ export function EdgeStyleBar(props: {
   edge: CanvasFlowEdge;
   labels: WhiteboardLabels;
   theme: WhiteboardTheme;
+  colorScheme?: ColorSchemeID;
   anchor: { x: number; y: number; width: number; height: number };
   onChange: (patch: {
     color?: string;
@@ -86,7 +88,7 @@ export function EdgeStyleBar(props: {
             title={props.labels.edgeColor}
             labels={props.labels}
             color={color}
-            presets={colorPalette(props.theme === "dark")}
+            presets={colorPalette(props.theme === "dark", props.colorScheme)}
             defaultColor={DEFAULT_EDGE_COLOR}
             onReset={() => props.onChange({ color: DEFAULT_EDGE_COLOR })}
             onChange={(next) => props.onChange({ color: next })}

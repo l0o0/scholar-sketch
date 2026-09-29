@@ -5,6 +5,7 @@ import {
   isSafeImagePreview,
 } from "../model/file-attachment";
 import { nodeTextStyle } from "../whiteboard/document";
+import { IconFile } from "../whiteboard/icons";
 import { CardShell } from "./CardShell";
 import type { CanvasFlowNode } from "./types";
 
@@ -53,6 +54,8 @@ export function PdfNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     <CardShell
       kind="pdf"
       kindLabel={kindLabel}
+      kindIcon={<IconFile />}
+      showKindLabel={false}
       selected={selected}
       nodeStyle={model.style}
     >
@@ -117,6 +120,8 @@ export function AttachmentNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     <CardShell
       kind="attachment"
       kindLabel={kindLabel}
+      kindIcon={<IconFile />}
+      showKindLabel={false}
       selected={selected}
       nodeStyle={model.style}
     >
@@ -169,12 +174,15 @@ function attachmentKindLabel(
       return label("fileAudio", "Audio");
     case "video":
       return label("fileVideo", "Video");
+    case "archive":
+      return label("fileArchive", "Archive");
     case "generic":
       return label("fileGeneric", "File");
   }
 }
 
-type AttachmentKind = "image" | "pdf" | "text" | "audio" | "video" | "generic";
+type AttachmentKind =
+  "image" | "pdf" | "text" | "audio" | "video" | "archive" | "generic";
 
 function attachmentKind(contentType: string | undefined): AttachmentKind {
   if (contentType === "application/pdf") return "pdf";
@@ -189,6 +197,17 @@ function attachmentKind(contentType: string | undefined): AttachmentKind {
   }
   if (contentType?.startsWith("audio/")) return "audio";
   if (contentType?.startsWith("video/")) return "video";
+  if (
+    contentType === "application/zip" ||
+    contentType === "application/x-7z-compressed" ||
+    contentType === "application/x-rar-compressed" ||
+    contentType === "application/gzip" ||
+    contentType === "application/x-bzip2" ||
+    contentType === "application/x-xz" ||
+    contentType === "application/x-tar"
+  ) {
+    return "archive";
+  }
   return "generic";
 }
 

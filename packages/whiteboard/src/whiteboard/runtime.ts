@@ -323,7 +323,8 @@ export function resolveAcademicPlaceholder(
               ...basic,
               data: {
                 ...basicData,
-                title: acquisition.snapshot.filename,
+                title:
+                  acquisition.snapshot.title || acquisition.snapshot.filename,
                 ...(acquisition.snapshot.contentType
                   ? { subtitle: acquisition.snapshot.contentType }
                   : {}),

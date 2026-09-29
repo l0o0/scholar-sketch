@@ -114,3 +114,24 @@ test("validates document-link bridge payloads and candidates", () => {
     false,
   );
 });
+
+test("appearance messages accept only supported fonts and plain hex colors", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    channel: "settings",
+    type: "setAppearance",
+    payload: { fontFamily: "serif", backgroundColor: "#f7efdc" },
+  };
+  assert.equal(isEditorProtocolMessageForChannel(message, "settings"), true);
+  for (const payload of [
+    null,
+    {},
+    { fontFamily: "url(x)", backgroundColor: "" },
+    { fontFamily: "serif", backgroundColor: "url(x)" },
+  ]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel({ ...message, payload }, "settings"),
+      false,
+    );
+  }
+});

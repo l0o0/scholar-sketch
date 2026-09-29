@@ -316,10 +316,10 @@ test("host maps every tutorial label directly through typed localization", () =>
   assert.doesNotMatch(source, /FluentMessageId/);
 });
 
-test("library acquisition uses the Literature label in both host locales", () => {
+test("library acquisition uses the Zotero materials label in both host locales", () => {
   for (const [locale, expected] of [
-    ["en-US", "Add literature"],
-    ["zh-CN", "添加文献"],
+    ["en-US", "Add Zotero materials"],
+    ["zh-CN", "添加 Zotero 资料"],
   ]) {
     const source = readFileSync(`addon/locale/${locale}/addon.ftl`, "utf8");
     assert.match(

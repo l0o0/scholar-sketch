@@ -5,8 +5,12 @@ import {
   type CanvasNode,
   type LiteratureSnapshot,
   type LiteratureSource,
+  type NoteNode,
+  type NoteReference,
   type NoteSource,
   type NoteSourceSnapshot,
+  isValidNoteAttachment,
+  MAX_NOTE_ATTACHMENTS,
   type QuoteSnapshot,
   type QuoteSource,
   type ZoteroLibraryRef,
@@ -302,6 +306,12 @@ function parseNode(value: unknown): CanvasNode | undefined {
     case "note": {
       if (typeof value.content !== "string") return undefined;
       const badge = parseOptionalString(value, "badge");
+      const references = has(value, "references")
+        ? parseNoteReferences(value.references)
+        : undefined;
+      const attachments = has(value, "attachments")
+        ? parseNoteAttachments(value.attachments)
+        : undefined;
       const source = has(value, "source")
         ? parseNoteSource(value.source)
         : undefined;
@@ -310,6 +320,8 @@ function parseNode(value: unknown): CanvasNode | undefined {
         : undefined;
       if (
         badge === INVALID ||
+        (has(value, "references") && !references) ||
+        (has(value, "attachments") && !attachments) ||
         (has(value, "noteType") && !isNoteType(value.noteType)) ||
         (has(value, "source") && !source) ||
         (has(value, "sourceSnapshot") && !sourceSnapshot)
@@ -322,6 +334,8 @@ function parseNode(value: unknown): CanvasNode | undefined {
         content: value.content,
         ...(isNoteType(value.noteType) ? { noteType: value.noteType } : {}),
         ...(badge !== undefined ? { badge } : {}),
+        ...(attachments?.length ? { attachments } : {}),
+        ...(references?.length ? { references } : {}),
         ...(source ? { source } : {}),
         ...(sourceSnapshot ? { sourceSnapshot } : {}),
       };
@@ -333,6 +347,54 @@ function parseNode(value: unknown): CanvasNode | undefined {
     default:
       return undefined;
   }
+}
+
+function parseNoteReferences(value: unknown): NoteReference[] | undefined {
+  if (!Array.isArray(value) || value.length > MAX_NOTE_ATTACHMENTS)
+    return undefined;
+  const references: NoteReference[] = [];
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      !isNonEmptyString(entry.id) ||
+      typeof entry.title !== "string" ||
+      entry.title.length > 4096 ||
+      (entry.creators !== undefined && typeof entry.creators !== "string") ||
+      (entry.year !== undefined && typeof entry.year !== "string")
+    )
+      return undefined;
+    const metadata = {
+      id: entry.id,
+      title: entry.title,
+      ...(typeof entry.creators === "string"
+        ? { creators: entry.creators }
+        : {}),
+      ...(typeof entry.year === "string" ? { year: entry.year } : {}),
+    };
+    if (entry.kind === "literature") {
+      const source = parseLiteratureSource(entry.source);
+      if (!source) return undefined;
+      references.push({ ...metadata, kind: "literature", source });
+    } else if (entry.kind === "attachment") {
+      const source = parseAttachmentSource(entry.source);
+      if (!source) return undefined;
+      references.push({ ...metadata, kind: "attachment", source });
+    } else return undefined;
+  }
+  return references;
+}
+
+function parseNoteAttachments(
+  value: unknown,
+): NoteNode["attachments"] | undefined {
+  if (
+    !Array.isArray(value) ||
+    value.length > MAX_NOTE_ATTACHMENTS ||
+    !value.every(isValidNoteAttachment)
+  ) {
+    return undefined;
+  }
+  return value.map((attachment) => ({ ...attachment }));
 }
 
 function parseNodeBase(

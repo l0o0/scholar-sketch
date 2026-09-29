@@ -1,6 +1,11 @@
 /**
  * Parent-side canvas: mounts a chrome:// iframe and bridges via postMessage.
  */
+
+import {
+  normalizeColorScheme,
+  type ColorSchemeID,
+} from "../../../packages/whiteboard/src/model/colorSchemes";
 import { resolveEditorTheme } from "../markdown/editor";
 import { ensureDOMGlobals } from "../../utils/dom";
 import {
@@ -21,6 +26,7 @@ import {
   type SourceResolutionPriority,
   type SourceResolutionResult,
   type WhiteboardLabels,
+  type WhiteboardAppearance,
   type WhiteboardTheme,
 } from "./protocol";
 import type { CanvasDocument } from "./snapshot";
@@ -31,6 +37,8 @@ export interface WhiteboardHandle {
   ready: Promise<void>;
   focus: () => void;
   destroy: () => void;
+  setColorScheme: (colorScheme: ColorSchemeID) => void;
+  setAppearance: (appearance: WhiteboardAppearance) => void;
   setTheme: (theme: WhiteboardTheme) => void;
   setTemplates: (templates: NoteTemplate[]) => void;
   loadSnapshot: (snapshot: CanvasDocument) => void;
@@ -131,6 +139,7 @@ export function attachNativeAcademicDropListeners(
       return;
     }
     event.preventDefault();
+    event.stopPropagation();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
   };
   const onDrop = (event: DragEvent) => {
@@ -160,9 +169,11 @@ export function attachNativeAcademicDropListeners(
       sources: resolved.sources,
     });
   };
+  target.addEventListener("dragenter", onDragOver, true);
   target.addEventListener("dragover", onDragOver, true);
   target.addEventListener("drop", onDrop, true);
   return () => {
+    target.removeEventListener("dragenter", onDragOver, true);
     target.removeEventListener("dragover", onDragOver, true);
     target.removeEventListener("drop", onDrop, true);
   };
@@ -179,6 +190,8 @@ type PendingCommand = Extract<
     type:
       | "init"
       | "setTheme"
+      | "setAppearance"
+      | "setColorScheme"
       | "loadSnapshot"
       | "command"
       | "focus"
@@ -206,8 +219,11 @@ export function createWhiteboardEditor(
     snapshot?: CanvasDocument | null;
     labels?: WhiteboardLabels;
     templates?: NoteTemplate[];
+    appearance?: WhiteboardAppearance;
+    colorScheme?: ColorSchemeID;
     onChange?: (rev: number) => void;
     onSave?: () => void;
+    onOpenSettings?: () => void;
     onSwitchWindow?: () => void;
     onSaveNoteTemplate?: (template: NoteTemplate) => void;
     onDeleteNoteTemplate?: (templateId: string) => void;
@@ -218,7 +234,7 @@ export function createWhiteboardEditor(
       kind: "literature",
     ) => void;
     onOpenLink?: (href: string) => void;
-    onOpenFile?: (payload: { nodeId: string }) => void;
+    onOpenFile?: (payload: { nodeId: string; attachmentId?: string }) => void;
     onOpenItem?: (payload: {
       itemID?: number;
       attachmentID?: number;
@@ -339,6 +355,8 @@ export function createWhiteboardEditor(
       if (
         message.type === "init" ||
         message.type === "setTheme" ||
+        message.type === "setAppearance" ||
+        message.type === "setColorScheme" ||
         message.type === "loadSnapshot"
       ) {
         for (let i = pending.length - 1; i >= 0; i--) {
@@ -368,6 +386,8 @@ export function createWhiteboardEditor(
           type: "init",
           payload: {
             theme: resolveEditorTheme(ownerWin),
+            colorScheme: normalizeColorScheme(options.colorScheme),
+            ...(options.appearance ? { appearance: options.appearance } : {}),
             snapshot: pendingSnapshot,
             ...(options.labels ? { labels: options.labels } : {}),
             ...(options.templates ? { templates: options.templates } : {}),
@@ -394,6 +414,9 @@ export function createWhiteboardEditor(
         }
         break;
       }
+      case "openSettings":
+        options.onOpenSettings?.();
+        break;
       case "switchWindow":
         options.onSwitchWindow?.();
         break;
@@ -471,6 +494,54 @@ export function createWhiteboardEditor(
   ownerWin?.addEventListener("message", onMessage);
 
   let dropSequence = 0;
+  const emitNativeDrop = (drop: NativeAcademicDropEvent) => {
+    const suffix = `${Date.now().toString(36)}-${dropSequence++}`;
+    if ("code" in drop) {
+      options.onNativeAcademicDropRejected?.(
+        `drop-${suffix}`,
+        drop.code,
+        drop.diagnostic,
+      );
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "academicDropRejected",
+        payload: { code: drop.code },
+      });
+      return;
+    }
+    sendOrQueue({
+      source: WHITEBOARD_MESSAGE_SOURCE,
+      type: "academicDropStarted",
+      payload: {
+        requestId: `drop-${suffix}`,
+        nodeId: `literature-${suffix}`,
+        position: drop.position,
+        sources: drop.sources,
+      },
+    });
+  };
+  // Native cross-window drags may target the iframe element in the outer
+  // document. Those events do not reach the iframe's document listener.
+  const detachOuterDropListeners = options.resolveNativeAcademicDrop
+    ? attachNativeAcademicDropListeners(
+        wrap,
+        options.resolveNativeAcademicDrop,
+        (drop) => {
+          if ("code" in drop) {
+            emitNativeDrop(drop);
+            return;
+          }
+          const rect = iframe.getBoundingClientRect();
+          emitNativeDrop({
+            ...drop,
+            position: {
+              x: drop.position.x - rect.left,
+              y: drop.position.y - rect.top,
+            },
+          });
+        },
+      )
+    : () => undefined;
   let detachDropListeners: () => void = () => undefined;
   const attachDropListeners = () => {
     detachDropListeners();
@@ -479,32 +550,7 @@ export function createWhiteboardEditor(
     detachDropListeners = attachNativeAcademicDropListeners(
       target,
       options.resolveNativeAcademicDrop,
-      (drop) => {
-        const suffix = `${Date.now().toString(36)}-${dropSequence++}`;
-        if ("code" in drop) {
-          options.onNativeAcademicDropRejected?.(
-            `drop-${suffix}`,
-            drop.code,
-            drop.diagnostic,
-          );
-          sendOrQueue({
-            source: WHITEBOARD_MESSAGE_SOURCE,
-            type: "academicDropRejected",
-            payload: { code: drop.code },
-          });
-          return;
-        }
-        sendOrQueue({
-          source: WHITEBOARD_MESSAGE_SOURCE,
-          type: "academicDropStarted",
-          payload: {
-            requestId: `drop-${suffix}`,
-            nodeId: `literature-${suffix}`,
-            position: drop.position,
-            sources: drop.sources,
-          },
-        });
-      },
+      emitNativeDrop,
     );
   };
   iframe.addEventListener("load", attachDropListeners);
@@ -526,6 +572,7 @@ export function createWhiteboardEditor(
       ownerWin?.removeEventListener("message", onMessage);
       iframe.removeEventListener("load", attachDropListeners);
       detachDropListeners();
+      detachOuterDropListeners();
       for (const waiter of snapshotWaiters.values()) {
         if (waiter.timeoutId !== undefined) {
           ownerWin?.clearTimeout(waiter.timeoutId);
@@ -536,6 +583,20 @@ export function createWhiteboardEditor(
       post({ source: WHITEBOARD_MESSAGE_SOURCE, type: "destroy" });
       iframe.remove();
       wrap.remove();
+    },
+    setColorScheme(colorScheme) {
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "setColorScheme",
+        payload: { colorScheme },
+      });
+    },
+    setAppearance(appearance) {
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "setAppearance",
+        payload: { appearance },
+      });
     },
     setTheme(theme) {
       sendOrQueue({

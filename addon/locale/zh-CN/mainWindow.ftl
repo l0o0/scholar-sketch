@@ -95,6 +95,7 @@ more-unavailable = { $label } 功能规划中
 ## Settings pages
 settings-page-general = 常规
 settings-page-editor = 编辑器
+settings-page-whiteboard = 白板
 settings-page-shortcuts = 快捷键
 settings-page-about = 关于
 settings-tablist-label = 设置分类
@@ -112,6 +113,9 @@ settings-shortcut-unset = 未设置
 settings-about-name = 插件
 settings-about-version = 版本
 settings-about-build-time = 构建时间
+settings-whiteboard-color-scheme = 配色方案
+settings-whiteboard-color-scheme-traditional = 中国传统色
+settings-whiteboard-color-scheme-classic = 经典
 
 ## Document modal
 modal-close = 关闭

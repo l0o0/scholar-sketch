@@ -13,6 +13,10 @@ import {
   getNoteType,
   canvasNodeSurfaceDefaults,
   canvasNodeUiSurfaceDefaults,
+  MAX_NOTE_ATTACHMENTS,
+  type NoteAttachment,
+  type NoteReference,
+  noteReferenceHref,
   type NoteType,
 } from "../model/academic";
 
@@ -92,9 +96,14 @@ import type {
   IndexedAcademicAcquisition,
   SourceResolutionPriority,
   SourceResolutionResult,
+  WhiteboardAppearance,
   WhiteboardLabels,
   WhiteboardTheme,
 } from "../model/protocol";
+import {
+  normalizeColorScheme,
+  type ColorSchemeID,
+} from "../model/colorSchemes";
 import { canvasNodeTypes, type CanvasFlowNode } from "../nodes";
 import { PropertiesPanel } from "../chrome/PropertiesPanel";
 import {
@@ -222,12 +231,27 @@ type FileLabelKey =
   | "filePages";
 type FileLabelValues = Partial<Record<FileLabelKey, string>>;
 
+const DEFAULT_APPEARANCE: WhiteboardAppearance = {
+  fontFamily: "system",
+  backgroundColor: "",
+};
+
+const APPEARANCE_FONT_FAMILY: Record<
+  WhiteboardAppearance["fontFamily"],
+  string
+> = {
+  system:
+    'system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  serif: 'Georgia, "Noto Serif SC", "Songti SC", serif',
+  mono: 'ui-monospace, "Sarasa Mono SC", "Noto Sans Mono CJK SC", Menlo, Monaco, Consolas, monospace',
+};
+
 const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   canvas: "Canvas",
   selection: "Selection",
   select: "Select (V)",
   hand: "Hand (H)",
-  addItem: "Item",
+  addItem: "Add Zotero materials",
   addNote: "Note",
   addQuestion: "Question",
   addClaim: "Viewpoint",
@@ -243,6 +267,7 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   addFrame: "Frame",
   addPdf: "PDF",
   addFile: "File",
+  attachFile: "Attach file",
   addText: "Text",
   addRect: "Rect",
   addRoundedRect: "Rounded rectangle",
@@ -412,12 +437,14 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   textUnderline: "Underline",
   textStrike: "Strikethrough",
   fontFamily: "Font",
+  fontDefault: "Default font",
   weightBold: "Bold",
   commonColors: "Common custom colors",
   recentColors: "Recently used colors",
   opacity: "Opacity",
   customColor: "Custom color",
   resetColor: "Restore default",
+  settings: "Settings",
   shortcutSelect: "Select",
   shortcutHand: "Pan canvas",
   shortcutRect: "Draw rectangle",
@@ -446,6 +473,8 @@ function fileLabel(
 
 export interface WhiteboardAppProps {
   theme: WhiteboardTheme;
+  colorScheme?: ColorSchemeID;
+  appearance?: WhiteboardAppearance;
   labels?: WhiteboardLabels;
   initialSnapshot?: CanvasDocument;
   templates?: NoteTemplate[];
@@ -453,6 +482,7 @@ export interface WhiteboardAppProps {
   onChange: (rev: number) => void;
   onSave: () => void;
   onSwitchWindow?: () => void;
+  onOpenSettings?: () => void;
   onSaveNoteTemplate?: (template: NoteTemplate) => void;
   onDeleteNoteTemplate?: (templateId: string) => void;
   onPickAcademicSource: (
@@ -466,7 +496,7 @@ export interface WhiteboardAppProps {
     attachmentID?: number;
     pdfPage?: number;
   }) => void;
-  onOpenFile?: (payload: { nodeId: string }) => void;
+  onOpenFile?: (payload: { nodeId: string; attachmentId?: string }) => void;
   onDropAcademicSources: (
     requestId: string,
     nodeId: string,
@@ -503,6 +533,8 @@ export interface WhiteboardAppProps {
 
 export interface WhiteboardRuntime {
   setTheme: (theme: WhiteboardTheme) => void;
+  setColorScheme: (scheme: ColorSchemeID) => void;
+  setAppearance: (appearance: WhiteboardAppearance) => void;
   setLabels: (labels: WhiteboardLabels) => void;
   setTemplates: (templates: NoteTemplate[]) => void;
   loadSnapshot: (snapshot: CanvasDocument) => void;
@@ -905,6 +937,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     [],
   );
   const openSourceRequestsRef = useRef(createSourceActionCorrelation());
+  const notePickRequestsRef = useRef(new Map<string, string>());
   const academicAcquisitionRef = useRef<AcademicAcquisitionRuntime | null>(
     null,
   );
@@ -959,6 +992,17 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }
   const academicAcquisition = academicAcquisitionRef.current;
   const [theme, setTheme] = useState<WhiteboardTheme>(props.theme);
+  const [appearance, setAppearance] = useState<WhiteboardAppearance>(
+    props.appearance ?? DEFAULT_APPEARANCE,
+  );
+  const [colorScheme, setColorScheme] = useState<ColorSchemeID>(() =>
+    normalizeColorScheme(props.colorScheme),
+  );
+  useEffect(() => {
+    if (props.colorScheme !== undefined) {
+      setColorScheme(normalizeColorScheme(props.colorScheme));
+    }
+  }, [props.colorScheme]);
   const [labels, setLabels] = useState<WhiteboardLabels>(
     props.labels ?? DEFAULT_LABELS,
   );
@@ -1034,6 +1078,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [imageViewer, setImageViewer] = useState<EmbeddedFileInfo | null>(null);
   const [fileNotice, setFileNotice] = useState<string | null>(null);
+  const [fileDropTargetId, setFileDropTargetId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1075,7 +1120,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const imageViewerCloseRef = useRef<HTMLButtonElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const filePickerModeRef = useRef<"attachment" | "markdown">("attachment");
+  const filePickerModeRef = useRef<"attachment" | "note">("attachment");
+  const filePickerNoteRef = useRef<{
+    nodeId: string;
+    generation: number;
+    editing?: { revision: number; value: string };
+  } | null>(null);
   const filePickerPositionRef = useRef<{ x: number; y: number } | undefined>(
     undefined,
   );
@@ -1201,6 +1251,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       noteRefreshRuntimeRef.current?.clear();
       sourceRefreshRuntimeRef.current?.clear();
       academicAcquisitionRef.current?.clear();
+      notePickRequestsRef.current.clear();
       openSourceRequestsRef.current.clear();
       clearCanvasNotice();
       annotationBrowserOriginNodeIdRef.current = null;
@@ -1755,6 +1806,21 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     ],
   );
 
+  const pickNoteReference = useCallback(
+    (nodeId: string) => {
+      if (
+        nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind !==
+        "note"
+      )
+        return;
+      armEditFocusHold(holdEditFocusRef);
+      const requestId = newId("note-reference");
+      notePickRequestsRef.current.set(requestId, nodeId);
+      propsRef.current.onPickAcademicSource(requestId, nodeId, "literature");
+    },
+    [nodesRef],
+  );
+
   const openContextMenu = useCallback(
     (
       event: { clientX: number; clientY: number },
@@ -1810,6 +1876,164 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       );
     },
     [labels],
+  );
+
+  const applyImportedFilesToNote = useCallback(
+    (
+      files: readonly ImportedWhiteboardFile[],
+      nodeId: string,
+      options: {
+        editing?: { revision: number; value: string };
+        selection?: { start: number; end: number };
+      } = {},
+    ) => {
+      if (!files.length) return;
+      const node = nodesRef.current.find(
+        (candidate) => candidate.id === nodeId,
+      );
+      if (!node || node.data.model.kind !== "note") return;
+      const currentEditing = editingRef.current;
+      if (options.editing) {
+        if (
+          !currentEditing ||
+          !isEditingImportSessionCurrent(
+            { ...currentEditing, revision: editingRevisionRef.current },
+            {
+              nodeId,
+              value: options.editing.value,
+              revision: options.editing.revision,
+            },
+          )
+        ) {
+          return;
+        }
+      } else if (currentEditing?.nodeId === nodeId) {
+        return;
+      }
+
+      const images = files
+        .map((file) => importedImageMarkdown(file))
+        .filter(Boolean);
+      const attachments: NoteAttachment[] = files
+        .filter((file) => !importedImageMarkdown(file))
+        .map((file) => ({
+          id: newId("note-file"),
+          title: file.title.slice(0, 512),
+          contentType: file.contentType.slice(0, 160),
+          size: file.size,
+          fileData: file.fileData,
+          ...(file.preview !== undefined
+            ? { preview: file.preview.slice(0, 2000) }
+            : {}),
+        }));
+      if (
+        (node.data.model.attachments?.length ?? 0) + attachments.length >
+        MAX_NOTE_ATTACHMENTS
+      ) {
+        setFileNotice(
+          `${fileLabel(labels, "fileImportFailed", "The file could not be imported.")} (${MAX_NOTE_ATTACHMENTS} attachments maximum)`,
+        );
+        return;
+      }
+
+      if (options.editing) {
+        const current = currentEditing!;
+        const textarea = editingTextareaRef.current;
+        const start = Math.min(
+          options.selection?.start ??
+            textarea?.selectionStart ??
+            current.value.length,
+          current.value.length,
+        );
+        const end = Math.min(
+          options.selection?.end ?? textarea?.selectionEnd ?? start,
+          current.value.length,
+        );
+        if (images.length) {
+          const markdown = images.join("\n");
+          editingRevisionRef.current += 1;
+          setEditing({
+            nodeId,
+            value: `${current.value.slice(0, start)}${markdown}${current.value.slice(end)}`,
+          });
+          window.requestAnimationFrame(() => {
+            const textarea = editingTextareaRef.current;
+            if (!textarea) return;
+            const caret = start + markdown.length;
+            textarea.setSelectionRange(caret, caret);
+          });
+        }
+        if (attachments.length) {
+          pushHistory();
+          setNodes((currentNodes) =>
+            currentNodes.map((candidate) =>
+              candidate.id === nodeId
+                ? updateFlowNodeModel(candidate, (model) =>
+                    model.kind === "note"
+                      ? {
+                          ...model,
+                          attachments: [
+                            ...(model.attachments ?? []),
+                            ...attachments,
+                          ],
+                        }
+                      : model,
+                  )
+                : candidate,
+            ),
+          );
+          bump();
+        }
+      } else if (images.length || attachments.length) {
+        const current = node.data.model.content;
+        const markdown = images.join("\n");
+        const separator = current && !current.endsWith("\n") ? "\n\n" : "";
+        const nextContent = `${current}${separator}${markdown}`;
+        pushHistory();
+        setNodes((currentNodes) =>
+          currentNodes.map((candidate) =>
+            candidate.id === nodeId
+              ? updateFlowNodeModel(candidate, (model) =>
+                  model.kind === "note"
+                    ? {
+                        ...model,
+                        ...(images.length ? { content: nextContent } : {}),
+                        ...(attachments.length
+                          ? {
+                              attachments: [
+                                ...(model.attachments ?? []),
+                                ...attachments,
+                              ],
+                            }
+                          : {}),
+                      }
+                    : model,
+                )
+              : candidate,
+          ),
+        );
+        bump();
+      }
+    },
+    [bump, labels, nodesRef, pushHistory, setNodes],
+  );
+
+  const addImportedFilesToNote = useCallback(
+    async (
+      input: Iterable<File>,
+      nodeId: string,
+      editingSession?: { revision: number; value: string },
+    ) => {
+      const generation = importGenerationRef.current;
+      const result = await importWhiteboardFiles(input);
+      if (!mountedRef.current || generation !== importGenerationRef.current)
+        return;
+      reportFileFailures(result.failures);
+      applyImportedFilesToNote(result.files, nodeId, {
+        ...(editingSession ? { editing: editingSession } : {}),
+      });
+    },
+    [applyImportedFilesToNote, reportFileFailures],
   );
 
   const addImportedFiles = useCallback(
@@ -1869,60 +2093,24 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const insertImportedImages = useCallback(
-    (
-      images: readonly ImportedWhiteboardFile[],
+
+  const addFilesToEditing = useCallback(
+    async (
+      input: Iterable<File>,
       nodeId: string,
-      selection?: { start: number; end: number },
       expected?: { revision: number; value: string },
     ) => {
-      if (!images.length) return;
-      const current = editingRef.current;
-      if (!current || current.nodeId !== nodeId) return;
-      if (
-        nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind !==
-        "note"
-      )
-        return;
-      if (
-        expected &&
-        !isEditingImportSessionCurrent(
-          { ...current, revision: editingRevisionRef.current },
-          { nodeId, value: expected.value, revision: expected.revision },
-        )
-      )
-        return;
-      const textarea = editingTextareaRef.current;
-      const start = Math.min(
-        selection?.start ?? textarea?.selectionStart ?? current.value.length,
-        current.value.length,
-      );
-      const end = Math.min(
-        selection?.end ?? textarea?.selectionEnd ?? start,
-        current.value.length,
-      );
-      const markdown = images
-        .map(importedImageMarkdown)
-        .filter(Boolean)
-        .join("\n");
-      if (!markdown) return;
-      const value = `${current.value.slice(0, start)}${markdown}${current.value.slice(end)}`;
-      editingRevisionRef.current += 1;
-      setEditing({ nodeId, value });
-      window.requestAnimationFrame(() => {
-        if (!editingTextareaRef.current) return;
-        const caret = start + markdown.length;
-        editingTextareaRef.current.setSelectionRange(caret, caret);
-      });
-    },
-    [nodesRef],
-  );
-
-  const addImagesToEditing = useCallback(
-    async (input: Iterable<File>, nodeId: string) => {
       const generation = importGenerationRef.current;
       const session = editingRef.current;
       if (!session || session.nodeId !== nodeId) return;
+      if (
+        expected &&
+        !isEditingImportSessionCurrent(
+          { ...session, revision: editingRevisionRef.current },
+          { nodeId, ...expected },
+        )
+      )
+        return;
       if (
         nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind !==
         "note"
@@ -1943,18 +2131,37 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       if (!mountedRef.current || generation !== importGenerationRef.current)
         return;
       reportFileFailures(result.failures);
-      insertImportedImages(result.files, nodeId, selection, {
-        revision,
-        value: session.value,
+      applyImportedFilesToNote(result.files, nodeId, {
+        editing: expected ?? { revision, value: session.value },
+        selection,
       });
     },
-    [insertImportedImages, nodesRef, reportFileFailures],
+    [applyImportedFilesToNote, nodesRef, reportFileFailures],
   );
 
   const openFilePicker = useCallback(
-    (mode: "attachment" | "markdown", position?: { x: number; y: number }) => {
+    (
+      mode: "attachment" | "note",
+      position?: { x: number; y: number },
+      noteId?: string,
+    ) => {
       filePickerModeRef.current = mode;
       filePickerPositionRef.current = position;
+      filePickerNoteRef.current =
+        mode === "note" && noteId
+          ? {
+              nodeId: noteId,
+              generation: importGenerationRef.current,
+              ...(editingRef.current?.nodeId === noteId
+                ? {
+                    editing: {
+                      revision: editingRevisionRef.current,
+                      value: editingRef.current.value,
+                    },
+                  }
+                : {}),
+            }
+          : null;
       const input = fileInputRef.current;
       if (!input) return;
       input.value = "";
@@ -1966,18 +2173,26 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const handleFileInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const files = event.currentTarget.files;
+      const noteTarget = filePickerNoteRef.current;
+      const mode = filePickerModeRef.current;
+      const position = filePickerPositionRef.current;
+      filePickerPositionRef.current = undefined;
+      filePickerNoteRef.current = null;
+      event.currentTarget.value = "";
       if (!files?.length) return;
       const input = Array.from(files);
-      const activeEditing = editingRef.current;
-      if (filePickerModeRef.current === "markdown" && activeEditing) {
-        void addImagesToEditing(input, activeEditing.nodeId);
+      if (mode === "note" && noteTarget) {
+        if (noteTarget.generation !== importGenerationRef.current) return;
+        if (noteTarget.editing) {
+          void addFilesToEditing(input, noteTarget.nodeId, noteTarget.editing);
+        } else {
+          void addImportedFilesToNote(input, noteTarget.nodeId);
+        }
       } else {
-        void addImportedFiles(input, filePickerPositionRef.current);
+        void addImportedFiles(input, position);
       }
-      filePickerPositionRef.current = undefined;
-      event.currentTarget.value = "";
     },
-    [addImagesToEditing, addImportedFiles],
+    [addFilesToEditing, addImportedFiles, addImportedFilesToNote],
   );
 
   const openEmbeddedFile = useCallback(
@@ -2018,27 +2233,133 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     [labels],
   );
 
+  const openNoteAttachment = useCallback(
+    (node: CanvasFlowNode, attachmentId: string) => {
+      const model = node.data.model;
+      if (model.kind !== "note") return;
+      const attachment = model.attachments?.find(
+        (candidate) => candidate.id === attachmentId,
+      );
+      if (!attachment) {
+        setFileNotice(
+          fileLabel(labels, "fileUnavailable", "The file is unavailable."),
+        );
+        return;
+      }
+      const handler = propsRef.current.onOpenFile;
+      if (handler) {
+        handler({ nodeId: node.id, attachmentId });
+        return;
+      }
+      const blob = dataUrlBlob(attachment.fileData);
+      if (!blob) {
+        setFileNotice(
+          fileLabel(labels, "fileUnavailable", "The file is unavailable."),
+        );
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = attachment.title;
+      anchor.rel = "noopener";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    [labels],
+  );
+
   const isNativeFileTransfer = useCallback(canAcceptNativeFileTransfer, []);
+
+  const setFileDropTarget = useCallback(
+    (nodeId: string | null) => {
+      setFileDropTargetId(nodeId);
+      setNodes((current) =>
+        current.map((node) => {
+          const classes = (node.className ?? "")
+            .split(/\s+/u)
+            .filter(Boolean)
+            .filter((name) => name !== "is-file-drop-target");
+          if (node.id === nodeId) classes.push("is-file-drop-target");
+          return { ...node, className: classes.join(" ") || undefined };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  const fileDropNodeId = useCallback((target: EventTarget | null) => {
+    const element = (target as Element | null)?.closest?.(".react-flow__node");
+    const nodeId = element?.getAttribute("data-id");
+    if (nodeId) return nodeId;
+    return (target as Element | null)?.closest?.(".zmd-board-editor")
+      ? (editingRef.current?.nodeId ?? null)
+      : null;
+  }, []);
 
   const onCanvasDragOver = useCallback(
     (event: DragEvent) => {
       if (!isNativeFileTransfer(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
+      const nodeId = fileDropNodeId(event.target);
+      setFileDropTarget(
+        nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind ===
+          "note"
+          ? nodeId
+          : null,
+      );
     },
-    [isNativeFileTransfer],
+    [fileDropNodeId, isNativeFileTransfer, setFileDropTarget, nodesRef],
+  );
+
+  const onCanvasDragLeave = useCallback(
+    (event: DragEvent) => {
+      if (!isNativeFileTransfer(event.dataTransfer)) return;
+      const next = event.relatedTarget as Node | null;
+      if (next && canvasHostRef.current?.contains(next)) return;
+      setFileDropTarget(null);
+    },
+    [isNativeFileTransfer, setFileDropTarget],
   );
 
   const onCanvasDrop = useCallback(
     (event: DragEvent) => {
       if (!isNativeFileTransfer(event.dataTransfer)) return;
       event.preventDefault();
-      void addImportedFiles(
-        Array.from(event.dataTransfer.files),
-        flowPoint(event.clientX, event.clientY),
-      );
+      const files = Array.from(event.dataTransfer.files);
+      const nodeId = fileDropNodeId(event.target);
+      const node = nodeId
+        ? nodesRef.current.find((candidate) => candidate.id === nodeId)
+        : undefined;
+      setFileDropTarget(null);
+      if (node?.data.model.kind === "note") {
+        const editingSession =
+          editingRef.current?.nodeId === node.id
+            ? {
+                revision: editingRevisionRef.current,
+                value: editingRef.current.value,
+              }
+            : undefined;
+        if (editingSession) {
+          void addFilesToEditing(files, node.id, editingSession);
+        } else {
+          void addImportedFilesToNote(files, node.id);
+        }
+        return;
+      }
+      void addImportedFiles(files, flowPoint(event.clientX, event.clientY));
     },
-    [addImportedFiles, flowPoint, isNativeFileTransfer],
+    [
+      addFilesToEditing,
+      addImportedFiles,
+      addImportedFilesToNote,
+      fileDropNodeId,
+      flowPoint,
+      isNativeFileTransfer,
+      nodesRef,
+      setFileDropTarget,
+    ],
   );
 
   const cancelDraw = useCallback(() => {
@@ -2245,8 +2566,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const commitEdit = useCallback(() => {
-    if (!editing) return;
-    const { nodeId, value } = editing;
+    const currentEditing = editingRef.current;
+    if (!currentEditing) return;
+    const { nodeId, value } = currentEditing;
+    editingRef.current = null;
+    holdEditFocusRef.current = false;
     editingRevisionRef.current += 1;
     setEditing(null);
     const node = nodesRef.current.find((item) => item.id === nodeId);
@@ -2266,7 +2590,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       ...mergeEditingStyle(current, value, {}),
       className: undefined,
     }));
-  }, [editing, updateNode]);
+  }, [updateNode]);
 
   const cancelEdit = useCallback(() => {
     editingRevisionRef.current += 1;
@@ -2661,7 +2985,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       ),
       width: bounds.right - bounds.left + padding * 2,
       height: bounds.bottom - bounds.top + titleSpace + padding,
-      title: labels.kindFrame,
+      title: "",
     };
     let document = workingSnapshot();
     document = {
@@ -2776,7 +3100,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         return;
       }
       if (format === "svg") {
-        const svg = buildCanvasSvg(doc, labels);
+        const svg = buildCanvasSvg(doc, labels, {
+          theme,
+          fontFamily: APPEARANCE_FONT_FAMILY[appearance.fontFamily],
+          backgroundColor: appearance.backgroundColor || THEME_TOKENS[theme].bg,
+        });
         propsRef.current.onExportFile({
           requestId,
           format,
@@ -2807,7 +3135,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           exportBusyRef.current = false;
         });
     },
-    [snapshotNow, labels],
+    [snapshotNow, labels, appearance, theme],
   );
 
   useEffect(() => {
@@ -2926,8 +3254,18 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [menu]);
 
   useEffect(() => {
+    setTheme(props.theme);
+  }, [props.theme]);
+
+  useEffect(() => {
+    if (props.appearance !== undefined) setAppearance(props.appearance);
+  }, [props.appearance]);
+
+  useEffect(() => {
     const runtime: WhiteboardRuntime = {
       setTheme,
+      setColorScheme,
+      setAppearance,
       setLabels,
       setTemplates(templates) {
         setCustomTemplates(parseNoteTemplateRegistry(templates));
@@ -2952,6 +3290,69 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         showCanvasNotice({ code });
       },
       resolveAcademicAcquisitionBatch(requestId, nodeId, successes, failures) {
+        const noteId = notePickRequestsRef.current.get(requestId);
+        if (noteId) {
+          notePickRequestsRef.current.delete(requestId);
+          if (noteId !== nodeId) return;
+          const node = nodesRef.current.find((node) => node.id === noteId);
+          if (node?.data.model.kind !== "note") return;
+          const references: NoteReference[] = [];
+          for (const { acquisition } of successes) {
+            if (acquisition.kind === "literature")
+              references.push({
+                id: newId("reference"),
+                kind: "literature",
+                source: acquisition.source,
+                title: acquisition.snapshot.title.slice(0, 4096),
+                ...(acquisition.snapshot.creators
+                  ? { creators: acquisition.snapshot.creators }
+                  : {}),
+                ...(acquisition.snapshot.year
+                  ? { year: acquisition.snapshot.year }
+                  : {}),
+              });
+            else if (acquisition.kind === "attachment")
+              references.push({
+                id: newId("reference"),
+                kind: "attachment",
+                source: acquisition.source,
+                title: (
+                  acquisition.snapshot.title || acquisition.snapshot.filename
+                ).slice(0, 4096),
+              });
+            else showCanvasNotice({ code: "drop-unsupported" });
+          }
+          const merged = [...(node.data.model.references ?? [])];
+          const keys = new Set(merged.map(noteReferenceHref));
+          for (const reference of references) {
+            const key = noteReferenceHref(reference);
+            if (!keys.has(key)) {
+              keys.add(key);
+              merged.push(reference);
+            }
+          }
+          if (merged.length > MAX_NOTE_ATTACHMENTS) {
+            showCanvasNotice({ code: "drop-unsupported" });
+            return;
+          }
+          if (merged.length !== (node.data.model.references?.length ?? 0)) {
+            pushHistory();
+            setNodes((current) =>
+              current.map((candidate) =>
+                candidate.id === noteId
+                  ? updateFlowNodeModel(candidate, (model) =>
+                      model.kind === "note"
+                        ? { ...model, references: merged }
+                        : model,
+                    )
+                  : candidate,
+              ),
+            );
+            bump();
+          }
+          if (failures.length) showCanvasNotice({ code: "drop-unsupported" });
+          return;
+        }
         const addedNodeIds = academicAcquisition.resolveBatch(
           requestId,
           nodeId,
@@ -2971,6 +3372,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         }
       },
       rejectAcademicRequest(requestId, nodeId, code) {
+        if (notePickRequestsRef.current.has(requestId)) {
+          notePickRequestsRef.current.delete(requestId);
+          if (code !== "picker-cancelled")
+            showCanvasNotice({ code: "drop-unsupported" });
+          return;
+        }
         if (
           noteRefreshRuntime.reject(requestId, nodeId, labels.noteRefreshFailed)
         ) {
@@ -3044,6 +3451,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     () => () => {
       openSourceRequestsRef.current.clear();
       academicAcquisitionRef.current?.clear();
+      notePickRequestsRef.current.clear();
       noteRefreshRuntimeRef.current?.clear();
       sourceRefreshRuntimeRef.current?.clear();
     },
@@ -3053,10 +3461,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   useEffect(() => {
     requestSources("selected", currentSourceRequests().selected);
   }, [currentSourceRequests, nodes, requestSources]);
-
-  useEffect(() => {
-    setTheme(props.theme);
-  }, [props.theme]);
 
   const selectedNodes = nodes.filter((node) => node.selected);
   const selectedEdges = edges.filter((edge) => edge.selected);
@@ -3260,7 +3664,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         ref={canvasHostRef}
         style={
           {
-            "--zmd-board-bg": THEME_TOKENS[theme].bg,
+            "--zmd-board-bg":
+              appearance.backgroundColor || THEME_TOKENS[theme].bg,
+            "--zmd-board-font-family":
+              APPEARANCE_FONT_FAMILY[appearance.fontFamily] ??
+              APPEARANCE_FONT_FAMILY.system,
             "--zmd-board-surface": THEME_TOKENS[theme].surface,
             "--zmd-board-hover": THEME_TOKENS[theme].surface2,
             "--zmd-board-border":
@@ -3277,10 +3685,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             "--zmd-menu-shadow": `${UI_METRICS.menuShadow} ${THEME_TOKENS[theme].menuShadow}`,
           } as CSSProperties
         }
-        className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}`}
+        className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}${fileDropTargetId ? " is-file-drop-target" : ""}`}
         data-theme={theme}
+        data-file-drop-target={fileDropTargetId ?? undefined}
         tabIndex={-1}
         onDragOver={onCanvasDragOver}
+        onDragLeave={onCanvasDragLeave}
         onDrop={onCanvasDrop}
         onDoubleClick={(event) => {
           if (activeTool !== "select" || editing || editingEdge) return;
@@ -3301,6 +3711,20 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             }),
           );
         }}
+        onPointerDownCapture={(event) => {
+          const current = editingRef.current;
+          if (!current || event.button !== 0) return;
+          const target = event.target as Element;
+          const nodeId = target
+            .closest(".react-flow__node")
+            ?.getAttribute("data-id");
+          if (
+            (nodeId && nodeId !== current.nodeId) ||
+            target.matches(".react-flow__pane") ||
+            target.closest(".react-flow__edge")
+          )
+            commitEdit();
+        }}
         onPointerDown={(event) => {
           if (event.button !== 0 || editing) return;
           if (!isDrawTool(activeToolRef.current)) return;
@@ -3313,10 +3737,19 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         <TopIsland
           labels={labels}
           theme={theme}
+          onOpenSettings={props.onOpenSettings}
           activeTool={activeTool}
           onSelectTool={(tool) => {
-            if (tool === "literature") addNode("literature");
-            else setActiveTool(tool);
+            if (tool === "literature") {
+              const editingId = editingRef.current?.nodeId;
+              if (
+                editingId &&
+                nodesRef.current.find((node) => node.id === editingId)?.data
+                  .model.kind === "note"
+              )
+                pickNoteReference(editingId);
+              else addNode("literature");
+            } else setActiveTool(tool);
           }}
           noteTemplates={noteTemplates}
           activeNoteTemplateId={activeNoteTemplateId}
@@ -3326,7 +3759,17 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           selectedEdgeCount={selectedEdges.length}
           onUndo={undoCanvas}
           onRedo={redoCanvas}
-          onAddFile={() => openFilePicker("attachment")}
+          onHoldEditFocus={() => armEditFocusHold(holdEditFocusRef)}
+          onAddFile={() => {
+            const editingId = editingRef.current?.nodeId;
+            if (
+              editingId &&
+              nodesRef.current.find((node) => node.id === editingId)?.data.model
+                .kind === "note"
+            )
+              openFilePicker("note", undefined, editingId);
+            else openFilePicker("attachment");
+          }}
           onSave={() => propsRef.current.onSave()}
           onSwitchWindow={props.onSwitchWindow}
           onExportPng={() => exportAs("png")}
@@ -3600,6 +4043,48 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onConnect={onConnect}
           onReconnect={onReconnect}
           onNodeClick={(event, node) => {
+            if (editingRef.current && editingRef.current.nodeId !== node.id)
+              commitEdit();
+            const referenceButton = (event.target as Element).closest?.(
+              "[data-zmd-note-reference]",
+            );
+            if (referenceButton && node.data.model.kind === "note") {
+              event.preventDefault();
+              event.stopPropagation();
+              const reference = node.data.model.references?.find(
+                (reference) =>
+                  reference.id ===
+                  referenceButton.getAttribute("data-zmd-note-reference"),
+              );
+              if (reference) {
+                const source =
+                  reference.kind === "literature"
+                    ? { kind: "literature" as const, source: reference.source }
+                    : { kind: "attachment" as const, source: reference.source };
+                const requestId = newId("open-reference");
+                openSourceRequestsRef.current.begin(requestId, node.id, source);
+                propsRef.current.onOpenAcademicSource?.(
+                  requestId,
+                  node.id,
+                  source,
+                );
+              }
+              return;
+            }
+            const noteAttachment = (event.target as Element).closest?.(
+              "[data-zmd-note-attachment]",
+            );
+            if (noteAttachment) {
+              const attachmentId = noteAttachment.getAttribute(
+                "data-zmd-note-attachment",
+              );
+              if (attachmentId) {
+                event.preventDefault();
+                event.stopPropagation();
+                openNoteAttachment(node, attachmentId);
+              }
+              return;
+            }
             const image = (event.target as Element).closest?.(
               ".zmd-board-pdf-image, .zmd-board-attachment-image, .zmd-board-card img",
             );
@@ -3753,7 +4238,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                 data-shape={editingNode.data.model.style?.shape}
                 style={{
                   borderWidth:
-                    editingNode.type === "note" || editingNode.type === "text"
+                    editingNode.type === "note" ||
+                    editingNode.type === "text" ||
+                    editingNode.type === "frame"
                       ? (editingNode.data.model.style?.strokeWidth ??
                         editingSurfaceDefaults?.strokeWidth ??
                         1)
@@ -3797,6 +4284,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       if (
                         element &&
                         (editingNode.type === "note" ||
+                          editingNode.type === "frame" ||
                           editingNode.data.model.style?.shape === "diamond")
                       ) {
                         element.style.height = "0px";
@@ -3804,7 +4292,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       }
                     }}
                     rows={
-                      editingNode.type === "text" || editingStroke
+                      editingNode.type === "text" ||
+                      editingNode.type === "frame" ||
+                      editingStroke
                         ? 1
                         : undefined
                     }
@@ -3848,7 +4338,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       const file = item?.getAsFile();
                       if (!file) return;
                       event.preventDefault();
-                      void addImagesToEditing([file], editing.nodeId);
+                      void addFilesToEditing([file], editing.nodeId);
                     }}
                     onBlur={() => {
                       handleEditBlur(holdEditFocusRef, commitEdit);
@@ -3883,21 +4373,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       }
                     }}
                   />
-                  {editingNode.type === "note" ? (
-                    <button
-                      type="button"
-                      className="zmd-board-edit-file"
-                      aria-label={labels.addFile}
-                      title={labels.addFile}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        armEditFocusHold(holdEditFocusRef);
-                        openFilePicker("markdown");
-                      }}
-                    >
-                      {labels.addFile}
-                    </button>
-                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -4060,6 +4535,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             node={editingNode}
             labels={labels}
             theme={theme}
+            colorScheme={colorScheme}
             left={
               editingScreen.x +
               (nodeSize(editingNode).width * (viewportRef.current.zoom || 1)) /
@@ -4076,6 +4552,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             onHoldFocus={() => {
               armEditFocusHold(holdEditFocusRef);
             }}
+            onAddItem={
+              editingNode.data.model.kind === "note"
+                ? () => pickNoteReference(editing.nodeId)
+                : undefined
+            }
             onChange={(patch) => {
               updateNode(editing.nodeId, (current) =>
                 mergeEditingStyle(current, editing.value, patch),
@@ -4105,6 +4586,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             }}
             labels={labels}
             theme={theme}
+            colorScheme={colorScheme}
             left={edgeToolbarAnchor.x}
             top={edgeToolbarAnchor.y - 56}
             anchor={{
@@ -4146,6 +4628,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             top={batchAnchor.y - 44}
             nodeCount={selectedNodes.length}
             edgeCount={selectedEdges.length}
+            colorScheme={colorScheme}
             stroke={
               batchNode?.style?.stroke ?? batchDefaults?.stroke ?? "#2563eb"
             }
@@ -4185,6 +4668,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             node={toolbarNode}
             labels={labels}
             theme={theme}
+            colorScheme={colorScheme}
             left={
               toolbarScreen.x + (nodeSize(toolbarNode).width * zoom) / 2 - 280
             }
@@ -4244,6 +4728,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             edge={toolbarEdge}
             labels={labels}
             theme={theme}
+            colorScheme={colorScheme}
             anchor={edgeToolbarAnchor}
             onChange={(patch) => changeEdgeStyle(toolbarEdge.id, patch)}
             onEdit={() => startEdgeEdit(toolbarEdge.id)}

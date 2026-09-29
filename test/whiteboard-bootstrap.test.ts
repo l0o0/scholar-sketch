@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -553,9 +554,9 @@ test("host-owned iframe drop capture emits native refs and cleans up listeners",
   listeners.get("drop")?.(event);
   assert.deepEqual(emitted, [{ position: { x: 40, y: 70 }, sources }]);
   assert.equal(prevented, 2);
-  assert.equal(stopped, 1);
+  assert.equal(stopped, 2);
   cleanup();
-  assert.deepEqual(removed.sort(), ["dragover", "drop"]);
+  assert.deepEqual(removed.sort(), ["dragenter", "dragover", "drop"]);
 });
 
 test("native drop capture converts resolver exceptions into typed diagnostics", async () => {
@@ -1031,4 +1032,133 @@ test("flow snapshots with ordinary unlabeled edges resolve host snapshot request
     }),
   );
   assert.equal(saves, 1);
+});
+
+test("palette preferences initialize the bridge and queued changes keep the latest choice", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  let settingsOpened = 0;
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "palette-test",
+    colorScheme: "classic",
+    onOpenSettings: () => settingsOpened++,
+  });
+  const iframe = parent.querySelector("iframe")!;
+  const posted: Array<{ type: string; payload?: { colorScheme?: string } }> =
+    [];
+  iframe.contentWindow!.postMessage = ((message: unknown) =>
+    posted.push(
+      message as (typeof posted)[number],
+    )) as typeof iframe.contentWindow.postMessage;
+  handle.setColorScheme("classic");
+  handle.setColorScheme("traditional");
+  const dispatch = (type: string) =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          channel: "palette-test",
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          type,
+        },
+      }),
+    );
+  dispatch("ready");
+  assert.equal(posted[0].payload?.colorScheme, "classic");
+  assert.equal(
+    posted.filter((message) => message.type === "setColorScheme").length,
+    1,
+  );
+  assert.equal(posted[1].payload?.colorScheme, "traditional");
+  handle.setColorScheme("classic");
+  assert.equal(posted.at(-1)?.payload?.colorScheme, "classic");
+  dispatch("openSettings");
+  assert.equal(settingsOpened, 1);
+  handle.destroy();
+});
+
+test("outer-window drops reach the iframe once with local coordinates and detach on destroy", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  let resolutions = 0;
+  const sources = [{ library: { type: "user" as const }, itemKey: "ITEM1234" }];
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "window-1:canvas-1",
+    resolveNativeAcademicDrop: () => {
+      resolutions++;
+      return { status: "accepted", sources };
+    },
+  });
+  const iframe = parent.querySelector("iframe")!;
+  iframe.getBoundingClientRect = () => ({ left: 15, top: 25 }) as DOMRect;
+  const posted: any[] = [];
+  iframe.contentWindow!.postMessage = ((message: unknown) =>
+    posted.push(message)) as typeof iframe.contentWindow.postMessage;
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      data: {
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        channel: "window-1:canvas-1",
+        v: WHITEBOARD_PROTOCOL_VERSION,
+        type: "ready",
+      },
+      source: null,
+    }),
+  );
+  const dispatch = (type: string, types = ["zotero/item"]) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    const transfer = { types, dropEffect: "none" };
+    Object.defineProperties(event, {
+      dataTransfer: { value: transfer },
+      clientX: { value: 115 },
+      clientY: { value: 225 },
+    });
+    iframe.dispatchEvent(event);
+    return { event, transfer };
+  };
+  for (const type of ["dragenter", "dragover"]) {
+    const { event, transfer } = dispatch(type);
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(transfer.dropEffect, "copy");
+    assert.equal(dispatch(type, ["Files"]).event.defaultPrevented, false);
+  }
+  dispatch("drop");
+  assert.equal(resolutions, 1);
+  const drops = posted.filter(
+    (message) => message.type === "academicDropStarted",
+  );
+  assert.equal(drops.length, 1);
+  assert.deepEqual(drops[0].payload.position, { x: 100, y: 200 });
+  assert.deepEqual(drops[0].payload.sources, sources);
+  handle.destroy();
+  dispatch("drop");
+  assert.equal(resolutions, 1);
+});
+
+test("whiteboard page loads the bundle with the current editor mount cache key", () => {
+  const html = readFileSync("addon/content/whiteboard/index.html", "utf8");
+  const loader = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+  const urls: string[] = [];
+  for (const version of ["first-mount", "after-hot-reload"]) {
+    runInNewContext(loader, {
+      URLSearchParams,
+      encodeURIComponent,
+      location: { search: `?channel=test&v=${version}` },
+      document: {
+        createElement: () => ({}),
+        body: {
+          appendChild: (script: { src: string }) => urls.push(script.src),
+        },
+      },
+    });
+  }
+  assert.deepEqual(urls, [
+    "chrome://bamboo/content/whiteboard/whiteboard.js?v=first-mount",
+    "chrome://bamboo/content/whiteboard/whiteboard.js?v=after-hot-reload",
+  ]);
 });

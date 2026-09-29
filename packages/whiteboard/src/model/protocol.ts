@@ -7,6 +7,8 @@
  * so the two iframes cannot accept each other's messages.
  */
 
+import type { ColorSchemeID } from "./colorSchemes";
+
 import type {
   AttachmentSnapshot,
   AttachmentSource,
@@ -33,6 +35,14 @@ export const WHITEBOARD_MESSAGE_SOURCE = "zotero-markdown-whiteboard" as const;
 export const WHITEBOARD_PROTOCOL_VERSION = 2;
 
 export type WhiteboardTheme = "light" | "dark";
+
+export type WhiteboardFontFamily = "system" | "serif" | "mono";
+
+export interface WhiteboardAppearance {
+  fontFamily: WhiteboardFontFamily;
+  /** Empty follows the active theme; otherwise a validated six-digit hex. */
+  backgroundColor: string;
+}
 
 export type WhiteboardCommand = "undo" | "redo";
 
@@ -67,6 +77,7 @@ export interface WhiteboardLabels {
   addFrame: string;
   addPdf: string;
   addFile: string;
+  attachFile: string;
   fileImage: string;
   filePdf: string;
   fileText: string;
@@ -151,6 +162,7 @@ export interface WhiteboardLabels {
   redo: string;
   save: string;
   switchWindow: string;
+  settings: string;
   editText: string;
   copy: string;
   delete: string;
@@ -229,6 +241,7 @@ export interface WhiteboardLabels {
   textUnderline: string;
   textStrike: string;
   fontFamily: string;
+  fontDefault: string;
   weightBold: string;
   commonColors: string;
   opacity: string;
@@ -255,6 +268,8 @@ export interface WhiteboardLabels {
 
 export interface WhiteboardInitPayload {
   theme: WhiteboardTheme;
+  colorScheme?: ColorSchemeID;
+  appearance?: WhiteboardAppearance;
   snapshot?: CanvasDocument | null;
   labels?: WhiteboardLabels;
   templates?: NoteTemplate[];
@@ -429,6 +444,8 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
   (
     | { type: "init"; payload: WhiteboardInitPayload }
     | { type: "setTheme"; payload: { theme: WhiteboardTheme } }
+    | { type: "setAppearance"; payload: { appearance: WhiteboardAppearance } }
+    | { type: "setColorScheme"; payload: { colorScheme: ColorSchemeID } }
     | {
         type: "loadSnapshot";
         payload: { snapshot: CanvasDocument };
@@ -546,8 +563,12 @@ export type WhiteboardToParentBody =
     }
   | { type: "save" }
   | { type: "switchWindow" }
+  | { type: "openSettings" }
   | { type: "openLink"; payload: { href: string } }
-  | { type: "openFile"; payload: { nodeId: string } }
+  | {
+      type: "openFile";
+      payload: { nodeId: string; attachmentId?: string };
+    }
   | { type: "error"; payload: { message: string } }
   | {
       type: "openItem";
@@ -626,6 +647,7 @@ const activeWhiteboardToParentTypes = {
   snapshot: true,
   save: true,
   switchWindow: true,
+  openSettings: true,
   error: true,
   pickAcademicSource: true,
   openLink: true,
@@ -644,6 +666,8 @@ const activeWhiteboardToParentTypes = {
 const activeParentToWhiteboardTypes = {
   init: true,
   setTheme: true,
+  setAppearance: true,
+  setColorScheme: true,
   loadSnapshot: true,
   requestSnapshot: true,
   command: true,
@@ -792,6 +816,19 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+function isWhiteboardAppearance(value: unknown): value is WhiteboardAppearance {
+  return (
+    isPlainRecord(value) &&
+    hasExactKeys(value, ["fontFamily", "backgroundColor"]) &&
+    (value.fontFamily === "system" ||
+      value.fontFamily === "serif" ||
+      value.fontFamily === "mono") &&
+    (value.backgroundColor === "" ||
+      (isString(value.backgroundColor) &&
+        /^#[\da-f]{6}$/i.test(value.backgroundColor)))
+  );
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return isString(value) && value.length > 0;
 }
@@ -853,6 +890,7 @@ const whiteboardLabelStringKeys: Record<
   addFrame: true,
   addPdf: true,
   addFile: true,
+  attachFile: true,
   fileImage: true,
   filePdf: true,
   fileText: true,
@@ -936,6 +974,7 @@ const whiteboardLabelStringKeys: Record<
   redo: true,
   save: true,
   switchWindow: true,
+  settings: true,
   editText: true,
   copy: true,
   delete: true,
@@ -1014,6 +1053,7 @@ const whiteboardLabelStringKeys: Record<
   textUnderline: true,
   textStrike: true,
   fontFamily: true,
+  fontDefault: true,
   weightBold: true,
   commonColors: true,
   opacity: true,
@@ -1132,8 +1172,13 @@ function isLibraryRefShape(value: unknown): boolean {
 function isAttachmentSnapshot(value: unknown): value is AttachmentSnapshot {
   return (
     isPlainRecord(value) &&
-    hasExactKeys(value, ["filename", "availability"], ["contentType"]) &&
+    hasExactKeys(
+      value,
+      ["filename", "availability"],
+      ["contentType", "title"],
+    ) &&
     isNonEmptyString(value.filename) &&
+    isOptionalOwnString(value, "title") &&
     (value.availability === "available" ||
       value.availability === "not-downloaded") &&
     isOptionalOwnString(value, "contentType")
@@ -1462,6 +1507,7 @@ function validateWhiteboardToParentMessageForChannel(
     case "ready":
     case "save":
     case "switchWindow":
+    case "openSettings":
       return !hasOwn(data, "payload");
     case "change":
       return (
@@ -1508,8 +1554,10 @@ function validateWhiteboardToParentMessageForChannel(
       return (
         hasOwn(data, "payload") &&
         isPlainRecord(payload) &&
-        hasExactKeys(payload, ["nodeId"]) &&
-        isNonEmptyString(payload.nodeId)
+        hasExactKeys(payload, ["nodeId"], ["attachmentId"]) &&
+        isNonEmptyString(payload.nodeId) &&
+        (!hasOwn(payload, "attachmentId") ||
+          isNonEmptyString(payload.attachmentId))
       );
     case "openItem":
       return (
@@ -1632,8 +1680,19 @@ function validateParentToWhiteboardMessageForChannel(
       return (
         hasOwn(data, "payload") &&
         isPlainRecord(payload) &&
-        hasExactKeys(payload, ["theme"], ["snapshot", "labels", "templates"]) &&
+        hasExactKeys(
+          payload,
+          ["theme"],
+          ["snapshot", "labels", "templates", "colorScheme", "appearance"],
+        ) &&
         (payload.theme === "light" || payload.theme === "dark") &&
+        (!hasOwn(payload, "colorScheme") ||
+          payload.colorScheme === undefined ||
+          payload.colorScheme === "traditional" ||
+          payload.colorScheme === "classic") &&
+        (!hasOwn(payload, "appearance") ||
+          payload.appearance === undefined ||
+          isWhiteboardAppearance(payload.appearance)) &&
         (hasOwn(payload, "snapshot")
           ? payload.snapshot === undefined ||
             payload.snapshot === null ||
@@ -1647,12 +1706,27 @@ function validateParentToWhiteboardMessageForChannel(
             isArrayOf(payload.templates, isNoteTemplate)
           : !("templates" in payload))
       );
+    case "setColorScheme":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(payload, ["colorScheme"]) &&
+        (payload.colorScheme === "traditional" ||
+          payload.colorScheme === "classic")
+      );
     case "setTheme":
       return (
         hasOwn(data, "payload") &&
         isPlainRecord(payload) &&
         hasExactKeys(payload, ["theme"]) &&
         (payload.theme === "light" || payload.theme === "dark")
+      );
+    case "setAppearance":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(payload, ["appearance"]) &&
+        isWhiteboardAppearance(payload.appearance)
       );
     case "loadSnapshot":
       return (

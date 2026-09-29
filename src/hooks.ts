@@ -1,4 +1,9 @@
 import {
+  registerWhiteboardSidebar,
+  unregisterWhiteboardSidebar,
+  disposeWhiteboardSidebarForWindow,
+} from "./modules/whiteboard/sidebar";
+import {
   retainWorkspaceOnShutdown,
   restoreWorkspace,
   resumeWorkspaceTracking,
@@ -77,6 +82,7 @@ async function onStartup() {
 
   registerNoteLibraryObserver();
   registerSidebarSection();
+  registerWhiteboardSidebar();
   tutorialStartup = ensureTutorialWhiteboard();
 
   addon.api = {
@@ -140,6 +146,7 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
   await flushSessionsForWindow(_win);
   unregisterItemContextMenu(_win);
   unregisterWhiteboardMenus(_win);
+  await disposeWhiteboardSidebarForWindow(_win);
   await closeWhiteboardsForWindow(_win);
   await disposeSidebarForWindow(_win);
 }
@@ -154,6 +161,7 @@ async function onShutdown(): Promise<void> {
   await closeAllMarkdownWindows();
   await flushAllSessions();
   await flushAllWhiteboards();
+  await unregisterWhiteboardSidebar();
   await closeAllWhiteboards();
   await unregisterSidebarSection();
   disposeMarkdownRenderer();

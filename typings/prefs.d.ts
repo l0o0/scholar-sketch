@@ -10,6 +10,12 @@ declare namespace _ZoteroTypes {
       "enable": boolean;
       "frontmatter": boolean;
       "fontSize": number;
+      "theme": string;
+      "markdownFontFamily": string;
+      "markdownBackgroundColor": string;
+      "whiteboardColorScheme": string;
+      "whiteboardFontFamily": string;
+      "whiteboardBackgroundColor": string;
       "whiteboardTutorialCreated": boolean;
       "shortcutNewStandaloneMd": string;
     };

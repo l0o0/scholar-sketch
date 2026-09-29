@@ -57,7 +57,8 @@ export function nodeTextStyle(style: Partial<CanvasNodeStyle>): CSSProperties {
 
 export function labelTextStyle(style: Partial<CanvasNodeStyle>): CSSProperties {
   return {
-    fontFamily: style.fontFamily || "system-ui, sans-serif",
+    fontFamily:
+      style.fontFamily || "var(--zmd-board-font-family, system-ui, sans-serif)",
     fontSize: style.fontSize || 16,
     fontWeight: style.fontWeight || "normal",
     fontStyle: style.fontStyle || "normal",

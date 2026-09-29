@@ -1,3 +1,9 @@
+import { canvasDocumentToFlow } from "../packages/whiteboard/src/whiteboard/document.ts";
+import { createBasicNode } from "../packages/whiteboard/src/model/basic.ts";
+import {
+  applyResolvedAcquisitionToCanvasNode,
+  sourceSnapshotChanged,
+} from "../packages/whiteboard/src/whiteboard/sourceState.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -116,4 +122,45 @@ test("async Zotero file checks update the resolution snapshot without rejecting 
     return;
   }
   assert.equal(result.acquisition.snapshot.availability, "not-downloaded");
+});
+
+test("attachments use Zotero display names on import and refresh, preserving the filename", async () => {
+  let displayName = "Published version";
+  const file = attachment({
+    getDisplayTitle: () => displayName,
+    getField: () => "Stored title",
+  });
+  const gateway = createZoteroSourceGateway(deps(file, []));
+  const acquired = gateway.acquireItem(file);
+  assert.equal(acquired.kind, "attachment");
+  if (acquired.kind !== "attachment") throw new Error("Expected attachment");
+  assert.equal(acquired.snapshot.title, "Published version");
+  assert.equal(acquired.snapshot.filename, "paper.pdf");
+  const node = createBasicNode("attachment", { x: 0, y: 0 }, "attachment");
+  node.data = { title: "paper.pdf", source: acquired.source };
+  const imported = applyResolvedAcquisitionToCanvasNode(node, acquired);
+  assert.equal(imported.kind, "attachment");
+  if (imported.kind !== "attachment") throw new Error("Expected attachment");
+  assert.equal(imported.data.title, "Published version");
+  const flowNode = canvasDocumentToFlow({
+    version: 2,
+    nodes: [imported],
+    connections: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  }).nodes[0];
+  assert.equal(sourceSnapshotChanged(flowNode, acquired), false);
+  displayName = "Accepted manuscript";
+  const resolved = await gateway.resolve(node.id, 1, {
+    kind: "attachment",
+    source: acquired.source,
+  });
+  assert.equal(resolved.status, "resolved");
+  if (resolved.status !== "resolved") throw new Error("Expected source");
+  assert.equal(sourceSnapshotChanged(flowNode, resolved.acquisition), true);
+  const refreshed = applyResolvedAcquisitionToCanvasNode(
+    imported,
+    resolved.acquisition,
+  );
+  if (refreshed.kind !== "attachment") throw new Error("Expected attachment");
+  assert.equal(refreshed.data.title, "Accepted manuscript");
 });

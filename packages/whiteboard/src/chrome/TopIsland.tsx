@@ -24,11 +24,10 @@ import {
   IconFrame,
   IconGroup,
   IconHand,
-  IconItem,
+  IconZotero,
   IconLayout,
   IconLine,
   IconMore,
-  IconNote,
   IconRect,
   IconRoundedRect,
   IconRedo,
@@ -58,8 +57,8 @@ function toolbarLabel(
   );
 }
 
-interface ToolButton {
-  tool: CanvasTool;
+interface ToolButton<T extends string = CanvasTool> {
+  tool: T;
   title: string;
   icon: ReactElement;
 }
@@ -78,8 +77,10 @@ export function TopIsland(props: {
   onUndo: () => void;
   onRedo: () => void;
   onAddFile: () => void;
+  onHoldEditFocus?: () => void;
   onSave: () => void;
   onSwitchWindow?: () => void;
+  onOpenSettings?: () => void;
   onExportPng?: () => void;
   onExportSvg?: () => void;
   onExportMarkdown?: () => void;
@@ -182,14 +183,14 @@ export function TopIsland(props: {
     props.noteTemplates.find(
       (template) => template.id === props.activeNoteTemplateId,
     ) ?? props.noteTemplates[0];
-  const groups: ToolButton[][] = [
+  const groups: ToolButton<CanvasTool | "file">[][] = [
     [
       { tool: "select", title: labels.select, icon: <IconSelect /> },
       { tool: "hand", title: labels.hand, icon: <IconHand /> },
     ],
-    [{ tool: "literature", title: labels.addItem, icon: <IconItem /> }],
+    [{ tool: "literature", title: labels.addItem, icon: <IconZotero /> }],
+    [{ tool: "file", title: labels.addFile, icon: <IconFile /> }],
     [
-      { tool: "note", title: labels.addNote, icon: <IconNote /> },
       {
         tool: "frame",
         title: `${labels.addFrame} (F)`,
@@ -239,22 +240,31 @@ export function TopIsland(props: {
                 type="button"
                 title={item.title}
                 aria-label={item.title}
-                aria-pressed={activeTool === item.tool}
+                aria-pressed={
+                  item.tool === "file" ? undefined : activeTool === item.tool
+                }
                 className={activeTool === item.tool ? "is-active" : ""}
+                onPointerDown={(event) => {
+                  if (item.tool === "file" || item.tool === "literature") {
+                    props.onHoldEditFocus?.();
+                    event.preventDefault();
+                  }
+                }}
                 onClick={() => {
                   setOpenMenu(null);
-                  onSelectTool(item.tool);
+                  if (item.tool === "file") props.onAddFile();
+                  else onSelectTool(item.tool);
                 }}
               >
                 {item.icon}
               </button>
             ))}
-            {group.some((item) => item.tool === "note") ? (
+            {group.some((item) => item.tool === "file") ? (
               <div className="zmd-board-template">
                 <button
                   ref={templateTriggerRef}
                   type="button"
-                  className="zmd-board-template-trigger"
+                  className={`zmd-board-template-trigger${activeTool === "note" ? " is-active" : ""}`}
                   title={labels.addNote}
                   aria-label={labels.addNote}
                   aria-haspopup="menu"
@@ -265,6 +275,7 @@ export function TopIsland(props: {
                     )
                   }
                 >
+                  <NoteTypeIcon type={activeNoteTemplate?.noteType ?? "note"} />
                   <span>{activeNoteTemplate?.name ?? labels.addNote}</span>
                   <IconChevronDown />
                 </button>
@@ -416,16 +427,6 @@ export function TopIsland(props: {
           </button>
           <button type="button" title={labels.redo} onClick={props.onRedo}>
             <IconRedo />
-          </button>
-        </div>
-        <div className="zmd-board-top-group">
-          <button
-            type="button"
-            title={labels.addFile}
-            aria-label={labels.addFile}
-            onClick={props.onAddFile}
-          >
-            <IconFile />
           </button>
         </div>
         <div className="zmd-board-more">
@@ -632,6 +633,18 @@ export function TopIsland(props: {
                   }}
                 >
                   {labels.switchWindow}
+                </button>
+              ) : null}
+              {props.onOpenSettings ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenu(null);
+                    props.onOpenSettings?.();
+                  }}
+                >
+                  {labels.settings}
                 </button>
               ) : null}
               <button

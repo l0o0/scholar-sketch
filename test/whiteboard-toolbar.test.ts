@@ -85,11 +85,14 @@ test("toolbar keeps resident tools compact and conditional commands reachable", 
   assert.match(renderToolbar(0, 0), /zmd-board-draw-tools/);
 });
 
-test("toolbar exposes one local academic creation group only", () => {
+test("toolbar groups file creation with a single note picker", () => {
   const markup = renderToolbar(0, 0);
   const academicGroup = commandGroup(markup, "addNote");
   assert.ok(academicGroup, "local academic tools need one toolbar group");
-  assert.ok(academicGroup.includes('title="addFrame (F)"'));
+  assert.ok(academicGroup.includes('title="addFile"'));
+  assert.equal(markup.match(/title="addNote"/g)?.length, 1);
+  assert.equal(markup.match(/title="addFile"/g)?.length, 1);
+  assert.match(markup, /title="addFrame \(F\)"/);
   assert.doesNotMatch(academicGroup, /addQuestion \(Q\)|addClaim \(C\)/);
   assert.doesNotMatch(academicGroup, /<select/);
   assert.match(academicGroup, /class="zmd-board-template-trigger"/);
@@ -156,14 +159,14 @@ test("template picker uses the toolbar menu vocabulary", () => {
   );
 });
 
-test("toolbar exposes Literature as its only library acquisition tool", () => {
+test("toolbar exposes a red Zotero entry for library materials", () => {
   const renderedToolbar = renderToStaticMarkup(
     createElement(TopIsland, {
       ...{
         labels: new Proxy({} as WhiteboardLabels, {
           get: (_target, property) =>
             property === "addItem"
-              ? "Add literature"
+              ? "Add Zotero materials"
               : property === "addPdf"
                 ? "Add PDF"
                 : property === "addFile"
@@ -197,7 +200,8 @@ test("toolbar exposes Literature as its only library acquisition tool", () => {
     }),
   );
   assert.deepEqual(libraryTools(), ["literature"]);
-  assert.match(renderedToolbar, /Add literature/);
+  assert.match(renderedToolbar, /title="Add Zotero materials"/);
+  assert.match(renderedToolbar, /stroke="#cc2936"/);
   assert.doesNotMatch(renderedToolbar, /Add PDF/);
   assert.match(renderedToolbar, /Add file/);
 });

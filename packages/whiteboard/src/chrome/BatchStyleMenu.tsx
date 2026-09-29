@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { CanvasNodeStyle } from "../model/core";
+import type { ColorSchemeID } from "../model/colorSchemes";
 import type { WhiteboardLabels } from "../model/protocol";
 import { IconMore, IconStrokePreview } from "../whiteboard/icons";
 import { StyleMenu } from "./StyleMenu";
 import { useFloatingStyleBar } from "./FloatingStyleBar";
-import { colorToHex } from "./color";
+import { colorPalette } from "./color";
+import { ColorPicker } from "./ColorPicker";
 
 export interface BatchEdgeStyle {
   color?: string;
@@ -22,6 +24,7 @@ export function BatchStyleMenu(props: {
   stroke: string;
   fill: string;
   edgeColor: string;
+  colorScheme?: ColorSchemeID;
   labels: WhiteboardLabels;
   onNodes: (patch: Partial<CanvasNodeStyle>, recordHistory?: boolean) => void;
   onEdges: (patch: BatchEdgeStyle, recordHistory?: boolean) => void;
@@ -52,6 +55,8 @@ export function BatchStyleMenu(props: {
             <BatchColor
               label={labels.stroke}
               color={props.stroke}
+              labels={labels}
+              colorScheme={props.colorScheme}
               onChange={(stroke, recordHistory) =>
                 props.onNodes({ stroke }, recordHistory)
               }
@@ -59,6 +64,8 @@ export function BatchStyleMenu(props: {
             <BatchColor
               label={labels.background}
               color={props.fill}
+              labels={labels}
+              colorScheme={props.colorScheme}
               onChange={(fill, recordHistory) =>
                 props.onNodes({ fill, fillStyle: "solid" }, recordHistory)
               }
@@ -95,6 +102,8 @@ export function BatchStyleMenu(props: {
             <BatchColor
               label={labels.edgeColor}
               color={props.edgeColor}
+              labels={labels}
+              colorScheme={props.colorScheme}
               onChange={(color, recordHistory) =>
                 props.onEdges({ color }, recordHistory)
               }
@@ -145,40 +154,43 @@ export function BatchStyleMenu(props: {
 function BatchColor(props: {
   label: string;
   color: string;
+  labels: WhiteboardLabels;
+  colorScheme?: ColorSchemeID;
   onChange: (color: string, recordHistory: boolean) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const changingRef = useRef(false);
-  useEffect(() => {
-    const input = inputRef.current;
-    const finish = () => {
-      changingRef.current = false;
-    };
-    // React's onChange also fires for input events; the native change event
-    // marks the end of the color picker's stream of live previews.
-    input?.addEventListener("change", finish);
-    return () => input?.removeEventListener("change", finish);
-  }, []);
   return (
-    <div className="zmd-board-batch-color">
-      <label>
-        {props.label}
-        <input
-          ref={inputRef}
-          type="color"
-          aria-label={props.label}
-          value={colorToHex(props.color) ?? "#ffffff"}
-          onInput={(event) => {
-            const next = event.currentTarget.value;
-            const recordHistory = !changingRef.current;
-            changingRef.current = true;
-            props.onChange(next, recordHistory);
-          }}
-          onBlur={() => {
-            changingRef.current = false;
-          }}
-        />
-      </label>
+    <div
+      className="zmd-board-batch-color"
+      onPointerUp={() => {
+        changingRef.current = false;
+      }}
+      onBlur={() => {
+        changingRef.current = false;
+      }}
+      onKeyUp={() => {
+        changingRef.current = false;
+      }}
+    >
+      <span className="zmd-board-batch-color-label">{props.label}</span>
+      <ColorPicker
+        compact
+        title={props.label}
+        labels={props.labels}
+        color={props.color}
+        defaultColor={props.color}
+        presets={colorPalette(true, props.colorScheme)}
+        showReset={false}
+        onReset={() => {}}
+        onChangeEnd={() => {
+          changingRef.current = false;
+        }}
+        onChange={(next) => {
+          const recordHistory = !changingRef.current;
+          changingRef.current = true;
+          props.onChange(next, recordHistory);
+        }}
+      />
     </div>
   );
 }

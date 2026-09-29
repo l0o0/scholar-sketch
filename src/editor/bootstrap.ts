@@ -1,3 +1,8 @@
+import type { EditorAppearance } from "../modules/markdown/editor-protocol";
+import {
+  normalizeFontFamily,
+  normalizeBackgroundColor,
+} from "../modules/markdown/preferences";
 import { validViewState } from "../modules/markdown/editor-view-state";
 /**
  * iframe-side entry: runs CodeMirror 6 inside a clean Web document.
@@ -63,7 +68,11 @@ import {
 } from "../modules/markdown/editor-protocol";
 import { clampOutlinePosition, extractEditorOutline } from "./outline";
 import { formatNoteLink } from "../modules/markdown/note-links";
-import { codeSyntaxHighlighting, editorThemeExtension } from "./theme";
+import {
+  appearanceTheme,
+  codeSyntaxHighlighting,
+  editorThemeExtension,
+} from "./theme";
 import { resolveCodeMirrorLanguage } from "./code-languages";
 import { imageDebug } from "./image-debug";
 import { imageControls } from "./image-controls";
@@ -147,6 +156,7 @@ interface EditorRuntime {
   view: EditorView | null;
   theme: EditorTheme;
   fontSize: number;
+  appearance: EditorAppearance;
   mode: EditorMode;
   surface: EditorSurface;
   docRev: number;
@@ -174,6 +184,7 @@ const runtime: EditorRuntime = {
   view: null,
   theme: "light",
   fontSize: 14,
+  appearance: { fontFamily: "system", backgroundColor: "" },
   mode: "live",
   surface: "default",
   docRev: 0,
@@ -988,6 +999,7 @@ function bindTableCellEditing(host: HTMLElement) {
 }
 
 function forwardImageFile(files: File[], event: Event) {
+  if (!runtime.view || runtime.view.state.readOnly) return false;
   const file = files.find((candidate) => candidate.type.startsWith("image/"));
   if (!file) return false;
   event.preventDefault();
@@ -1140,6 +1152,10 @@ function buildExtensions(
 ): Extension[] {
   runtime.theme = init.theme;
   runtime.fontSize = init.fontSize;
+  runtime.appearance = {
+    fontFamily: normalizeFontFamily(init.appearance?.fontFamily),
+    backgroundColor: normalizeBackgroundColor(init.appearance?.backgroundColor),
+  };
   runtime.mode = init.mode === "source" ? "source" : "live";
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
 
@@ -1239,8 +1255,11 @@ function buildExtensions(
         init.fontSize,
         runtime.mode,
         runtime.surface,
+        runtime.appearance,
       ),
-      codeSyntaxHighlighting(init.theme),
+      codeSyntaxHighlighting(
+        appearanceTheme(init.theme, runtime.appearance.backgroundColor),
+      ),
     ]),
     liveCompartment.of(
       disableLivePreview ? [] : livePreviewWhen(runtime.mode === "live"),
@@ -1384,6 +1403,16 @@ function buildExtensions(
       paste(event) {
         return forwardImageFile([...(event.clipboardData?.files || [])], event);
       },
+      dragover(event, view) {
+        if (
+          view.state.readOnly ||
+          !Array.from(event.dataTransfer?.types ?? []).includes("Files")
+        )
+          return false;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+        return true;
+      },
       drop(event) {
         return forwardImageFile([...(event.dataTransfer?.files || [])], event);
       },
@@ -1406,8 +1435,11 @@ function applyMode(mode: EditorMode) {
           runtime.fontSize,
           runtime.mode,
           runtime.surface,
+          runtime.appearance,
         ),
-        codeSyntaxHighlighting(runtime.theme),
+        codeSyntaxHighlighting(
+          appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+        ),
       ]),
     ],
   });
@@ -1762,8 +1794,30 @@ function handleParentMessage(data: ParentToEditorMessage) {
             runtime.fontSize,
             runtime.mode,
             runtime.surface,
+            runtime.appearance,
           ),
-          codeSyntaxHighlighting(runtime.theme),
+          codeSyntaxHighlighting(
+            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+          ),
+        ]),
+      });
+      break;
+    }
+    case "setAppearance": {
+      if (!runtime.view) return;
+      runtime.appearance = data.payload;
+      runtime.view.dispatch({
+        effects: themeCompartment.reconfigure([
+          editorThemeExtension(
+            runtime.theme,
+            runtime.fontSize,
+            runtime.mode,
+            runtime.surface,
+            runtime.appearance,
+          ),
+          codeSyntaxHighlighting(
+            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+          ),
         ]),
       });
       break;
@@ -1778,8 +1832,11 @@ function handleParentMessage(data: ParentToEditorMessage) {
             runtime.fontSize,
             runtime.mode,
             runtime.surface,
+            runtime.appearance,
           ),
-          codeSyntaxHighlighting(runtime.theme),
+          codeSyntaxHighlighting(
+            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+          ),
         ]),
       });
       break;
@@ -1896,6 +1953,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "requestMeasure",
   "setTheme",
   "setFontSize",
+  "setAppearance",
   "setReadOnly",
   "setMode",
   "setImageAssets",

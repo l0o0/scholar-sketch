@@ -1,3 +1,4 @@
+import type { FontFamilyID } from "./preferences";
 import { validViewState, type DocumentViewState } from "./editor-view-state";
 import { parseDocumentLink } from "./document-link-shared";
 import { parseNoteLink, portableNoteFilename } from "./note-links";
@@ -51,7 +52,13 @@ export interface EditorLinkCandidate {
   heading?: string;
 }
 
+export interface EditorAppearance {
+  fontFamily: FontFamilyID;
+  backgroundColor: string;
+}
+
 export interface EditorInitPayload {
+  appearance?: EditorAppearance;
   doc: string;
   readOnly: boolean;
   fontSize: number;
@@ -136,6 +143,11 @@ export type ParentToEditorMessage = (
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setTheme";
       payload: { theme: EditorTheme };
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setAppearance";
+      payload: EditorAppearance;
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -283,6 +295,17 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "setAppearance") {
+    const payload = data.payload as Partial<EditorAppearance> | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      ["system", "serif", "mono"].includes(payload.fontFamily as string) &&
+      typeof payload.backgroundColor === "string" &&
+      (payload.backgroundColor === "" ||
+        /^#[\da-f]{6}$/i.test(payload.backgroundColor))
+    );
+  }
   if (data.type === "viewState") return validViewState(data.payload);
   if (data.type === "openLink") {
     const payload = data.payload;

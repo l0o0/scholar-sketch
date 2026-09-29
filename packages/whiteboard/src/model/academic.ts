@@ -1,6 +1,10 @@
 import type { BasicNode, BasicNodeKind } from "./basic";
 import type { CanvasNodeBase, CanvasNodeStyle, CanvasPoint } from "./core";
 import type { WhiteboardTheme } from "./protocol";
+import {
+  isValidAttachmentDataUrl,
+  MAX_ATTACHMENT_BYTES,
+} from "./file-attachment";
 
 export type AcademicNodeKind = "literature" | "quote" | "note" | "frame";
 
@@ -96,6 +100,7 @@ export interface LiteratureSnapshot {
 export type AttachmentAvailability = "available" | "not-downloaded";
 
 export interface AttachmentSnapshot {
+  title?: string;
   filename: string;
   contentType?: string;
   availability: AttachmentAvailability;
@@ -111,6 +116,51 @@ export interface QuoteSnapshot {
 
 export interface NoteSourceSnapshot {
   title?: string;
+}
+
+/** A non-image file embedded in a Note card. Images remain markdown images. */
+export interface NoteAttachment {
+  id: string;
+  title: string;
+  contentType: string;
+  size: number;
+  fileData: string;
+  preview?: string;
+}
+
+export const MAX_NOTE_ATTACHMENTS = 100;
+
+export function isValidNoteAttachment(value: unknown): value is NoteAttachment {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const attachment = value as Record<string, unknown>;
+  if (
+    Object.keys(attachment).some(
+      (key) =>
+        !["id", "title", "contentType", "size", "fileData", "preview"].includes(
+          key,
+        ),
+    )
+  ) {
+    return false;
+  }
+  return (
+    typeof attachment.id === "string" &&
+    attachment.id.length > 0 &&
+    attachment.id.length <= 160 &&
+    typeof attachment.title === "string" &&
+    attachment.title.length <= 512 &&
+    typeof attachment.contentType === "string" &&
+    attachment.contentType.length > 0 &&
+    attachment.contentType.length <= 160 &&
+    Number.isSafeInteger(attachment.size) &&
+    (attachment.size as number) >= 0 &&
+    (attachment.size as number) <= MAX_ATTACHMENT_BYTES &&
+    typeof attachment.fileData === "string" &&
+    isValidAttachmentDataUrl(attachment.fileData, MAX_ATTACHMENT_BYTES) &&
+    (attachment.preview === undefined ||
+      (typeof attachment.preview === "string" &&
+        attachment.preview.length <= 2000))
+  );
 }
 
 export interface LiteratureNode extends CanvasNodeBase<"literature"> {
@@ -168,10 +218,32 @@ function legacyNoteType(note: NoteNode): NoteType | undefined {
     : undefined;
 }
 
+/** Linked Zotero material; the original item remains in its library. */
+export type NoteReference = {
+  id: string;
+  title: string;
+  creators?: string;
+  year?: string;
+} & (
+  | { kind: "literature"; source: LiteratureSource }
+  | { kind: "attachment"; source: AttachmentSource }
+);
+
+export function noteReferenceHref(reference: NoteReference): string {
+  const library = reference.source.library;
+  const key =
+    reference.kind === "literature"
+      ? reference.source.itemKey
+      : reference.source.attachmentKey;
+  return `zotero://select/${library.type === "user" ? "library" : `groups/${library.groupID}`}/items/${encodeURIComponent(key)}`;
+}
+
 export interface NoteNode extends CanvasNodeBase<"note"> {
   noteType?: NoteType;
   content: string;
   badge?: string;
+  attachments?: NoteAttachment[];
+  references?: NoteReference[];
   source?: NoteSource;
   sourceSnapshot?: NoteSourceSnapshot;
 }
@@ -406,6 +478,8 @@ export function effectiveCanvasNodeUiTextStyle(
     effectiveCanvasNodeTextStyle(kind, style);
   return {
     ...effective,
+    fontFamily:
+      style.fontFamily || "var(--zmd-board-font-family, system-ui, sans-serif)",
     ...(style.textColor ? { textColor: style.textColor } : {}),
   };
 }
@@ -424,6 +498,8 @@ export interface NoteNodeOptions {
   noteType?: NoteType;
   content?: string;
   badge?: string;
+  attachments?: NoteAttachment[];
+  references?: NoteReference[];
   style?: CanvasNodeStyle;
   width?: number;
   height?: number;
@@ -491,11 +567,14 @@ export function createAcademicNode(
         ...((options as NoteNodeOptions | undefined)?.badge !== undefined
           ? { badge: (options as NoteNodeOptions).badge }
           : {}),
+        ...((options as NoteNodeOptions | undefined)?.attachments?.length
+          ? { attachments: [...(options as NoteNodeOptions).attachments!] }
+          : {}),
         ...((options as NoteNodeOptions | undefined)?.style
           ? { style: { ...(options as NoteNodeOptions).style } }
           : {}),
       };
     case "frame":
-      return { id, kind, position, width: 480, height: 320, title: "Frame" };
+      return { id, kind, position, width: 480, height: 320, title: "" };
   }
 }

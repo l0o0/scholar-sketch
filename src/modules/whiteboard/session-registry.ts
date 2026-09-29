@@ -12,7 +12,7 @@ export interface WhiteboardSession {
   canvasId: string;
   itemID: number;
   win: Window;
-  surface?: "tab" | "window";
+  surface?: "tab" | "window" | "sidebar";
   transitioning?: boolean;
   closePromise?: Promise<boolean>;
   closeHost?: () => void;

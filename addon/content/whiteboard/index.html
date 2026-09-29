@@ -39,6 +39,15 @@
   </head>
   <body>
     <div id="whiteboard-root" tabindex="-1"></div>
-    <script src="chrome://bamboo/content/whiteboard/whiteboard.js?v=__buildTime__"></script>
+    <script>
+      // Each editor mount gets a fresh URL, including after a development reload.
+      const version =
+        new URLSearchParams(location.search).get("v") || "__buildTime__";
+      const script = document.createElement("script");
+      script.src =
+        "chrome://bamboo/content/whiteboard/whiteboard.js?v=" +
+        encodeURIComponent(version);
+      document.body.appendChild(script);
+    </script>
   </body>
 </html>

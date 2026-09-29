@@ -5,6 +5,7 @@ import {
   shortcutKeycaps,
 } from "./shortcut";
 import { getString } from "../../utils/locale";
+import type { FluentMessageId } from "../../../typings/i10n";
 import {
   iconInfo,
   iconKeyboard,
@@ -19,6 +20,18 @@ import {
   type SettingsPageID,
 } from "./settings-pages";
 import { normalizeMarkdownFilename } from "./storage-filename";
+import {
+  colorPalette,
+  normalizeColorScheme,
+  type ColorSchemeID,
+} from "../../../packages/whiteboard/src/model/colorSchemes";
+import {
+  normalizeAppearanceTheme,
+  normalizeColor,
+  normalizeFontFamily,
+  type AppearanceTheme,
+  type FontFamilyID,
+} from "./preferences";
 
 export { normalizeMarkdownFilename } from "./storage-filename";
 
@@ -38,7 +51,13 @@ export interface SettingsModalData {
   enable: boolean;
   frontmatter: boolean;
   fontSize: number;
+  theme: AppearanceTheme;
+  markdownFontFamily: FontFamilyID;
+  markdownBackgroundColor: string;
   shortcutNewStandaloneMd: string;
+  whiteboardColorScheme: ColorSchemeID;
+  whiteboardFontFamily: FontFamilyID;
+  whiteboardBackgroundColor: string;
 }
 
 export interface MarkdownModalCallbacks {
@@ -50,6 +69,7 @@ export interface MarkdownModalCallbacks {
 
 export interface MarkdownModalOptions {
   mount?: HTMLElement;
+  initialSettingsPage?: SettingsPageID;
   about?: {
     name: string;
     version: string;
@@ -102,14 +122,30 @@ export function settingsFromPrefs(
     enable: Boolean(getPref("enable")),
     frontmatter: Boolean(getPref("frontmatter")),
     fontSize: Number(getPref("fontSize")) || 14,
+    theme: normalizeAppearanceTheme(getPref("theme")),
+    markdownFontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
+    markdownBackgroundColor: normalizeColor(getPref("markdownBackgroundColor")),
     shortcutNewStandaloneMd: String(getPref("shortcutNewStandaloneMd") || ""),
+    whiteboardColorScheme: normalizeColorScheme(
+      getPref("whiteboardColorScheme"),
+    ),
+    whiteboardFontFamily: normalizeFontFamily(getPref("whiteboardFontFamily")),
+    whiteboardBackgroundColor: normalizeColor(
+      getPref("whiteboardBackgroundColor"),
+    ),
   },
 ): SettingsModalData {
   return {
     enable: Boolean(prefs.enable),
     frontmatter: Boolean(prefs.frontmatter),
     fontSize: Number(prefs.fontSize) || 14,
+    theme: normalizeAppearanceTheme(prefs.theme),
+    markdownFontFamily: normalizeFontFamily(prefs.markdownFontFamily),
+    markdownBackgroundColor: normalizeColor(prefs.markdownBackgroundColor),
     shortcutNewStandaloneMd: String(prefs.shortcutNewStandaloneMd || ""),
+    whiteboardColorScheme: normalizeColorScheme(prefs.whiteboardColorScheme),
+    whiteboardFontFamily: normalizeFontFamily(prefs.whiteboardFontFamily),
+    whiteboardBackgroundColor: normalizeColor(prefs.whiteboardBackgroundColor),
   };
 }
 
@@ -240,9 +276,25 @@ export function createMarkdownModalController(
       enable: payload.enable ?? Boolean(getPref("enable")),
       frontmatter: payload.frontmatter ?? Boolean(getPref("frontmatter")),
       fontSize: payload.fontSize ?? (Number(getPref("fontSize")) || 14),
+      theme: payload.theme ?? normalizeAppearanceTheme(getPref("theme")),
+      markdownFontFamily:
+        payload.markdownFontFamily ??
+        normalizeFontFamily(getPref("markdownFontFamily")),
+      markdownBackgroundColor:
+        payload.markdownBackgroundColor ??
+        normalizeColor(getPref("markdownBackgroundColor")),
       shortcutNewStandaloneMd:
         payload.shortcutNewStandaloneMd ??
         String(getPref("shortcutNewStandaloneMd") || ""),
+      whiteboardColorScheme:
+        payload.whiteboardColorScheme ??
+        normalizeColorScheme(getPref("whiteboardColorScheme")),
+      whiteboardFontFamily:
+        payload.whiteboardFontFamily ??
+        normalizeFontFamily(getPref("whiteboardFontFamily")),
+      whiteboardBackgroundColor:
+        payload.whiteboardBackgroundColor ??
+        normalizeColor(getPref("whiteboardBackgroundColor")),
     });
 
     const workspace = doc.createElement("form");
@@ -268,6 +320,7 @@ export function createMarkdownModalController(
     const iconForPage = (page: SettingsPageID) => {
       if (page === "general") return iconSettings();
       if (page === "editor") return iconType();
+      if (page === "whiteboard") return iconSettings();
       if (page === "shortcuts") return iconKeyboard();
       return iconInfo();
     };
@@ -287,6 +340,34 @@ export function createMarkdownModalController(
 
     const renderGeneral = () => {
       const heading = renderHeading(getString("settings-page-general"));
+      const row = doc.createElement("label");
+      row.className = "zotero-markdown-settings-row";
+      row.appendChild(textElement(doc, "span", getString("settings-theme")));
+      const select = doc.createElement("select");
+      select.name = "theme";
+      select.className = "zotero-markdown-settings-select";
+      for (const [value, labelKey] of [
+        ["system", "settings-theme-system"],
+        ["light", "settings-theme-light"],
+        ["dark", "settings-theme-dark"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        select.appendChild(option);
+      }
+      select.value = normalizeAppearanceTheme(pendingSettings?.theme);
+      select.addEventListener("change", () => {
+        if (pendingSettings)
+          pendingSettings.theme = normalizeAppearanceTheme(select.value);
+      });
+      row.appendChild(select);
+      pageContent.appendChild(row);
+      return heading;
+    };
+
+    const renderEditor = () => {
+      const heading = renderHeading(getString("settings-page-editor"));
       const checkbox = (name: "enable" | "frontmatter", labelText: string) => {
         const label = doc.createElement("label");
         label.className = "zotero-markdown-settings-check-row";
@@ -302,11 +383,6 @@ export function createMarkdownModalController(
       };
       checkbox("enable", getString("settings-enable-editor"));
       checkbox("frontmatter", getString("settings-frontmatter"));
-      return heading;
-    };
-
-    const renderEditor = () => {
-      const heading = renderHeading(getString("settings-page-editor"));
       const row = doc.createElement("label");
       row.className = "zotero-markdown-settings-row";
       row.appendChild(
@@ -329,127 +405,418 @@ export function createMarkdownModalController(
       });
       row.appendChild(size);
       pageContent.appendChild(row);
+      const fontRow = doc.createElement("label");
+      fontRow.className = "zotero-markdown-settings-row";
+      fontRow.appendChild(
+        textElement(doc, "span", getString("settings-font-family")),
+      );
+      const font = doc.createElement("select");
+      font.name = "markdownFontFamily";
+      font.className = "zotero-markdown-settings-select";
+      for (const [value, labelKey] of [
+        ["system", "settings-font-system"],
+        ["serif", "settings-font-serif"],
+        ["mono", "settings-font-mono"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        font.appendChild(option);
+      }
+      font.value = normalizeFontFamily(pendingSettings?.markdownFontFamily);
+      font.addEventListener("change", () => {
+        if (pendingSettings)
+          pendingSettings.markdownFontFamily = normalizeFontFamily(font.value);
+      });
+      fontRow.appendChild(font);
+      pageContent.appendChild(fontRow);
+
+      const backgroundRow = doc.createElement("label");
+      backgroundRow.className = "zotero-markdown-settings-row";
+      backgroundRow.appendChild(
+        textElement(doc, "span", getString("settings-background")),
+      );
+      const backgroundControls = doc.createElement("span");
+      backgroundControls.className = "zotero-markdown-settings-color-inline";
+      const background = doc.createElement("input");
+      background.type = "color";
+      background.name = "markdownBackgroundColor";
+      background.value = normalizeColor(
+        pendingSettings?.markdownBackgroundColor,
+        "#ffffff",
+      );
+      background.setAttribute("aria-label", getString("settings-background"));
+      background.addEventListener("input", () => {
+        if (pendingSettings)
+          pendingSettings.markdownBackgroundColor = normalizeColor(
+            background.value,
+          );
+      });
+      const reset = button(
+        doc,
+        getString("settings-reset"),
+        "reset-markdown-background",
+      );
+      reset.addEventListener("click", () => {
+        if (pendingSettings) pendingSettings.markdownBackgroundColor = "";
+        background.value = "#ffffff";
+      });
+      backgroundControls.append(background, reset);
+      backgroundRow.appendChild(backgroundControls);
+      pageContent.appendChild(backgroundRow);
       return heading;
     };
 
     const renderShortcuts = () => {
       const heading = renderHeading(getString("settings-page-shortcuts"));
-      pageContent.appendChild(
-        textElement(
-          doc,
-          "p",
-          getString("settings-shortcut-hint"),
-          "zotero-markdown-settings-description",
-        ),
-      );
-      const row = doc.createElement("div");
-      row.className = "zotero-markdown-settings-shortcut-row";
-      row.appendChild(
-        textElement(doc, "span", getString("settings-shortcut-new-standalone")),
-      );
-      const controls = doc.createElement("div");
-      controls.className = "zotero-markdown-settings-shortcut-controls";
-      const shortcutControl = doc.createElement("button");
-      shortcutControl.type = "button";
-      shortcutControl.className = "zotero-markdown-modal-shortcut-control";
-      shortcutControl.setAttribute(
+      const header = doc.createElement("div");
+      header.className = "zotero-markdown-settings-shortcuts-header";
+      header.appendChild(heading);
+      const surface = doc.createElement("select");
+      surface.name = "shortcutSurface";
+      surface.className = "zotero-markdown-settings-select";
+      surface.setAttribute(
         "aria-label",
-        getString("settings-shortcut-edit-aria"),
+        getString("settings-shortcut-surface"),
       );
-      const shortcutValue = doc.createElement("span");
-      shortcutValue.className = "zotero-markdown-modal-shortcut-value";
-      const renderShortcut = () => {
-        shortcutValue.replaceChildren();
-        const keycaps = shortcutKeycaps(
-          pendingSettings?.shortcutNewStandaloneMd || "",
-          doc.defaultView?.navigator?.platform,
-        );
-        if (!keycaps.length)
-          shortcutValue.textContent = getString("settings-shortcut-unset");
-        else
-          for (const keycap of keycaps)
-            shortcutValue.appendChild(textElement(doc, "kbd", keycap));
-      };
-      renderShortcut();
-      shortcutControl.appendChild(shortcutValue);
-      const edit = button(
-        doc,
-        getString("settings-shortcut-edit"),
-        "shortcut-edit",
-      );
-      const overflow = doc.createElement("button");
-      overflow.type = "button";
-      overflow.className = "zotero-markdown-shortcut-overflow";
-      overflow.setAttribute("aria-label", getString("settings-shortcut-more"));
-      overflow.setAttribute("aria-expanded", "false");
-      overflow.innerHTML = iconMore();
-      const overflowMenu = doc.createElement("div");
-      overflowMenu.className = "zotero-markdown-shortcut-overflow-menu";
-      overflowMenu.hidden = true;
-      const clear = button(
-        doc,
-        getString("settings-shortcut-clear"),
-        "shortcut-clear",
-      );
-      const restore = button(
-        doc,
-        getString("settings-shortcut-restore"),
-        "shortcut-restore",
-      );
-      overflowMenu.append(clear, restore);
+      for (const [value, labelKey] of [
+        ["markdown", "settings-shortcut-surface-markdown"],
+        ["whiteboard", "settings-shortcut-surface-whiteboard"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        surface.appendChild(option);
+      }
+      header.appendChild(surface);
+      pageContent.appendChild(header);
 
-      let recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
-      const beginRecording = () => {
-        recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
-        shortcutControl.classList.add("is-recording");
-        shortcutControl.setAttribute("aria-live", "polite");
-        shortcutValue.textContent = getString("settings-shortcut-recording");
-        shortcutControl.focus();
-      };
-      shortcutControl.addEventListener("click", beginRecording);
-      edit.addEventListener("click", beginRecording);
-      shortcutControl.addEventListener("keydown", (event) => {
-        if (!shortcutControl.classList.contains("is-recording")) return;
-        if (event.key === "Escape") {
-          event.preventDefault();
-          if (pendingSettings)
-            pendingSettings.shortcutNewStandaloneMd = recordingPrevious;
-        } else if (event.key === "Backspace" || event.key === "Delete") {
-          event.preventDefault();
-          if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
-        } else {
-          const recorded = shortcutFromKeyboardEvent(
-            event,
+      const list = doc.createElement("div");
+      list.className = "zotero-markdown-settings-shortcut-list";
+      const renderRows = (kind: "markdown" | "whiteboard") => {
+        list.replaceChildren();
+        const rows: Array<[string, FluentMessageId]> =
+          kind === "markdown"
+            ? [
+                ["Ctrl/Meta + S", "whiteboard-save"],
+                ["Ctrl/Meta + F", "more-find"],
+                ["Ctrl/Meta + B", "sidebar-bold"],
+                ["Ctrl/Meta + I", "sidebar-italic"],
+                ["Ctrl/Meta + K", "sidebar-link"],
+                ["Ctrl/Meta + 1", "tab-h1"],
+                ["Ctrl/Meta + 2", "tab-h2"],
+                ["Ctrl/Meta + 3", "tab-h3"],
+                ["Ctrl/Meta + Z", "whiteboard-undo"],
+                ["Ctrl/Meta + Shift + Z", "whiteboard-redo"],
+                ["Tab", "settings-shortcut-indent"],
+              ]
+            : [
+                ["Ctrl/Meta + S", "whiteboard-save"],
+                ["Ctrl/Meta + F", "whiteboard-search-canvas"],
+                ["V", "whiteboard-shortcut-select"],
+                ["H / Space + drag", "whiteboard-shortcut-hand"],
+                ["Shift + 1", "whiteboard-fit-view"],
+                ["Shift + 2", "whiteboard-fit-selection"],
+                ["R", "whiteboard-shortcut-rect"],
+                ["O", "whiteboard-shortcut-ellipse"],
+                ["A", "whiteboard-shortcut-arrow"],
+                ["L", "whiteboard-shortcut-line"],
+                ["T", "whiteboard-shortcut-text"],
+                ["Q", "whiteboard-shortcut-question"],
+                ["C", "whiteboard-shortcut-claim"],
+                ["F", "whiteboard-shortcut-frame"],
+                ["E", "whiteboard-shortcut-eraser"],
+                ["Shift", "whiteboard-shortcut-constrain"],
+                ["Esc", "whiteboard-shortcut-cancel"],
+                ["Delete", "whiteboard-shortcut-delete"],
+                ["Ctrl/Meta + Z", "whiteboard-undo"],
+                ["Ctrl/Meta + Shift + Z", "whiteboard-redo"],
+              ];
+        for (const [keys, labelKey] of rows) {
+          const row = doc.createElement("div");
+          row.className = "zotero-markdown-settings-shortcut-row";
+          const key = textElement(
+            doc,
+            "kbd",
+            keys.replace(
+              "Ctrl/Meta",
+              /Mac|iPhone|iPad/.test(doc.defaultView?.navigator.platform || "")
+                ? "⌘"
+                : "Ctrl",
+            ),
+            "zotero-markdown-settings-shortcut-keys",
+          );
+          row.append(key, textElement(doc, "span", getString(labelKey)));
+          list.appendChild(row);
+        }
+        if (kind !== "markdown") return;
+
+        const row = doc.createElement("div");
+        row.className = "zotero-markdown-settings-shortcut-row is-editable";
+        row.appendChild(
+          textElement(
+            doc,
+            "span",
+            getString("settings-shortcut-new-standalone"),
+          ),
+        );
+        const controls = doc.createElement("div");
+        controls.className = "zotero-markdown-settings-shortcut-controls";
+        const shortcutControl = doc.createElement("button");
+        shortcutControl.type = "button";
+        shortcutControl.className = "zotero-markdown-modal-shortcut-control";
+        shortcutControl.setAttribute(
+          "aria-label",
+          getString("settings-shortcut-edit-aria"),
+        );
+        const shortcutValue = doc.createElement("span");
+        shortcutValue.className = "zotero-markdown-modal-shortcut-value";
+        const renderShortcut = () => {
+          shortcutValue.replaceChildren();
+          const keycaps = shortcutKeycaps(
+            pendingSettings?.shortcutNewStandaloneMd || "",
             doc.defaultView?.navigator?.platform,
           );
-          if (!recorded) return;
-          event.preventDefault();
+          if (!keycaps.length)
+            shortcutValue.textContent = getString("settings-shortcut-unset");
+          else
+            for (const keycap of keycaps)
+              shortcutValue.appendChild(textElement(doc, "kbd", keycap));
+        };
+        renderShortcut();
+        shortcutControl.appendChild(shortcutValue);
+        const edit = button(
+          doc,
+          getString("settings-shortcut-edit"),
+          "shortcut-edit",
+        );
+        const overflow = doc.createElement("button");
+        overflow.type = "button";
+        overflow.className = "zotero-markdown-shortcut-overflow";
+        overflow.setAttribute(
+          "aria-label",
+          getString("settings-shortcut-more"),
+        );
+        overflow.setAttribute("aria-expanded", "false");
+        overflow.innerHTML = iconMore();
+        const overflowMenu = doc.createElement("div");
+        overflowMenu.className = "zotero-markdown-shortcut-overflow-menu";
+        overflowMenu.hidden = true;
+        const clear = button(
+          doc,
+          getString("settings-shortcut-clear"),
+          "shortcut-clear",
+        );
+        const restore = button(
+          doc,
+          getString("settings-shortcut-restore"),
+          "shortcut-restore",
+        );
+        overflowMenu.append(clear, restore);
+
+        let recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
+        const beginRecording = () => {
+          recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
+          shortcutControl.classList.add("is-recording");
+          shortcutControl.setAttribute("aria-live", "polite");
+          shortcutValue.textContent = getString("settings-shortcut-recording");
+          shortcutControl.focus();
+        };
+        shortcutControl.addEventListener("click", beginRecording);
+        edit.addEventListener("click", beginRecording);
+        shortcutControl.addEventListener("keydown", (event) => {
+          if (!shortcutControl.classList.contains("is-recording")) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            if (pendingSettings)
+              pendingSettings.shortcutNewStandaloneMd = recordingPrevious;
+          } else if (event.key === "Backspace" || event.key === "Delete") {
+            event.preventDefault();
+            if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
+          } else {
+            const recorded = shortcutFromKeyboardEvent(
+              event,
+              doc.defaultView?.navigator?.platform,
+            );
+            if (!recorded) return;
+            event.preventDefault();
+            if (pendingSettings)
+              pendingSettings.shortcutNewStandaloneMd = recorded;
+          }
+          shortcutControl.classList.remove("is-recording");
+          shortcutControl.removeAttribute("aria-live");
+          renderShortcut();
+        });
+        overflow.addEventListener("click", () => {
+          overflowMenu.hidden = !overflowMenu.hidden;
+          overflow.setAttribute("aria-expanded", String(!overflowMenu.hidden));
+        });
+        clear.addEventListener("click", () => {
+          if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
+          overflowMenu.hidden = true;
+          renderShortcut();
+        });
+        restore.addEventListener("click", () => {
           if (pendingSettings)
-            pendingSettings.shortcutNewStandaloneMd = recorded;
-        }
-        shortcutControl.classList.remove("is-recording");
-        shortcutControl.removeAttribute("aria-live");
-        renderShortcut();
+            pendingSettings.shortcutNewStandaloneMd =
+              DEFAULT_NEW_MARKDOWN_SHORTCUT;
+          overflowMenu.hidden = true;
+          renderShortcut();
+        });
+        controls.append(shortcutControl, edit, overflow, overflowMenu);
+        row.appendChild(controls);
+        list.appendChild(row);
+      };
+      surface.addEventListener("change", () => {
+        renderRows(surface.value === "whiteboard" ? "whiteboard" : "markdown");
       });
-      overflow.addEventListener("click", () => {
-        overflowMenu.hidden = !overflowMenu.hidden;
-        overflow.setAttribute("aria-expanded", String(!overflowMenu.hidden));
+      renderRows("markdown");
+      pageContent.appendChild(list);
+      return heading;
+    };
+
+    const renderWhiteboard = () => {
+      const heading = renderHeading(getString("settings-page-whiteboard"));
+      const row = doc.createElement("div");
+      row.className = "zotero-markdown-settings-color-row";
+      row.appendChild(
+        textElement(doc, "span", getString("settings-whiteboard-color-scheme")),
+      );
+      const controls = doc.createElement("div");
+      controls.className = "zotero-markdown-settings-color-controls";
+      const select = doc.createElement("select");
+      select.name = "whiteboardColorScheme";
+      select.setAttribute(
+        "aria-label",
+        getString("settings-whiteboard-color-scheme"),
+      );
+      select.className = "zotero-markdown-settings-color-select";
+      for (const [value, labelKey] of [
+        ["traditional", "settings-whiteboard-color-scheme-traditional"],
+        ["classic", "settings-whiteboard-color-scheme-classic"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        select.appendChild(option);
+      }
+      select.value = normalizeColorScheme(
+        pendingSettings?.whiteboardColorScheme,
+      );
+      const previewWrap = doc.createElement("span");
+      previewWrap.className = "zotero-markdown-settings-palette-wrap";
+      const previewButton = button(
+        doc,
+        getString("settings-whiteboard-color-preview"),
+        "toggle-whiteboard-preview",
+      );
+      previewButton.classList.add("is-secondary");
+      previewButton.setAttribute("aria-expanded", "false");
+      const preview = doc.createElement("div");
+      preview.className = "zotero-markdown-settings-palette";
+      preview.hidden = true;
+      preview.setAttribute("role", "img");
+      preview.setAttribute(
+        "aria-label",
+        getString("settings-whiteboard-color-scheme"),
+      );
+      const sample = doc.createElement("div");
+      sample.className = "zotero-markdown-settings-palette-sample";
+      const sampleCard = doc.createElement("span");
+      sampleCard.className = "zotero-markdown-settings-palette-sample-card";
+      const sampleLine = doc.createElement("span");
+      sampleLine.className = "zotero-markdown-settings-palette-sample-line";
+      sampleCard.appendChild(sampleLine);
+      sample.appendChild(sampleCard);
+      const renderPalette = () => {
+        const scheme = normalizeColorScheme(select.value);
+        if (pendingSettings) pendingSettings.whiteboardColorScheme = scheme;
+        const colors = colorPalette(true, scheme);
+        sampleCard.style.backgroundColor = colors[0] || "#fff";
+        sampleCard.style.borderColor = colors[6] || "#888";
+        sampleLine.style.backgroundColor = colors[12] || "#888";
+        preview.replaceChildren(
+          sample,
+          ...colors.map((color) => {
+            const swatch = doc.createElement("span");
+            swatch.className = "zotero-markdown-settings-palette-swatch";
+            swatch.style.backgroundColor = color;
+            return swatch;
+          }),
+        );
+      };
+      select.addEventListener("change", renderPalette);
+      renderPalette();
+      previewButton.addEventListener("click", () => {
+        preview.hidden = !preview.hidden;
+        previewButton.setAttribute("aria-expanded", String(!preview.hidden));
       });
-      clear.addEventListener("click", () => {
-        if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
-        overflowMenu.hidden = true;
-        renderShortcut();
-      });
-      restore.addEventListener("click", () => {
-        if (pendingSettings)
-          pendingSettings.shortcutNewStandaloneMd =
-            DEFAULT_NEW_MARKDOWN_SHORTCUT;
-        overflowMenu.hidden = true;
-        renderShortcut();
-      });
-      controls.append(shortcutControl, edit, overflow, overflowMenu);
+      previewWrap.append(previewButton, preview);
+      controls.append(select, previewWrap);
       row.appendChild(controls);
       pageContent.appendChild(row);
+
+      const fontRow = doc.createElement("label");
+      fontRow.className = "zotero-markdown-settings-row";
+      fontRow.appendChild(
+        textElement(doc, "span", getString("settings-font-family")),
+      );
+      const font = doc.createElement("select");
+      font.name = "whiteboardFontFamily";
+      font.className = "zotero-markdown-settings-select";
+      for (const [value, labelKey] of [
+        ["system", "settings-font-system"],
+        ["serif", "settings-font-serif"],
+        ["mono", "settings-font-mono"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        font.appendChild(option);
+      }
+      font.value = normalizeFontFamily(pendingSettings?.whiteboardFontFamily);
+      font.addEventListener("change", () => {
+        if (pendingSettings)
+          pendingSettings.whiteboardFontFamily = normalizeFontFamily(
+            font.value,
+          );
+      });
+      fontRow.appendChild(font);
+      pageContent.appendChild(fontRow);
+
+      const backgroundRow = doc.createElement("label");
+      backgroundRow.className = "zotero-markdown-settings-row";
+      backgroundRow.appendChild(
+        textElement(doc, "span", getString("settings-background")),
+      );
+      const backgroundControls = doc.createElement("span");
+      backgroundControls.className = "zotero-markdown-settings-color-inline";
+      const background = doc.createElement("input");
+      background.type = "color";
+      background.name = "whiteboardBackgroundColor";
+      background.value = normalizeColor(
+        pendingSettings?.whiteboardBackgroundColor,
+        "#fbfbfc",
+      );
+      background.setAttribute("aria-label", getString("settings-background"));
+      background.addEventListener("input", () => {
+        if (pendingSettings)
+          pendingSettings.whiteboardBackgroundColor = normalizeColor(
+            background.value,
+          );
+      });
+      const reset = button(
+        doc,
+        getString("settings-reset"),
+        "reset-whiteboard-background",
+      );
+      reset.addEventListener("click", () => {
+        if (pendingSettings) pendingSettings.whiteboardBackgroundColor = "";
+        background.value = "#fbfbfc";
+      });
+      backgroundControls.append(background, reset);
+      backgroundRow.appendChild(backgroundControls);
+      pageContent.appendChild(backgroundRow);
       return heading;
     };
 
@@ -491,9 +858,11 @@ export function createMarkdownModalController(
           ? renderGeneral()
           : page === "editor"
             ? renderEditor()
-            : page === "shortcuts"
-              ? renderShortcuts()
-              : renderAbout();
+            : page === "whiteboard"
+              ? renderWhiteboard()
+              : page === "shortcuts"
+                ? renderShortcuts()
+                : renderAbout();
       if (focusHeading) heading.focus();
     };
 
@@ -528,7 +897,12 @@ export function createMarkdownModalController(
     }
 
     body.appendChild(workspace);
-    selectPage("general");
+    const initialPage = SETTINGS_PAGES.some(
+      ({ id }) => id === options.initialSettingsPage,
+    )
+      ? options.initialSettingsPage!
+      : "general";
+    selectPage(initialPage);
   };
 
   const showActionError = (error: unknown) => {
@@ -543,6 +917,21 @@ export function createMarkdownModalController(
 
   const onClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
+    const preview = body.querySelector<HTMLElement>(
+      ".zotero-markdown-settings-palette",
+    );
+    const previewButton = body.querySelector<HTMLButtonElement>(
+      '[data-modal-action="toggle-whiteboard-preview"]',
+    );
+    if (
+      preview &&
+      !preview.hidden &&
+      !target?.closest?.(".zotero-markdown-settings-palette-wrap")
+    ) {
+      preview.hidden = true;
+      previewButton?.setAttribute("aria-expanded", "false");
+      if (target === backdrop) return;
+    }
     if (target === backdrop) return closeModal();
     const action = target
       ?.closest?.("[data-modal-action]")
@@ -563,6 +952,22 @@ export function createMarkdownModalController(
         .then(closeModal)
         .catch(showActionError);
     }
+    if (action === "reset-markdown-background") {
+      if (pendingSettings) pendingSettings.markdownBackgroundColor = "";
+      const input = body.querySelector<HTMLInputElement>(
+        'input[name="markdownBackgroundColor"]',
+      );
+      if (input) input.value = "#ffffff";
+      return;
+    }
+    if (action === "reset-whiteboard-background") {
+      if (pendingSettings) pendingSettings.whiteboardBackgroundColor = "";
+      const input = body.querySelector<HTMLInputElement>(
+        'input[name="whiteboardBackgroundColor"]',
+      );
+      if (input) input.value = "#fbfbfc";
+      return;
+    }
     if (action === "save-settings") {
       const settings = prefsFromSettings(
         pendingSettings || settingsFromPrefs(),
@@ -574,7 +979,21 @@ export function createMarkdownModalController(
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.defaultPrevented) return;
-    if (event.key === "Escape") closeModal();
+    if (event.key !== "Escape") return;
+    const preview = body.querySelector<HTMLElement>(
+      ".zotero-markdown-settings-palette",
+    );
+    if (preview && !preview.hidden) {
+      preview.hidden = true;
+      body
+        .querySelector<HTMLButtonElement>(
+          '[data-modal-action="toggle-whiteboard-preview"]',
+        )
+        ?.setAttribute("aria-expanded", "false");
+      event.preventDefault();
+      return;
+    }
+    closeModal();
   };
   backdrop.addEventListener("click", onClick);
   doc.addEventListener("keydown", onKeyDown);
@@ -614,5 +1033,11 @@ export function applySettings(settings: SettingsModalData) {
   setPref("enable", values.enable);
   setPref("frontmatter", values.frontmatter);
   setPref("fontSize", values.fontSize);
+  setPref("theme", values.theme);
+  setPref("markdownFontFamily", values.markdownFontFamily);
+  setPref("markdownBackgroundColor", values.markdownBackgroundColor);
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);
+  setPref("whiteboardColorScheme", values.whiteboardColorScheme);
+  setPref("whiteboardFontFamily", values.whiteboardFontFamily);
+  setPref("whiteboardBackgroundColor", values.whiteboardBackgroundColor);
 }

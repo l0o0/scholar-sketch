@@ -5,6 +5,7 @@ import {
   closeWhiteboardSession,
   openWhiteboardTab,
   openWhiteboardWindow,
+  openWhiteboardSidebar,
 } from "../src/modules/whiteboard/tab.ts";
 import {
   whiteboardRegistry,
@@ -146,6 +147,35 @@ test("failed transfer retains the source editor and releases its input lock", as
     throw new Error("Disk full");
   };
   await assert.rejects(openWhiteboardWindow(item), /Disk full/);
+  assert.equal(whiteboardRegistry.findByItem(item.id), session);
+  assert.equal(root.inert, false);
+});
+
+test("sidebar close saves even before dirty notification and never closes its host window", async (t) => {
+  const { session, calls } = setup(t);
+  session.surface = "sidebar";
+  assert.equal(await closeWhiteboardSession(session.tabID), true);
+  assert.deepEqual(calls, ["save", "destroy"]);
+});
+
+test("sidebar rendering does not steal an existing editor", async (t) => {
+  const { session, item, win, root, calls } = setup(t);
+  assert.equal(
+    await openWhiteboardSidebar(item, win as never, root as never),
+    null,
+  );
+  assert.equal(whiteboardRegistry.findByItem(item.id), session);
+  assert.deepEqual(calls, []);
+});
+
+test("failed sidebar save retains the editor and opening in a tab does not focus a nonexistent Zotero tab", async (t) => {
+  const { session, item, root } = setup(t);
+  session.surface = "sidebar";
+  session.saveCoordinator!.request = async () => {
+    throw new Error("Disk full");
+  };
+  assert.equal(await closeWhiteboardSession(session.tabID), false);
+  await assert.rejects(openWhiteboardTab(item), /Disk full/);
   assert.equal(whiteboardRegistry.findByItem(item.id), session);
   assert.equal(root.inert, false);
 });

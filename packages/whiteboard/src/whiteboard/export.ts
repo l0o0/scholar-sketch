@@ -1,15 +1,18 @@
+import { noteReferenceHref } from "../model/academic";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NoteTypeIcon } from "./icons";
 import { noteTypeLabel, noteTypePrompt } from "../chrome/labels";
 import { connectionDisplayLabel } from "../chrome/ConnectionEditor";
-import type { WhiteboardLabels } from "../model/protocol";
+import type { WhiteboardLabels, WhiteboardTheme } from "../model/protocol";
 import { getBezierPath, Position } from "@xyflow/react";
 import {
-  canvasNodeSurfaceDefaults,
+  canvasNodeUiSurfaceDefaults,
+  canvasThemePalette,
   getNoteType,
   getNoteTitle,
   effectiveCanvasNodeTextStyle,
+  type NoteAttachment,
   type CanvasNode,
 } from "../model/academic";
 import type { CanvasNodeStyle } from "../model/core";
@@ -324,7 +327,39 @@ export function containGeometry(
 export function buildCanvasSvg(
   doc: CanvasDocument,
   labels?: WhiteboardLabels,
+  appearance?: {
+    fontFamily: string;
+    backgroundColor: string;
+    theme?: WhiteboardTheme;
+  },
 ): string {
+  const theme = appearance?.theme ?? "light";
+  const palette = canvasThemePalette(theme);
+  if (appearance) {
+    doc = {
+      ...doc,
+      nodes: doc.nodes.map((node) => ({
+        ...node,
+        style: {
+          ...node.style,
+          textColor: node.style?.textColor ?? palette.text,
+          fontFamily: node.style?.fontFamily || appearance.fontFamily,
+        },
+      })),
+      connections: doc.connections.map((edge) => ({
+        ...edge,
+        textStyle: {
+          ...edge.textStyle,
+          textColor: edge.textStyle?.textColor ?? palette.text,
+          fontFamily: edge.textStyle?.fontFamily || appearance.fontFamily,
+        },
+      })),
+    };
+  }
+  const backgroundColor =
+    appearance && /^#[\da-f]{6}$/i.test(appearance.backgroundColor)
+      ? appearance.backgroundColor
+      : "#fbfbfc";
   const bounds = boundsOf(doc.nodes);
   const definitions = new Map<string, string>();
   const paintIds = new Map<string, string>();
@@ -367,8 +402,9 @@ export function buildCanvasSvg(
     const width = node.width;
     const height = node.height;
     const style = node.style ?? {};
-    const defaults = canvasNodeSurfaceDefaults(
+    const defaults = canvasNodeUiSurfaceDefaults(
       node.kind,
+      theme,
       node.kind === "note" ? getNoteType(node) : undefined,
     );
     const stroke = style.stroke || defaults.stroke;
@@ -425,7 +461,7 @@ export function buildCanvasSvg(
         },
       };
       text =
-        `<g clip-path="url(#${clipId})"><svg x="${x + 14}" y="${y + 12}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" color="${escapeXml(headerColor)}">${icon.replace(/<svg[^>]*>|<\/svg>/g, "")}</svg><text x="${x + 34}" y="${y + 23}" font-family="system-ui, sans-serif" font-size="11" font-weight="500" fill="${escapeXml(headerColor)}">${escapeXml(heading.toUpperCase() + (title ? ` · ${title}` : ""))}</text></g>` +
+        `<g clip-path="url(#${clipId})"><svg x="${x + 14}" y="${y + 12}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" color="${escapeXml(headerColor)}">${icon.replace(/<svg[^>]*>|<\/svg>/g, "")}</svg><text x="${x + 34}" y="${y + 23}" font-family="${escapeXml(appearance?.fontFamily || "system-ui, sans-serif")}" font-size="11" font-weight="500" fill="${escapeXml(headerColor)}">${escapeXml(heading.toUpperCase() + (title ? ` · ${title}` : ""))}</text></g>` +
         textElement(
           bodyNode,
           width - 4,
@@ -451,7 +487,7 @@ export function buildCanvasSvg(
           `<clipPath id="${clipId}"><rect${box}/></clipPath>`,
         );
         label =
-          `<rect${box} fill="#ffffff" stroke="#e5e7eb"/>` +
+          `<rect${box} fill="${palette.surface}" stroke="${palette.border}"/>` +
           textElement(
             {
               ...node,
@@ -542,7 +578,7 @@ export function buildCanvasSvg(
         targetY: to.y,
         targetPosition: to.position,
       });
-      const color = edge.color || "#94a3b8";
+      const color = edge.color || (appearance ? palette.edge : "#94a3b8");
       const marker =
         edge.arrow === false
           ? ""
@@ -582,7 +618,7 @@ export function buildCanvasSvg(
           `<clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`,
         );
         labelSvg =
-          `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" fill="#ffffff"/>` +
+          `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" fill="${palette.surface}"/>` +
           textElement(
             {
               id: edge.id,
@@ -606,7 +642,7 @@ export function buildCanvasSvg(
     .join("\n");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}">
 <defs>${[...definitions.values()].join("")}</defs>
-<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.width}" height="${bounds.height}" fill="#fbfbfc"/>
+<rect x="${bounds.x}" y="${bounds.y}" width="${bounds.width}" height="${bounds.height}" fill="${backgroundColor}"/>
 ${frames}
 ${edges}
 ${shapes}
@@ -680,6 +716,26 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
         );
       } else if (node.kind === "note" && /\r?\n/.test(node.content)) {
         lines.push(node.content, "");
+      }
+      if (node.kind === "note" && node.references?.length) {
+        lines.push(
+          ...node.references.map(
+            (reference) =>
+              `- [${escapeMarkdownImageAlt(reference.title)}](${noteReferenceHref(reference)})`,
+          ),
+          "",
+        );
+      }
+      if (node.kind === "note" && node.attachments?.length) {
+        lines.push(
+          ...node.attachments.map((attachment) => {
+            const href = noteAttachmentExportHref(attachment);
+            return href
+              ? `- [${escapeMarkdownImageAlt(attachment.title)}](${href})`
+              : `- ${escapeMarkdownImageAlt(attachment.title)} (${attachment.contentType})`;
+          }),
+          "",
+        );
       }
     }
   }
@@ -758,6 +814,20 @@ function attachmentExportHref(
     return undefined;
   }
   return fileData;
+}
+
+function noteAttachmentExportHref(
+  attachment: NoteAttachment,
+): string | undefined {
+  if (!isSafeAttachmentDataUrl(attachment.fileData)) return undefined;
+  const mimeType = attachment.fileData
+    .slice(5, attachment.fileData.indexOf(","))
+    .split(";", 1)[0];
+  return /^(?:text\/html|application\/xhtml\+xml|image\/svg\+xml)$/iu.test(
+    mimeType,
+  )
+    ? undefined
+    : attachment.fileData;
 }
 
 function escapeMarkdownImageAlt(value: string): string {

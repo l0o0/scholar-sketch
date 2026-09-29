@@ -374,6 +374,8 @@ function payloadSchema(kind: unknown): PayloadSchema | undefined {
         content: true,
         badge: true,
         noteType: true,
+        attachments: true,
+        references: true,
         source: {
           library: LIBRARY_SCHEMA,
           noteKey: true,

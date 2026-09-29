@@ -32,18 +32,8 @@ function toHexByte(value: number) {
     .padStart(2, "0");
 }
 
-// Columns stay in the same order so outlines and fills are easy to pair.
-const COLOR_FAMILIES = [
-  ["#f1f3f5", "#adb5bd", "#343a40"],
-  ["#ffe3e3", "#e599a4", "#a34557"],
-  ["#fff3bf", "#d9b45a", "#946b28"],
-  ["#e3f0e4", "#8eb998", "#426d50"],
-  ["#e3edf7", "#85a9ca", "#416888"],
-  ["#eee6f5", "#b39aca", "#75558d"],
-];
-
-export function colorPalette(lightFirst: boolean): string[] {
-  return (lightFirst ? [0, 1, 2] : [2, 1, 0]).flatMap((shade) =>
-    COLOR_FAMILIES.map((family) => family[shade]),
-  );
-}
+export {
+  colorPalette,
+  normalizeColorScheme,
+  type ColorSchemeID,
+} from "../model/colorSchemes";

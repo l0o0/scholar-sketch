@@ -542,6 +542,7 @@ test("surface color popovers keep changes separate and preserve transparent fill
         },
         labels,
         theme: "light",
+        colorScheme: "classic",
         left: 0,
         top: 0,
         onEdit: () => {
@@ -706,5 +707,60 @@ test("More opens the standalone window action and closes the menu", async (t) =>
   await act(async () => button.click());
   assert.equal(opened, 1);
   assert.equal(window.document.querySelector('[role="menu"]'), null);
+  await act(async () => root.unmount());
+});
+
+test("creation toolbar has one file entry and one note dropdown", async (t) => {
+  const window = installDom(t);
+  const host = window.document.createElement("div");
+  window.document.body.append(host);
+  const root = createRoot(host);
+  let files = 0;
+  await act(async () =>
+    root.render(
+      createElement(TopIsland, { ...toolbarProps(), onAddFile: () => files++ }),
+    ),
+  );
+  const fileButtons = host.querySelectorAll<HTMLButtonElement>(
+    'button[aria-label="addFile"]',
+  );
+  assert.equal(fileButtons.length, 1);
+  assert.equal(host.querySelectorAll('button[aria-label="addNote"]').length, 1);
+  assert.equal(
+    host
+      .querySelector('button[aria-label="addNote"]')
+      ?.getAttribute("aria-haspopup"),
+    "menu",
+  );
+  await act(async () => fileButtons[0].click());
+  assert.equal(files, 1);
+  await act(async () => root.unmount());
+});
+
+test("note floating toolbars do not duplicate the top attachment button", async (t) => {
+  const { TextStyleBar } =
+    await import("../packages/whiteboard/src/chrome/TextStyleBar.tsx");
+  const window = installDom(t);
+  const host = window.document.createElement("div");
+  window.document.body.append(host);
+  const root = createRoot(host);
+  const model = createAcademicNode("note", { x: 0, y: 0 }, "attach-note");
+  const props = {
+    node: {
+      id: model.id,
+      type: model.kind,
+      position: model.position,
+      data: { model },
+    },
+    labels,
+    theme: "light" as const,
+    left: 0,
+    top: 0,
+    onChange: () => {},
+  };
+  for (const Component of [StyleBar, TextStyleBar]) {
+    await act(async () => root.render(createElement(Component, props)));
+    assert.equal(host.querySelector('[aria-label="attachFile"]'), null);
+  }
   await act(async () => root.unmount());
 });

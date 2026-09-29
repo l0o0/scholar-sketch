@@ -39,6 +39,12 @@ export const IconSave = () => (
   </Icon>
 );
 
+export const IconZotero = () => (
+  <Icon stroke="#cc2936" strokeWidth="2.8">
+    <path d="M5 5h14L5 19h14" />
+  </Icon>
+);
+
 export const IconUndo = () => (
   <Icon>
     <path d="M9 14 4 9l5-5" />
@@ -125,10 +131,9 @@ export const IconGroup = () => (
 
 export const IconFrame = () => (
   <Icon>
-    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-    <path d="M16 3h3a2 2 0 0 1 2 2v3" />
-    <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
-    <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <rect x="7" y="7" width="4" height="4" rx="0.5" />
+    <rect x="13" y="13" width="4" height="4" rx="0.5" />
   </Icon>
 );
 
@@ -147,11 +152,51 @@ export const IconFile = () => (
   </Icon>
 );
 
+export const IconImage = () => (
+  <Icon>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="m21 15-5-5L5 21" />
+  </Icon>
+);
+
+export const IconAudio = () => (
+  <Icon>
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </Icon>
+);
+
+export const IconVideo = () => (
+  <Icon>
+    <rect x="3" y="6" width="13" height="12" rx="2" />
+    <path d="m16 10 5-3v10l-5-3" />
+  </Icon>
+);
+
+export const IconArchive = () => (
+  <Icon>
+    <path d="M4 4h16v4H4z" />
+    <path d="M6 8v12h12V8" />
+    <path d="M10 12h4" />
+  </Icon>
+);
+
 export const IconText = () => (
   <Icon>
     <polyline points="4 7 4 4 20 4 20 7" />
     <line x1="9" x2="15" y1="20" y2="20" />
     <line x1="12" x2="12" y1="4" y2="20" />
+  </Icon>
+);
+
+export const IconTextFile = () => (
+  <Icon>
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" x2="8" y1="13" y2="13" />
+    <line x1="16" x2="8" y1="17" y2="17" />
   </Icon>
 );
 
