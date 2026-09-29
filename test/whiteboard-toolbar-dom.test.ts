@@ -81,9 +81,6 @@ function toolbarProps(
     onAutoLayout: () => {},
     onAlign: () => {},
     onDistribute: () => {},
-    onEdgeColor: () => {},
-    onEdgeDash: () => {},
-    onEdgeArrow: () => {},
     onOpenShortcuts: () => {},
   };
 }
@@ -260,6 +257,7 @@ test("More keeps document actions in one menu", async (t) => {
       ?.click(),
   );
   const menu = window.document.querySelector(".zmd-board-more-menu")!;
+  assert.doesNotMatch(menu.textContent ?? "", /edgeColor|edgeDash|edgeArrow/);
   await act(async () =>
     window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Home" })),
   );
@@ -286,9 +284,6 @@ test("More keeps document actions in one menu", async (t) => {
     "alignVertical",
     "distributeHorizontal",
     "distributeVertical",
-    "edgeColor",
-    "edgeDash",
-    "edgeArrow",
   ]) {
     assert.ok(
       Array.from(menu.querySelectorAll("button")).some((button) =>

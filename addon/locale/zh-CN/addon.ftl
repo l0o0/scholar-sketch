@@ -594,3 +594,7 @@ whiteboard-tutorial-quick-start-body =
     - 双击画布空白处新建笔记；双击卡片正文编辑文字。
     - **Ctrl/Cmd+Z** 撤销，**Ctrl/Cmd+Shift+Z** 重做。
     - **Ctrl/Cmd+F** 搜索卡片；更多操作见**更多 → 快捷键**。
+
+whiteboard-batch-style = 批量样式
+
+whiteboard-ungroup = 取消分组

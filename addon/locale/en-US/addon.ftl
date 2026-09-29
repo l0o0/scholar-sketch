@@ -594,3 +594,7 @@ whiteboard-tutorial-quick-start-body =
     - Double-click empty canvas to create a note; double-click card text to edit.
     - **Ctrl/Cmd+Z** undoes; **Ctrl/Cmd+Shift+Z** redoes.
     - **Ctrl/Cmd+F** finds cards. See **More → Keyboard shortcuts** for other controls.
+
+whiteboard-batch-style = Batch styles
+
+whiteboard-ungroup = Ungroup

@@ -115,6 +115,14 @@ export const IconClaim = () => (
   </Icon>
 );
 
+export const IconGroup = () => (
+  <Icon>
+    <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="3 3" />
+    <rect x="7" y="7" width="4" height="4" rx="0.5" />
+    <rect x="13" y="13" width="4" height="4" rx="0.5" />
+  </Icon>
+);
+
 export const IconFrame = () => (
   <Icon>
     <path d="M8 3H5a2 2 0 0 0-2 2v3" />

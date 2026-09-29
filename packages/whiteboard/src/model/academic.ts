@@ -281,11 +281,11 @@ export function canvasNodeSurfaceDefaults(
     return { ...NOTE_TYPE_SURFACES[noteType] };
   if (kind === "frame") {
     return {
-      stroke: "#d1d5db",
-      fill: "transparent",
-      strokeWidth: 1,
+      stroke: "#94a3b8",
+      fill: "rgba(59, 130, 246, 0.05)",
+      strokeWidth: 2,
       radius: 8,
-      strokeStyle: "dashed",
+      strokeStyle: "solid",
     };
   }
   if (
@@ -322,7 +322,7 @@ export function canvasNodeUiSurfaceDefaults(
     return { ...defaults, ...DARK_NOTE_TYPE_COLORS[noteType] };
   const palette = canvasThemePalette(theme);
   if (kind === "frame") {
-    return { ...defaults, stroke: palette.border };
+    return { ...defaults, stroke: "#64748b", fill: "rgba(96, 165, 250, 0.08)" };
   }
   if (kind === "rect" || kind === "ellipse") {
     return { ...defaults, stroke: palette.text, fill: palette.surface };

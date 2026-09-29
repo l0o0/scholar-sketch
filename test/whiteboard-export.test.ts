@@ -502,7 +502,7 @@ test("SVG export matches canonical stroke precedence and Frame defaults", () => 
 
   assert.match(
     svg,
-    /<rect x="0" y="0" width="320" height="200" rx="8" fill="none"[^>]*stroke-dasharray="3 3"/,
+    /<rect x="0" y="0" width="320" height="200" rx="8" fill="rgba\(59, 130, 246, 0.05\)"[^>]*stroke-width="2"/,
   );
   const claim = svg.match(
     /<rect x="40" y="40" width="200" height="96"[^>]*\/>/,

@@ -4,8 +4,49 @@ import { MAX_ATTACHMENT_BYTES } from "../packages/whiteboard/src/model/file-atta
 import {
   canAcceptNativeFileTransfer,
   importWhiteboardFiles,
+  importedImageMarkdown,
   isEditingImportSessionCurrent,
 } from "../packages/whiteboard/src/whiteboard/file-import.ts";
+import { renderMarkdownCore } from "../src/modules/markdown/preview-render-core.ts";
+
+test("imported image filenames remain literal Markdown alt text", () => {
+  for (const title of [
+    "scan[1].png",
+    "[arxiv]figure.png",
+    "a\\b].png",
+    "a\nb.png",
+  ]) {
+    const markdown = importedImageMarkdown({
+      title,
+      contentType: "image/png",
+      fileData: "data:image/png;base64,aGk=",
+      size: 2,
+    });
+    const html = renderMarkdownCore(markdown);
+    assert.match(html, /<img src="data:image\/png;base64,aGk="/);
+    assert.ok(html.includes(`alt="${title.replace(/[\r\n]+/g, " ")}"`), html);
+  }
+  assert.equal(
+    importedImageMarkdown({
+      title: "unsafe.svg",
+      contentType: "image/svg+xml",
+      fileData: "data:image/svg+xml;base64,aGk=",
+      size: 2,
+    }),
+    "",
+  );
+  for (const subtype of ["jpeg", "gif", "webp", "avif", "bmp"]) {
+    const html = renderMarkdownCore(
+      importedImageMarkdown({
+        title: `figure.${subtype}`,
+        contentType: `image/${subtype}`,
+        fileData: `data:image/${subtype};base64,aGk=`,
+        size: 2,
+      }),
+    );
+    assert.match(html, /<img /);
+  }
+});
 
 test("protected OS file drags are accepted without intercepting Zotero drags", () => {
   const protectedFiles = {

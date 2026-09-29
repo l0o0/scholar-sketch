@@ -1131,6 +1131,7 @@ function mountWhiteboardUI(
       fitView: getString("whiteboard-fit-view"),
       groupSelection: getString("whiteboard-group-selection"),
       removeFromGroup: getString("whiteboard-remove-from-group"),
+      ungroup: getString("whiteboard-ungroup"),
       fitSelection: getString("whiteboard-fit-selection"),
       drawTools: getString("whiteboard-draw-tools"),
       selectionDetails: getString("whiteboard-selection-details"),
@@ -1166,6 +1167,7 @@ function mountWhiteboardUI(
       background: getString("whiteboard-background"),
       transparent: getString("whiteboard-transparent"),
       style: getString("whiteboard-style"),
+      batchStyle: getString("whiteboard-batch-style"),
       solid: getString("whiteboard-solid"),
       dashed: getString("whiteboard-dashed"),
       corners: getString("whiteboard-corners"),
@@ -1343,9 +1345,6 @@ type SurfaceOptions = {
   surface?: "tab" | "window";
 };
 
-// Serialize openings and transfers per attachment, including rapid double clicks.
-const openings = new Map<number, Promise<string | null>>();
-
 export function openWhiteboardTab(
   item: Zotero.Item,
   options: { win?: _ZoteroTypes.MainWindow } = {},
@@ -1362,17 +1361,9 @@ export function openWhiteboardWindow(
 }
 
 function openWhiteboardSurface(item: Zotero.Item, options: SurfaceOptions) {
-  const previous = openings.get(item.id) ?? Promise.resolve();
-  const opening = previous
-    .catch(() => undefined)
-    .then(() => mountWhiteboardSurface(item, options));
-  openings.set(item.id, opening);
-  void opening
-    .finally(() => {
-      if (openings.get(item.id) === opening) openings.delete(item.id);
-    })
-    .catch(() => undefined);
-  return opening;
+  return whiteboardRegistry.withItemLock(item.id, () =>
+    mountWhiteboardSurface(item, options),
+  );
 }
 
 function focusWhiteboard(session: WhiteboardSession) {
@@ -1600,7 +1591,7 @@ export async function closeWhiteboardsForWindow(win: Window) {
 }
 
 export async function closeAllWhiteboards() {
-  await Promise.allSettled([...openings.values()]);
+  await whiteboardRegistry.waitForOperations();
   await Promise.all(
     whiteboardRegistry
       .all()
@@ -1609,7 +1600,7 @@ export async function closeAllWhiteboards() {
 }
 
 export async function flushAllWhiteboards(): Promise<void> {
-  await Promise.allSettled([...openings.values()]);
+  await whiteboardRegistry.waitForOperations();
   await Promise.all(
     whiteboardRegistry
       .all()

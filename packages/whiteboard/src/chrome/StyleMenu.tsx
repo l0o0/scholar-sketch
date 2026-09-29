@@ -15,7 +15,7 @@ export function StyleMenu(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
-  kind?: "color" | "geometry";
+  kind?: "color" | "geometry" | "batch";
   colorTarget?: string;
   preferAbove?: boolean;
 }) {

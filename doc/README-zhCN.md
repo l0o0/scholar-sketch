@@ -2,15 +2,17 @@
   <img src="../docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Sketch
+<h1 align="center">Scholar Sketch</h1>
 
-**Markdown & Whiteboard for Zotero**
+<p align="center"><strong>Markdown &amp; Whiteboard for Zotero</strong></p>
 
-Zotero 中的 Markdown 编辑器与可视化白板
+<p align="center">Zotero 中的 Markdown 编辑器与可视化白板</p>
 
-[![Zotero compatibility](https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
-[![version](https://img.shields.io/badge/version-0.2.0-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
-[![license](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](../LICENSE)
+<p align="center">
+  <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
+  <a href="https://github.com/l0o0/scholarcanvas/releases"><img src="https://img.shields.io/badge/version-0.2.1-blue?style=flat-square" alt="version" /></a>
+  <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
+</p>
 
 **在 Zotero 中书写 Markdown，用可视化白板连接文献与想法。** 创建、编辑和预览原生 `.md` 附件，并在 `.canvas` 白板上组织文献、摘录和笔记。
 
@@ -221,7 +223,7 @@ await md.closeTab(tabID);
 - 所有写入都走与编辑器相同的持久化路径（写文件、图片资源清理、标题同步、Zotero 文件同步标记）。
 - `update` 在编辑器 Tab 存在未保存修改时返回 `WRITE_CONFLICT`——传 `force: true` 可允许该 API 更新，但不会绕过外部文件修改检查。
 - `rename` 会重命名底层文件；对 linked 附件会直接重命名磁盘上的文件。
-- API 版本号：`Zotero.ScholarSketch.api.version`（当前 `2`）。
+- API 版本号：`Zotero.ScholarSketch.api.version`（当前 `3`）。
 
 ---
 
@@ -260,3 +262,5 @@ Stored 附件遵循 Zotero 文件同步（若已开启）。Linked 文件不会�
 ## 许可证
 
 [AGPL-3.0-or-later](../LICENSE)
+
+画布集成接口：[`Zotero.ScholarSketch.api.canvas`](../docs/canvas-api.md)，支持 JSON Canvas 读写、Zotero 来源导入和冲突保护。

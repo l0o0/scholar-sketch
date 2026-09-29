@@ -166,6 +166,7 @@ export interface WhiteboardLabels {
   fitView: string;
   groupSelection: string;
   removeFromGroup: string;
+  ungroup?: string;
   fitSelection: string;
   drawTools: string;
   selectionDetails: string;
@@ -201,6 +202,7 @@ export interface WhiteboardLabels {
   background: string;
   transparent: string;
   style: string;
+  batchStyle?: string;
   solid: string;
   dashed: string;
   corners: string;
@@ -949,6 +951,7 @@ const whiteboardLabelStringKeys: Record<
   fitView: true,
   groupSelection: true,
   removeFromGroup: true,
+  ungroup: true,
   fitSelection: true,
   drawTools: true,
   selectionDetails: true,
@@ -984,6 +987,7 @@ const whiteboardLabelStringKeys: Record<
   background: true,
   transparent: true,
   style: true,
+  batchStyle: true,
   solid: true,
   dashed: true,
   corners: true,
@@ -1036,7 +1040,13 @@ const whiteboardLabelStringKeys: Record<
 
 function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
   if (!isPlainRecord(value)) return false;
-  const optional = ["searchCanvas", "duplicateSelection", "layoutAllConfirm"];
+  const optional = [
+    "searchCanvas",
+    "duplicateSelection",
+    "layoutAllConfirm",
+    "batchStyle",
+    "ungroup",
+  ];
   const stringKeys = Object.keys(whiteboardLabelStringKeys).filter(
     (key) => !optional.includes(key),
   );

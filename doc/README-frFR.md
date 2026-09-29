@@ -2,9 +2,9 @@
   <img src="../docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Sketch
+<h1 align="center">Scholar Sketch</h1>
 
-**Markdown & Whiteboard for Zotero**
+<p align="center"><strong>Markdown &amp; Whiteboard for Zotero</strong></p>
 
 Documentation principale :
 

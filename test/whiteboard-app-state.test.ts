@@ -2684,7 +2684,7 @@ test("the app owns Arrow-key movement before React Flow handles focused nodes", 
   assert.match(nudge, /applyNodePositions\(positioned\)/);
   assert.match(
     appSource,
-    /onKeyDownCapture=\{\(event\)\s*=>\s*\{[\s\S]*captureCanvasArrowKey\(event, Boolean\(editing\), nudgeSelected\)/,
+    /onKeyDownCapture=\{\(event\)\s*=>\s*\{[\s\S]*captureCanvasArrowKey\(\s*event,\s*Boolean\(editing \|\| imageViewer\),\s*nudgeSelected,?\s*\)/,
   );
   assert.doesNotMatch(appSource, /disableKeyboardA11y/);
 });

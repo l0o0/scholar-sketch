@@ -2,13 +2,15 @@
   <img src="docs/icons/scholar-sketch-logo.png" alt="Scholar Sketch — Read · Organize · Think" width="640" />
 </p>
 
-# Scholar Sketch
+<h1 align="center">Scholar Sketch</h1>
 
-**Markdown & Whiteboard for Zotero**
+<p align="center"><strong>Markdown &amp; Whiteboard for Zotero</strong></p>
 
-[![Zotero compatibility](https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
-[![version](https://img.shields.io/badge/version-0.2.0-blue?style=flat-square)](https://github.com/l0o0/scholarcanvas/releases)
-[![license](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](./LICENSE)
+<p align="center">
+  <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
+  <a href="https://github.com/l0o0/scholarcanvas/releases"><img src="https://img.shields.io/badge/version-0.2.1-blue?style=flat-square" alt="version" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
+</p>
 
 **Write Markdown and connect your research on a visual whiteboard, inside Zotero.** Create, edit, and preview native `.md` attachments, then organize literature, quotes, and notes on `.canvas` whiteboards.
 
@@ -231,7 +233,7 @@ Notes:
   changes — `force: true` permits that API update, but does not bypass external file conflict checks.
 - `rename` renames the underlying file; for linked attachments this renames
   the file on disk.
-- API version: `Zotero.ScholarSketch.api.version` (currently `2`).
+- API version: `Zotero.ScholarSketch.api.version` (currently `3`).
 
 ---
 
@@ -270,3 +272,5 @@ Issues and PRs welcome. For larger features, open an issue first so we can align
 ## License
 
 [AGPL-3.0-or-later](./LICENSE)
+
+Canvas integrations: [`Zotero.ScholarSketch.api.canvas`](docs/canvas-api.md) — JSON Canvas read/write, source imports, and conflict protection.

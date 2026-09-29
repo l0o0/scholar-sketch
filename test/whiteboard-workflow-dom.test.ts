@@ -74,6 +74,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     Element: window.Element,
     HTMLElement: window.HTMLElement,
     SVGElement: window.SVGElement,
+    FileReader: window.FileReader,
     ResizeObserver: TestResizeObserver,
     getComputedStyle: window.getComputedStyle.bind(window),
     requestAnimationFrame: window.requestAnimationFrame.bind(window),
@@ -108,6 +109,8 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       WhiteboardApp: typeof WhiteboardApp;
     };
     const noop = () => {};
+    const openedItems: unknown[] = [];
+    const openedSources: unknown[] = [];
     await act(async () =>
       root.render(
         createElement(app.WhiteboardApp, {
@@ -133,7 +136,9 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
           onChange: noop,
           onSave: noop,
           onPickAcademicSource: noop,
-          onOpenItem: noop,
+          onOpenItem: (payload) => openedItems.push(payload),
+          onOpenAcademicSource: (_requestId, _nodeId, source) =>
+            openedSources.push(source),
           onDropAcademicSources: noop,
           onRefreshZoteroNote: noop,
           onExportFile: noop,
@@ -333,6 +338,27 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     assert.ok(!("frameId" in runtime!.getSnapshot().nodes[0]!));
     await act(async () => runtime!.redo());
     assert.equal(runtime!.getSnapshot().nodes.length, 2);
+    await dispatch(
+      container.querySelector(`.react-flow__node[data-id="${frame.id}"]`)!,
+      "contextmenu",
+    );
+    const ungroup = Array.from(
+      container.querySelectorAll(".zmd-board-context-menu button"),
+    ).find((button) => button.textContent === "Ungroup");
+    assert.ok(ungroup, "frame offers explicit ungroup action");
+    await dispatch(ungroup, "click");
+    const ungrouped = runtime!.getSnapshot();
+    assert.equal(ungrouped.nodes.length, 1);
+    assert.equal(ungrouped.nodes[0].id, "note");
+    assert.deepEqual(ungrouped.nodes[0].position, member.position);
+    assert.ok(!("frameId" in ungrouped.nodes[0]));
+    assert.deepEqual(ungrouped.connections, grouped.connections);
+    await act(async () => runtime!.undo());
+    assert.deepEqual(
+      runtime!.getSnapshot().nodes,
+      grouped.nodes,
+      "one undo restores frame and membership",
+    );
     const loaded = canvasFileToDocument(
       canvasDocumentToFile(runtime!.getSnapshot()),
     ).document;
@@ -498,6 +524,96 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       container.querySelectorAll(".zmd-board-style-bar.is-selection").length,
       0,
       "multi-selection must leave style mode",
+    );
+    const nodeBatch = container.querySelector(".zmd-board-batch-style")!;
+    await dispatch(
+      nodeBatch.querySelector('button[aria-haspopup="dialog"]')!,
+      "click",
+    );
+    const beforeNodeBatch = runtime!.getSnapshot();
+    const strokeInput = nodeBatch.querySelector<HTMLInputElement>(
+      'input[aria-label="Stroke"]',
+    )!;
+    assert.equal(
+      strokeInput.value,
+      "#111111",
+      "batch color starts at the first selected card's actual color",
+    );
+    await act(async () => {
+      strokeInput.value = "#059669";
+      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      strokeInput.value = "#dc2626";
+      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+      strokeInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+    });
+    const batchNodes = runtime!.getSnapshot().nodes;
+    for (const id of ["style-a", "style-b"]) {
+      assert.equal(
+        batchNodes.find((node) => node.id === id)?.style?.stroke,
+        "#dc2626",
+      );
+    }
+    for (const node of beforeNodeBatch.nodes.filter(
+      (node) => !["style-a", "style-b"].includes(node.id),
+    )) {
+      assert.deepEqual(
+        batchNodes.find((current) => current.id === node.id),
+        node,
+        "unselected nodes remain unchanged",
+      );
+    }
+    await act(async () => {
+      strokeInput.value = "#2563eb";
+      strokeInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+      strokeInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+    });
+    await act(async () => runtime!.undo());
+    assert.deepEqual(
+      runtime!.getSnapshot().nodes,
+      batchNodes,
+      "a second native color choice has its own undo entry",
+    );
+    await act(async () => runtime!.undo());
+    assert.deepEqual(runtime!.getSnapshot().nodes, beforeNodeBatch.nodes);
+    await dispatch(
+      container.querySelector('.react-flow__node[data-id="style-a"]')!,
+      "click",
+    );
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Control",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      ),
+    );
+    await dispatch(
+      container.querySelector('.react-flow__node[data-id="style-b"]')!,
+      "click",
+      { ctrlKey: true },
+    );
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keyup", {
+          key: "Control",
+          bubbles: true,
+        }),
+      ),
+    );
+    const restoredBatch = container.querySelector(".zmd-board-batch-style")!;
+    await dispatch(
+      restoredBatch.querySelector('button[aria-haspopup="dialog"]')!,
+      "click",
+    );
+    assert.equal(
+      restoredBatch.querySelector<HTMLInputElement>(
+        'input[aria-label="Stroke"]',
+      )!.value,
+      "#111111",
+      "undo restores the batch color display",
     );
     // In marquee mode React Flow clears selection on pointer-up, not click.
     for (const type of ["pointerdown", "pointerup"]) {
@@ -774,6 +890,55 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       null,
       "multi-selection must not show a toolbar for an arbitrary first edge",
     );
+    const batch = container.querySelector(".zmd-board-batch-style")!;
+    assert.ok(batch, "multi-selection has its own style menu");
+    await dispatch(
+      batch.querySelector('button[aria-haspopup="dialog"]')!,
+      "click",
+    );
+    const batchButton = (name: string) =>
+      Array.from(batch.querySelectorAll("button")).find(
+        (button) =>
+          button.textContent === name ||
+          button.getAttribute("aria-label") === name,
+      )!;
+    const edgeColorInput = batch.querySelector<HTMLInputElement>(
+      'input[aria-label="Edge color"]',
+    )!;
+    await act(async () => {
+      edgeColorInput.value = "#dc2626";
+      edgeColorInput.dispatchEvent(
+        new window.Event("input", { bubbles: true }),
+      );
+    });
+    assert.ok(
+      runtime!
+        .getSnapshot()
+        .connections.every((edge) => edge.color === "#dc2626"),
+      "color selection immediately applies to all selected edges",
+    );
+    await dispatch(batchButton("Solid"), "click");
+    assert.ok(runtime!.getSnapshot().connections.every((edge) => !edge.dashed));
+    const beforeBatch = runtime!.getSnapshot().connections;
+    await dispatch(batchButton("Both ends"), "click");
+    assert.ok(
+      runtime!
+        .getSnapshot()
+        .connections.every((edge) => edge.arrow && edge.startArrow),
+      "both selected edges receive the same explicit arrows",
+    );
+    await act(async () => runtime!.undo());
+    assert.deepEqual(
+      runtime!.getSnapshot().connections,
+      beforeBatch,
+      "batch styling undoes in one step",
+    );
+    await act(async () => runtime!.redo());
+    assert.ok(
+      runtime!
+        .getSnapshot()
+        .connections.every((edge) => edge.arrow && edge.startArrow),
+    );
     await act(async () => runtime!.loadSnapshot(persistedEdges));
     await dispatch(
       container.querySelector('.react-flow__node[data-id="a"]')!,
@@ -841,6 +1006,191 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     assert.equal(runtime!.getSnapshot().nodes.length, 0);
     await act(async () => runtime!.redo());
     assert.equal(runtime!.getSnapshot().nodes.length, 2);
+
+    const imageData = "data:image/png;base64,aGVsbG8=";
+    await act(async () =>
+      runtime!.loadSnapshot({
+        version: 2,
+        nodes: [
+          {
+            id: "image",
+            kind: "attachment",
+            position: { x: 200, y: 200 },
+            width: 240,
+            height: 160,
+            data: {
+              title: "Image",
+              contentType: "image/png",
+              fileData: imageData,
+            },
+          },
+        ],
+        connections: [],
+      }),
+    );
+    const imageNode = container.querySelector<HTMLElement>(
+      '.react-flow__node[data-id="image"]',
+    )!;
+    imageNode.focus();
+    await dispatch(imageNode.querySelector("img")!, "click");
+    const viewerClose = container.querySelector<HTMLButtonElement>(
+      ".zmd-board-image-viewer-close",
+    )!;
+    assert.ok(viewerClose);
+    assert.equal(window.document.activeElement, viewerClose);
+    const previewSnapshot = runtime!.getSnapshot();
+    for (const key of ["Delete", "ArrowRight", "z"]) {
+      await act(async () =>
+        window.document.body.dispatchEvent(
+          new window.KeyboardEvent("keydown", {
+            key,
+            ctrlKey: key === "z",
+            bubbles: true,
+            cancelable: true,
+          }),
+        ),
+      );
+    }
+    assert.deepEqual(
+      runtime!.getSnapshot(),
+      previewSnapshot,
+      "preview must isolate canvas shortcuts",
+    );
+    assert.equal(await clipboardEvent("copy"), false);
+    assert.equal(await clipboardEvent("paste"), false);
+    assert.deepEqual(runtime!.getSnapshot(), previewSnapshot);
+    await act(async () =>
+      viewerClose.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Tab",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(window.document.activeElement, viewerClose);
+    await act(async () =>
+      viewerClose.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(
+      container.querySelector(".zmd-board-image-viewer-backdrop"),
+      null,
+    );
+    assert.equal(window.document.activeElement, imageNode);
+
+    const source = {
+      library: { type: "user" as const },
+      attachmentKey: "PDFKEY01",
+    };
+    for (const data of [
+      { title: "PDF", image: imageData, source },
+      { title: "PDF", image: imageData, attachmentID: 42, pdfPage: 3 },
+    ]) {
+      await act(async () =>
+        runtime!.loadSnapshot({
+          version: 2,
+          nodes: [
+            {
+              id: "pdf",
+              kind: "pdf",
+              position: { x: 200, y: 200 },
+              width: 240,
+              height: 180,
+              data,
+            },
+          ],
+          connections: [],
+        }),
+      );
+      await dispatch(
+        container.querySelector('.react-flow__node[data-id="pdf"]')!,
+        "contextmenu",
+      );
+      const open = Array.from(
+        container.querySelectorAll(".zmd-board-context-menu button"),
+      ).find((button) =>
+        ["Open source", "Open item"].includes(button.textContent?.trim() ?? ""),
+      )!;
+      assert.ok(open);
+      await dispatch(open, "click");
+      assert.equal(
+        container.querySelector(".zmd-board-image-viewer-backdrop"),
+        null,
+      );
+    }
+    assert.deepEqual(openedSources, [{ kind: "attachment", source }]);
+    assert.deepEqual(openedItems, [{ attachmentID: 42, pdfPage: 3 }]);
+
+    for (const kind of ["text", "rect", "frame", "note"] as const) {
+      await act(async () =>
+        runtime!.loadSnapshot({
+          version: 2,
+          nodes: [
+            {
+              id: "editable",
+              kind,
+              position: { x: 200, y: 200 },
+              width: 240,
+              height: 160,
+              ...(kind === "note"
+                ? { content: "" }
+                : kind === "frame"
+                  ? { title: "" }
+                  : { data: { title: "" } }),
+            } as Parameters<
+              WhiteboardRuntime["loadSnapshot"]
+            >[0]["nodes"][number],
+          ],
+          connections: [],
+        }),
+      );
+      await dispatch(
+        container.querySelector('.react-flow__node[data-id="editable"]')!,
+        "click",
+      );
+      await dispatch(
+        container.querySelector(".zmd-board-selection-edit")!,
+        "click",
+      );
+      assert.equal(
+        Boolean(container.querySelector(".zmd-board-edit-file")),
+        kind === "note",
+      );
+      const file = new window.File(["image"], "paste.png", {
+        type: "image/png",
+      });
+      const paste = new window.Event("paste", {
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(paste, "clipboardData", {
+        value: {
+          items: [{ type: "image/png", getAsFile: () => file }],
+        },
+      });
+      await act(async () => {
+        container.querySelector("textarea")!.dispatchEvent(paste);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      assert.equal(paste.defaultPrevented, kind === "note");
+      const text =
+        container.querySelector<HTMLTextAreaElement>("textarea")!.value;
+      if (kind === "note")
+        assert.match(text, /^!\[paste\.png\]\(data:image\/png;base64,/);
+      else
+        assert.equal(
+          text,
+          "",
+          "plain text editors must not receive image data URLs",
+        );
+    }
     assert.deepEqual(errors, [], "workflow must render without React errors");
   } finally {
     console.error = previousConsoleError;

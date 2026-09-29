@@ -43,9 +43,6 @@ function renderToolbar(selectedNodeCount: number, selectedEdgeCount: number) {
       onAutoLayout: () => {},
       onAlign: () => {},
       onDistribute: () => {},
-      onEdgeColor: () => {},
-      onEdgeDash: () => {},
-      onEdgeArrow: () => {},
       onOpenShortcuts: () => {},
     }),
   );
@@ -132,9 +129,6 @@ test("optional selection actions stay hidden until wired and then expose labels"
       onAutoLayout: () => {},
       onAlign: () => {},
       onDistribute: () => {},
-      onEdgeColor: () => {},
-      onEdgeDash: () => {},
-      onEdgeArrow: () => {},
       onOpenShortcuts: () => {},
     }),
   );
@@ -199,9 +193,6 @@ test("toolbar exposes Literature as its only library acquisition tool", () => {
       onAutoLayout: () => {},
       onAlign: () => {},
       onDistribute: () => {},
-      onEdgeColor: () => {},
-      onEdgeDash: () => {},
-      onEdgeArrow: () => {},
       onOpenShortcuts: () => {},
     }),
   );

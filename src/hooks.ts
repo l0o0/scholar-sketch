@@ -33,6 +33,7 @@ import {
   unregisterWhiteboardFileOpenInterceptor,
   unregisterWhiteboardMenus,
 } from "./modules/whiteboard";
+import { canvasApi } from "./modules/whiteboard/api";
 import { markdownApi } from "./modules/markdown/api";
 import {
   disposeSidebarForWindow,
@@ -79,10 +80,11 @@ async function onStartup() {
   tutorialStartup = ensureTutorialWhiteboard();
 
   addon.api = {
-    version: 2,
+    version: 3,
     openMarkdown: openMarkdownAttachment,
     createMarkdown: createMarkdownAttachment,
     markdown: markdownApi,
+    canvas: canvasApi,
     getString,
   };
   addon.data.initialized = true;

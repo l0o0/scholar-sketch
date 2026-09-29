@@ -12,6 +12,7 @@ import { THEME_TOKENS, UI_METRICS } from "../../../../src/ui/theme";
 import {
   getNoteType,
   canvasNodeSurfaceDefaults,
+  canvasNodeUiSurfaceDefaults,
   type NoteType,
 } from "../model/academic";
 
@@ -102,6 +103,7 @@ import {
   toggleAnnotationSelection,
 } from "../chrome/AnnotationBrowser";
 import { ShortcutsOverlay } from "../chrome/ShortcutsOverlay";
+import { BatchStyleMenu } from "../chrome/BatchStyleMenu";
 import { StyleBar } from "../chrome/StyleBar";
 import { EdgeStyleBar } from "../chrome/EdgeStyleBar";
 import { TextStyleBar } from "../chrome/TextStyleBar";
@@ -136,6 +138,7 @@ import { exportCanvasPng, type PngScale } from "./png";
 import {
   canAcceptNativeFileTransfer,
   fileImportFailureMessage,
+  importedImageMarkdown,
   importWhiteboardFiles,
   isEditingImportSessionCurrent,
   type ImportedWhiteboardFile,
@@ -323,6 +326,7 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   cancel: "Cancel",
   groupSelection: "Group selection",
   removeFromGroup: "Remove from group",
+  ungroup: "Ungroup",
   fitSelection: "Fit selection",
   drawTools: "Shapes and drawing",
   selectionDetails: "Selection details",
@@ -381,6 +385,7 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   background: "Background",
   transparent: "Transparent",
   style: "Style",
+  batchStyle: "Batch styles",
   solid: "Solid",
   dashed: "Dashed",
   corners: "Corners",
@@ -1068,6 +1073,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const viewAnnotationsRef = useRef<HTMLButtonElement | null>(null);
   const detailsButtonRef = useRef<HTMLButtonElement | null>(null);
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
+  const imageViewerCloseRef = useRef<HTMLButtonElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const filePickerModeRef = useRef<"attachment" | "markdown">("attachment");
   const filePickerPositionRef = useRef<{ x: number; y: number } | undefined>(
@@ -1076,6 +1082,16 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const mountedRef = useRef(true);
   const importGenerationRef = useRef(0);
   const holdEditFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!imageViewer) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    imageViewerCloseRef.current?.focus();
+    return () => {
+      if (previousFocus?.isConnected) previousFocus.focus();
+      else canvasHostRef.current?.focus();
+    };
+  }, [imageViewer]);
 
   const runtimeRef = useRef<WhiteboardRuntime | null>(null);
   const drawRef = useRef<DrawSession | null>(null);
@@ -1864,6 +1880,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       const current = editingRef.current;
       if (!current || current.nodeId !== nodeId) return;
       if (
+        nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind !==
+        "note"
+      )
+        return;
+      if (
         expected &&
         !isEditingImportSessionCurrent(
           { ...current, revision: editingRevisionRef.current },
@@ -1881,11 +1902,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         current.value.length,
       );
       const markdown = images
-        .filter((file) => file.image || file.contentType.startsWith("image/"))
-        .map(
-          (file) =>
-            `![${file.title.replace(/[\\\]\r\n]/g, "\\$&")}](${file.fileData})`,
-        )
+        .map(importedImageMarkdown)
+        .filter(Boolean)
         .join("\n");
       if (!markdown) return;
       const value = `${current.value.slice(0, start)}${markdown}${current.value.slice(end)}`;
@@ -1897,7 +1915,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         editingTextareaRef.current.setSelectionRange(caret, caret);
       });
     },
-    [],
+    [nodesRef],
   );
 
   const addImagesToEditing = useCallback(
@@ -1905,6 +1923,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       const generation = importGenerationRef.current;
       const session = editingRef.current;
       if (!session || session.nodeId !== nodeId) return;
+      if (
+        nodesRef.current.find((node) => node.id === nodeId)?.data.model.kind !==
+        "note"
+      )
+        return;
       const revision = editingRevisionRef.current;
       const selection = {
         start:
@@ -1925,7 +1948,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         value: session.value,
       });
     },
-    [insertImportedImages, reportFileFailures],
+    [insertImportedImages, nodesRef, reportFileFailures],
   );
 
   const openFilePicker = useCallback(
@@ -2187,14 +2210,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     (node: CanvasFlowNode) => {
       const model = node.data.model;
       const embeddedImage = embeddedImageInfo(model);
-      if (model.kind === "pdf" && embeddedImage) {
-        setImageViewer(embeddedImage);
-        return;
-      }
-      if (embeddedFileInfo(model)) {
-        openEmbeddedFile(node);
-        return;
-      }
       const academicSource = sourceDescriptor(model);
       if (academicSource) {
         requestSources("selected", [
@@ -2218,6 +2233,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         });
       } else if (model.kind === "item" && model.data.itemID) {
         propsRef.current.onOpenItem({ itemID: model.data.itemID });
+      } else if (model.kind === "pdf" && embeddedImage) {
+        setImageViewer(embeddedImage);
+      } else if (embeddedFileInfo(model)) {
+        openEmbeddedFile(node);
       } else {
         startEdit(node.id);
       }
@@ -2341,6 +2360,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   useEffect(() => {
     const allowed = (event: ClipboardEvent) =>
+      !imageViewer &&
       !editing &&
       !editingEdge &&
       !annotationBrowserRef.current &&
@@ -2388,6 +2408,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     addImportedFiles,
     editing,
     editingEdge,
+    imageViewer,
     nodesRef,
     snapshotNow,
     pasteSelection,
@@ -2739,35 +2760,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     [bump, pushHistory],
   );
 
-  const EDGE_COLORS = ["#9ca3af", "#2563eb", "#059669", "#d97706", "#dc2626"];
-  const cycleEdgeColor = useCallback(
-    (edgeId: string) => {
-      const edge = edgesRef.current.find((item) => item.id === edgeId);
-      if (!edge) return;
-      const color = String(edge.style?.stroke ?? "#9ca3af");
-      changeEdgeStyle(edgeId, {
-        color:
-          EDGE_COLORS[(EDGE_COLORS.indexOf(color) + 1) % EDGE_COLORS.length],
-      });
-    },
-    [changeEdgeStyle],
-  );
-  const toggleEdgeDashed = useCallback(
-    (edgeId: string) => {
-      const edge = edgesRef.current.find((item) => item.id === edgeId);
-      if (edge)
-        changeEdgeStyle(edgeId, { dashed: !edge.style?.strokeDasharray });
-    },
-    [changeEdgeStyle],
-  );
-  const toggleEdgeArrow = useCallback(
-    (edgeId: string) => {
-      const edge = edgesRef.current.find((item) => item.id === edgeId);
-      if (edge) changeEdgeStyle(edgeId, { arrow: !edge.markerEnd });
-    },
-    [changeEdgeStyle],
-  );
-
   const exportAs = useCallback(
     (format: "png" | "svg" | "md", scale: PngScale = 2) => {
       if (exportBusyRef.current) return;
@@ -2820,10 +2812,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && imageViewer) {
-        event.preventDefault();
-        event.stopPropagation();
-        setImageViewer(null);
+      if (imageViewer) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          setImageViewer(null);
+        }
         return;
       }
       if (
@@ -3166,6 +3160,35 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         return screen ? { ...screen, width: 0, height: 0 } : null;
       })()
     : null;
+  const batchMembers = nodes.filter(
+    (node) =>
+      node.selected ||
+      selectedEdges.some(
+        (edge) => edge.source === node.id || edge.target === node.id,
+      ),
+  );
+  const batchNode = selectedNodes[0]?.data.model;
+  const batchDefaults = batchNode
+    ? canvasNodeUiSurfaceDefaults(
+        batchNode.kind,
+        theme,
+        batchNode.kind === "note" ? getNoteType(batchNode) : undefined,
+      )
+    : undefined;
+  const batchAnchor =
+    selectedNodes.length + selectedEdges.length > 1 &&
+    batchMembers.length &&
+    !editing &&
+    !editingEdge
+      ? flowRef.current?.flowToScreenPosition({
+          x: Math.max(
+            ...batchMembers.map(
+              (node) => node.position.x + nodeSize(node).width,
+            ),
+          ),
+          y: Math.min(...batchMembers.map((node) => node.position.y)),
+        })
+      : null;
   const zoom = viewportRef.current.zoom || 1;
   const propertyNode =
     toolbarNode && detailsTarget === toolbarNode.id ? toolbarNode : null;
@@ -3319,15 +3342,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onOpenShortcuts={() => setHelpOpen(true)}
           onAlign={alignSelected}
           onDistribute={distributeSelected}
-          onEdgeColor={() =>
-            selectedEdges[0] && cycleEdgeColor(selectedEdges[0].id)
-          }
-          onEdgeDash={() =>
-            selectedEdges[0] && toggleEdgeDashed(selectedEdges[0].id)
-          }
-          onEdgeArrow={() =>
-            selectedEdges[0] && toggleEdgeArrow(selectedEdges[0].id)
-          }
         />
         <input
           ref={fileInputRef}
@@ -3443,9 +3457,15 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) setImageViewer(null);
             }}
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              event.preventDefault();
+              imageViewerCloseRef.current?.focus();
+            }}
           >
             <div className="zmd-board-image-viewer">
               <button
+                ref={imageViewerCloseRef}
                 type="button"
                 className="zmd-board-image-viewer-close"
                 aria-label={labels.close}
@@ -3556,7 +3576,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           deleteKeyCode={null}
           panActivationKeyCode={null}
           onKeyDownCapture={(event) => {
-            captureCanvasArrowKey(event, Boolean(editing), nudgeSelected);
+            captureCanvasArrowKey(
+              event,
+              Boolean(editing || imageViewer),
+              nudgeSelected,
+            );
           }}
           panOnDrag={activeTool === "hand" ? true : [1, 2]}
           panOnScroll={spacePressed && activeTool === "hand"}
@@ -3815,6 +3839,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       });
                     }}
                     onPaste={(event) => {
+                      if (editingNode.type !== "note") return;
                       const item = Array.from(
                         event.clipboardData.items ?? [],
                       ).find((candidate) =>
@@ -3858,8 +3883,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       }
                     }}
                   />
-                  {editingNode.type === "note" ||
-                  editingNode.type === "text" ? (
+                  {editingNode.type === "note" ? (
                     <button
                       type="button"
                       className="zmd-board-edit-file"
@@ -3937,6 +3961,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                   <button type="button" onClick={groupSelection}>
                     <IconCopy />
                     <span>{labels.groupSelection}</span>
+                  </button>
+                ) : null}
+                {menuNode.data.model.kind === "frame" ? (
+                  <button type="button" onClick={() => deleteNode(menuNode.id)}>
+                    <IconOpen />
+                    <span>{labels.ungroup ?? "Ungroup"}</span>
                   </button>
                 ) : null}
                 {"frameId" in menuNode.data.model &&
@@ -4100,6 +4130,49 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                         },
                       }
                     : edge,
+                ),
+              );
+              bump();
+            }}
+          />
+        ) : null}
+        {batchAnchor ? (
+          <BatchStyleMenu
+            key={JSON.stringify([
+              selectedNodes.map((node) => node.id),
+              selectedEdges.map((edge) => edge.id),
+            ])}
+            left={batchAnchor.x - 36}
+            top={batchAnchor.y - 44}
+            nodeCount={selectedNodes.length}
+            edgeCount={selectedEdges.length}
+            stroke={
+              batchNode?.style?.stroke ?? batchDefaults?.stroke ?? "#2563eb"
+            }
+            fill={batchNode?.style?.fill ?? batchDefaults?.fill ?? "#ffffff"}
+            edgeColor={String(selectedEdges[0]?.style?.stroke ?? "#9ca3af")}
+            labels={labels}
+            onNodes={(patch, recordHistory = true) => {
+              if (!nodesRef.current.some((node) => node.selected)) return;
+              if (recordHistory) pushHistory();
+              setNodes((current) =>
+                current.map((node) =>
+                  node.selected
+                    ? updateFlowNodeModel(node, (model) => ({
+                        ...model,
+                        style: { ...model.style, ...patch },
+                      }))
+                    : node,
+                ),
+              );
+              bump();
+            }}
+            onEdges={(patch, recordHistory = true) => {
+              if (!edgesRef.current.some((edge) => edge.selected)) return;
+              if (recordHistory) pushHistory();
+              setEdges((current) =>
+                current.map((edge) =>
+                  edge.selected ? withEdgeStyle(edge, patch) : edge,
                 ),
               );
               bump();

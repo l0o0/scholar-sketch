@@ -1,3 +1,4 @@
+import { IconGroup } from "../whiteboard/icons";
 import { useMemo } from "react";
 import { renderMarkdownCore } from "../../../../src/modules/markdown/preview-render-core";
 import type { NodeProps } from "@xyflow/react";
@@ -159,7 +160,7 @@ export function FrameNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       }}
     >
       <header className="zmd-board-frame-title">
-        <span className="zmd-board-frame-kind">{labels.kindFrame}</span>
+        <IconGroup />
         <h3 style={nodeTextStyle(style)}>{model.title}</h3>
       </header>
       {(["top", "right", "bottom", "left"] as const).map((edge) => (

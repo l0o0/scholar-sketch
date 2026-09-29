@@ -34,6 +34,30 @@ export class WhiteboardSessionRegistry {
   private readonly byTab = new Map<string, WhiteboardSession>();
   private readonly byItem = new Map<number, string>();
   private readonly byWindow = new WeakMap<Window, Set<string>>();
+  private readonly itemOperations = new Map<number, Promise<unknown>>();
+
+  /** Keep opening/loading a canvas and replacing its saved file mutually exclusive. */
+  async withItemLock<T>(
+    itemID: number,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.itemOperations.get(itemID) ?? Promise.resolve();
+    const current = previous.catch(() => undefined).then(operation);
+    this.itemOperations.set(itemID, current);
+    try {
+      return await current;
+    } finally {
+      if (this.itemOperations.get(itemID) === current) {
+        this.itemOperations.delete(itemID);
+      }
+    }
+  }
+
+  async waitForOperations(): Promise<void> {
+    while (this.itemOperations.size) {
+      await Promise.allSettled([...this.itemOperations.values()]);
+    }
+  }
 
   get(tabID: string) {
     return this.byTab.get(tabID);

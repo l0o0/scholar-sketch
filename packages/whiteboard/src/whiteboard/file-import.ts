@@ -1,6 +1,7 @@
 import {
   inferAttachmentContentType,
   MAX_ATTACHMENT_BYTES,
+  isSafeAttachmentDataUrl,
 } from "../model/file-attachment";
 
 export const MAX_ATTACHMENT_BATCH_BYTES = 30 * 1024 * 1024;
@@ -30,6 +31,8 @@ const IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/gif",
   "image/webp",
+  "image/avif",
+  "image/bmp",
 ]);
 
 export interface ImportedWhiteboardFile {
@@ -41,6 +44,17 @@ export interface ImportedWhiteboardFile {
   image?: string;
   imageWidth?: number;
   imageHeight?: number;
+}
+
+export function importedImageMarkdown(file: ImportedWhiteboardFile): string {
+  if (
+    !IMAGE_TYPES.has(file.contentType) ||
+    !file.fileData.startsWith(`data:${file.contentType};base64,`) ||
+    !isSafeAttachmentDataUrl(file.fileData)
+  )
+    return "";
+  const title = file.title.replace(/[\r\n]+/g, " ").replace(/[\\[\]]/g, "\\$&");
+  return `![${title}](${file.fileData})`;
 }
 
 export interface FileImportFailure {

@@ -61,3 +61,35 @@ test("unregistering a session disposes its scheduler and template subscription",
   assert.equal(disposed, 1);
   assert.equal(unsubscribed, 1);
 });
+
+test("waiting drains operations queued after the wait starts", async () => {
+  const registry = new WhiteboardSessionRegistry();
+  let finishWrite!: () => void;
+  let finishOpen!: () => void;
+  const writeGate = new Promise<void>((resolve) => {
+    finishWrite = resolve;
+  });
+  const openGate = new Promise<void>((resolve) => {
+    finishOpen = resolve;
+  });
+  const writing = registry.withItemLock(1, () => writeGate);
+  let drained = false;
+  const waiting = registry.waitForOperations().then(() => {
+    drained = true;
+  });
+  const opening = registry.withItemLock(1, async () => {
+    await openGate;
+    registry.register(session("new-tab", {} as Window, 1));
+  });
+  try {
+    finishWrite();
+    await writing;
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(drained, false);
+  } finally {
+    finishOpen();
+    await Promise.all([opening, waiting]);
+  }
+  assert.equal(drained, true);
+  assert.equal(registry.findByItem(1)?.tabID, "new-tab");
+});

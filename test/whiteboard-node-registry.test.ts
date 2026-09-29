@@ -437,7 +437,7 @@ test("Academic cards render non-default canonical surface and text styles", () =
     "--zmd-board-node-stroke-style",
     "--zmd-board-node-radius",
   ]) {
-    assert.match(cardRule, new RegExp(`var\\(${variable}`));
+    assert.match(cardRule, new RegExp(`var\\(\\s*${variable}`));
   }
 });
 
@@ -481,7 +481,7 @@ test("Frames render the same canonical surface, text, and vertical styles", () =
     "--zmd-board-node-stroke-style",
     "--zmd-board-node-radius",
   ]) {
-    assert.match(frameRule, new RegExp(`var\\(${variable}`));
+    assert.match(frameRule, new RegExp(`var\\(\\s*${variable}`));
   }
 });
 
@@ -491,12 +491,12 @@ test("partial Frame styles resolve against the Frame surface defaults", () => {
     style: { fillStyle: "hatch", strokeOpacity: 0.5 },
   });
 
-  assert.match(frame, /--zmd-board-node-fill:transparent/);
+  assert.match(frame, /--zmd-board-node-fill:repeating-linear-gradient/);
   assert.match(
     frame,
-    /--zmd-board-node-stroke:color-mix\(in srgb, var\(--zmd-board-border, #d1d5db\) 50%, transparent\)/,
+    /--zmd-board-node-stroke:color-mix\(in srgb, var\(--zmd-board-border, #94a3b8\) 50%, transparent\)/,
   );
-  assert.doesNotMatch(frame, /repeating-linear-gradient/);
+  assert.match(frame, /rgba\(59, 130, 246, 0.05\)/);
 });
 
 test("selection style controls expose only surface properties the kind renders", () => {
@@ -586,9 +586,9 @@ test("Frame surface controls reflect its rendered default boundary", () => {
 
   assert.match(
     frameControls,
-    /class="zmd-board-color-swatch is-fill is-transparent" style="background-color:transparent"/,
+    /class="zmd-board-color-swatch is-fill" style="background-color:rgba\(59, 130, 246, 0.05\)"/,
   );
-  assert.match(frameControls, /title="localized-strokeWidth: 1 px"/);
+  assert.match(frameControls, /title="localized-strokeWidth: 2 px"/);
   assert.doesNotMatch(
     frameControls,
     /class="zmd-board-color-swatch is-stroke" style="border-color:#1f2937"/,
@@ -608,7 +608,7 @@ test("light surface controls retain canonical Frame and shape defaults", () => {
   const cases = [
     {
       node: createAcademicNode("frame", { x: 0, y: 0 }, "frame-light"),
-      stroke: "#d1d5db",
+      stroke: "#94a3b8",
     },
     {
       node: {
@@ -679,7 +679,7 @@ test("unstyled renderers and controls resolve dark UI defaults without persistin
   );
   assert.match(
     frameControls,
-    /class="zmd-board-color-swatch is-fill is-transparent" style="background-color:transparent"/,
+    /class="zmd-board-color-swatch is-fill" style="background-color:rgba\(96, 165, 250, 0.08\)"/,
   );
   assert.equal(text.style, undefined);
   assert.equal(note.style, undefined);
@@ -739,7 +739,8 @@ test("renders frame as a localized non-interactive boundary without handles", ()
     ...createAcademicNode("frame", { x: 0, y: 0 }, "frame-1"),
     title: "Study boundary",
   });
-  assert.match(markup, />Localized frame</);
+  assert.match(markup, /aria-label="Localized frame: Study boundary"/);
+  assert.doesNotMatch(markup, /zmd-board-frame-kind/);
   assert.match(markup, /Study boundary/);
   assert.match(markup, /class="zmd-board-frame-title"/);
   assert.equal((markup.match(/zmd-board-frame-hit-edge/g) ?? []).length, 4);

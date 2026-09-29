@@ -22,6 +22,7 @@ import {
   IconFile,
   IconFitView,
   IconFrame,
+  IconGroup,
   IconHand,
   IconItem,
   IconLayout,
@@ -93,9 +94,6 @@ export function TopIsland(props: {
     mode: "left" | "right" | "top" | "bottom" | "horizontal" | "vertical",
   ) => void;
   onDistribute: (direction: "horizontal" | "vertical") => void;
-  onEdgeColor: () => void;
-  onEdgeDash: () => void;
-  onEdgeArrow: () => void;
   onOpenShortcuts: () => void;
 }) {
   const { labels, activeTool, onSelectTool } = props;
@@ -393,7 +391,7 @@ export function TopIsland(props: {
                 )}
                 onClick={props.onGroupSelection}
               >
-                <IconFrame />
+                <IconGroup />
               </button>
             ) : null}
             {props.onFitSelection ? (
@@ -549,40 +547,6 @@ export function TopIsland(props: {
                       </button>
                     </>
                   ) : null}
-                </div>
-              ) : null}
-              {props.selectedEdgeCount >= 1 ? (
-                <div className="zmd-board-menu-section" role="group">
-                  <span className="zmd-board-menu-section-label">
-                    {labels.style}
-                  </span>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.edgeColor}
-                    onClick={props.onEdgeColor}
-                  >
-                    <IconLine />
-                    <span>{labels.edgeColor}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.edgeDash}
-                    onClick={props.onEdgeDash}
-                  >
-                    <IconLine />
-                    <span>{labels.edgeDash}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.edgeArrow}
-                    onClick={props.onEdgeArrow}
-                  >
-                    <IconArrow />
-                    <span>{labels.edgeArrow}</span>
-                  </button>
                 </div>
               ) : null}
               <button

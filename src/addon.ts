@@ -4,6 +4,8 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { getString } from "./utils/locale";
 import type { MarkdownApi } from "./modules/markdown/api";
 
+import type { CanvasApi } from "./modules/whiteboard/api";
+
 class Addon {
   public data: {
     alive: boolean;
@@ -22,6 +24,7 @@ class Addon {
     createMarkdown?: typeof import("./modules/markdown").createMarkdownAttachment;
     /** Populated on startup (see hooks.ts). */
     markdown?: MarkdownApi;
+    canvas?: CanvasApi;
     /** Public localization helper for runtime/manual integration checks. */
     getString: typeof getString;
   };
