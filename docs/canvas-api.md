@@ -1,6 +1,6 @@
 # Canvas API
 
-The in-process namespace is `Zotero.ScholarSketch.api.canvas` (Canvas API version `1`; aggregate API version `3`). Available after plugin initialization. This API requires execution inside Zotero; it does not start a network or MCP service. Available starting with Scholar Sketch v0.2.1.
+The in-process namespace is `Zotero.ScholarSketch.api.canvas` (Canvas API version `1`; aggregate API version `3`). Available after plugin initialization. This API requires execution inside Zotero; it does not start a network or MCP service. Available starting with Scholar Sketch v0.2.2.
 
 Methods are asynchronous and return JSON-friendly values. Canvas inputs accept a JSON Canvas object or its JSON string. The standard is [JSON Canvas 1.0](https://jsoncanvas.org/spec/1.0/), not the internal editor snapshot format. Normalized output includes the plugin's existing `bamboo` extensions, preserving Zotero source identities.
 

@@ -1,7 +1,7 @@
 {
   "name": "scholarsketch",
   "type": "module",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Markdown & Whiteboard for Zotero — edit Markdown files and connect literature, notes, and ideas on a visual canvas.",
   "config": {
     "addonName": "Scholar Sketch",
@@ -12,13 +12,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/l0o0/scholarcanvas.git"
+    "url": "git+https://github.com/l0o0/scholar-sketch.git"
   },
   "author": "l0o0",
   "bugs": {
-    "url": "https://github.com/l0o0/scholarcanvas/issues"
+    "url": "https://github.com/l0o0/scholar-sketch/issues"
   },
-  "homepage": "https://github.com/l0o0/scholarcanvas#readme",
+  "homepage": "https://github.com/l0o0/scholar-sketch#readme",
   "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@9.15.9",
   "engines": {

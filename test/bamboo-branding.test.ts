@@ -15,10 +15,10 @@ test("uses Scholar Sketch branding with stable Bamboo compatibility identifiers"
   assert.equal(pkg.config.prefsPrefix, "extensions.zotero.bamboo");
   assert.equal(
     pkg.repository.url,
-    "git+https://github.com/l0o0/scholarcanvas.git",
+    "git+https://github.com/l0o0/scholar-sketch.git",
   );
-  assert.equal(pkg.bugs.url, "https://github.com/l0o0/scholarcanvas/issues");
-  assert.equal(pkg.homepage, "https://github.com/l0o0/scholarcanvas#readme");
+  assert.equal(pkg.bugs.url, "https://github.com/l0o0/scholar-sketch/issues");
+  assert.equal(pkg.homepage, "https://github.com/l0o0/scholar-sketch#readme");
 });
 
 test("uses packaged branding icons and a theme-aware Markdown sidebar icon", async () => {
@@ -96,7 +96,7 @@ test("documents repository and Scholar Sketch public API", async () => {
   ]);
   const combined = readmes.join("\n");
 
-  assert.match(combined, /github\.com\/l0o0\/scholarcanvas\/releases/);
+  assert.match(combined, /github\.com\/l0o0\/scholar-sketch\/releases/);
   assert.match(combined, /Zotero\.ScholarSketch\.api\.markdown/);
   assert.match(combined, /Zotero\.ScholarSketch\.api\.version/);
   assert.doesNotMatch(combined, /github\.com\/l0o0\/zotero-markdown/);

@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholarcanvas/releases"><img src="https://img.shields.io/badge/version-0.2.1-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.2-blue?style=flat-square" alt="version" /></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -73,7 +73,7 @@ Zotero 擅长文献收集与组织。在 AI 时代，**纯 Markdown 文件**才�
 
 ## 安装
 
-从 [Releases](https://github.com/l0o0/scholarcanvas/releases) 下载最新的 `scholarsketch-v{version}.xpi`，在 Zotero 中：**工具 → 插件 → 齿轮 → 从文件安装插件…**，如有提示重启 Zotero。
+从 [Releases](https://github.com/l0o0/scholar-sketch/releases) 下载最新的 `scholarsketch-v{version}.xpi`，在 Zotero 中：**工具 → 插件 → 齿轮 → 从文件安装插件…**，如有提示重启 Zotero。
 
 ### 本地构建
 
@@ -179,7 +179,7 @@ pnpm start          # 构建并启动 Zotero，支持热重载
 
 ## 供其他插件调用的 API
 
-Scholar Sketch 原名 Scholar Canvas，更早名为 Bamboo。公开 API 为 `Zotero.ScholarSketch`；旧入口 `Zotero.scholarcanvas` 不再提供，集成插件需更新为新名称（破坏性变更）。新安装包使用 `scholarsketch-v{version}.xpi`。仓库仍位于 `l0o0/scholarcanvas`，下载和自动更新链接继续有效。插件 ID、偏好设置键、chrome 资源命名空间、剪贴板格式以及已有数据和历史目录保留兼容标识。
+Scholar Sketch 原名 Scholar Canvas，更早名为 Bamboo。公开 API 为 `Zotero.ScholarSketch`；旧入口 `Zotero.scholarcanvas` 不再提供，集成插件需更新为新名称（破坏性变更）。新安装包使用 `scholarsketch-v{version}.xpi`。仓库现位于 `l0o0/scholar-sketch`，下载和自动更新链接使用此地址。插件 ID、偏好设置键、chrome 资源命名空间、剪贴板格式以及已有数据和历史目录保留兼容标识。
 
 Scholar Sketch 在 `Zotero.ScholarSketch.api.markdown` 暴露进程内 API，供其他插件 / MCP 桥接层在 Zotero 内创建与编辑 `.md` 文档。所有方法均为异步、JSON 友好，失败时抛出 `MarkdownApiError`（`error.code` 稳定不变）。
 

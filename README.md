@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholarcanvas/releases"><img src="https://img.shields.io/badge/version-0.2.1-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.2-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -71,7 +71,7 @@ See [link and export conventions](docs/obsidian-links.md), [save protection and 
 
 ## Install
 
-Download the latest `scholarsketch-v{version}.xpi` from [Releases](https://github.com/l0o0/scholarcanvas/releases), then in Zotero: **Tools → Plugins → gear → Install Plugin From File…** and restart if prompted.
+Download the latest `scholarsketch-v{version}.xpi` from [Releases](https://github.com/l0o0/scholar-sketch/releases), then in Zotero: **Tools → Plugins → gear → Install Plugin From File…** and restart if prompted.
 
 ### Development build
 
@@ -183,7 +183,7 @@ for agent inspection, supported APIs, and manual adoption in other plugins.
 
 ## API for other plugins
 
-Scholar Sketch was previously named Scholar Canvas (and earlier, Bamboo). The public API is `Zotero.ScholarSketch`; the old `Zotero.scholarcanvas` namespace is no longer supported. Integrations must use the new namespace (breaking change). New packages use `scholarsketch-v{version}.xpi`. The repository remains `l0o0/scholarcanvas`, so download and update links continue to work. The add-on ID, preference keys, chrome resource namespace, clipboard format, and existing data/history paths retain their compatibility identifiers.
+Scholar Sketch was previously named Scholar Canvas (and earlier, Bamboo). The public API is `Zotero.ScholarSketch`; the old `Zotero.scholarcanvas` namespace is no longer supported. Integrations must use the new namespace (breaking change). New packages use `scholarsketch-v{version}.xpi`. The repository is now `l0o0/scholar-sketch`; download and update links use this address. The add-on ID, preference keys, chrome resource namespace, clipboard format, and existing data/history paths retain their compatibility identifiers.
 
 Scholar Sketch exposes its in-process API at `Zotero.ScholarSketch.api.markdown`
 for other plugins / MCP bridges to create and edit `.md` documents inside Zotero.
