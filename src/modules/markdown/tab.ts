@@ -898,6 +898,12 @@ function mountEditorUI(
               {
                 tag: "div",
                 namespace: "html",
+                classList: ["zotero-markdown-sidebar-title"],
+                properties: { innerText: getString("markdown-outline-title") },
+              },
+              {
+                tag: "div",
+                namespace: "html",
                 classList: ["zotero-markdown-outline-list"],
                 attributes: { role: "tree" },
               },
@@ -958,6 +964,9 @@ function mountEditorUI(
   }
   container.appendChild(root);
   const toolbar = root.querySelector(".zotero-markdown-toolbar");
+  if (toolbar) {
+    root.querySelector(".zotero-markdown-workspace")?.prepend(toolbar);
+  }
   const ownerWindow = root.ownerDocument.defaultView;
   const toolbarInner = root.querySelector(".zotero-markdown-toolbar-inner");
   ztoolkit.log("[Bamboo][EditorDebug] tab-root-mounted", {

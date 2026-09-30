@@ -359,6 +359,12 @@ export function createMarkdownEditor(
 
   const applyTheme = (theme: EditorTheme) => {
     if (destroyed) return;
+    // The floating toolbar sits outside the iframe, but shares its canvas.
+    const workspace = parent.closest<HTMLElement>(".zotero-markdown-workspace");
+    workspace?.style.setProperty(
+      "background-color",
+      resolveAppearance().backgroundColor || "var(--zmd-surface)",
+    );
     if (theme === currentTheme) return;
     currentTheme = theme;
     sendOrQueue({
@@ -367,6 +373,8 @@ export function createMarkdownEditor(
       payload: { theme },
     });
   };
+
+  applyTheme(currentTheme);
 
   const onMessage = (event: MessageEvent) => {
     if (destroyed) return;

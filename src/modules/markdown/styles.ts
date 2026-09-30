@@ -21,12 +21,19 @@ export function responsiveToolbarSizingCSS(): string {
 export function toolbarWidthAlignmentCSS(): string {
   return `
 .zotero-markdown-toolbar {
-  padding: 4px 30px 4px 34px;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
 .zotero-markdown-toolbar-inner {
-  width: 100%;
-  max-width: 60rem;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--zmd-border);
+  border-radius: 12px;
+  background: var(--zmd-surface);
+  box-shadow: var(--zmd-shadow);
 }`;
 }
 
@@ -248,6 +255,14 @@ export function outlineSidebarCSS(): string {
   color: var(--zmd-text);
 }
 
+.zotero-markdown-sidebar-title {
+  flex: 0 0 auto;
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--zmd-border);
+}
+
 .zotero-markdown-outline-list {
   flex: 1 1 auto;
   min-block-size: 0;
@@ -301,6 +316,8 @@ export function outlineSidebarCSS(): string {
 
 .zotero-markdown-workspace {
   position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-inline-size: 0;
   min-block-size: 0;
@@ -322,6 +339,20 @@ export function backlinksSidebarCSS(): string {
   overflow: hidden;
   background: var(--zmd-surface-2, #f8fafc);
   border-inline-start: 1px solid var(--zmd-border, #d8dee8);
+}
+.zotero-markdown-backlinks-sidebar .zmd-backlinks {
+  padding: 0 16px 12px !important;
+}
+.zotero-markdown-backlinks-sidebar .zmd-backlinks > summary {
+  position: sticky;
+  top: 0;
+  margin-inline: -16px;
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--zmd-surface-2);
+  border-bottom: 1px solid var(--zmd-border);
+  z-index: 1;
 }
 .zotero-markdown-backlinks-sidebar[hidden] {
   display: none;
@@ -1024,11 +1055,9 @@ ${responsiveToolbarSizingCSS()}
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid var(--zmd-border);
-  background: var(--zmd-surface);
+  background: transparent;
   flex: 0 0 auto;
   z-index: 2;
-  box-shadow: var(--zmd-shadow);
 }
 
 .zotero-markdown-toolbar-inner {
@@ -1318,11 +1347,8 @@ ${toolbarWidthAlignmentCSS()}
 
 .zotero-markdown-editor-host,
 .zotero-markdown-preview-host {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }

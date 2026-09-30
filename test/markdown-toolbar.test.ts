@@ -72,11 +72,12 @@ describe("toolbar insert templates", () => {
     assert.match(css, /min-width: 0; max-width: 100%; flex-wrap: wrap/);
   });
 
-  it("keeps the toolbar at the configured 60rem width", () => {
+  it("renders a compact floating toolbar bounded by the editor width", () => {
     const css = toolbarWidthAlignmentCSS();
-    assert.match(css, /padding: 4px 30px 4px 34px/);
-    assert.match(css, /width: 100%/);
-    assert.match(css, /max-width: 60rem/);
+    assert.match(css, /padding: 12px/);
+    assert.match(css, /width: max-content/);
+    assert.match(css, /max-width: 100%/);
+    assert.match(css, /border-radius: 12px/);
   });
 
   it("switches the toolbar icon and target with the current editor mode", () => {

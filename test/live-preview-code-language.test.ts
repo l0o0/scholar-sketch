@@ -68,3 +68,45 @@ test("loads a parser for a supported fenced language", async () => {
   assert.match(tree.toString(), /Variable(Definition|Name)/);
   assert.match(tree.toString(), /Number/);
 });
+
+test("highlights a JavaScript fence inside the Markdown syntax tree", async () => {
+  const { EditorState } = await import("@codemirror/state");
+  const { markdown } = await import("@codemirror/lang-markdown");
+  const { ensureSyntaxTree, highlightingFor } =
+    await import("@codemirror/language");
+  const { highlightTree } = await import("@lezer/highlight");
+  const { codeSyntaxHighlighting } = await import("../src/editor/theme.ts");
+  await resolveCodeMirrorLanguage("js")!.load();
+  const doc =
+    '```js\nimport { Crepe } from "@milkdown/crepe";\n// Test syntax\nconst answer = 42;\n```';
+  for (const theme of ["light", "dark"] as const) {
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ codeLanguages: resolveCodeMirrorLanguage }),
+        codeSyntaxHighlighting(theme),
+      ],
+    });
+    const tree = ensureSyntaxTree(state, doc.length, 1000);
+    assert.ok(tree);
+    const colored: string[] = [];
+    highlightTree(
+      tree,
+      {
+        style: (tags) => highlightingFor(state, tags),
+      },
+      (from, to) => colored.push(doc.slice(from, to)),
+    );
+    for (const token of [
+      "import",
+      '"@milkdown/crepe"',
+      "// Test syntax",
+      "42",
+    ]) {
+      assert.ok(
+        colored.includes(token),
+        `${theme}: missing color for ${token}`,
+      );
+    }
+  }
+});

@@ -1,3 +1,6 @@
+export const CODE_FONT_FAMILY =
+  '"JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, "DejaVu Sans Mono", monospace';
+
 /** Shared visual primitives for Markdown and Canvas; layouts remain surface-specific. */
 export const UI_METRICS = {
   control: 36,

@@ -31,7 +31,7 @@ test("sidebar live editor uses a narrower safe left inset", () => {
     tableMargin: "0 30px 0 20px",
     tablePadding: "0",
     tableEdgeSize: "30px",
-    codeBlockBackgroundClip: "content-box",
+    codeBlockBackgroundClip: "padding-box",
   });
 });
 

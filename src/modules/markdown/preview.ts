@@ -1,3 +1,4 @@
+import { CODE_FONT_FAMILY } from "../../ui/theme";
 import { decodeImageAttribute, normalizeAssetReference } from "./images/model";
 import { getString } from "../../utils/locale";
 import type { EditorOutlineItem, ImageAssetMap } from "./editor-protocol";
@@ -123,15 +124,20 @@ export function previewDocumentCss(): string {
 .zotero-markdown-preview-inner pre {
   background: var(--zmd-surface-2);
   border: 1px solid var(--zmd-border);
-  padding: 12px 14px;
+  padding: 16px;
   border-radius: 8px;
   overflow: auto;
-  font-size: 0.9em;
-  line-height: 1.5;
+  font-size: max(13px, 0.95em);
+  line-height: 1.65;
+  tab-size: 4;
+  font-variant-ligatures: none;
 }
 .zotero-markdown-preview-inner code {
-  font-family: ui-monospace, "Sarasa Mono SC", SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: ${CODE_FONT_FAMILY};
   font-size: 0.9em;
+}
+.zotero-markdown-preview-inner pre > code {
+  font-size: inherit;
 }
 .zotero-markdown-preview-inner :not(pre) > code {
   background: var(--zmd-accent-soft);

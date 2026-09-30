@@ -739,7 +739,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           class:
             codeLineKind === "content"
               ? "zmd-lp-code-block"
-              : "zmd-lp-code-fence",
+              : `zmd-lp-code-fence zmd-lp-code-${codeLineKind}`,
         }).range(line.from),
       );
       continue;

@@ -15,8 +15,7 @@ import type {
 } from "../modules/markdown/editor-protocol";
 import { THEME_TOKENS } from "../modules/markdown/theme-tokens";
 
-const FONT_MONO =
-  'ui-monospace, "Sarasa Mono SC", "Noto Sans Mono CJK SC", "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+import { CODE_FONT_FAMILY as FONT_MONO } from "../ui/theme";
 
 const FONT_PROSE =
   'system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
@@ -363,17 +362,28 @@ function createLivePreviewStyles(
     ".zmd-lp-table-align-right": {
       textAlign: "right",
     },
-    ".cm-line.zmd-lp-code-block": {
+    ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence": {
       fontFamily: FONT_MONO,
-      fontSize: "0.9em",
+      fontSize: "max(13px, 0.95em)",
+      lineHeight: "1.65",
+      fontVariantLigatures: "none",
+      tabSize: "4",
+      margin: liveGeometry.tableMargin,
+      padding: "0 16px",
       backgroundColor: "var(--zmd-code-block-bg)",
-      backgroundClip: "content-box",
+      borderLeft: "1px solid var(--zmd-code-border)",
+      borderRight: "1px solid var(--zmd-code-border)",
+      backgroundClip: "padding-box",
     },
-    ".cm-line.zmd-lp-code-fence": {
-      fontFamily: FONT_MONO,
-      fontSize: "0.9em",
-      backgroundColor: "var(--zmd-code-block-bg)",
-      backgroundClip: "content-box",
+    ".cm-line.zmd-lp-code-fence-open": {
+      borderTop: "1px solid var(--zmd-code-border)",
+      borderRadius: "8px 8px 0 0",
+      paddingTop: "8px",
+    },
+    ".cm-line.zmd-lp-code-fence-close": {
+      borderBottom: "1px solid var(--zmd-code-border)",
+      borderRadius: "0 0 8px 8px",
+      paddingBottom: "8px",
     },
     ".zmd-lp-image": {
       display: "block",
@@ -507,7 +517,9 @@ export function livePreviewGeometryStyles(surface: EditorSurface = "default") {
   const tableRow =
     createLivePreviewStyles(geometry)[".cm-line.zmd-lp-table-row"];
   const codeBlock =
-    createLivePreviewStyles(geometry)[".cm-line.zmd-lp-code-block"];
+    createLivePreviewStyles(geometry)[
+      ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence"
+    ];
   return {
     tableMargin: tableRow.margin,
     tablePadding: tableRow.padding,
@@ -561,6 +573,7 @@ export function editorThemeExtension(
           backgroundColor: backgroundColor || tokens.surface,
           color: tokens.text,
           "--zmd-code-block-bg": tokens.codeBlockBg,
+          "--zmd-code-border": tokens.border,
           "--zmd-table-bg": tokens.tableBg,
           "--zmd-table-header-bg": tokens.tableHeaderBg,
           "--zmd-table-active-bg": tokens.tableActiveBg,
@@ -656,6 +669,7 @@ export function editorThemeExtension(
       backgroundColor: backgroundColor || tokens.surface,
       color: tokens.text,
       "--zmd-code-block-bg": tokens.codeBlockBg,
+      "--zmd-code-border": tokens.border,
       "--zmd-table-bg": tokens.tableBg,
       "--zmd-table-header-bg": tokens.tableHeaderBg,
       "--zmd-table-active-bg": tokens.tableActiveBg,
