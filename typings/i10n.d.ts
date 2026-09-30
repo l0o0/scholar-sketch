@@ -83,6 +83,7 @@ export type FluentMessageId =
   | 'modal-storage-type'
   | 'more-cleanup-images'
   | 'more-document-info'
+  | 'more-export'
   | 'more-export-html'
   | 'more-export-markdown'
   | 'more-export-obsidian'

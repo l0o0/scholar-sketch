@@ -11,6 +11,7 @@ export type MoreMenuAction =
   | "find"
   | "source"
   | "mode"
+  | "export"
   | "export-pdf"
   | "export-html"
   | "export-obsidian"
@@ -51,12 +52,7 @@ export const MORE_MENU_SECTIONS: readonly (readonly MoreMenuItem[])[] = [
     { action: "source" },
     { action: "mode", submenu: true },
   ],
-  [
-    { action: "export-pdf" },
-    { action: "export-html" },
-    { action: "export-obsidian" },
-    { action: "export-markdown" },
-  ],
+  [{ action: "export", submenu: true }],
   [
     { action: "import-external-images" },
     { action: "cleanup-images" },
@@ -83,4 +79,33 @@ export function modeLabelKey(
 
 export function modeLabel(mode: "live" | "source" | "preview"): string {
   return getString(modeLabelKey(mode));
+}
+
+export const EXPORT_OPTIONS = [
+  { action: "export-pdf", label: "PDF" },
+  { action: "export-html", label: "HTML" },
+  { action: "export-obsidian", label: "Obsidian…" },
+  { action: "export-markdown", label: "Markdown…" },
+] as const;
+
+export function submenuPosition(
+  anchor: { left: number; right: number; top: number },
+  width: number,
+  height: number,
+  bounds: { left: number; right: number; top: number; bottom: number },
+) {
+  const right = anchor.right + 4;
+  return {
+    left: Math.max(
+      bounds.left + 4,
+      Math.min(
+        right + width <= bounds.right - 4 ? right : anchor.left - width - 4,
+        bounds.right - width - 4,
+      ),
+    ),
+    top: Math.max(
+      bounds.top + 4,
+      Math.min(anchor.top, bounds.bottom - height - 4),
+    ),
+  };
 }

@@ -7,6 +7,9 @@ import {
 import { getString } from "../../utils/locale";
 import type { FluentMessageId } from "../../../typings/i10n";
 import {
+  iconCanvas,
+  iconPalette,
+  iconReset,
   iconInfo,
   iconKeyboard,
   iconMore,
@@ -210,9 +213,10 @@ export function createMarkdownModalController(
   let activeKind: ModalKind | null = null;
   let restoreFocus: HTMLElement | null = null;
   let pendingSettings: SettingsModalData | null = null;
+  let savingSettings = false;
 
   const closeModal = () => {
-    if (backdrop.hidden) return;
+    if (backdrop.hidden || savingSettings) return;
     backdrop.hidden = true;
     backdrop.setAttribute("aria-hidden", "true");
     activeKind = null;
@@ -314,13 +318,13 @@ export function createMarkdownModalController(
     footer.append(button(doc, getString("modal-done"), "save-settings", true));
     const error = textElement(doc, "p", "", "zotero-markdown-modal-error");
     error.hidden = true;
-    main.append(pageContent, error, footer);
-    workspace.append(navigation, main);
+    main.append(pageContent, error);
+    workspace.append(navigation, main, footer);
 
     const iconForPage = (page: SettingsPageID) => {
       if (page === "general") return iconSettings();
       if (page === "editor") return iconType();
-      if (page === "whiteboard") return iconSettings();
+      if (page === "whiteboard") return iconCanvas();
       if (page === "shortcuts") return iconKeyboard();
       return iconInfo();
     };
@@ -446,7 +450,14 @@ export function createMarkdownModalController(
         "#ffffff",
       );
       background.setAttribute("aria-label", getString("settings-background"));
+      const colorValue = textElement(
+        doc,
+        "span",
+        background.value.toUpperCase(),
+        "zotero-markdown-settings-color-value",
+      );
       background.addEventListener("input", () => {
+        colorValue.textContent = background.value.toUpperCase();
         if (pendingSettings)
           pendingSettings.markdownBackgroundColor = normalizeColor(
             background.value,
@@ -457,11 +468,16 @@ export function createMarkdownModalController(
         getString("settings-reset"),
         "reset-markdown-background",
       );
+      reset.innerHTML = iconReset();
+      reset.classList.add("is-icon");
+      reset.title = getString("settings-reset");
+      reset.setAttribute("aria-label", reset.title);
       reset.addEventListener("click", () => {
         if (pendingSettings) pendingSettings.markdownBackgroundColor = "";
         background.value = "#ffffff";
+        colorValue.textContent = background.value.toUpperCase();
       });
-      backgroundControls.append(background, reset);
+      backgroundControls.append(background, colorValue, reset);
       backgroundRow.appendChild(backgroundControls);
       pageContent.appendChild(backgroundRow);
       return heading;
@@ -710,16 +726,39 @@ export function createMarkdownModalController(
         getString("settings-whiteboard-color-preview"),
         "toggle-whiteboard-preview",
       );
-      previewButton.classList.add("is-secondary");
+      previewButton.classList.add("is-secondary", "is-icon");
+      previewButton.innerHTML = iconPalette();
+      previewButton.title = getString("settings-whiteboard-color-preview");
+      previewButton.setAttribute("aria-label", previewButton.title);
+      previewButton.setAttribute("aria-haspopup", "dialog");
       previewButton.setAttribute("aria-expanded", "false");
       const preview = doc.createElement("div");
       preview.className = "zotero-markdown-settings-palette";
       preview.hidden = true;
-      preview.setAttribute("role", "img");
+      preview.setAttribute("role", "dialog");
+      preview.setAttribute("aria-modal", "true");
       preview.setAttribute(
         "aria-label",
         getString("settings-whiteboard-color-scheme"),
       );
+      const paletteContent = doc.createElement("div");
+      paletteContent.className = "zotero-markdown-settings-palette-content";
+      const closePreview = button(doc, "×", "close-palette");
+      closePreview.classList.add("is-close");
+      closePreview.setAttribute("aria-label", getString("modal-close"));
+      const dismissPreview = () => {
+        preview.hidden = true;
+        previewButton.setAttribute("aria-expanded", "false");
+        previewButton.focus();
+      };
+      closePreview.addEventListener("click", (event) => {
+        event.stopPropagation();
+        dismissPreview();
+      });
+      preview.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (event.target === preview) dismissPreview();
+      });
       const sample = doc.createElement("div");
       sample.className = "zotero-markdown-settings-palette-sample";
       const sampleCard = doc.createElement("span");
@@ -735,7 +774,8 @@ export function createMarkdownModalController(
         sampleCard.style.backgroundColor = colors[0] || "#fff";
         sampleCard.style.borderColor = colors[6] || "#888";
         sampleLine.style.backgroundColor = colors[12] || "#888";
-        preview.replaceChildren(
+        paletteContent.replaceChildren(
+          closePreview,
           sample,
           ...colors.map((color) => {
             const swatch = doc.createElement("span");
@@ -745,15 +785,18 @@ export function createMarkdownModalController(
           }),
         );
       };
+      preview.append(paletteContent);
       select.addEventListener("change", renderPalette);
       renderPalette();
       previewButton.addEventListener("click", () => {
         preview.hidden = !preview.hidden;
         previewButton.setAttribute("aria-expanded", String(!preview.hidden));
+        if (!preview.hidden) closePreview.focus();
       });
-      previewWrap.append(previewButton, preview);
+      previewWrap.append(previewButton);
       controls.append(select, previewWrap);
-      row.appendChild(controls);
+      row.append(controls);
+      body.append(preview);
       pageContent.appendChild(row);
 
       const fontRow = doc.createElement("label");
@@ -799,7 +842,14 @@ export function createMarkdownModalController(
         "#fbfbfc",
       );
       background.setAttribute("aria-label", getString("settings-background"));
+      const colorValue = textElement(
+        doc,
+        "span",
+        background.value.toUpperCase(),
+        "zotero-markdown-settings-color-value",
+      );
       background.addEventListener("input", () => {
+        colorValue.textContent = background.value.toUpperCase();
         if (pendingSettings)
           pendingSettings.whiteboardBackgroundColor = normalizeColor(
             background.value,
@@ -810,11 +860,16 @@ export function createMarkdownModalController(
         getString("settings-reset"),
         "reset-whiteboard-background",
       );
+      reset.innerHTML = iconReset();
+      reset.classList.add("is-icon");
+      reset.title = getString("settings-reset");
+      reset.setAttribute("aria-label", reset.title);
       reset.addEventListener("click", () => {
         if (pendingSettings) pendingSettings.whiteboardBackgroundColor = "";
         background.value = "#fbfbfc";
+        colorValue.textContent = background.value.toUpperCase();
       });
-      backgroundControls.append(background, reset);
+      backgroundControls.append(background, colorValue, reset);
       backgroundRow.appendChild(backgroundControls);
       pageContent.appendChild(backgroundRow);
       return heading;
@@ -852,6 +907,7 @@ export function createMarkdownModalController(
         item.setAttribute("aria-selected", String(selected));
         item.tabIndex = selected ? 0 : -1;
       }
+      body.querySelector(".zotero-markdown-settings-palette")?.remove();
       pageContent.replaceChildren();
       const heading =
         page === "general"
@@ -932,7 +988,10 @@ export function createMarkdownModalController(
       previewButton?.setAttribute("aria-expanded", "false");
       if (target === backdrop) return;
     }
-    if (target === backdrop) return closeModal();
+    if (target === backdrop) {
+      if (activeKind !== "settings") closeModal();
+      return;
+    }
     const action = target
       ?.closest?.("[data-modal-action]")
       ?.getAttribute("data-modal-action");
@@ -972,13 +1031,57 @@ export function createMarkdownModalController(
       const settings = prefsFromSettings(
         pendingSettings || settingsFromPrefs(),
       );
-      return void Promise.resolve(callbacks.onSettings?.(settings))
-        .then(closeModal)
-        .catch(showActionError);
+      if (savingSettings) return;
+      savingSettings = true;
+      const saveButton = body.querySelector<HTMLButtonElement>(
+        '[data-modal-action="save-settings"]',
+      );
+      if (saveButton) saveButton.disabled = true;
+      return void Promise.resolve()
+        .then(() => callbacks.onSettings?.(settings))
+        .then(() => {
+          savingSettings = false;
+          closeModal();
+        })
+        .catch(showActionError)
+        .finally(() => {
+          savingSettings = false;
+          if (saveButton) saveButton.disabled = false;
+        });
     }
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented) return;
+    if (event.defaultPrevented || backdrop.hidden) return;
+    if (event.key === "Tab") {
+      const focusScope =
+        body.querySelector<HTMLElement>(
+          ".zotero-markdown-settings-palette:not([hidden])",
+        ) || dialog;
+      const controls = [
+        ...focusScope.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
+        ),
+      ].filter(
+        (element) => !element.closest("[hidden]") && element.tabIndex >= 0,
+      );
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) return;
+      if (
+        event.shiftKey &&
+        (doc.activeElement === first || doc.activeElement === dialog)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (doc.activeElement === last || doc.activeElement === dialog)
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (event.key !== "Escape") return;
     const preview = body.querySelector<HTMLElement>(
       ".zotero-markdown-settings-palette",
@@ -990,6 +1093,11 @@ export function createMarkdownModalController(
           '[data-modal-action="toggle-whiteboard-preview"]',
         )
         ?.setAttribute("aria-expanded", "false");
+      body
+        .querySelector<HTMLButtonElement>(
+          '[data-modal-action="toggle-whiteboard-preview"]',
+        )
+        ?.focus();
       event.preventDefault();
       return;
     }

@@ -12,7 +12,7 @@ test("defines the five settings pages in a stable order", () => {
     [
       ["general", "settings"],
       ["editor", "type"],
-      ["whiteboard", "settings"],
+      ["whiteboard", "canvas"],
       ["shortcuts", "keyboard"],
       ["about", "info"],
     ],

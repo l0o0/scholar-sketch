@@ -63,8 +63,8 @@ function createLivePreviewStyles(
       fontSize: "1.4em",
       fontWeight: "650",
       lineHeight: "1.35",
-      paddingTop: "0.3em",
-      paddingBottom: "0.1em",
+      paddingTop: "1.3em",
+      paddingBottom: "0.55em",
     },
     ".cm-line.zmd-lp-h3": {
       fontSize: "1.2em",
@@ -364,12 +364,12 @@ function createLivePreviewStyles(
     },
     ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence": {
       fontFamily: FONT_MONO,
-      fontSize: "max(13px, 0.95em)",
+      fontSize: "max(13px, 0.9em)",
       lineHeight: "1.65",
       fontVariantLigatures: "none",
       tabSize: "4",
       margin: liveGeometry.tableMargin,
-      padding: "0 16px",
+      padding: "0 20px",
       backgroundColor: "var(--zmd-code-block-bg)",
       borderLeft: "1px solid var(--zmd-code-border)",
       borderRight: "1px solid var(--zmd-code-border)",
@@ -377,13 +377,31 @@ function createLivePreviewStyles(
     },
     ".cm-line.zmd-lp-code-fence-open": {
       borderTop: "1px solid var(--zmd-code-border)",
-      borderRadius: "8px 8px 0 0",
-      paddingTop: "8px",
+      borderRadius: "6px 6px 0 0",
+      paddingTop: "0",
     },
     ".cm-line.zmd-lp-code-fence-close": {
       borderBottom: "1px solid var(--zmd-code-border)",
-      borderRadius: "0 0 8px 8px",
-      paddingBottom: "8px",
+      borderRadius: "0 0 6px 6px",
+      paddingBottom: "0",
+    },
+    ".zmd-lp-task-checkbox": {
+      appearance: "auto",
+      width: "1em",
+      height: "1em",
+      margin: "0 0.3em 0 0",
+      verticalAlign: "-0.1em",
+      accentColor: "var(--zmd-menu-check)",
+      cursor: "pointer",
+    },
+    ".zmd-lp-task-checkbox:disabled": { cursor: "default" },
+    ".zmd-lp-horizontal-rule": {
+      display: "inline-block",
+      width: "100%",
+      height: "1em",
+      verticalAlign: "middle",
+      background:
+        "linear-gradient(var(--zmd-code-border), var(--zmd-code-border)) center / 100% 1px no-repeat",
     },
     ".zmd-lp-image": {
       display: "block",
@@ -557,7 +575,7 @@ export function editorThemeExtension(
         ? FONT_PROSE
         : FONT_MONO
       : appearanceFontFamily(appearance?.fontFamily);
-  const lineHeight = isLive ? "1.7" : "1.55";
+  const lineHeight = isLive ? "1.75" : "1.55";
   const liveGeometry = liveEditorGeometry(surface);
   const livePreviewStyles = createLivePreviewStyles(liveGeometry);
   const contentPadding = isLive ? liveGeometry.contentPadding : "14px 8px";
@@ -601,7 +619,7 @@ export function editorThemeExtension(
         ".cm-content": {
           caretColor: tokens.accent,
           padding: contentPadding,
-          maxWidth: isLive ? "48rem" : "none",
+          maxWidth: isLive ? "50rem" : "none",
           margin: isLive ? "0 auto" : "0",
         },
         ".cm-line": {
@@ -697,7 +715,7 @@ export function editorThemeExtension(
     ".cm-content": {
       caretColor: tokens.accent,
       padding: contentPadding,
-      maxWidth: isLive ? "48rem" : "none",
+      maxWidth: isLive ? "50rem" : "none",
       margin: isLive ? "0 auto" : "0",
     },
     ".cm-line": {

@@ -1,4 +1,3 @@
-import { UI_METRICS } from "../../ui/theme";
 import { previewDocumentCss } from "./preview";
 import { THEME_TOKENS, themeTokenCss } from "./theme-tokens";
 
@@ -9,8 +8,8 @@ export function responsiveToolbarSizingCSS(): string {
   return `
 .zotero-markdown-toolbar {
   container: zmd-toolbar / inline-size;
-  --zmd-toolbar-icon-size: ${UI_METRICS.icon}px;
-  --zmd-toolbar-control-size: ${UI_METRICS.control}px;
+  --zmd-toolbar-icon-size: 16px;
+  --zmd-toolbar-control-size: 32px;
 }
 @container zmd-toolbar (max-width: 760px) {
   .zotero-markdown-toolbar-inner { flex-wrap: wrap; }
@@ -32,8 +31,7 @@ export function toolbarWidthAlignmentCSS(): string {
   box-sizing: border-box;
   border: 1px solid var(--zmd-border);
   border-radius: 12px;
-  background: var(--zmd-surface);
-  box-shadow: var(--zmd-shadow);
+  background: var(--zmd-toolbar-bg, var(--zmd-surface));
 }`;
 }
 
@@ -235,7 +233,7 @@ export function outlineSidebarCSS(): string {
   return `
 .zotero-markdown-outline-sidebar {
   flex: 0 0 auto;
-  inline-size: clamp(200px, 18vw, 280px);
+  inline-size: clamp(200px, 18vw, 220px);
   min-inline-size: 0;
   min-block-size: 0;
   display: flex;
@@ -267,7 +265,7 @@ export function outlineSidebarCSS(): string {
   flex: 1 1 auto;
   min-block-size: 0;
   overflow: auto;
-  padding: 6px;
+  padding: 8px 10px;
 }
 
 .zotero-markdown-outline-item {
@@ -299,8 +297,9 @@ export function outlineSidebarCSS(): string {
 }
 
 .zotero-markdown-outline-item.is-active {
-  background: var(--zmd-accent-soft);
-  color: var(--zmd-accent-hover);
+  background: var(--zmd-selected-bg);
+  color: var(--zmd-text);
+  font-weight: 600;
 }
 
 .zotero-markdown-outline-item:focus-visible {
@@ -331,7 +330,7 @@ export function backlinksSidebarCSS(): string {
 .zotero-markdown-backlinks-sidebar {
   box-sizing: border-box;
   flex: 0 0 auto;
-  inline-size: clamp(220px, 22vw, 300px);
+  inline-size: clamp(240px, 22vw, 260px);
   min-inline-size: 0;
   min-block-size: 0;
   display: flex;
@@ -353,6 +352,30 @@ export function backlinksSidebarCSS(): string {
   background: var(--zmd-surface-2);
   border-bottom: 1px solid var(--zmd-border);
   z-index: 1;
+}
+.zmd-backlinks-count {
+  color: var(--zmd-text-muted);
+  font-weight: 400;
+  margin-inline-start: 4px;
+}
+.zmd-backlinks-refresh {
+  float: inline-end;
+  border: 0;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--zmd-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.zmd-backlinks-refresh:hover { background: var(--zmd-surface); color: var(--zmd-text); }
+.zmd-backlinks-refresh:focus-visible { outline: 2px solid var(--zmd-accent); }
+.zmd-backlinks-refresh:disabled { opacity: 0.5; cursor: default; }
+.zotero-markdown-backlinks-sidebar .zmd-backlinks > p {
+  margin-block: 18px;
+  color: var(--zmd-text-muted);
+  line-height: 1.6;
 }
 .zotero-markdown-backlinks-sidebar[hidden] {
   display: none;
@@ -384,8 +407,8 @@ export function markdownModalCSS(): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.28);
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.16);
 }
 
 .zotero-markdown-modal-backdrop[hidden] {
@@ -405,13 +428,14 @@ export function markdownModalCSS(): string {
 }
 
 .zotero-markdown-modal.is-settings {
-  inline-size: min(760px, 100%);
-  block-size: min(620px, 100%);
-  max-block-size: min(680px, 100%);
+  position: relative;
+  inline-size: min(680px, 100%);
+  block-size: min(440px, 100%);
+  max-block-size: 100%;
   display: grid;
-  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr);
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .zotero-markdown-modal-header,
@@ -449,7 +473,8 @@ export function markdownModalCSS(): string {
 
 .zotero-markdown-settings-workspace {
   display: grid;
-  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-columns: 152px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 48px;
   min-block-size: 0;
   block-size: 100%;
 }
@@ -459,7 +484,7 @@ export function markdownModalCSS(): string {
   flex-direction: column;
   gap: 4px;
   min-inline-size: 0;
-  padding: 18px 12px;
+  padding: 12px;
   border-inline-end: 1px solid var(--zmd-border);
   background: var(--zmd-surface-2);
 }
@@ -467,8 +492,8 @@ export function markdownModalCSS(): string {
 .zotero-markdown-settings-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-block-size: 36px;
+  gap: 8px;
+  min-block-size: 34px;
   padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -486,10 +511,8 @@ export function markdownModalCSS(): string {
 }
 
 .zotero-markdown-settings-nav-item[aria-selected="true"] {
-  border-color: var(--zmd-border);
-  background: var(--zmd-surface);
+  background: var(--zmd-selected-bg, var(--zmd-surface-2));
   color: var(--zmd-text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   font-weight: 600;
 }
 
@@ -511,7 +534,7 @@ export function markdownModalCSS(): string {
   flex-direction: column;
   min-inline-size: 0;
   min-block-size: 0;
-  padding: 24px 28px;
+  padding: 24px 24px 0;
   overflow: hidden;
 }
 
@@ -519,10 +542,12 @@ export function markdownModalCSS(): string {
   flex: 1 1 auto;
   min-block-size: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: 12px;
 }
 
 .zotero-markdown-settings-page-title {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
   color: var(--zmd-text);
   font-size: 15px;
   font-weight: 650;
@@ -568,8 +593,10 @@ export function markdownModalCSS(): string {
 }
 
 .zotero-markdown-settings-select {
+  appearance: auto;
   min-block-size: 32px;
-  max-inline-size: 220px;
+  inline-size: 160px;
+  max-inline-size: 100%;
   padding: 4px 8px;
   border: 1px solid var(--zmd-border-strong);
   border-radius: 6px;
@@ -578,6 +605,9 @@ export function markdownModalCSS(): string {
   font: inherit;
 }
 
+select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
+  margin-inline-end: 40px;
+}
 .zotero-markdown-settings-color-inline {
   display: inline-flex;
   align-items: center;
@@ -634,7 +664,9 @@ export function markdownModalCSS(): string {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-block-size: 64px;
+  min-block-size: 56px;
+  flex-wrap: wrap;
+  padding-block: 10px;
   border-block-end: 1px solid var(--zmd-border);
   color: var(--zmd-text);
   font-size: 13px;
@@ -647,8 +679,10 @@ export function markdownModalCSS(): string {
 }
 
 .zotero-markdown-settings-color-select {
+  appearance: auto;
   min-block-size: 32px;
-  max-inline-size: 180px;
+  inline-size: 160px;
+  max-inline-size: 100%;
   padding: 4px 8px;
   border: 1px solid var(--zmd-border-strong);
   border-radius: 6px;
@@ -664,25 +698,44 @@ export function markdownModalCSS(): string {
 
 .zotero-markdown-settings-palette {
   position: absolute;
-  z-index: 2;
-  inset-block-start: calc(100% + 4px);
-  inset-inline-end: 0;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 16%);
+}
+.zotero-markdown-settings-palette-content {
   display: grid;
-  grid-template-columns: repeat(6, 16px);
-  gap: 3px;
-  padding: 6px;
+  grid-template-columns: repeat(6, 24px);
+  gap: 6px;
+  padding: 12px;
   border: 1px solid var(--zmd-border);
   border-radius: 6px;
   background: var(--zmd-surface);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
 }
 
+.zotero-markdown-settings-palette-content > .is-close {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+.zotero-markdown-modal-button.is-icon {
+  inline-size: 32px;
+  min-inline-size: 32px;
+  block-size: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  --zmd-toolbar-icon-size: 16px;
+}
 .zotero-markdown-settings-palette-sample {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: center;
-  inline-size: 112px;
+  inline-size: 100%;
   block-size: 34px;
   margin-block-end: 2px;
 }
@@ -712,8 +765,8 @@ export function markdownModalCSS(): string {
 
 .zotero-markdown-settings-palette-swatch {
   box-sizing: border-box;
-  inline-size: 16px;
-  block-size: 16px;
+  inline-size: 24px;
+  block-size: 24px;
   border: 1px solid rgb(15 23 42 / 18%);
   border-radius: 3px;
 }
@@ -782,8 +835,10 @@ export function markdownModalCSS(): string {
 }
 
 .zotero-markdown-settings-footer {
+  grid-column: 1 / -1;
   flex: 0 0 auto;
-  padding-block-start: 18px;
+  min-block-size: 48px;
+  padding: 0 24px;
   border-block-start: 1px solid var(--zmd-border);
 }
 
@@ -796,28 +851,17 @@ export function markdownModalCSS(): string {
 
 @media (max-width: 560px) {
   .zotero-markdown-modal.is-settings {
-    block-size: min(680px, 100%);
+    block-size: min(440px, 100%);
   }
 
   .zotero-markdown-settings-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: 116px minmax(0, 1fr);
   }
-
-  .zotero-markdown-settings-navigation {
-    flex-direction: row;
-    padding: 8px;
-    border-inline-end: 0;
-    border-block-end: 1px solid var(--zmd-border);
-    overflow-x: auto;
-  }
-
-  .zotero-markdown-settings-nav-item {
-    flex: 0 0 auto;
-  }
+  .zotero-markdown-settings-navigation { padding: 8px; }
+  .zotero-markdown-settings-nav-item { padding: 0 6px; gap: 6px; }
 
   .zotero-markdown-settings-main {
-    padding: 18px 16px 16px;
+    padding: 16px 12px 0;
   }
 
   .zotero-markdown-settings-row,
@@ -841,12 +885,31 @@ export function markdownModalCSS(): string {
     max-inline-size: none;
   }
 
+  select[name="whiteboardFontFamily"].zotero-markdown-settings-select { margin-inline-end: 0; }
   .zotero-markdown-settings-color-controls {
     inline-size: 100%;
     align-items: flex-start;
   }
 }
 
+
+.zotero-markdown-settings-row:last-child,
+.zotero-markdown-settings-check-row:last-child { border-bottom: 0; }
+.zotero-markdown-settings-color-value {
+  font: 12px ui-monospace, monospace;
+  color: var(--zmd-text-muted);
+}
+.zotero-markdown-settings-color-inline { flex-wrap: wrap; }
+.zotero-markdown-settings-color-inline .zotero-markdown-modal-button,
+.zotero-markdown-settings-palette-wrap .zotero-markdown-modal-button {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 4px;
+}
+.zotero-markdown-modal.is-settings :focus-visible {
+  outline: 2px solid var(--zmd-text-muted);
+  outline-offset: 2px;
+}
 .zotero-markdown-modal-info {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
@@ -1015,6 +1078,15 @@ export function injectMarkdownStyles(win: Window) {
 ${themeTokenCss(".zotero-markdown-root", THEME_TOKENS.light)}
 
 ${themeTokenCss(".zotero-markdown-root.theme-dark", THEME_TOKENS.dark)}
+.zotero-markdown-root {
+  --zmd-toolbar-bg: #fcfcfd;
+  --zmd-selected-bg: #e9ebef;
+}
+.zotero-markdown-root.theme-dark {
+  --zmd-toolbar-bg: var(--zmd-surface);
+  --zmd-selected-bg: #303640;
+}
+
 
 /* XUL tab-content positioning */
 .zotero-markdown-tab-content,
@@ -1153,7 +1225,8 @@ ${toolbarWidthAlignmentCSS()}
 }
 
 .zotero-markdown-more-menu[hidden],
-.zotero-markdown-mode-submenu[hidden] {
+.zotero-markdown-mode-submenu[hidden],
+.zotero-markdown-export-submenu[hidden] {
   display: none;
 }
 
@@ -1192,20 +1265,26 @@ ${toolbarWidthAlignmentCSS()}
   transition: transform 0.12s ease;
 }
 
-.zotero-markdown-more-menu-item[aria-expanded="true"] .zotero-markdown-more-menu-chevron {
-  transform: rotate(90deg);
-}
-
 .zotero-markdown-more-menu-separator {
   height: 1px;
   margin: 6px 4px;
   background: var(--zmd-border);
 }
 
-.zotero-markdown-mode-submenu {
+.zotero-markdown-mode-submenu,
+.zotero-markdown-export-submenu {
+  position: fixed;
+  z-index: 20;
   display: flex;
   flex-direction: column;
-  padding: 0 0 2px 8px;
+  width: 176px;
+  box-sizing: border-box;
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--zmd-border);
+  border-radius: 8px;
+  background: var(--zmd-surface);
+  box-shadow: var(--zmd-menu-shadow);
 }
 
 .zotero-markdown-mode-submenu .zotero-markdown-more-menu-item {
@@ -1319,8 +1398,8 @@ ${toolbarWidthAlignmentCSS()}
 /* Common interaction states, including icon masks inheriting currentColor. */
 .zotero-markdown-toolbar button[aria-pressed="true"],
 .zotero-markdown-toolbar button[aria-expanded="true"] {
-  color: var(--zmd-accent);
-  background: var(--zmd-accent-soft);
+  color: var(--zmd-text);
+  background: var(--zmd-selected-bg);
 }
 .zotero-markdown-toolbar button:focus-visible,
 .zmd-sidebar-toolbar-button:focus-visible,
@@ -1539,7 +1618,9 @@ ${previewDocumentCss()}
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 5px 28px;
+  box-sizing: border-box;
+  padding: 3px 16px;
+  height: 28px;
   border-top: 1px solid var(--zmd-border);
   background: var(--zmd-surface-2);
   font-size: 11px;

@@ -1,6 +1,6 @@
 pref("enable", true);
 pref("frontmatter", true);
-pref("fontSize", 14);
+pref("fontSize", 15);
 pref("theme", "system");
 pref("markdownFontFamily", "system");
 pref("markdownBackgroundColor", "");

@@ -36,7 +36,7 @@ test("sidebar live editor uses a narrower safe left inset", () => {
 });
 
 test("shell and iframe share the same theme tokens", () => {
-  assert.equal(THEME_TOKENS.light.text, "#111827");
+  assert.equal(THEME_TOKENS.light.text, "#24272c");
   assert.equal(THEME_TOKENS.dark.surface, "#1a1d24");
   assert.equal(THEME_TOKENS.light.accent, "#2563eb");
   assert.equal(THEME_TOKENS.dark.accent, "#60a5fa");

@@ -31,6 +31,8 @@ import {
 import { tableInsertTemplate } from "./insert-template";
 import {
   EDITOR_MODE_OPTIONS,
+  EXPORT_OPTIONS,
+  submenuPosition,
   MORE_MENU_SECTIONS,
   modeLabel,
   moreMenuLabel,
@@ -1354,7 +1356,7 @@ function bindPreviewOutlineTracking(session: OpenSession): void {
   schedule();
 }
 
-function mountMoreMenu(session: OpenSession) {
+export function mountMoreMenu(session: OpenSession) {
   const root = session.view?.root;
   if (!root) return;
   const menu = root.querySelector(".zotero-markdown-more-menu") as HTMLElement;
@@ -1389,13 +1391,28 @@ function mountMoreMenu(session: OpenSession) {
         chevron.textContent = "›";
         button.appendChild(chevron);
       }
-      if (item.action === "mode") {
+      if (item.submenu) {
         button.setAttribute("aria-expanded", "false");
-        button.setAttribute("aria-controls", "zotero-markdown-mode-submenu");
+        button.setAttribute("aria-haspopup", "menu");
       }
       menu.appendChild(button);
       if (item.action === "mode") {
         menu.appendChild(createModeSubmenu(menu.ownerDocument));
+      } else if (item.action === "export") {
+        const panel = menu.ownerDocument.createElement("div");
+        panel.className = "zotero-markdown-export-submenu";
+        panel.hidden = true;
+        panel.setAttribute("role", "menu");
+        for (const option of EXPORT_OPTIONS) {
+          const entry = menu.ownerDocument.createElement("button");
+          entry.type = "button";
+          entry.className = "zotero-markdown-more-menu-item";
+          entry.dataset.menuAction = option.action;
+          entry.textContent = option.label;
+          entry.setAttribute("role", "menuitem");
+          panel.append(entry);
+        }
+        menu.append(panel);
       }
     }
   });
@@ -1407,9 +1424,46 @@ function mountMoreMenu(session: OpenSession) {
     ".zotero-markdown-mode-submenu",
   );
 
+  const exportMenu = menu.querySelector<HTMLElement>(
+    ".zotero-markdown-export-submenu",
+  );
+  const exportButton = menu.querySelector<HTMLElement>(
+    '[data-menu-action="export"]',
+  );
   const collapseModeMenu = () => {
     if (modeMenu) modeMenu.hidden = true;
+    if (exportMenu) exportMenu.hidden = true;
     modeButton?.setAttribute("aria-expanded", "false");
+    exportButton?.setAttribute("aria-expanded", "false");
+  };
+  const openSubmenu = (action: "mode" | "export") => {
+    const panel = action === "mode" ? modeMenu : exportMenu;
+    const trigger = action === "mode" ? modeButton : exportButton;
+    if (!panel || !trigger) return;
+    const opening = panel.hidden;
+    collapseModeMenu();
+    if (!opening) return;
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    if (action === "mode") syncModeSubmenu(session, panel);
+    const bounds = root.getBoundingClientRect();
+    panel.style.maxHeight = `${Math.max(32, bounds.height - 8)}px`;
+    panel.style.maxWidth = `${Math.max(32, bounds.width - 8)}px`;
+    const rect = panel.getBoundingClientRect();
+    const position = submenuPosition(
+      menu.getBoundingClientRect(),
+      rect.width,
+      rect.height,
+      bounds,
+    );
+    position.top = submenuPosition(
+      trigger.getBoundingClientRect(),
+      rect.width,
+      rect.height,
+      bounds,
+    ).top;
+    panel.style.left = `${position.left}px`;
+    panel.style.top = `${position.top}px`;
   };
   const close = () => {
     menu.hidden = true;
@@ -1441,11 +1495,8 @@ function mountMoreMenu(session: OpenSession) {
       });
       return;
     }
-    if (action === "mode") {
-      const opening = !!modeMenu?.hidden;
-      if (modeMenu) modeMenu.hidden = !opening;
-      modeButton?.setAttribute("aria-expanded", String(opening));
-      if (opening && modeMenu) syncModeSubmenu(session, modeMenu);
+    if (action === "mode" || action === "export") {
+      openSubmenu(action);
       return;
     }
     if (action === "find") {
@@ -1540,13 +1591,57 @@ function mountMoreMenu(session: OpenSession) {
     }
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") close();
+    if (menu.hidden) return;
+    const active = menu.ownerDocument.activeElement as HTMLElement | null;
+    const panel =
+      modeMenu && !modeMenu.hidden
+        ? modeMenu
+        : exportMenu && !exportMenu.hidden
+          ? exportMenu
+          : null;
+    if ((event.key === "Escape" || event.key === "ArrowLeft") && panel) {
+      event.preventDefault();
+      const trigger = panel === modeMenu ? modeButton : exportButton;
+      collapseModeMenu();
+      trigger?.focus();
+    } else if (
+      event.key === "ArrowRight" &&
+      (active === modeButton || active === exportButton)
+    ) {
+      event.preventDefault();
+      openSubmenu(active === modeButton ? "mode" : "export");
+      (active === modeButton ? modeMenu : exportMenu)
+        ?.querySelector<HTMLElement>("button")
+        ?.focus();
+    } else if (
+      (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+      active &&
+      menu.contains(active)
+    ) {
+      event.preventDefault();
+      const buttons = [
+        ...(panel && panel.contains(active) ? panel : menu).children,
+      ].filter((el) => el.tagName.toLowerCase() === "button") as HTMLElement[];
+      const index = buttons.indexOf(active);
+      buttons[
+        (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+          buttons.length
+      ]?.focus();
+    } else if (event.key === "Escape") {
+      close();
+      root.querySelector<HTMLElement>('[data-action="more"]')?.focus();
+    }
   };
+  root.ownerDocument.defaultView?.addEventListener("resize", collapseModeMenu);
   menu.addEventListener("click", onMenuClick);
   root.ownerDocument.addEventListener("pointerdown", onPointerDown);
   root.ownerDocument.addEventListener("keydown", onKeyDown);
   session.closeMoreMenu = () => {
     close();
+    root.ownerDocument.defaultView?.removeEventListener(
+      "resize",
+      collapseModeMenu,
+    );
     menu.removeEventListener("click", onMenuClick);
     root.ownerDocument.removeEventListener("pointerdown", onPointerDown);
     root.ownerDocument.removeEventListener("keydown", onKeyDown);
@@ -1558,7 +1653,7 @@ function createModeSubmenu(doc: Document) {
   submenu.className = "zotero-markdown-mode-submenu";
   submenu.id = "zotero-markdown-mode-submenu";
   submenu.hidden = true;
-  submenu.setAttribute("role", "group");
+  submenu.setAttribute("role", "menu");
   for (const option of EDITOR_MODE_OPTIONS) {
     const button = doc.createElement("button");
     button.type = "button";
@@ -1601,6 +1696,14 @@ function toggleMoreMenu(session: OpenSession) {
   const modeButton = menu.querySelector<HTMLElement>(
     '[data-menu-action="mode"]',
   );
+  for (const panel of menu.querySelectorAll<HTMLElement>(
+    ".zotero-markdown-mode-submenu, .zotero-markdown-export-submenu",
+  ))
+    panel.hidden = true;
+  for (const trigger of menu.querySelectorAll<HTMLElement>(
+    '[aria-haspopup="menu"]',
+  ))
+    trigger.setAttribute("aria-expanded", "false");
   if (opening) {
     if (modeMenu) syncModeSubmenu(session, modeMenu);
   } else if (modeMenu) {

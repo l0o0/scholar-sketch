@@ -165,3 +165,8 @@ export function modeButtonHtml(icon: string, label: string): string {
 export function iconOnlyButtonHtml(icon: string): string {
   return `<span class="zmd-btn-inner zmd-btn-inner-icon">${icon}</span>`;
 }
+
+export const iconCanvas = () => iconAsset("canvas");
+
+export const iconPalette = () => iconAsset("palette");
+export const iconReset = () => iconAsset("reset");

@@ -34,8 +34,8 @@ export function frontmatterLineNumbersFromLines(
   set.add(1);
   for (let i = 1; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed === "---" || trimmed === "...") return set;
     set.add(i + 1);
+    if (trimmed === "---" || trimmed === "...") return set;
   }
   return new Set<number>();
 }

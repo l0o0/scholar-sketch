@@ -1,3 +1,9 @@
+import { syntaxTree } from "@codemirror/language";
+import {
+  liveBlockMarkers,
+  TaskCheckboxWidget,
+  HorizontalRuleWidget,
+} from "./blocks";
 /// <reference lib="dom" />
 
 import {
@@ -792,6 +798,7 @@ function buildDecorations(
   tableSelection: TableSelection,
 ): DecorationSet {
   const ranges: ReturnType<Decoration["range"]>[] = [];
+  const markers = liveBlockMarkers(state);
   const doc = asDocLines(state);
   const sel = state.selection.main;
   const active = activeLinesFromSelection(doc, sel.from, sel.to);
@@ -920,6 +927,36 @@ function buildDecorations(
       continue;
     }
 
+    const rule = markers.rules.get(n);
+    if (rule) {
+      ranges.push(
+        hideMarks
+          ? Decoration.replace({ widget: new HorizontalRuleWidget() }).range(
+              rule.from,
+              rule.to,
+            )
+          : syntaxRange(rule.from, rule.to),
+      );
+      continue;
+    }
+    const task = markers.tasks.get(n);
+    if (task) {
+      ranges.push(
+        hideMarks
+          ? Decoration.replace({
+              widget: new TaskCheckboxWidget(
+                task.from,
+                state.doc
+                  .sliceString(task.from + 1, task.from + 2)
+                  .toLowerCase() === "x",
+                state.doc.sliceString(task.to, line.to).trim(),
+                state.readOnly || !state.facet(EditorView.editable),
+              ),
+            }).range(task.from, task.to)
+          : syntaxRange(task.from, task.to),
+      );
+    }
+
     for (const image of imagePlans) {
       const normalized = normalizeAssetReference(image.source);
       const resolved = normalized ? imageAssets[normalized] : undefined;
@@ -963,7 +1000,9 @@ function buildDecorations(
       if (list) {
         ranges.push(
           hideMarks
-            ? listMarkerRange(base, base + list.markEnd, list)
+            ? task && !list.ordered
+              ? hideRange(base + list.indent.length, base + list.markEnd)
+              : listMarkerRange(base, base + list.markEnd, list)
             : syntaxRange(base, base + list.markEnd),
         );
       } else {
@@ -1063,7 +1102,11 @@ class LivePreviewPlugin {
     if (
       effectChanged ||
       update.docChanged ||
-      update.selectionSet
+      update.selectionSet ||
+      update.state.readOnly !== update.startState.readOnly ||
+      update.state.facet(EditorView.editable) !==
+        update.startState.facet(EditorView.editable) ||
+      syntaxTree(update.state) !== syntaxTree(update.startState)
       // Deliberately NOT `viewportChanged` / `geometryChanged`: the
       // decoration set is document-wide and CodeMirror renders it per
       // viewport itself, so scrolling or resizing must not trigger a full

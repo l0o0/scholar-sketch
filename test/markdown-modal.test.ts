@@ -112,7 +112,7 @@ test("allows document information to be selected and copied", () => {
 test("defines a responsive settings workspace without changing compact dialogs", () => {
   const css = markdownModalCSS();
   assert.match(css, /\.zotero-markdown-modal\.is-settings/);
-  assert.match(css, /grid-template-columns:\s*188px minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-columns:\s*152px minmax\(0, 1fr\)/);
   assert.match(
     css,
     /zotero-markdown-settings-nav-item\[aria-selected="true"\]/,
@@ -154,7 +154,10 @@ test("defines editor and shortcut settings controls", () => {
   assert.match(source, /shortcutNewStandaloneMd/);
   assert.doesNotMatch(source, /打开 Zotero 设置/);
   assert.doesNotMatch(source, /native-settings/);
-  assert.match(source, /if \(event\.defaultPrevented\) return/);
+  assert.match(
+    source,
+    /if \(event\.defaultPrevented \|\| backdrop\.hidden\) return/,
+  );
 });
 
 test("whiteboard settings preview, cancel and save preserve the preference", async (t) => {
@@ -370,5 +373,67 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
       ".zotero-markdown-settings-palette {\n  position: absolute;",
     ),
     true,
+  );
+});
+
+test("settings retain focus and remain open during a failed save", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const window = new Window();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: { Prefs: { get: () => undefined } },
+  });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  let rejectSave!: (error: Error) => void;
+  const saving = new Promise<void>((_resolve, reject) => {
+    rejectSave = reject;
+  });
+  const controller = createMarkdownModalController(
+    window.document as unknown as Document,
+    { onSettings: () => saving },
+  );
+  t.after(() => {
+    controller.destroy();
+    window.close();
+  });
+  controller.open("settings", settingsFromPrefs());
+  const backdrop = window.document.querySelector<HTMLElement>(
+    ".zotero-markdown-modal-backdrop",
+  )!;
+  backdrop.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(backdrop.hidden, false);
+  const close = window.document.querySelector<HTMLElement>(
+    '[data-modal-action="close"]',
+  )!;
+  const save = window.document.querySelector<HTMLButtonElement>(
+    '[data-modal-action="save-settings"]',
+  )!;
+  save.focus();
+  save.dispatchEvent(
+    new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(window.document.activeElement, close);
+  save.click();
+  await Promise.resolve();
+  assert.equal(save.disabled, true);
+  controller.close();
+  assert.equal(backdrop.hidden, false);
+  rejectSave(new Error("Save failed"));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(backdrop.hidden, false);
+  assert.equal(save.disabled, false);
+  assert.match(
+    window.document.querySelector(".zotero-markdown-modal-error")!.textContent!,
+    /Save failed/,
   );
 });

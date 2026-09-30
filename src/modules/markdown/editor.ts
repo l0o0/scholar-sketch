@@ -151,8 +151,8 @@ function resolveAppearance() {
 }
 
 function resolveFontSize(): number {
-  const n = Number(getPref("fontSize") || 14);
-  return Number.isFinite(n) ? Math.min(22, Math.max(11, n)) : 14;
+  const n = Number(getPref("fontSize") || 15);
+  return Number.isFinite(n) ? Math.min(22, Math.max(11, n)) : 15;
 }
 
 export function createMarkdownEditor(

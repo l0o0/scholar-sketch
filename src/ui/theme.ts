@@ -81,7 +81,7 @@ export const THEME_TOKENS = {
   },
 } as const;
 
-export type ThemeTokenSet = (typeof THEME_TOKENS)[keyof typeof THEME_TOKENS];
+export type ThemeTokenSet = Record<keyof typeof THEME_TOKENS.light, string>;
 
 export function themeTokenCss(selector: string, tokens: ThemeTokenSet): string {
   return `${selector} {

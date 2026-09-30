@@ -95,17 +95,22 @@ export function mountNoteBacklinks(
     panel.style.flex = "1 1 auto";
   }
   const summary = doc.createElement("summary");
-  summary.textContent = labels.title;
+  const heading = doc.createElement("span");
+  heading.textContent = labels.title;
+  const count = doc.createElement("span");
+  count.className = "zmd-backlinks-count";
+  summary.append(heading, count);
   summary.style.cursor = "pointer";
   const refresh = doc.createElement("button");
   refresh.type = "button";
   refresh.textContent = labels.refresh;
-  refresh.style.cssText = "font:inherit;margin:8px 0;cursor:pointer";
+  refresh.className = "zmd-backlinks-refresh";
+  summary.append(refresh);
   const status = doc.createElement("p");
   status.setAttribute("role", "status");
   status.style.cssText = "font-size:12px;white-space:pre-wrap";
   const list = doc.createElement("div");
-  panel.append(summary, refresh, status, list);
+  panel.append(summary, status, list);
   parent.append(panel);
   let disposed = false;
   let generation = 0;
@@ -118,7 +123,7 @@ export function mountNoteBacklinks(
       const result = await getNoteBacklinks(item);
       if (disposed || current !== generation) return;
       list.replaceChildren();
-      summary.textContent = `${labels.title} (${result.entries.length})`;
+      count.textContent = `(${result.entries.length})`;
       status.textContent = result.unreadable
         ? `${labels.incomplete} (${result.unreadable})`
         : result.entries.length
@@ -167,7 +172,9 @@ export function mountNoteBacklinks(
   const unsubscribe = subscribeNoteLibrary((libraryID) => {
     if (libraryID === item.libraryID) void render();
   });
-  refresh.onclick = () => {
+  refresh.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     refresh.disabled = true;
     void rebuildNoteLibrary(item.libraryID).catch((error) => {
       if (!disposed) {

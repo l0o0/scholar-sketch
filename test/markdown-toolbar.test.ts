@@ -66,8 +66,8 @@ describe("toolbar insert templates", () => {
 
   it("uses the shared toolbar density at every window width", () => {
     const css = responsiveToolbarSizingCSS();
-    assert.match(css, /--zmd-toolbar-icon-size: 18px/);
-    assert.match(css, /--zmd-toolbar-control-size: 36px/);
+    assert.match(css, /--zmd-toolbar-icon-size: 16px/);
+    assert.match(css, /--zmd-toolbar-control-size: 32px/);
     assert.doesNotMatch(css, /44px|40px/);
     assert.match(css, /min-width: 0; max-width: 100%; flex-wrap: wrap/);
   });

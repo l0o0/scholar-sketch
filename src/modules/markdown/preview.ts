@@ -74,13 +74,11 @@ export function previewDocumentCss(): string {
   line-height: 1.7;
 }
 .zotero-markdown-preview-inner {
-  max-width: 46em;
+  max-width: 760px;
   margin: 0 auto;
   padding: 28px 32px;
   background: var(--zmd-surface);
-  border: 1px solid var(--zmd-border);
-  border-radius: 12px;
-  box-shadow: var(--zmd-shadow);
+
 }
 .zotero-markdown-preview-empty {
   opacity: 0.55;
@@ -124,10 +122,10 @@ export function previewDocumentCss(): string {
 .zotero-markdown-preview-inner pre {
   background: var(--zmd-surface-2);
   border: 1px solid var(--zmd-border);
-  padding: 16px;
-  border-radius: 8px;
+  padding: 16px 20px;
+  border-radius: 6px;
   overflow: auto;
-  font-size: max(13px, 0.95em);
+  font-size: max(13px, 0.9em);
   line-height: 1.65;
   tab-size: 4;
   font-variant-ligatures: none;

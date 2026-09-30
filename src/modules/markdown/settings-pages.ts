@@ -6,13 +6,13 @@ export type SettingsPageID =
 
 export interface SettingsPage {
   id: SettingsPageID;
-  icon: "settings" | "type" | "keyboard" | "info";
+  icon: "settings" | "type" | "keyboard" | "info" | "canvas";
 }
 
 export const SETTINGS_PAGES: readonly SettingsPage[] = [
   { id: "general", icon: "settings" },
   { id: "editor", icon: "type" },
-  { id: "whiteboard", icon: "settings" },
+  { id: "whiteboard", icon: "canvas" },
   { id: "shortcuts", icon: "keyboard" },
   { id: "about", icon: "info" },
 ];

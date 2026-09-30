@@ -240,9 +240,24 @@ test("backlinks panel uses saved fixture content, updates after save, and naviga
   });
   await until(
     () =>
-      browser.document.querySelector("summary")?.textContent ===
-      "Linked mentions (1)",
+      browser.document.querySelector(".zmd-backlinks-count")?.textContent ===
+      "(1)",
   );
+  const refresh = browser.document.querySelector(
+    "summary .zmd-backlinks-refresh",
+  )!;
+  const click = new browser.MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
+  });
+  refresh.dispatchEvent(click);
+  assert.equal(
+    click.defaultPrevented,
+    true,
+    "refresh must not toggle the panel",
+  );
+  assert.equal(browser.document.querySelector("details")!.open, true);
+  await until(() => !(refresh as HTMLButtonElement).disabled);
   (
     browser.document.querySelector("strong")!.parentElement as HTMLButtonElement
   ).click();
@@ -251,8 +266,8 @@ test("backlinks panel uses saved fixture content, updates after save, and naviga
   updateIndexedNote(item(2), "# Findings\n\nNo outgoing link.");
   await until(
     () =>
-      browser.document.querySelector("summary")?.textContent ===
-      "Linked mentions (0)",
+      browser.document.querySelector(".zmd-backlinks-count")?.textContent ===
+      "(0)",
   );
   assert.equal(
     browser.document.querySelector('[role="status"]')!.textContent,
