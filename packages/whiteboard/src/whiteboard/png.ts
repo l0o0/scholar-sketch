@@ -29,7 +29,7 @@ export function pngExportSize(document: CanvasDocument, scale: PngScale) {
 
 export function includeInPng(node: HTMLElement): boolean {
   return !node.matches?.(
-    ".react-flow__handle, .react-flow__resize-control, .react-flow__selection, .react-flow__nodesselection, .react-flow__edge-interaction, .react-flow__edgeupdater",
+    ".react-flow__handle, .react-flow__resize-control, .react-flow__selection, .react-flow__nodesselection, .react-flow__edge-interaction, .react-flow__edgeupdater, .zmd-board-smart-guides",
   );
 }
 

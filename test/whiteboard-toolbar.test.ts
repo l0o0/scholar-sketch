@@ -7,6 +7,8 @@ import { TopIsland } from "../packages/whiteboard/src/chrome/TopIsland.tsx";
 import { libraryTools } from "../packages/whiteboard/src/chrome/tools.ts";
 import type { WhiteboardLabels } from "../packages/whiteboard/src/model/protocol.ts";
 import { createBuiltinNoteTemplates } from "../packages/whiteboard/src/model/note-template.ts";
+import { ShortcutsOverlay } from "../packages/whiteboard/src/chrome/ShortcutsOverlay.tsx";
+import { keyboardShortcuts } from "../packages/whiteboard/src/chrome/shortcuts.ts";
 
 const css = readFileSync(
   new URL("../packages/whiteboard/src/whiteboard/board.css", import.meta.url),
@@ -15,6 +17,47 @@ const css = readFileSync(
 
 const labels = new Proxy({} as WhiteboardLabels, {
   get: (_target, property) => String(property),
+});
+
+test("shortcut help explains free dragging and both precise movement steps", () => {
+  const markup = renderToStaticMarkup(
+    createElement(ShortcutsOverlay, {
+      labels: {
+        ...labels,
+        shortcutFreeMove: "Free drag with snapping temporarily disabled",
+        shortcutNudge: "Move selection by one canvas unit",
+        shortcutNudgeLarge: "Move selection by sixteen canvas units",
+      },
+      onClose: () => {},
+    }),
+  );
+  assert.match(
+    markup,
+    /<kbd>Alt \+ drag<\/kbd><span>Free drag with snapping temporarily disabled<\/span>/,
+  );
+  assert.match(
+    markup,
+    /<kbd>↑ ↓ ← →<\/kbd><span>Move selection by one canvas unit<\/span>/,
+  );
+  assert.match(
+    markup,
+    /<kbd>Shift \+ ↑ ↓ ← →<\/kbd><span>Move selection by sixteen canvas units<\/span>/,
+  );
+
+  const olderHostLabels = {} as WhiteboardLabels;
+  const help = keyboardShortcuts(olderHostLabels);
+  assert.equal(
+    help.find((item) => item.keys === "Alt + drag")?.label,
+    "Move freely (temporarily disable snapping)",
+  );
+  assert.equal(
+    help.find((item) => item.keys === "↑ ↓ ← →")?.label,
+    "Nudge selection by 1 unit",
+  );
+  assert.equal(
+    help.find((item) => item.keys === "Shift + ↑ ↓ ← →")?.label,
+    "Nudge selection by 16 units",
+  );
 });
 
 function renderToolbar(selectedNodeCount: number, selectedEdgeCount: number) {

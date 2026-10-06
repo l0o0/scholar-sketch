@@ -138,6 +138,13 @@ import {
 } from "../chrome/ConnectionEditor";
 import type { CanvasTool } from "../chrome/tools";
 import { alignNodes, distributeNodes, type AlignMode } from "./layout";
+import { SmartGuides } from "./SmartGuideOverlay";
+import {
+  computeSmartSnap,
+  type AlignmentGuide,
+  type GapGuide,
+  type GuideRect,
+} from "./smartGuides";
 import {
   buildCanvasMarkdown,
   buildCanvasSvg,
@@ -1150,6 +1157,24 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     history: CanvasDocument;
   } | null>(null);
   const frameDragRef = useRef<FrameDragState | null>(null);
+  const nodeDragRef = useRef<{
+    ids: Set<string>;
+    primaryId: string;
+    disabled: boolean;
+    ending: boolean;
+  } | null>(null);
+  const [smartGuides, setSmartGuides] = useState<{
+    guides: AlignmentGuide[];
+    gaps: GapGuide[];
+    zoom: number;
+  }>({ guides: [], gaps: [], zoom: 1 });
+  const clearSmartGuides = useCallback(() => {
+    setSmartGuides((current) =>
+      current.guides.length || current.gaps.length
+        ? { ...current, guides: [], gaps: [] }
+        : current,
+    );
+  }, []);
   const activeToolRef = useRef(activeTool);
   activeToolRef.current = activeTool;
 
@@ -1547,6 +1572,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         frameDragRef.current ?? undefined,
       );
       frameDragRef.current = settledDrag.state ?? null;
+      clearSmartGuides();
+      if (
+        nodeDragRef.current &&
+        nodeIds.some((id) => nodeDragRef.current!.ids.has(id))
+      )
+        nodeDragRef.current.ending = true;
       pushHistory();
       for (const nodeId of nodeIdSet) {
         document = deleteNodeFromDocument(document, nodeId);
@@ -1562,7 +1593,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       applyDocument(document);
       bump();
     },
-    [applyDocument, bump, pushHistory, workingSnapshot],
+    [applyDocument, bump, clearSmartGuides, pushHistory, workingSnapshot],
   );
 
   const onNodesChange = useCallback(
@@ -1574,7 +1605,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         deleteCanvasElements(removedNodeIds);
       }
 
-      let retainedChanges = changes.filter(
+      let retainedChanges: NodeChange<CanvasFlowNode>[] = changes.filter(
         (change) => change.type !== "remove",
       );
       if (!retainedChanges.length) return;
@@ -1596,11 +1627,110 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         resizingRef.current = false;
 
       const drag = frameDragRef.current;
-      if (drag?.phase === "ending") {
-        retainedChanges = retainedChanges.filter(
-          (change) => change.type !== "position",
+      const nodeDrag = nodeDragRef.current;
+      if (drag?.phase === "ending" || nodeDrag?.ending) {
+        retainedChanges = retainedChanges.flatMap<NodeChange<CanvasFlowNode>>(
+          (change) =>
+            change.type !== "position" ||
+            change.dragging === undefined ||
+            (nodeDrag && !nodeDrag.ids.has(change.id))
+              ? [change]
+              : change.dragging === false
+                ? [
+                    {
+                      type: "position" as const,
+                      id: change.id,
+                      dragging: false,
+                    },
+                  ]
+                : [],
         );
         if (!retainedChanges.length) return;
+      }
+      if (
+        nodeDrag &&
+        !nodeDrag.ending &&
+        retainedChanges.some(
+          (change) => change.type === "position" && change.position,
+        )
+      ) {
+        // React Flow reports pointer positions from the original grab point.
+        // Apply one correction to the whole selection, never to each card.
+        const proposed = new Map(
+          retainedChanges.flatMap((change) =>
+            change.type === "position" && change.position
+              ? [[change.id, change.position] as const]
+              : [],
+          ),
+        );
+        const movingFrames = new Set(
+          nodesRef.current
+            .filter(
+              (node) =>
+                nodeDrag.ids.has(node.id) && node.data.model.kind === "frame",
+            )
+            .map((node) => node.id),
+        );
+        const rect = (node: CanvasFlowNode): GuideRect => {
+          const position = proposed.get(node.id) ?? node.position;
+          return {
+            id: node.id,
+            x: position.x,
+            y: position.y,
+            ...nodeSize(node),
+          };
+        };
+        const moving = nodesRef.current.filter(
+          (node) =>
+            nodeDrag.ids.has(node.id) &&
+            !node.hidden &&
+            (node.data.model.kind === "frame" ||
+              !movingFrames.has(node.data.model.frameId ?? "")),
+        );
+        const viewport = flowRef.current?.getViewport() ?? viewportRef.current;
+        const host = canvasHostRef.current;
+        const stationary = nodesRef.current.filter((node) => {
+          if (
+            nodeDrag.ids.has(node.id) ||
+            node.hidden ||
+            node.data.model.kind === "frame" ||
+            movingFrames.has(node.data.model.frameId ?? "")
+          )
+            return false;
+          const size = nodeSize(node);
+          return (
+            !host ||
+            (node.position.x + size.width >= -viewport.x / viewport.zoom &&
+              node.position.y + size.height >= -viewport.y / viewport.zoom &&
+              node.position.x <=
+                (host.clientWidth - viewport.x) / viewport.zoom &&
+              node.position.y <=
+                (host.clientHeight - viewport.y) / viewport.zoom)
+          );
+        });
+        const snapped = computeSmartSnap({
+          moving: moving.map(rect),
+          stationary: stationary.map(rect),
+          primaryId: nodeDrag.primaryId,
+          zoom: viewport.zoom,
+          disabled: nodeDrag.disabled,
+        });
+        retainedChanges = retainedChanges.map((change) =>
+          change.type === "position" && change.position
+            ? {
+                ...change,
+                position: {
+                  x: change.position.x + snapped.delta.x,
+                  y: change.position.y + snapped.delta.y,
+                },
+              }
+            : change,
+        );
+        setSmartGuides({
+          guides: snapped.guides,
+          gaps: snapped.gaps,
+          zoom: viewport.zoom,
+        });
       }
       const positionUpdates = retainedChanges.flatMap((change) =>
         change.type === "position" && change.position
@@ -1608,7 +1738,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           : [],
       );
 
-      if (drag && positionUpdates.length) {
+      if (drag?.phase === "active" && positionUpdates.length) {
         setNodes((current) => {
           const currentDocument = flowToCanvasDocument(
             current,
@@ -1641,11 +1771,19 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         setNodes((current) => applyCanvasNodeChanges(retainedChanges, current));
       }
 
-      if (!drag && retainedChanges.some((change) => change.type !== "select")) {
-        bump();
+      if (!drag || drag.phase !== "active") {
+        if (retainedChanges.some((change) => change.type !== "select")) bump();
       }
     },
-    [bump, deleteCanvasElements, edgesRef, pushHistory, shellRef, viewportRef],
+    [
+      bump,
+      deleteCanvasElements,
+      edgesRef,
+      nodesRef,
+      pushHistory,
+      shellRef,
+      viewportRef,
+    ],
   );
 
   const onEdgesChange = useCallback(
@@ -1667,28 +1805,65 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const beginNodeDrag = useCallback<OnNodeDrag<CanvasFlowNode>>(
-    (_event, _node, draggedNodes) => {
+    (event, node, draggedNodes) => {
       pushHistory();
+      clearSmartGuides();
+      nodeDragRef.current = {
+        ids: new Set(draggedNodes.map((dragged) => dragged.id)),
+        primaryId: node.id,
+        disabled: "altKey" in event && event.altKey,
+        ending: false,
+      };
       frameDragRef.current =
         beginFrameDragState(
           workingSnapshot(),
           draggedNodes.map((dragged) => dragged.id),
         ) ?? null;
     },
-    [pushHistory, workingSnapshot],
+    [clearSmartGuides, pushHistory, workingSnapshot],
   );
 
   const endFrameDrag = useCallback(() => {
+    clearSmartGuides();
+    if (nodeDragRef.current) nodeDragRef.current.ending = true;
     const settled = settleFrameDragState(frameDragRef.current ?? undefined);
     frameDragRef.current = settled.state ?? null;
     if (settled.notify) bump();
-  }, [bump]);
+  }, [bump, clearSmartGuides]);
 
   const finishNodeDrag = useCallback<OnNodeDrag<CanvasFlowNode>>(() => {
+    nodeDragRef.current = null;
+    clearSmartGuides();
     const stopped = finishFrameDragState(frameDragRef.current ?? undefined);
     frameDragRef.current = stopped.state ?? null;
     if (stopped.notify) bump();
-  }, [bump]);
+  }, [bump, clearSmartGuides]);
+
+  useEffect(() => {
+    const onMove = (event: MouseEvent) => {
+      if (!nodeDragRef.current) return;
+      nodeDragRef.current.disabled = event.altKey;
+      if (event.altKey) clearSmartGuides();
+    };
+    const onModifier = (event: KeyboardEvent) => {
+      if (!nodeDragRef.current || event.key !== "Alt") return;
+      nodeDragRef.current.disabled = event.type === "keydown";
+      if (nodeDragRef.current.disabled) clearSmartGuides();
+    };
+    // Capture modifiers before React Flow's window-level drag handler.
+    window.addEventListener("mousemove", onMove, true);
+    window.addEventListener("keydown", onModifier, true);
+    window.addEventListener("keyup", onModifier, true);
+    window.addEventListener("blur", endFrameDrag);
+    window.addEventListener("pointercancel", endFrameDrag);
+    return () => {
+      window.removeEventListener("mousemove", onMove, true);
+      window.removeEventListener("keydown", onModifier, true);
+      window.removeEventListener("keyup", onModifier, true);
+      window.removeEventListener("blur", endFrameDrag);
+      window.removeEventListener("pointercancel", endFrameDrag);
+    };
+  }, [clearSmartGuides, endFrameDrag]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -3043,6 +3218,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const closeEditing = useCallback(() => {
+    clearSmartGuides();
+    if (nodeDragRef.current) nodeDragRef.current.ending = true;
     editingRevisionRef.current += 1;
     setEditing(null);
     setEditingEdge(null);
@@ -3050,7 +3227,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     setNodes((current) =>
       current.map((item) => ({ ...item, className: undefined })),
     );
-  }, [setNodes]);
+  }, [clearSmartGuides, setNodes]);
 
   const loadCanvasSnapshot = useCallback(
     (snapshot: CanvasDocument) => {
@@ -4014,7 +4191,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             interactionWidth: 24,
             markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
           }}
-          snapToGrid={activeTool === "select"}
+          snapToGrid={false}
           snapGrid={[16, 16]}
           deleteKeyCode={null}
           panActivationKeyCode={null}
@@ -4231,6 +4408,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
           <Controls showInteractive={false} position="bottom-right" />
           <ViewportPortal>
+            <SmartGuides
+              guides={smartGuides.guides}
+              gaps={smartGuides.gaps}
+              zoom={smartGuides.zoom}
+            />
             {editing && editingNode && editingTextStyle ? (
               <div
                 className={`zmd-board-editor is-in-shape nodrag nopan nowheel${editingStroke ? " is-stroke-label" : ""}`}

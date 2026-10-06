@@ -250,6 +250,9 @@ export interface WhiteboardLabels {
   recentColors: string;
   shortcutSelect: string;
   shortcutHand: string;
+  shortcutFreeMove?: string;
+  shortcutNudge?: string;
+  shortcutNudgeLarge?: string;
   shortcutRect: string;
   shortcutEllipse: string;
   shortcutArrow: string;
@@ -1062,6 +1065,9 @@ const whiteboardLabelStringKeys: Record<
   recentColors: true,
   shortcutSelect: true,
   shortcutHand: true,
+  shortcutFreeMove: true,
+  shortcutNudge: true,
+  shortcutNudgeLarge: true,
   shortcutRect: true,
   shortcutEllipse: true,
   shortcutArrow: true,
@@ -1086,6 +1092,9 @@ function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
     "layoutAllConfirm",
     "batchStyle",
     "ungroup",
+    "shortcutFreeMove",
+    "shortcutNudge",
+    "shortcutNudgeLarge",
   ];
   const stringKeys = Object.keys(whiteboardLabelStringKeys).filter(
     (key) => !optional.includes(key),

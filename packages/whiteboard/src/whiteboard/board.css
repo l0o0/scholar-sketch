@@ -2848,3 +2848,103 @@ html[data-theme="dark"] .zmd-board-pdf-page,
   min-height: 0;
   pointer-events: auto;
 }
+
+/* Smart guides share the canvas accent and remain inert above the cards. */
+.zmd-board-smart-guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  color: var(--zmd-board-accent, #2563eb);
+  pointer-events: none;
+  user-select: none;
+  animation: zmd-board-smart-guide-enter 100ms ease-out;
+}
+
+.zmd-board-smart-guides * {
+  pointer-events: none;
+}
+
+.zmd-board-smart-guides path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.zmd-board-smart-guide-halo {
+  opacity: 0.1;
+}
+
+.zmd-board-smart-guide-line {
+  opacity: 0.85;
+}
+
+.zmd-board-smart-guide-tick {
+  opacity: 0.7;
+}
+
+.zmd-board-smart-guide-anchor {
+  fill: color-mix(in srgb, var(--zmd-board-bg, #fbfbfc) 88%, transparent);
+  stroke: currentColor;
+  opacity: 0.9;
+}
+
+.zmd-board-smart-gap .zmd-board-smart-guide-line {
+  opacity: 0.65;
+}
+
+.zmd-board-smart-guides foreignObject {
+  overflow: visible;
+}
+
+.zmd-board-smart-gap-label {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 20px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--zmd-board-surface, #fff) 82%,
+    transparent
+  );
+  box-shadow: 0 1px 5px rgba(16, 24, 40, 0.08);
+  backdrop-filter: blur(8px) saturate(1.1);
+  color: var(--zmd-board-accent, #2563eb);
+  font-family: var(--zmd-board-font-family, system-ui, sans-serif);
+  font-size: 10.5px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.zmd-board-host[data-theme="dark"] .zmd-board-smart-gap-label {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22);
+}
+
+.zmd-board-host[data-exporting] .zmd-board-smart-guides {
+  display: none;
+}
+
+@keyframes zmd-board-smart-guide-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zmd-board-smart-guides {
+    animation: none;
+  }
+}

@@ -145,6 +145,9 @@ const hostKeys = [
   "whiteboard-color-reset",
   "whiteboard-shortcut-select",
   "whiteboard-shortcut-hand",
+  "whiteboard-shortcut-free-move",
+  "whiteboard-shortcut-nudge",
+  "whiteboard-shortcut-nudge-large",
   "whiteboard-shortcut-rect",
   "whiteboard-shortcut-ellipse",
   "whiteboard-shortcut-arrow",
@@ -401,6 +404,9 @@ test("host wires every academic label into the whiteboard protocol", () => {
     ["shortcutQuestion", "whiteboard-shortcut-question"],
     ["shortcutClaim", "whiteboard-shortcut-claim"],
     ["shortcutFrame", "whiteboard-shortcut-frame"],
+    ["shortcutFreeMove", "whiteboard-shortcut-free-move"],
+    ["shortcutNudge", "whiteboard-shortcut-nudge"],
+    ["shortcutNudgeLarge", "whiteboard-shortcut-nudge-large"],
   ]) {
     assert.match(
       source,

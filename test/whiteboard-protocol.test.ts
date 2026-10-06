@@ -1151,6 +1151,32 @@ test("null-source init requires complete labels and a canonical canvas document"
     true,
   );
 
+  for (const label of [
+    "shortcutFreeMove",
+    "shortcutNudge",
+    "shortcutNudgeLarge",
+  ]) {
+    const localizedShortcut = structuredClone(init);
+    localizedShortcut.payload.labels[label] = "Localized movement help";
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        localizedShortcut,
+        "tab-9:canvas-a",
+      ),
+      true,
+      `${label} remains optional but accepts localized text`,
+    );
+    localizedShortcut.payload.labels[label] = 42;
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        localizedShortcut,
+        "tab-9:canvas-a",
+      ),
+      false,
+      `${label} rejects invalid wire values`,
+    );
+  }
+
   const missingLabel = structuredClone(init);
   delete missingLabel.payload.labels.selection;
   assert.equal(

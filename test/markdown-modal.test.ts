@@ -308,6 +308,14 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
   ) as HTMLSelectElement;
   shortcutSurface.value = "whiteboard";
   shortcutSurface.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const whiteboardKeys = [
+    ...window.document.querySelectorAll(
+      ".zotero-markdown-settings-shortcut-keys",
+    ),
+  ].map((key) => key.textContent);
+  assert.ok(whiteboardKeys.includes("Alt + drag"));
+  assert.ok(whiteboardKeys.includes("↑ ↓ ← →"));
+  assert.ok(whiteboardKeys.includes("Shift + ↑ ↓ ← →"));
   assert.equal(
     window.document.querySelector('input[name="shortcutNewStandaloneMd"]'),
     null,

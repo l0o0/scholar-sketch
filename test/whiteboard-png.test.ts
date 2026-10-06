@@ -61,6 +61,7 @@ test("PNG removes handles and selection controls while retaining card content an
     "react-flow__selection",
     "react-flow__edge-interaction",
     "react-flow__edgeupdater",
+    "zmd-board-smart-guides",
   ]) {
     const node = window.document.createElement("div");
     node.className = name;
