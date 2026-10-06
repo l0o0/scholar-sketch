@@ -32,6 +32,7 @@ import {
   type AnnotationListFailure,
 } from "./protocol";
 import { WhiteboardSaveCoordinator } from "./save-coordinator";
+import { captureWhiteboardSurfaceTransfer } from "./surface-transfer";
 import { whiteboardRegistry, type WhiteboardSession } from "./session-registry";
 import { WHITEBOARD_TAB_TYPE } from "./tabHooks";
 import { isWhiteboardAttachment } from "./detect";
@@ -972,6 +973,7 @@ function mountWhiteboardUI(
     },
   });
   session.saveCoordinator = new WhiteboardSaveCoordinator({
+    initialDocument: initialSnapshot,
     getSnapshot: async () => {
       if (!session.editor) throw new Error("Canvas editor is unavailable");
       await session.editor.ready;
@@ -1471,11 +1473,13 @@ async function mountWhiteboardSurface(
     if (existing.view) existing.view.root.inert = true;
   }
   try {
-    // Force a snapshot to include viewport changes and edits awaiting autosave.
-    await existing?.saveCoordinator?.request({ force: true });
     const path = await item.getFilePathAsync();
     if (!path) throw new Error(getString("whiteboard-open-failed"));
-    const parsed = await readCanvasFile(path);
+    // A surface change needs a fresh snapshot, but does not require overwriting
+    // an externally changed file. Conflicting drafts keep their old baseline.
+    const parsed = await captureWhiteboardSurfaceTransfer(existing ?? {}, () =>
+      readCanvasFile(path),
+    );
     for (const issue of parsed.issues) {
       ztoolkit.log("Canvas parse issue", {
         code: issue.code,
@@ -1510,9 +1514,24 @@ async function mountWhiteboardSurface(
           });
         }
       };
-      win.addEventListener("close", onClose);
+      const onUnload = (event: Event) => {
+        if (
+          (event.target !== win && event.target !== win.document) ||
+          !session ||
+          whiteboardRegistry.get(session.tabID) !== session
+        )
+          return;
+        forgetOpenDocument(session.itemID);
+        try {
+          disposeWhiteboardSession(session);
+        } finally {
+          refreshWhiteboardSidebar();
+        }
+      };
       closeHost = () => {
         win.removeEventListener("close", onClose);
+        win.removeEventListener("DOMWindowClose", onClose, true);
+        win.removeEventListener("unload", onUnload, true);
         if (!win.closed) win.close();
       };
       await new Promise<void>((resolve, reject) => {
@@ -1532,6 +1551,10 @@ async function mountWhiteboardSurface(
       });
       const root = win.document.getElementById("bamboo-whiteboard-window-root");
       if (!root) throw new Error(getString("whiteboard-open-failed"));
+      // Bind to the loaded chrome document, rather than its initial about:blank window.
+      win.addEventListener("close", onClose);
+      win.addEventListener("DOMWindowClose", onClose, true);
+      win.addEventListener("unload", onUnload, true);
       host = root;
       tabID = `whiteboard-window-${canvasId}`;
       injectWhiteboardStyles(win);
@@ -1555,7 +1578,7 @@ async function mountWhiteboardSurface(
     session = {
       tabID,
       canvasId,
-      fileRevision: { content: parsed.source },
+      fileRevision: parsed.revision,
       itemID: item.id,
       win,
       path,
@@ -1578,11 +1601,21 @@ async function mountWhiteboardSurface(
     });
     if (existing) {
       // Acquire once more after loading, in case an in-flight source operation completed.
-      await existing.saveCoordinator?.request({ force: true });
-      session.editor!.loadSnapshot(
-        (await existing.editor!.requestSnapshot()).snapshot,
+      const transferred = await captureWhiteboardSurfaceTransfer(existing, () =>
+        readCanvasFile(path),
       );
-      session.fileRevision = existing.fileRevision;
+      session.editor!.loadSnapshot(transferred.document);
+      session.fileRevision = transferred.revision;
+      const loaded = await session.editor!.requestSnapshot();
+      if (transferred.conflict) {
+        session.saveCoordinator!.adoptUnsavedSnapshot(transferred.conflict);
+        toast(transferred.conflict.message);
+      } else {
+        session.saveCoordinator!.adoptPersistedSnapshot({
+          rev: loaded.rev,
+          document: parseCanvasDocument(loaded.snapshot).document,
+        });
+      }
       disposeWhiteboardSession(existing);
       existing.closeHost?.();
     }
@@ -1609,15 +1642,26 @@ async function mountWhiteboardSurface(
 
 function disposeWhiteboardSession(session: WhiteboardSession) {
   session.closing = true;
-  if (session.autosaveTimer) session.win.clearTimeout(session.autosaveTimer);
-  session.unbindTheme?.();
-  session.unsubscribeTemplates?.();
-  session.unsubscribeTemplates = undefined;
-  session.sourceScheduler?.dispose();
-  session.sourceScheduler = undefined;
-  session.editor?.destroy();
-  session.view?.root.remove();
-  whiteboardRegistry.unregister(session.tabID);
+  try {
+    if (session.autosaveTimer) session.win.clearTimeout(session.autosaveTimer);
+    session.unbindTheme?.();
+    session.unsubscribeTemplates?.();
+    session.unsubscribeTemplates = undefined;
+    session.sourceScheduler?.dispose();
+    session.sourceScheduler = undefined;
+    session.editor?.destroy();
+    session.view?.root.remove();
+  } finally {
+    whiteboardRegistry.unregister(session.tabID);
+  }
+}
+
+function refreshWhiteboardSidebar() {
+  void Zotero.Notifier?.trigger("refresh", "itempane", [], {}).catch(
+    (error) => {
+      ztoolkit.log("Failed to refresh whiteboard sidebar", error);
+    },
+  );
 }
 
 export function closeWhiteboardSession(tabID: string): Promise<boolean> {
@@ -1644,7 +1688,10 @@ export function closeWhiteboardSession(tabID: string): Promise<boolean> {
       }
       forgetOpenDocument(session.itemID);
       disposeWhiteboardSession(session);
-      if (session.surface === "window") session.closeHost?.();
+      if (session.surface === "window") {
+        session.closeHost?.();
+        refreshWhiteboardSidebar();
+      }
       return true;
     } catch (error) {
       ztoolkit.log("Failed to close whiteboard", error);
@@ -1670,9 +1717,10 @@ export async function closeWhiteboardsForWindow(win: Window) {
 export async function closeAllWhiteboards() {
   await whiteboardRegistry.waitForOperations();
   await Promise.all(
-    whiteboardRegistry
-      .all()
-      .map((session) => closeWhiteboardSession(session.tabID)),
+    whiteboardRegistry.all().map(async (session) => {
+      const closed = await closeWhiteboardSession(session.tabID);
+      if (closed && (session.surface ?? "tab") === "tab") session.closeHost?.();
+    }),
   );
 }
 

@@ -32,8 +32,13 @@ export class WhiteboardSidebar {
   private disposed = false;
   private revision = 0;
   private pending: Promise<void> = Promise.resolve();
+  private readonly unsubscribeRegistry: () => void;
 
-  constructor(private win: _ZoteroTypes.MainWindow) {}
+  constructor(private win: _ZoteroTypes.MainWindow) {
+    this.unsubscribeRegistry = whiteboardRegistry.subscribe((itemID) => {
+      if (!this.disposed && itemID === this.targetID) this.schedule();
+    });
+  }
 
   render(
     body: HTMLElement,
@@ -185,6 +190,7 @@ export class WhiteboardSidebar {
   }
 
   async destroy() {
+    this.unsubscribeRegistry();
     this.disposed = true;
     ++this.revision;
     await this.pending;

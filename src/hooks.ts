@@ -57,6 +57,7 @@ import {
   registerAttachmentIcons,
   unregisterAttachmentIcons,
 } from "./modules/attachment-icons";
+import { runShutdownSteps } from "./utils/shutdown";
 
 let tutorialStartup: Promise<void> | undefined;
 
@@ -152,29 +153,87 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
 }
 
 async function onShutdown(): Promise<void> {
-  retainWorkspaceOnShutdown();
-  await unregisterAttachmentIcons();
-  if (tutorialStartup) {
-    await tutorialStartup;
-    tutorialStartup = undefined;
-  }
-  await closeAllMarkdownWindows();
-  await flushAllSessions();
-  await flushAllWhiteboards();
-  await unregisterWhiteboardSidebar();
-  await closeAllWhiteboards();
-  await unregisterSidebarSection();
-  disposeMarkdownRenderer();
-  clearNoteLibraries();
-  await closeNoteIndex();
-  unregisterFileOpenInterceptor();
-  unregisterWhiteboardFileOpenInterceptor();
-  unregisterMenus();
-  unregisterShortcuts();
-  ztoolkit.unregisterAll();
-  addon.data.alive = false;
-  // @ts-expect-error - Plugin instance is not typed
-  delete Zotero[addon.data.config.addonInstance];
+  // Zotero continues unloading after a rejected shutdown, removing native
+  // sections while our sandbox registrations and singleton would remain.
+  // Keep each cleanup independent without forcing unsaved editors closed.
+  const reportError = (step: string, error: unknown) =>
+    ztoolkit.log(`Shutdown cleanup failed (${step})`, error);
+  await runShutdownSteps(
+    [
+      ["retainWorkspace", retainWorkspaceOnShutdown],
+      ["attachmentIcons", unregisterAttachmentIcons],
+      [
+        "tutorialStartup",
+        async () => {
+          try {
+            if (tutorialStartup) {
+              await tutorialStartup;
+            }
+          } finally {
+            tutorialStartup = undefined;
+          }
+        },
+      ],
+      [
+        "markdownWindows",
+        async () => {
+          await closeAllMarkdownWindows();
+        },
+      ],
+      ["markdownSave", flushAllSessions],
+      [
+        "whiteboardSave",
+        async () => {
+          await flushAllWhiteboards();
+        },
+      ],
+      ["whiteboardSidebar", unregisterWhiteboardSidebar],
+      [
+        "whiteboardWindows",
+        async () => {
+          await closeAllWhiteboards();
+        },
+      ],
+      ["markdownSidebar", unregisterSidebarSection],
+      ["markdownRenderer", disposeMarkdownRenderer],
+      ["noteLibraries", clearNoteLibraries],
+      ["noteIndex", closeNoteIndex],
+      ["markdownFileHandler", unregisterFileOpenInterceptor],
+      ["whiteboardFileHandler", unregisterWhiteboardFileOpenInterceptor],
+      [
+        "whiteboardMenus",
+        async () => {
+          await runShutdownSteps(
+            Zotero.getMainWindows().map(
+              (win, index) =>
+                [
+                  `whiteboardMenus:window-${index + 1}`,
+                  () => unregisterWhiteboardMenus(win),
+                ] as const,
+            ),
+            reportError,
+          );
+        },
+      ],
+      ["menus", unregisterMenus],
+      ["shortcuts", unregisterShortcuts],
+      ["toolkit", () => ztoolkit.unregisterAll()],
+      [
+        "deactivateAddon",
+        () => {
+          addon.data.alive = false;
+        },
+      ],
+      [
+        "removeAddonInstance",
+        () => {
+          // @ts-expect-error - Plugin instance is not typed
+          delete Zotero[addon.data.config.addonInstance];
+        },
+      ],
+    ],
+    reportError,
+  );
 }
 
 function registerPrefs() {

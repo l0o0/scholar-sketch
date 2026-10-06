@@ -35,6 +35,24 @@ export class WhiteboardSessionRegistry {
   private readonly byItem = new Map<number, string>();
   private readonly byWindow = new WeakMap<Window, Set<string>>();
   private readonly itemOperations = new Map<number, Promise<unknown>>();
+  private readonly listeners = new Set<(itemID: number) => void>();
+
+  subscribe(listener: (itemID: number) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(itemID: number) {
+    for (const listener of [...this.listeners]) {
+      try {
+        listener(itemID);
+      } catch {
+        // One view must not block session mutations or other subscribers.
+      }
+    }
+  }
 
   /** Keep opening/loading a canvas and replacing its saved file mutually exclusive. */
   async withItemLock<T>(
@@ -77,6 +95,7 @@ export class WhiteboardSessionRegistry {
       this.byWindow.set(session.win, tabs);
     }
     tabs.add(session.tabID);
+    this.notify(session.itemID);
   }
 
   unregister(tabID: string) {
@@ -87,6 +106,7 @@ export class WhiteboardSessionRegistry {
     this.byTab.delete(tabID);
     this.byItem.delete(session.itemID);
     this.byWindow.get(session.win)?.delete(tabID);
+    this.notify(session.itemID);
   }
 
   sessionsForWindow(win: Window) {

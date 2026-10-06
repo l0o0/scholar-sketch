@@ -93,3 +93,44 @@ test("waiting drains operations queued after the wait starts", async () => {
   assert.equal(drained, true);
   assert.equal(registry.findByItem(1)?.tabID, "new-tab");
 });
+
+test("session subscribers see committed registry state on open and close", () => {
+  const registry = new WhiteboardSessionRegistry();
+  const win = {} as Window;
+  const current = session("subscribed-tab", win, 31);
+  const events: Array<{ itemID: number; open: boolean; tabs: number }> = [];
+  const unsubscribe = registry.subscribe((itemID) => {
+    const open = !!registry.findByItem(itemID);
+    assert.equal(!!registry.get(current.tabID), open);
+    events.push({ itemID, open, tabs: registry.sessionsForWindow(win).length });
+  });
+  registry.register(current);
+  registry.unregister(current.tabID);
+  registry.unregister(current.tabID);
+  assert.deepEqual(events, [
+    { itemID: 31, open: true, tabs: 1 },
+    { itemID: 31, open: false, tabs: 0 },
+  ]);
+  unsubscribe();
+  unsubscribe();
+  registry.register(current);
+  registry.unregister(current.tabID);
+  assert.equal(events.length, 2);
+});
+
+test("a failed session listener cannot block other open and close notifications", () => {
+  const registry = new WhiteboardSessionRegistry();
+  const current = session("listener-error", {} as Window, 32);
+  let attempted = 0;
+  registry.subscribe(() => {
+    attempted += 1;
+    throw new Error("A detached view failed");
+  });
+  const opened: boolean[] = [];
+  registry.subscribe((itemID) => opened.push(!!registry.findByItem(itemID)));
+  assert.doesNotThrow(() => registry.register(current));
+  assert.doesNotThrow(() => registry.unregister(current.tabID));
+  assert.equal(attempted, 2);
+  assert.deepEqual(opened, [true, false]);
+  assert.equal(registry.findByItem(current.itemID), undefined);
+});
