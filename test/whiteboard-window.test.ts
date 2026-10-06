@@ -673,6 +673,108 @@ test("tab to window rereads an external update while the replacement iframe load
   assert.equal(f.disk, serializeTransferDocument(f.latestDisk));
 });
 
+test("failed surface transfer cleans visibility subscriptions before the replacement tab is registered", async (t) => {
+  const f = setupTransfer(t, false);
+  f.oldSession.surface = "sidebar";
+  installTransferFrame(t, f.main, f.frames, () => {});
+  const originalDisk = f.disk;
+  const observers = new Set<string>();
+  const removedObservers: string[] = [];
+  Object.assign(Zotero.Notifier, {
+    registerObserver(_observer: unknown, types: string[], name: string) {
+      assert.deepEqual(types, ["tab"]);
+      assert.equal(name, "whiteboard-source-visibility");
+      observers.add("replacement-visibility");
+      return "replacement-visibility";
+    },
+    unregisterObserver(id: string) {
+      removedObservers.push(id);
+      observers.delete(id);
+    },
+  });
+
+  const visibilityListeners = new Set<unknown>();
+  const focusListeners = new Set<unknown>();
+  const addDocumentListener = f.main.document.addEventListener.bind(
+    f.main.document,
+  );
+  const removeDocumentListener = f.main.document.removeEventListener.bind(
+    f.main.document,
+  );
+  const addWindowListener = f.main.addEventListener.bind(f.main);
+  const removeWindowListener = f.main.removeEventListener.bind(f.main);
+  t.mock.method(
+    f.main.document,
+    "addEventListener",
+    (...args: Parameters<typeof f.main.document.addEventListener>) => {
+      if (args[0] === "visibilitychange") visibilityListeners.add(args[1]);
+      addDocumentListener(...args);
+    },
+  );
+  t.mock.method(
+    f.main.document,
+    "removeEventListener",
+    (...args: Parameters<typeof f.main.document.removeEventListener>) => {
+      if (args[0] === "visibilitychange") visibilityListeners.delete(args[1]);
+      removeDocumentListener(...args);
+    },
+  );
+  t.mock.method(
+    f.main,
+    "addEventListener",
+    (...args: Parameters<typeof f.main.addEventListener>) => {
+      if (args[0] === "focus") focusListeners.add(args[1]);
+      addWindowListener(...args);
+    },
+  );
+  t.mock.method(
+    f.main,
+    "removeEventListener",
+    (...args: Parameters<typeof f.main.removeEventListener>) => {
+      if (args[0] === "focus") focusListeners.delete(args[1]);
+      removeWindowListener(...args);
+    },
+  );
+  const read = Zotero.File.getContentsAsync.bind(Zotero.File);
+  let targetReads = 0;
+  t.mock.method(Zotero.File, "getContentsAsync", async (...args) => {
+    if (args[0] === f.oldSession.path && ++targetReads === 2) {
+      assert.equal(f.frames.length, 1, "the replacement iframe is ready");
+      assert.equal(whiteboardRegistry.get("transfer-tab-0"), undefined);
+      assert.equal(observers.size, 1);
+      assert.equal(visibilityListeners.size, 1);
+      assert.equal(focusListeners.size, 1);
+      throw new Error("Second transfer read failed");
+    }
+    return read(...args);
+  });
+
+  await assert.rejects(
+    openWhiteboardTab(f.item),
+    /Second transfer read failed/,
+  );
+  assert.equal(targetReads, 2);
+  assert.deepEqual(removedObservers, ["replacement-visibility"]);
+  assert.equal(observers.size, 0);
+  assert.equal(visibilityListeners.size, 0);
+  assert.equal(focusListeners.size, 0);
+  assert.deepEqual(f.nativeTabCloses, ["transfer-tab-0"]);
+  assert.deepEqual(whiteboardRegistry.all(), [f.oldSession]);
+  assert.equal(f.oldSession.view!.root.isConnected, true);
+  assert.equal(f.oldSession.view!.root.inert, false);
+  assert.equal(f.oldSession.transitioning, false);
+  assert.equal(f.destroys, 0);
+  assert.equal(f.closes, 0);
+  assert.deepEqual(
+    (await f.oldSession.editor!.requestSnapshot()).snapshot,
+    f.draft,
+  );
+  await f.oldSession.saveCoordinator!.request({ force: true });
+  assert.equal(f.sourceWrites, 0);
+  assert.equal(f.diskWrites, 0);
+  assert.equal(f.disk, originalDisk);
+});
+
 test(
   "DOMWindowClose cancels native close until its final snapshot is saved, then closes and refreshes the sidebar",
   { timeout: 2000 },

@@ -1,4 +1,5 @@
 import type { CanvasDocument } from "../model/document";
+import type { CanvasNode } from "../model/academic";
 import { parseCanvasDocument } from "../model/document";
 import type { CanvasFlowNode } from "../nodes";
 import { autoLayoutNodes } from "./layout";
@@ -99,9 +100,17 @@ export function searchCanvas(
   document: CanvasDocument,
   query: string,
 ): string[] {
+  return searchCanvasNodes(document.nodes, query);
+}
+
+/** Search node text directly; geometry, edges and binary payloads are not text. */
+export function searchCanvasNodes(
+  nodes: readonly CanvasNode[],
+  query: string,
+): string[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
-  return document.nodes
+  return nodes
     .filter((node) => {
       const data =
         node.kind === "note"
@@ -110,7 +119,9 @@ export function searchCanvas(
             ? Object.values(node.snapshot)
             : node.kind === "frame"
               ? [node.title]
-              : Object.values(node.data);
+              : Object.keys(node.data)
+                  .filter((key) => key !== "fileData" && key !== "image")
+                  .map((key) => node.data[key as keyof typeof node.data]);
       const text = data
         .filter((value) => typeof value === "string" || Array.isArray(value))
         .join(" ")

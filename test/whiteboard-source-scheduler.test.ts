@@ -63,6 +63,22 @@ function resolved(value: SourceResolutionJob): SourceResolutionResult {
   };
 }
 
+function resolvedNote(
+  value: SourceResolutionJob,
+  content: string,
+): SourceResolutionResult {
+  return {
+    nodeId: value.nodeId,
+    generation: value.generation,
+    status: "resolved",
+    acquisition: {
+      kind: "note",
+      source: { library: { type: "user" }, noteKey: value.cacheKey },
+      content,
+    },
+  };
+}
+
 test("starts selected, visible, then idle jobs with FIFO ordering", async () => {
   const gates = new Map(
     ["idle-1", "visible-1", "selected-1", "selected-2"].map((key) => [
@@ -297,6 +313,279 @@ test("invalidating a completed source makes explicit refresh perform a fresh loo
 
   assert.equal(runs, 2);
   assert.equal(emitted.length, 2);
+});
+
+test("LRU eviction keeps recently reused sources and refetches the oldest entry", async () => {
+  const runs: string[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    cacheMaxEntries: 2,
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      return resolved(next);
+    },
+    emit: () => undefined,
+  });
+  for (const key of ["a", "b", "a", "c", "a", "b"]) {
+    scheduler.enqueue(job(key, "visible"));
+    await flushMicrotasks();
+  }
+  assert.deepEqual(runs, ["a", "b", "c", "b"]);
+});
+
+test("the default cache holds at most 128 source entries", async () => {
+  const runs: string[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      return resolved(next);
+    },
+    emit: () => undefined,
+  });
+  for (let index = 0; index < 129; index++) {
+    scheduler.enqueue(job(`source-${index}`, "visible"));
+    await flushMicrotasks();
+  }
+  scheduler.enqueue(job("source-128", "selected"));
+  await flushMicrotasks();
+  assert.equal(runs.length, 129);
+  scheduler.enqueue(job("source-0", "selected"));
+  await flushMicrotasks();
+  assert.equal(runs.length, 130);
+  assert.equal(runs.at(-1), "source-0");
+});
+
+test("UTF16 note content evicts entries when the text budget fills", async () => {
+  const runs: string[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    cacheMaxBytes: 400,
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      // Each result fits individually; two 100-character notes exceed 400 bytes.
+      return resolvedNote(next, "中文".repeat(50));
+    },
+    emit: () => undefined,
+  });
+  for (const key of ["a", "b", "b", "a"]) {
+    scheduler.enqueue(job(key, "visible"));
+    await flushMicrotasks();
+  }
+  assert.deepEqual(runs, ["a", "b", "a"]);
+});
+
+test("nested metadata arrays count toward the cache text budget", async () => {
+  const runs: string[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    cacheMaxBytes: 400,
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      const result = resolved(next);
+      if (
+        result.status === "resolved" &&
+        result.acquisition.kind === "literature"
+      ) {
+        result.acquisition.snapshot.tags = ["标签".repeat(50)];
+      }
+      return result;
+    },
+    emit: () => undefined,
+  });
+  for (const key of ["a", "b", "b", "a"]) {
+    scheduler.enqueue(job(key, "visible"));
+    await flushMicrotasks();
+  }
+  assert.deepEqual(runs, ["a", "b", "a"]);
+});
+
+test("oversized results bypass the default 2MiB cache without evicting small sources", async () => {
+  const runs: string[] = [];
+  const largeText = "文".repeat(1024 * 1024 + 1);
+  const scheduler = new ProgressiveSourceScheduler({
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      return next.cacheKey === "large"
+        ? resolvedNote(next, largeText)
+        : resolved(next);
+    },
+    emit: () => undefined,
+  });
+  for (const key of ["small", "large", "small", "large", "small"]) {
+    scheduler.enqueue(job(key, "visible"));
+    await flushMicrotasks();
+  }
+  assert.deepEqual(runs, ["small", "large", "large"]);
+});
+
+test("invalidation releases the text budget for new cache entries", async () => {
+  const runs: string[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    cacheMaxBytes: 400,
+    run: async (next) => {
+      runs.push(next.cacheKey);
+      return resolvedNote(next, "文".repeat(100));
+    },
+    emit: () => undefined,
+  });
+  scheduler.enqueue(job("a", "visible"));
+  await flushMicrotasks();
+  scheduler.invalidate("a");
+  scheduler.invalidate("a");
+  for (const key of ["b", "b", "a"]) {
+    scheduler.enqueue(job(key, "visible"));
+    await flushMicrotasks();
+  }
+  assert.deepEqual(runs, ["a", "b", "a"]);
+});
+
+test("cache limits accept zero to disable caching and reject invalid values", async () => {
+  for (const limit of [-1, 0.5, NaN, Infinity]) {
+    for (const name of ["cacheMaxEntries", "cacheMaxBytes"] as const) {
+      assert.throws(
+        () =>
+          new ProgressiveSourceScheduler({
+            [name]: limit,
+            run: async (next) => resolved(next),
+            emit: () => undefined,
+          }),
+        /cache limits/,
+      );
+    }
+  }
+  for (const name of ["cacheMaxEntries", "cacheMaxBytes"] as const) {
+    let runs = 0;
+    const scheduler = new ProgressiveSourceScheduler({
+      [name]: 0,
+      run: async (next) => {
+        runs += 1;
+        return resolved(next);
+      },
+      emit: () => undefined,
+    });
+    for (let index = 0; index < 2; index++) {
+      scheduler.enqueue(job("uncached", "selected"));
+      await flushMicrotasks();
+    }
+    assert.equal(runs, 2);
+  }
+});
+
+test("pause preserves and coalesces pending jobs, then resumes priority FIFO", async () => {
+  const started: string[] = [];
+  const emitted: SourceResolutionResult[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    concurrency: 1,
+    run: async (next) => {
+      started.push(next.cacheKey);
+      return resolved(next);
+    },
+    emit: (results) => emitted.push(...results),
+  });
+  scheduler.setPaused(true);
+  scheduler.enqueue(job("idle", "idle"));
+  scheduler.enqueue(job("visible", "visible"));
+  scheduler.enqueue(job("selected-1", "selected"));
+  scheduler.enqueue(job("selected-2", "selected"));
+  scheduler.enqueue(job("selected-1", "visible", { nodeId: "shared-copy" }));
+  await flushMicrotasks();
+  assert.deepEqual(started, []);
+  scheduler.setPaused(false);
+  scheduler.setPaused(false);
+  await flushMicrotasks(32);
+  assert.deepEqual(started, ["selected-1", "selected-2", "visible", "idle"]);
+  assert.equal(emitted.length, 5);
+  assert.ok(emitted.some(({ nodeId }) => nodeId === "shared-copy"));
+});
+
+test("pausing lets in-flight results finish and cached replies arrive without starting queued work", async () => {
+  const gate = deferred<SourceResolutionResult>();
+  const started: string[] = [];
+  const emitted: SourceResolutionResult[] = [];
+  const active = job("active", "selected");
+  const scheduler = new ProgressiveSourceScheduler({
+    concurrency: 1,
+    run: (next) => {
+      started.push(next.cacheKey);
+      return next.cacheKey === "active"
+        ? gate.promise
+        : Promise.resolve(resolved(next));
+    },
+    emit: (results) => emitted.push(...results),
+  });
+  scheduler.enqueue(active);
+  scheduler.enqueue(job("queued", "visible"));
+  await flushMicrotasks();
+  scheduler.setPaused(true);
+  gate.resolve(resolved(active));
+  await flushMicrotasks();
+  assert.deepEqual(started, ["active"]);
+  assert.deepEqual(
+    emitted.map(({ nodeId }) => nodeId),
+    ["active-node"],
+  );
+  scheduler.enqueue(job("active", "visible", { nodeId: "cached-copy" }));
+  await flushMicrotasks();
+  assert.deepEqual(started, ["active"]);
+  assert.equal(emitted.at(-1)?.nodeId, "cached-copy");
+  scheduler.setPaused(false);
+  await flushMicrotasks();
+  assert.deepEqual(started, ["active", "queued"]);
+  assert.equal(emitted.at(-1)?.nodeId, "queued-node");
+});
+
+test("cancelling a generation while paused preserves a shared in-flight lookup for current waiters", async () => {
+  const gate = deferred<SourceResolutionResult>();
+  const old = job("shared", "selected", { generation: 1 });
+  const started: string[] = [];
+  const emitted: SourceResolutionResult[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    concurrency: 1,
+    run: (next) => {
+      started.push(next.cacheKey);
+      return next.cacheKey === "shared"
+        ? gate.promise
+        : Promise.resolve(resolved(next));
+    },
+    emit: (results) => emitted.push(...results),
+  });
+  scheduler.enqueue(old);
+  scheduler.enqueue(job("old-queued", "visible", { generation: 1 }));
+  await flushMicrotasks();
+  scheduler.setPaused(true);
+  scheduler.enqueue(
+    job("shared", "selected", { nodeId: "current-copy", generation: 2 }),
+  );
+  scheduler.enqueue(job("current", "idle", { generation: 2 }));
+  scheduler.cancelGeneration(1);
+  gate.resolve(resolved(old));
+  await flushMicrotasks();
+  assert.deepEqual(started, ["shared"]);
+  assert.deepEqual(
+    emitted.map(({ nodeId, generation }) => [nodeId, generation]),
+    [["current-copy", 2]],
+  );
+  scheduler.setPaused(false);
+  await flushMicrotasks();
+  assert.deepEqual(started, ["shared", "current"]);
+  assert.equal(emitted.at(-1)?.nodeId, "current-node");
+});
+
+test("disposing a paused scheduler releases its queue and cannot resume it", async () => {
+  const started: string[] = [];
+  const emitted: SourceResolutionResult[] = [];
+  const scheduler = new ProgressiveSourceScheduler({
+    run: async (next) => {
+      started.push(next.cacheKey);
+      return resolved(next);
+    },
+    emit: (results) => emitted.push(...results),
+  });
+  scheduler.setPaused(true);
+  scheduler.enqueue(job("pending", "selected"));
+  scheduler.dispose();
+  scheduler.setPaused(false);
+  scheduler.enqueue(job("after-dispose", "selected"));
+  await flushMicrotasks();
+  assert.deepEqual(started, []);
+  assert.deepEqual(emitted, []);
 });
 
 test("a rejected lookup fans out unavailable results and continues the queue", async () => {

@@ -1,4 +1,4 @@
-import { createElement, Fragment, type ComponentType } from "react";
+import { createElement, Fragment, memo, type ComponentType } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
 import {
   ACADEMIC_SOURCE_CARD_SIZE,
@@ -123,23 +123,26 @@ export function getNodeSpec(kind: CanvasNodeKind): WhiteboardNodeSpec {
 }
 
 export const canvasNodeTypes = Object.fromEntries(
-  NODE_SPECS.map((spec) => [
-    spec.kind,
-    (props: NodeProps<CanvasFlowNode>) =>
-      createElement(
-        Fragment,
-        null,
-        createElement(spec.Component, props),
-        spec.kind !== "line" && spec.kind !== "arrow"
-          ? createElement(NodeResizer, {
-              isVisible: Boolean(props.selected && props.isConnectable),
-              minWidth: spec.kind === "frame" ? 160 : 60,
-              minHeight: spec.kind === "frame" ? 100 : 40,
-              handleClassName: "zmd-board-resize-handle",
-              lineClassName: "zmd-board-resize-line",
-              color: "var(--zmd-board-accent, #2563eb)",
-            })
-          : null,
-      ),
-  ]),
+  NODE_SPECS.map((spec) => {
+    const Component = memo(spec.Component);
+    return [
+      spec.kind,
+      (props: NodeProps<CanvasFlowNode>) =>
+        createElement(
+          Fragment,
+          null,
+          createElement(Component, props),
+          spec.kind !== "line" && spec.kind !== "arrow"
+            ? createElement(NodeResizer, {
+                isVisible: Boolean(props.selected && props.isConnectable),
+                minWidth: spec.kind === "frame" ? 160 : 60,
+                minHeight: spec.kind === "frame" ? 100 : 40,
+                handleClassName: "zmd-board-resize-handle",
+                lineClassName: "zmd-board-resize-line",
+                color: "var(--zmd-board-accent, #2563eb)",
+              })
+            : null,
+        ),
+    ];
+  }),
 ) as Record<CanvasNodeKind, WhiteboardNodeSpec["Component"]>;

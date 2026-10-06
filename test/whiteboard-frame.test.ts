@@ -10,9 +10,13 @@ import {
   moveNodesInDocument,
   settleFrameDragState,
   updateFrameDrag,
+  updateFrameDragFlowNodes,
   updateFrameDragState,
 } from "../packages/whiteboard/src/whiteboard/frame.ts";
 import { parseCanvasDocument } from "../packages/whiteboard/src/model/document.ts";
+import type { CanvasNode } from "../packages/whiteboard/src/model/academic.ts";
+import type { CanvasFlowNode } from "../packages/whiteboard/src/nodes/types.ts";
+import { flowToCanvasDocument } from "../packages/whiteboard/src/whiteboard/document.ts";
 
 const fixture = () =>
   parseCanvasDocument({
@@ -69,6 +73,24 @@ const fixture = () =>
     metadata: { title: "Review" },
     extensions: { retained: { root: true } },
   }).document;
+
+const flowFixture = (): CanvasFlowNode[] =>
+  fixture().nodes.map((model) => ({
+    id: model.id,
+    type: model.kind,
+    position: { ...model.position },
+    width: model.width,
+    height: model.height,
+    measured: { width: model.width, height: model.height },
+    selected: model.id === "note-overlap",
+    hidden: model.id === "note-claim-1",
+    style: { opacity: 0.9 },
+    data: { model, extra: { retained: model.id } },
+  }));
+
+function assignedFrame(node: CanvasNode | undefined): string | undefined {
+  return node && node.kind !== "frame" ? node.frameId : undefined;
+}
 
 test("moving a frame applies the same absolute delta to direct members", () => {
   const original = fixture();
@@ -231,21 +253,138 @@ test("an ending Frame drag suppresses terminal positions and duplicate changes",
   assert.equal(ordinaryStop.notify, true);
 });
 
+test("Flow frame dragging moves members and independent selection while preserving node payload identities", () => {
+  const nodes = flowFixture();
+  const state = beginFrameDragState(fixture(), ["frame-1", "note-overlap"]);
+  assert.ok(state);
+  const moved = updateFrameDragFlowNodes(nodes, state, [
+    { id: "frame-1", position: { x: 100, y: 80 } },
+    { id: "note-overlap", position: { x: 95, y: 105 } },
+  ]);
+  assert.deepEqual(moved.nodes[0].position, { x: 100, y: 80 });
+  assert.deepEqual(moved.nodes[1].position, { x: 140, y: 140 });
+  assert.deepEqual(moved.nodes[2].position, { x: 95, y: 105 });
+  for (const index of [0, 1, 2]) {
+    assert.notEqual(moved.nodes[index], nodes[index]);
+    assert.equal(moved.nodes[index].data, nodes[index].data);
+    assert.equal(moved.nodes[index].data.model, nodes[index].data.model);
+    assert.equal(moved.nodes[index].measured, nodes[index].measured);
+    assert.equal(moved.nodes[index].style, nodes[index].style);
+    assert.equal(moved.nodes[index].selected, nodes[index].selected);
+    assert.equal(moved.nodes[index].hidden, nodes[index].hidden);
+    assert.equal(moved.nodes[index].width, nodes[index].width);
+    assert.equal(moved.nodes[index].height, nodes[index].height);
+  }
+  assert.equal(moved.nodes[3], nodes[3]);
+  assert.equal(moved.nodes[4], nodes[4]);
+  assert.deepEqual(nodes[1].position, { x: 40, y: 60 });
+  assert.deepEqual(moved.nodes[1].data.model.position, { x: 40, y: 60 });
+  const saved = flowToCanvasDocument(moved.nodes, [], { x: 0, y: 0, zoom: 1 });
+  assert.deepEqual(saved.nodes[1].position, { x: 140, y: 140 });
+});
+
+test("Flow frame geometry takes current ids and positions over stale embedded models", () => {
+  const nodes = flowFixture();
+  const state = beginFrameDragState(fixture(), ["frame-1", "frame-2"]);
+  assert.ok(state);
+  nodes[0] = {
+    ...nodes[0],
+    position: { x: 100, y: 80 },
+    data: {
+      ...nodes[0].data,
+      model: {
+        ...nodes[0].data.model,
+        id: "stale-frame-model",
+        position: { x: -500, y: -500 },
+      },
+    },
+  };
+  nodes[1] = {
+    ...nodes[1],
+    data: {
+      ...nodes[1].data,
+      model: { ...nodes[1].data.model, position: { x: -20, y: -20 } },
+    },
+  };
+  const moved = updateFrameDragFlowNodes(nodes, state, [
+    { id: "frame-1", position: { x: 100, y: 80 } },
+    { id: "frame-2", position: { x: 660, y: 50 } },
+  ]);
+  assert.equal(
+    moved.nodes[0],
+    nodes[0],
+    "Frame already received its Flow position",
+  );
+  assert.deepEqual(moved.nodes[1].position, { x: 140, y: 140 });
+  assert.deepEqual(moved.nodes[4].position, { x: 700, y: 90 });
+  assert.equal(moved.nodes[1].data, nodes[1].data);
+  assert.equal(moved.nodes[2], nodes[2]);
+  assert.deepEqual(moved.state.session.previousPositions, {
+    "frame-1": { x: 100, y: 80 },
+    "frame-2": { x: 660, y: 50 },
+  });
+});
+
+test("continuous Flow frame dragging advances members once and respects absolute selected-member positions", () => {
+  const nodes = flowFixture();
+  const state = beginFrameDragState(fixture(), ["frame-1", "note-claim-1"]);
+  assert.ok(state);
+  const first = updateFrameDragFlowNodes(nodes, state, [
+    { id: "frame-1", position: { x: 100, y: 80 } },
+    { id: "note-claim-1", position: { x: 150, y: 145 } },
+  ]);
+  const second = updateFrameDragFlowNodes(first.nodes, first.state, [
+    { id: "frame-1", position: { x: 120, y: 100 } },
+    { id: "note-claim-1", position: { x: 170, y: 165 } },
+  ]);
+  assert.deepEqual(first.nodes[1].position, { x: 150, y: 145 });
+  assert.deepEqual(second.nodes[1].position, { x: 170, y: 165 });
+  const third = updateFrameDragFlowNodes(second.nodes, second.state, [
+    { id: "frame-1", position: { x: 140, y: 120 } },
+  ]);
+  assert.deepEqual(third.nodes[1].position, { x: 190, y: 185 });
+  assert.equal(third.nodes[1].data, nodes[1].data);
+  assert.equal(third.nodes[2], nodes[2]);
+  assert.equal(third.nodes[3], nodes[3]);
+  assert.equal(third.nodes[4], nodes[4]);
+});
+
+test("unchanged and ending Flow frame drags preserve the original node array", () => {
+  const nodes = flowFixture();
+  const state = beginFrameDragState(fixture(), ["frame-1"]);
+  assert.ok(state);
+  const unchanged = updateFrameDragFlowNodes(nodes, state, [
+    { id: "frame-1", position: { x: 0, y: 0 } },
+  ]);
+  assert.equal(unchanged.nodes, nodes);
+  const settled = settleFrameDragState(unchanged.state);
+  assert.equal(settled.notify, true);
+  const ending = updateFrameDragFlowNodes(nodes, settled.state!, [
+    { id: "frame-1", position: { x: 500, y: 400 } },
+  ]);
+  assert.equal(ending.nodes, nodes);
+  assert.equal(ending.state, settled.state);
+  assert.deepEqual(finishFrameDragState(ending.state), {
+    state: undefined,
+    notify: false,
+  });
+});
+
 test("assignment uses explicit membership and supports detaching", () => {
   const original = fixture();
   const assigned = assignNodeToFrame(original, "note-overlap", "frame-1");
   const detached = assignNodeToFrame(assigned, "note-overlap", undefined);
 
   assert.equal(
-    assigned.nodes.find((node) => node.id === "note-overlap")?.frameId,
+    assignedFrame(assigned.nodes.find((node) => node.id === "note-overlap")),
     "frame-1",
   );
   assert.equal(
-    detached.nodes.find((node) => node.id === "note-overlap")?.frameId,
+    assignedFrame(detached.nodes.find((node) => node.id === "note-overlap")),
     undefined,
   );
   assert.equal(
-    original.nodes.find((node) => node.id === "note-overlap")?.frameId,
+    assignedFrame(original.nodes.find((node) => node.id === "note-overlap")),
     undefined,
   );
   assert.deepEqual(detached.metadata, original.metadata);
@@ -269,9 +408,9 @@ test("deleting a frame detaches and preserves members", () => {
   const member = deleted.nodes.find((node) => node.id === "note-claim-1");
 
   assert.equal(deleted.nodes.length, original.nodes.length - 1);
-  assert.equal(member?.frameId, undefined);
+  assert.equal(assignedFrame(member), undefined);
   assert.deepEqual(member?.extensions, { retained: "member" });
-  assert.equal(original.nodes[1].frameId, "frame-1");
+  assert.equal(assignedFrame(original.nodes[1]), "frame-1");
   assert.deepEqual(deleted.metadata, original.metadata);
   assert.deepEqual(deleted.extensions, original.extensions);
 });

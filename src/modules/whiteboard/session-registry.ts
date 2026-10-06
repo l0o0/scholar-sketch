@@ -27,6 +27,7 @@ export interface WhiteboardSession {
   closing?: boolean;
   autosaveTimer?: number;
   unbindTheme?: () => void;
+  unbindSourceVisibility?: () => void;
   unsubscribeTemplates?: () => void;
 }
 
@@ -101,6 +102,8 @@ export class WhiteboardSessionRegistry {
   unregister(tabID: string) {
     const session = this.byTab.get(tabID);
     if (!session) return;
+    session.unbindSourceVisibility?.();
+    session.unbindSourceVisibility = undefined;
     session.sourceScheduler?.dispose();
     session.unsubscribeTemplates?.();
     this.byTab.delete(tabID);

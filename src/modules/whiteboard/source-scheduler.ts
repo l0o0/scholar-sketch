@@ -22,6 +22,11 @@ interface PendingSource {
   waiters: Map<string, SourceResolutionJob>;
 }
 
+interface CachedSource {
+  result: SourceResolutionResult;
+  textBytes: number;
+}
+
 const PRIORITY_ORDER: Record<SourcePriority, number> = {
   selected: 0,
   visible: 1,
@@ -30,12 +35,14 @@ const PRIORITY_ORDER: Record<SourcePriority, number> = {
 
 export class ProgressiveSourceScheduler {
   private readonly concurrency: number;
+  private readonly cacheMaxEntries: number;
+  private readonly cacheMaxBytes: number;
   private readonly runJob: (
     job: SourceResolutionJob,
   ) => Promise<SourceResolutionResult>;
   private readonly emitResults: (results: SourceResolutionResult[]) => void;
   private readonly pending = new Map<string, PendingSource>();
-  private readonly completed = new Map<string, SourceResolutionResult>();
+  private readonly completed = new Map<string, CachedSource>();
   private readonly cancelledGenerations = new Set<number>();
   private completionBatch: SourceResolutionResult[] = [];
   private active = 0;
@@ -43,9 +50,13 @@ export class ProgressiveSourceScheduler {
   private pumpScheduled = false;
   private emitScheduled = false;
   private disposed = false;
+  private paused = false;
+  private cachedTextBytes = 0;
 
   constructor(options: {
     concurrency?: number;
+    cacheMaxEntries?: number;
+    cacheMaxBytes?: number;
     run(job: SourceResolutionJob): Promise<SourceResolutionResult>;
     emit(results: SourceResolutionResult[]): void;
   }) {
@@ -56,6 +67,16 @@ export class ProgressiveSourceScheduler {
       );
     }
     this.concurrency = concurrency;
+    this.cacheMaxEntries = options.cacheMaxEntries ?? 128;
+    this.cacheMaxBytes = options.cacheMaxBytes ?? 2 * 1024 * 1024;
+    if (
+      !Number.isSafeInteger(this.cacheMaxEntries) ||
+      this.cacheMaxEntries < 0 ||
+      !Number.isSafeInteger(this.cacheMaxBytes) ||
+      this.cacheMaxBytes < 0
+    ) {
+      throw new Error("Source cache limits must be nonnegative integers.");
+    }
     this.runJob = options.run;
     this.emitResults = options.emit;
   }
@@ -65,7 +86,9 @@ export class ProgressiveSourceScheduler {
 
     const cached = this.completed.get(job.cacheKey);
     if (cached) {
-      this.queueCompletion(copyResultForJob(cached, job));
+      this.completed.delete(job.cacheKey);
+      this.completed.set(job.cacheKey, cached);
+      this.queueCompletion(copyResultForJob(cached.result, job));
       return;
     }
 
@@ -105,7 +128,13 @@ export class ProgressiveSourceScheduler {
 
   invalidate(cacheKey: string): void {
     if (this.disposed) return;
-    this.completed.delete(cacheKey);
+    this.removeCached(cacheKey);
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.disposed || this.paused === paused) return;
+    this.paused = paused;
+    if (!paused) this.schedulePump();
   }
 
   cancelGeneration(generation: number): void {
@@ -135,11 +164,13 @@ export class ProgressiveSourceScheduler {
     this.disposed = true;
     this.pending.clear();
     this.completed.clear();
+    this.cachedTextBytes = 0;
+    this.cancelledGenerations.clear();
     this.completionBatch = [];
   }
 
   private schedulePump() {
-    if (this.disposed || this.pumpScheduled) return;
+    if (this.disposed || this.paused || this.pumpScheduled) return;
     this.pumpScheduled = true;
     scheduleMicrotask(() => {
       this.pumpScheduled = false;
@@ -148,15 +179,19 @@ export class ProgressiveSourceScheduler {
   }
 
   private pump() {
-    if (this.disposed) return;
-    while (this.active < this.concurrency) {
-      const next = [...this.pending.values()]
-        .filter((source) => !source.running && source.waiters.size > 0)
-        .sort(
-          (left, right) =>
-            PRIORITY_ORDER[left.priority] - PRIORITY_ORDER[right.priority] ||
-            left.sequence - right.sequence,
-        )[0];
+    if (this.disposed || this.paused) return;
+    while (!this.disposed && !this.paused && this.active < this.concurrency) {
+      let next: PendingSource | undefined;
+      for (const source of this.pending.values()) {
+        if (source.running || !source.waiters.size) continue;
+        if (
+          !next ||
+          PRIORITY_ORDER[source.priority] < PRIORITY_ORDER[next.priority] ||
+          (source.priority === next.priority && source.sequence < next.sequence)
+        ) {
+          next = source;
+        }
+      }
       if (!next) return;
       this.start(next);
     }
@@ -197,13 +232,37 @@ export class ProgressiveSourceScheduler {
     );
     if (result && activeWaiters.length) {
       if (result.status === "resolved") {
-        this.completed.set(source.cacheKey, result);
+        this.remember(source.cacheKey, result);
       }
       for (const waiter of activeWaiters) {
         this.queueCompletion(copyResultForJob(result, waiter));
       }
     }
     this.pump();
+  }
+
+  private removeCached(cacheKey: string) {
+    const cached = this.completed.get(cacheKey);
+    if (!cached) return;
+    this.cachedTextBytes -= cached.textBytes;
+    this.completed.delete(cacheKey);
+  }
+
+  private remember(cacheKey: string, result: SourceResolutionResult) {
+    this.removeCached(cacheKey);
+    const textBytes = utf16TextBytes(result) + cacheKey.length * 2;
+    if (!this.cacheMaxEntries || textBytes > this.cacheMaxBytes) return;
+
+    while (
+      this.completed.size >= this.cacheMaxEntries ||
+      this.cachedTextBytes + textBytes > this.cacheMaxBytes
+    ) {
+      const oldest = this.completed.keys().next().value;
+      if (oldest === undefined) return;
+      this.removeCached(oldest);
+    }
+    this.completed.set(cacheKey, { result, textBytes });
+    this.cachedTextBytes += textBytes;
   }
 
   private queueCompletion(result: SourceResolutionResult) {
@@ -223,6 +282,16 @@ export class ProgressiveSourceScheduler {
       if (batch.length) this.emitResults(batch);
     });
   }
+}
+
+/** Protocol results contain text, metadata and arrays, without binary buffers. */
+function utf16TextBytes(value: unknown): number {
+  if (typeof value === "string") return value.length * 2;
+  if (!value || typeof value !== "object") return 0;
+  return Object.values(value).reduce(
+    (total: number, child: unknown) => total + utf16TextBytes(child),
+    0,
+  );
 }
 
 function highestPriority(jobs: Iterable<SourceResolutionJob>): SourcePriority {

@@ -1,6 +1,7 @@
 import type { CanvasNode } from "../model/academic";
 import type { CanvasPoint } from "../model/core";
 import type { CanvasDocument } from "../model/document";
+import type { CanvasFlowNode } from "../nodes/types";
 
 export interface CanvasNodePositionUpdate {
   id: string;
@@ -23,6 +24,11 @@ export interface FrameDragState {
 
 export interface FrameDragStateUpdate {
   document: CanvasDocument;
+  state: FrameDragState;
+}
+
+export interface FrameDragFlowNodesUpdate {
+  nodes: CanvasFlowNode[];
   state: FrameDragState;
 }
 
@@ -185,6 +191,36 @@ export function updateFrameDragState(
     document: moved.document,
     state: { ...state, session: moved.session },
   };
+}
+
+/** Frame movement needs geometry and membership, without serializing content or edges. */
+export function updateFrameDragFlowNodes(
+  nodes: CanvasFlowNode[],
+  state: FrameDragState,
+  updates: readonly CanvasNodePositionUpdate[],
+): FrameDragFlowNodesUpdate {
+  if (state.phase === "ending") return { nodes, state };
+  const geometry: CanvasDocument = {
+    version: 2,
+    nodes: nodes.map((node) => ({
+      ...node.data.model,
+      id: node.id,
+      position: node.position,
+    })),
+    connections: [],
+  };
+  const moved = updateFrameDragState(geometry, state, updates);
+  let changed = false;
+  // The frame algorithm preserves node order and count.
+  const positioned = nodes.map((node, index) => {
+    const position = moved.document.nodes[index].position;
+    if (node.position.x === position.x && node.position.y === position.y) {
+      return node;
+    }
+    changed = true;
+    return { ...node, position };
+  });
+  return { nodes: changed ? positioned : nodes, state: moved.state };
 }
 
 export function settleFrameDragState(

@@ -4,7 +4,7 @@ import {
   serializeSelection,
   parseSelection,
   layoutSelection,
-  searchCanvas,
+  searchCanvasNodes,
 } from "./selection";
 import { THEME_TOKENS, UI_METRICS } from "../../../../src/ui/theme";
 /// <reference lib="dom" />
@@ -171,7 +171,6 @@ import {
   beginNodeEditing,
   canvasDocumentToFlow,
   flowNodeText,
-  flowToCanvasDocument,
   applyCanvasNodeChanges,
   labelTextStyle,
   nodeTextStyle,
@@ -191,7 +190,7 @@ import {
   finishFrameDragState,
   moveNodesInDocument,
   settleFrameDragState,
-  updateFrameDragState,
+  updateFrameDragFlowNodes,
   type FrameDragState,
 } from "./frame";
 import {
@@ -1092,11 +1091,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const [searchIndex, setSearchIndex] = useState(-1);
   const searchResults = useMemo(
     () =>
-      searchCanvas(
-        flowToCanvasDocument(nodes, edges, viewportRef.current),
-        searchQuery,
-      ),
-    [nodes, edges, searchQuery],
+      searchOpen && searchQuery.trim()
+        ? searchCanvasNodes(
+            nodes.map((node) => node.data.model),
+            searchQuery,
+          )
+        : [],
+    [nodes, searchOpen, searchQuery],
   );
   const focusSearchResult = (index: number) => {
     const id = searchResults[index];
@@ -1740,32 +1741,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
       if (drag?.phase === "active" && positionUpdates.length) {
         setNodes((current) => {
-          const currentDocument = flowToCanvasDocument(
+          const moved = updateFrameDragFlowNodes(
             current,
-            edgesRef.current,
-            viewportRef.current,
-            shellRef.current,
-          );
-          const moved = updateFrameDragState(
-            currentDocument,
             drag,
             positionUpdates,
           );
           frameDragRef.current = moved.state;
-          const movedById = new Map(
-            moved.document.nodes.map((node) => [node.id, node]),
-          );
-          const movedNodes = current.map((node) => {
-            const model = movedById.get(node.id);
-            return model
-              ? {
-                  ...node,
-                  position: model.position,
-                  data: { ...node.data, model },
-                }
-              : node;
-          });
-          return applyCanvasNodeChanges(retainedChanges, movedNodes);
+          return applyCanvasNodeChanges(retainedChanges, moved.nodes);
         });
       } else {
         setNodes((current) => applyCanvasNodeChanges(retainedChanges, current));

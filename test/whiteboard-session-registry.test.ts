@@ -44,6 +44,7 @@ test("unregistering a session disposes its scheduler and template subscription",
   const registry = new WhiteboardSessionRegistry();
   let disposed = 0;
   let unsubscribed = 0;
+  let visibilityUnbound = 0;
   const current = session("tab-source", {} as Window, 21);
   current.sourceScheduler = {
     dispose: () => {
@@ -53,6 +54,9 @@ test("unregistering a session disposes its scheduler and template subscription",
   current.unsubscribeTemplates = () => {
     unsubscribed += 1;
   };
+  current.unbindSourceVisibility = () => {
+    visibilityUnbound += 1;
+  };
   registry.register(current);
 
   registry.unregister(current.tabID);
@@ -60,6 +64,8 @@ test("unregistering a session disposes its scheduler and template subscription",
 
   assert.equal(disposed, 1);
   assert.equal(unsubscribed, 1);
+  assert.equal(visibilityUnbound, 1);
+  assert.equal(current.unbindSourceVisibility, undefined);
 });
 
 test("waiting drains operations queued after the wait starts", async () => {

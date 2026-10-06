@@ -32,6 +32,7 @@ import {
   type AnnotationListFailure,
 } from "./protocol";
 import { WhiteboardSaveCoordinator } from "./save-coordinator";
+import { bindWhiteboardSourceVisibility } from "./source-visibility";
 import { captureWhiteboardSurfaceTransfer } from "./surface-transfer";
 import { whiteboardRegistry, type WhiteboardSession } from "./session-registry";
 import { WHITEBOARD_TAB_TYPE } from "./tabHooks";
@@ -150,13 +151,16 @@ function refreshTabTitle(session: WhiteboardSession) {
   if (session.surface === "sidebar") return;
   const dirty = isDirty(session) ? " *" : "";
   if (session.surface === "window") {
-    session.win.document.title = `${session.title}${dirty} · Scholar Sketch`;
+    const title = `${session.title}${dirty} · Scholar Sketch`;
+    if (session.win.document.title !== title)
+      session.win.document.title = title;
     return;
   }
   const tabs = (session.win as _ZoteroTypes.MainWindow).Zotero_Tabs;
   const { tab } = tabs._getTab(session.tabID) || {};
-  if (!tab) return;
-  tab.title = `${session.title}${dirty}`;
+  const title = `${session.title}${dirty}`;
+  if (!tab || tab.title === title) return;
+  tab.title = title;
   try {
     (tabs as any)._update?.();
   } catch {
@@ -972,6 +976,7 @@ function mountWhiteboardUI(
       }
     },
   });
+  session.unbindSourceVisibility = bindWhiteboardSourceVisibility(session);
   session.saveCoordinator = new WhiteboardSaveCoordinator({
     initialDocument: initialSnapshot,
     getSnapshot: async () => {
@@ -1643,6 +1648,10 @@ async function mountWhiteboardSurface(
 function disposeWhiteboardSession(session: WhiteboardSession) {
   session.closing = true;
   try {
+    // Mount can fail before registration; the registry cannot clean that session.
+    const unbindVisibility = session.unbindSourceVisibility;
+    session.unbindSourceVisibility = undefined;
+    unbindVisibility?.();
     if (session.autosaveTimer) session.win.clearTimeout(session.autosaveTimer);
     session.unbindTheme?.();
     session.unsubscribeTemplates?.();

@@ -16,6 +16,8 @@ import {
 } from "../packages/whiteboard/src/whiteboard/export.ts";
 
 const PDF_DATA = "data:application/pdf;base64,JVBERi0=";
+const PNG_DATA =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l18AAAAASUVORK5CYII=";
 
 test("embedded attachment bytes survive a JSON Canvas round trip", () => {
   const document = {
@@ -100,4 +102,113 @@ test("legacy PDF image fields remain readable and unsafe URLs are not exported",
     "application/pdf",
   );
   assert.equal(isSafeImagePreview("https://example.invalid/figure.png"), false);
+});
+
+test("non-image MIME headers reject previews without decoding their payload", (t) => {
+  const decode = t.mock.method(globalThis, "atob", () => {
+    throw new Error("Non-image preview must not decode original bytes");
+  });
+  for (const mimeType of [
+    "application/pdf",
+    "application/octet-stream",
+    "text/plain",
+    "text/html",
+    "audio/mpeg",
+    "video/mp4",
+    "image/unsupported",
+    "image/png+xml",
+  ]) {
+    assert.equal(isSafeImagePreview(`data:${mimeType};base64,JVBERi0=`), false);
+    assert.equal(
+      isSafeImagePreview(`data:${mimeType};charset=utf-8;base64,JVBERi0=`),
+      false,
+    );
+  }
+  assert.equal(
+    isSafeImagePreview("data:application/pdf;image/png;base64,JVBERi0="),
+    false,
+  );
+  assert.equal(isSafeImagePreview(undefined), false);
+  assert.equal(isSafeImagePreview("https://example.invalid/image.png"), false);
+  assert.equal(decode.mock.callCount(), 0);
+});
+
+test("supported raster previews retain base64 validation and MIME parameters", (t) => {
+  const originalDecode = globalThis.atob;
+  const decode = t.mock.method(globalThis, "atob", originalDecode);
+  assert.equal(isSafeImagePreview(PNG_DATA), true);
+  assert.equal(
+    isSafeImagePreview(
+      PNG_DATA.replace("image/png;", "IMAGE/PNG;charset=utf-8;"),
+    ),
+    true,
+  );
+  assert.equal(decode.mock.callCount(), 2);
+  for (const source of [
+    "data:image/png;base64,A===",
+    "data:image/png;base64,AQ=",
+    "data:image/png;base64,%%%",
+    "data:image/png;charset utf-8;base64,AQ==",
+    "data:image/png;base64;charset=utf-8,AQ==",
+    "data:image/png;application/pdf;base64,AQ==",
+    "data:image/png,%89PNG",
+  ]) {
+    assert.equal(isSafeImagePreview(source), false, source);
+  }
+  assert.equal(
+    decode.mock.callCount(),
+    2,
+    "malformed images never reach decoding",
+  );
+});
+
+test("oversized raster and SVG payloads are rejected before decoding", (t) => {
+  const decode = t.mock.method(globalThis, "atob", () => {
+    throw new Error("Oversized preview must not decode");
+  });
+  const payload = Buffer.alloc(MAX_ATTACHMENT_BYTES + 1).toString("base64");
+  for (const mimeType of ["image/png", "image/svg+xml"]) {
+    assert.equal(
+      isSafeImagePreview(`data:${mimeType};base64,${payload}`),
+      false,
+    );
+  }
+  assert.equal(decode.mock.callCount(), 0);
+});
+
+test("SVG previews keep their inert-source checks in base64 and URI encodings", () => {
+  const safe =
+    '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0Z"/></svg>';
+  const sources = [
+    [safe, true],
+    ["<svg><script>alert(1)</script></svg>", false],
+    ['<svg onload="alert(1)"><path/></svg>', false],
+    ["<svg><foreignObject><div>active</div></foreignObject></svg>", false],
+    ['<svg><path href="https://example.invalid/payload"/></svg>', false],
+    ['<svg><path fill="url(data:text/html,payload)"/></svg>', false],
+    ['<svg><animate attributeName="x"/></svg>', false],
+    ['<svg><path onclick="alert(1)"/></svg>', false],
+    ["<svg", false],
+  ] as const;
+  for (const [source, expected] of sources) {
+    assert.equal(
+      isSafeImagePreview(`data:image/svg+xml;base64,${btoa(source)}`),
+      expected,
+      source,
+    );
+    assert.equal(
+      isSafeImagePreview(`data:image/svg+xml,${encodeURIComponent(source)}`),
+      expected,
+      source,
+    );
+  }
+  assert.equal(isSafeImagePreview("data:image/svg+xml,%ZZ"), false);
+});
+
+test("image decoder failure does not escape the preview safety check", (t) => {
+  const decode = t.mock.method(globalThis, "atob", () => {
+    throw new Error("Damaged data");
+  });
+  assert.equal(isSafeImagePreview(PNG_DATA), false);
+  assert.equal(decode.mock.callCount(), 1);
 });

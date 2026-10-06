@@ -2633,8 +2633,8 @@ test("frame drag records one snapshot, moves direct members incrementally, and c
   assert.match(start, /draggedNodes\.map\(\(dragged\)\s*=>\s*dragged\.id\)/);
 
   assert.ok(change, "missing Frame-aware node change handler");
-  assert.match(change, /updateFrameDragState\(/);
-  assert.match(change, /flowToCanvasDocument\(/);
+  assert.match(change, /updateFrameDragFlowNodes\(/);
+  assert.doesNotMatch(change, /flowToCanvasDocument\(/);
   assert.match(change, /change\.type === "position" && change\.position/);
   assert.match(change, /drag\?\.phase === "ending"/);
   assert.match(change, /if\s*\(!drag[\s\S]*bump\(\)/);

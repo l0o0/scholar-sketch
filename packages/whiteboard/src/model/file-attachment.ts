@@ -118,7 +118,19 @@ export function safeAttachmentDataUrl(
 
 /** Images rendered by a node must be raster, or a small inert static SVG. */
 export function isSafeImagePreview(value: unknown): value is string {
-  if (typeof value === "string" && value.startsWith("data:image/svg+xml")) {
+  if (typeof value !== "string" || !value.startsWith("data:")) return false;
+  // Inspect the data URL's MIME header before touching its potentially large
+  // payload. Non-images never need base64 validation or decoding for a preview.
+  const mimeType = normalizeMimeType(
+    /^data:([^;,]*)(?=[;,])/u.exec(value)?.[1],
+  );
+  if (
+    !mimeType ||
+    (!RASTER_MIME_TYPES.has(mimeType) && mimeType !== "image/svg+xml")
+  ) {
+    return false;
+  }
+  if (value.startsWith("data:image/svg+xml")) {
     const comma = value.indexOf(",");
     if (comma >= 0) {
       const metadata = value.slice(5, comma).split(";");

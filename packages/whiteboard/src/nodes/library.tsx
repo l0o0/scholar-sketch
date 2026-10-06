@@ -1,4 +1,5 @@
 import type { NodeProps } from "@xyflow/react";
+import { useMemo } from "react";
 import { useWhiteboardLabels } from "../chrome/labels";
 import {
   inferAttachmentContentType,
@@ -36,13 +37,18 @@ export function ItemNode({ data, selected }: NodeProps<CanvasFlowNode>) {
 export function PdfNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
   const model = data.model;
+  const image = model.kind === "pdf" ? model.data.image : undefined;
+  const fileData = model.kind === "pdf" ? model.data.fileData : undefined;
+  const imagePreview = useMemo(
+    () => previewImage(image, fileData),
+    [image, fileData],
+  );
   if (model.kind !== "pdf") return null;
   const contentType =
     model.data.contentType?.split(";", 1)[0]?.toLowerCase() ||
     inferAttachmentContentType(model.data.title);
   const imageOnly =
     Boolean(model.data.image) && contentType.startsWith("image/");
-  const imagePreview = previewImage(model.data.image, model.data.fileData);
   const kindLabel = imageOnly
     ? ((labels as unknown as Record<string, unknown>).fileImage as string) ||
       "Image"
@@ -91,12 +97,18 @@ export function PdfNode({ data, selected }: NodeProps<CanvasFlowNode>) {
 export function AttachmentNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
   const model = data.model;
+  const image = model.kind === "attachment" ? model.data.image : undefined;
+  const fileData =
+    model.kind === "attachment" ? model.data.fileData : undefined;
+  const imagePreview = useMemo(
+    () => previewImage(image, fileData),
+    [image, fileData],
+  );
   if (model.kind !== "attachment") return null;
   const contentType =
     model.data.contentType?.split(";", 1)[0]?.toLowerCase() ||
     inferAttachmentContentType(model.data.title);
   const kind = attachmentKind(contentType);
-  const imagePreview = previewImage(model.data.image, model.data.fileData);
   const preview = model.data.preview?.slice(0, 600);
   const label = (key: string, fallback: string): string => {
     const value = (labels as unknown as Record<string, unknown>)[key];
