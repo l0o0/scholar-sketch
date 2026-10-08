@@ -1,4 +1,12 @@
-import { writeProtectedFile, type FileRevision } from "../file-safety";
+import {
+  preserveFileDraft,
+  writeProtectedFile,
+  type FileRevision,
+} from "../file-safety";
+import {
+  markAttachmentForUpload,
+  withAttachmentWrite,
+} from "../attachment-sync";
 import { extractFirstHeadingTitle } from "./frontmatter";
 import { markdownAttachmentTitle } from "./detect";
 import { cleanupUnusedImageAssets } from "./images/service";
@@ -31,6 +39,25 @@ export async function persistMarkdownContent(
     syncFile?: boolean;
   } = {},
 ): Promise<{ path: string; titleChanged: boolean }> {
+  try {
+    return await withAttachmentWrite(
+      item,
+      () => persistMarkdownContentNow(item, value, opts),
+      () => preserveFileDraft(item, value),
+    );
+  } catch (error) {
+    if ((error as { code?: string })?.code === "ATTACHMENT_SYNC_CONFLICT") {
+      await preserveFileDraft(item, value);
+    }
+    throw error;
+  }
+}
+
+async function persistMarkdownContentNow(
+  item: Zotero.Item,
+  value: string,
+  opts: NonNullable<Parameters<typeof persistMarkdownContent>[2]>,
+): Promise<{ path: string; titleChanged: boolean }> {
   const path = opts.path ?? ((await item.getFilePathAsync()) || null);
   if (!path) {
     throw new Error("Attachment has no file path");
@@ -39,7 +66,12 @@ export async function persistMarkdownContent(
   if (opts.revision) {
     await writeProtectedFile(path, value, opts.revision, item, (content) =>
       IOUtils.writeUTF8(path, content, {
-        tmpPath: `${path}.scholar-canvas.tmp`,
+        // Zotero's ZIP writer skips dotfiles. A failed atomic write must not
+        // leave a second visible document inside the synced attachment.
+        tmpPath: PathUtils.join(
+          PathUtils.parent(path)!,
+          `.${path.split(/[\\/]/).pop()}.scholar-sketch.tmp`,
+        ),
         flush: true,
       }),
     );
@@ -47,35 +79,25 @@ export async function persistMarkdownContent(
     await Zotero.File.putContentsAsync(path, value);
   }
 
+  if (opts.syncFile) {
+    // Mark before cleanup so even a partially failed removal is uploaded.
+    // Explicit cleanup can change only sidecars while the text stays equal.
+    await markAttachmentForUpload(item, {
+      packageChanged: !!opts.cleanupImages,
+    });
+  }
   if (opts.cleanupImages) {
-    try {
-      await cleanupUnusedImageAssets(item, value);
-    } catch (error) {
-      ztoolkit.log("Failed to clean markdown image assets after save", error);
-    }
+    await cleanupUnusedImageAssets(item, value);
   }
 
   let titleChanged = false;
   if (opts.syncTitle) {
     const headingTitle = extractFirstHeadingTitle(value);
-    if (headingTitle && item.getField("title") !== headingTitle) {
+    const title = headingTitle ? markdownAttachmentTitle(headingTitle) : null;
+    if (title && item.getField("title") !== title) {
       titleChanged = true;
-      item.setField("title", markdownAttachmentTitle(headingTitle));
+      item.setField("title", title);
       await item.saveTx({ skipSelect: true });
-    }
-  }
-
-  if (
-    opts.syncFile &&
-    item.attachmentLinkMode === Zotero.Attachments.LINK_MODE_IMPORTED_FILE
-  ) {
-    try {
-      if (item.attachmentSyncState !== "to_upload") {
-        item.attachmentSyncState = "to_upload";
-        await item.saveTx({ skipSelect: true });
-      }
-    } catch (error) {
-      ztoolkit.log("Failed to mark attachment for sync", error);
     }
   }
 

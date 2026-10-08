@@ -582,10 +582,13 @@ whiteboard-font-family = 字体
 
 file-conflict = 文件已在编辑器外被修改，已停止覆盖。当前草稿可在附件右键菜单的“本地历史”中恢复。
 file-history = 本地历史…
-file-history-description = 预览保存版本及冲突草稿，另存恢复副本，不覆盖当前文件。历史仅保存在本机，包含正文和卡片数据，以及白板内嵌文件；单独引用的图片和 PDF 资源不包含在内。
+file-history-description = 预览保存版本、同步期间保留的草稿及冲突草稿，另存恢复副本，不覆盖当前文件。历史仅保存在本机，包含正文和卡片数据，以及白板内嵌文件；单独引用的图片和 PDF 资源不包含在内。
 file-history-version = 版本
 file-history-preview = 版本预览
 file-history-conflict = 冲突草稿
+file-history-draft = 同步期间保留的草稿
+attachment-sync-conflict = 此附件有待下载的远端版本或尚未解决的同步冲突，已暂停写入。请先在 Zotero 中完成同步并处理冲突，再重新打开文档。
+status-image-cleanup-complete = 未引用图片已清理
 file-history-saved = 保存前版本
 file-history-copy = 另存恢复副本…
 file-history-empty = 暂无本地历史。

@@ -62,7 +62,6 @@ import {
   frontmatterTitleChange,
 } from "./frontmatter";
 import {
-  cleanupUnusedImageAssets,
   importExternalImages,
   resolveImageAssetEntry,
   resolveImageAssets,
@@ -71,11 +70,10 @@ import {
 import { parseMarkdownImages } from "./images/model";
 import {
   createMarkdownModalController,
-  normalizeMarkdownFilename,
   type DocumentModalData,
   type SettingsModalData,
 } from "./modal";
-import { storedMarkdownFilename } from "./storage-filename";
+import { renameMarkdownAttachment } from "./rename";
 import { markdownSettingsAbout, saveMarkdownSettings } from "./settings";
 import { formatSavedStatus, formatStats } from "./status";
 import { MARKDOWN_TAB_TYPE, resolveMarkdownTabTitle } from "./tabHooks";
@@ -1006,8 +1004,7 @@ function mountEditorUI(
     const action = btn.getAttribute("data-action");
     if (action === "preview-back") setMode(session, "live");
     else if (action === "preview-retry") void showReadOnlyPreview(session);
-    else if (action === "save")
-      void requestSave(session, { force: true, cleanupImages: true });
+    else if (action === "save") void requestSave(session, { force: true });
     else if (action === "undo" || action === "redo") {
       session.editor?.command(action);
     } else if (action === "bold") session.editor?.wrapSelection("**");
@@ -1183,10 +1180,8 @@ function mountEditorUI(
         scheduleTitleSync(session);
       } else if (appliedTitleSync) {
         const force = !!session.pendingExplicitSave;
-        const cleanupImages = !!session.pendingImageCleanup;
         session.pendingExplicitSave = false;
-        session.pendingImageCleanup = false;
-        void requestSave(session, { force, cleanupImages });
+        void requestSave(session, { force });
       } else {
         scheduleAutosave(session);
       }
@@ -1198,10 +1193,9 @@ function mountEditorUI(
     onSave: () => {
       if (session.titleSyncTimer) {
         session.pendingExplicitSave = true;
-        session.pendingImageCleanup = true;
         flushTitleSync(session);
       } else {
-        void requestSave(session, { force: true, cleanupImages: true });
+        void requestSave(session, { force: true });
       }
     },
     onPasteImage: ({ bytes, mimeType }) => {
@@ -1855,16 +1849,10 @@ async function openRenameModal(session: OpenSession) {
 async function renameSessionAttachment(session: OpenSession, filename: string) {
   const item = Zotero.Items.get(session.itemID);
   if (!item) throw new Error(getString("error-attachment-gone"));
-  const newName = normalizeMarkdownFilename(filename);
-  const result = await item.renameAttachmentFile(
-    storedMarkdownFilename(newName),
-    false,
-  );
+  const result = await renameMarkdownAttachment(item, filename);
   if (result === false) throw new Error(getString("error-rename-missing"));
   if (result === -1) throw new Error(getString("error-rename-exists"));
   if (result === -2) throw new Error(getString("error-rename-failed"));
-  item.setField("title", newName);
-  await item.saveTx({ skipSelect: true });
   invalidateNoteLibrary(item.libraryID);
   const newPath = (await item.getFilePathAsync()) || session.path;
   for (const openSession of sessionRegistry.all()) {
@@ -1927,24 +1915,10 @@ async function importExternalImagesInSession(session: OpenSession) {
 
 async function cleanupImagesInSession(session: OpenSession) {
   try {
-    const item = Zotero.Items.get(session.itemID);
-    if (!item) throw new Error(getString("error-attachment-gone"));
-    const removed = await cleanupUnusedImageAssets(
-      item,
-      session.editor?.getValue() || "",
-    );
-    if (removed) {
-      // Zotero detects stored text attachment changes from the main file.
-      // Re-save it so asset deletions are included in the next zip upload.
-      await requestSave(session, { force: true });
-    }
-    setStatus(
-      session,
-      "saved",
-      removed
-        ? getString("status-cleaned-images", { args: { count: removed } })
-        : getString("status-no-unused-images"),
-    );
+    // Check the on-disk revision before deleting anything. A remote edit may
+    // reference images that are absent from this editor's older buffer.
+    await session.save.request({ force: true, cleanupImages: true });
+    setStatus(session, "saved", getString("status-image-cleanup-complete"));
   } catch (error) {
     showImageError(error);
   }
@@ -2324,10 +2298,8 @@ function applyTitleSync(session: OpenSession) {
     : null;
   if (!change) {
     const force = !!session.pendingExplicitSave;
-    const cleanupImages = !!session.pendingImageCleanup;
     session.pendingExplicitSave = false;
-    session.pendingImageCleanup = false;
-    void requestSave(session, { force, cleanupImages });
+    void requestSave(session, { force });
     return;
   }
   session.applyingTitleSync = true;
@@ -2463,12 +2435,12 @@ export async function closeMarkdownSession(
   session.closing = true;
   session.closePromise = (async () => {
     if (opts.flush) {
-      // Rewriting the main attachment lets Zotero include sidecar deletions in
-      // the next stored-file sync, even when autosave already cleared `dirty`.
+      // Asset cleanup is explicit: another open view or an undo step can
+      // still reference images not present in this view's current buffer.
       if (opts.throwOnSaveError) {
-        await session.save.request({ force: true, cleanupImages: true });
+        await session.save.request({ force: true });
       } else {
-        await requestSave(session, { force: true, cleanupImages: true });
+        await requestSave(session, { force: true });
       }
     }
 

@@ -154,6 +154,101 @@ test("cleanup only ever removes plugin-generated asset files", () => {
   );
 });
 
+test("cleanup retains reference-style images with full, collapsed and shortcut labels", () => {
+  const full = "assets/1723500000000-abc1234.png";
+  const collapsed = "assets/1723500000001-def5678.webp";
+  const shortcut = "assets/1723500000002-ghi9012.jpg";
+  const orphan = "assets/1723500000003-jkl3456.png";
+  const source = `![figure][FIGURE]\n![Collapsed][]\n![Shortcut]\n
+[figure]: ${full} "Full reference title"
+[collapsed]: <./${collapsed}> 'Collapsed reference title'
+[shortcut]:
+  <${shortcut}>
+  (Shortcut reference title)
+`;
+
+  assert.deepEqual(referencedAssets(source), [full, collapsed, shortcut]);
+  assert.deepEqual(
+    planUnusedImageCleanup([full, collapsed, shortcut, orphan], source),
+    { remove: [orphan], removeDirectory: false },
+  );
+});
+
+test("cleanup conservatively retains unused local definitions and spaced destinations", () => {
+  const asset = "assets/1723500000000-abc1234.png";
+  const alternate = "assets/1723500000001-def5678.webp";
+  const source = `[unused]: ${asset}
+[unused]: ${alternate} "Duplicate labels may still be edited later"
+[spaced label]: <./assets/my image.png> "An optional title"
+[encoded]: assets/1723500000000%2Dabc1234.png
+[literal percent]: <assets/my%image.png>
+`;
+
+  assert.deepEqual(referencedAssets(source), [
+    asset,
+    alternate,
+    "assets/my image.png",
+    "assets/1723500000000%2Dabc1234.png",
+    "assets/my%image.png",
+  ]);
+  assert.deepEqual(planUnusedImageCleanup([asset, alternate], source), {
+    remove: [],
+    removeDirectory: false,
+  });
+});
+
+test("cleanup retains assets referenced through CommonMark destination escapes", () => {
+  const asset = "assets/1723500000000-abc1234.png";
+  for (const destination of [
+    "assets/1723500000000\\-abc1234.png",
+    "assets/1723500000000&#45;abc1234.png",
+    "assets/1723500000000&#x2d;abc1234.png",
+    "assets/1723500000000-abc1234&period;png",
+  ]) {
+    const source = `![figure][img]\n\n[img]: ${destination}\n`;
+    assert.ok(referencedAssets(source).includes(asset), destination);
+    assert.deepEqual(planUnusedImageCleanup([asset], source), {
+      remove: [],
+      removeDirectory: false,
+    });
+  }
+});
+
+test("cleanup retains reference definitions inside quotes and lists", () => {
+  const quoted = "assets/1723500000000-abc1234.png";
+  const listed = "assets/1723500000001-def5678.webp";
+  const indented = "assets/1723500000002-ghi9012.jpg";
+  const source = `> [quoted]: ${quoted}\r\n\r\n- [listed]: <${listed}>\r\n\r\n   [indented]: ${indented} "Title"\r\n`;
+
+  assert.deepEqual(referencedAssets(source), [quoted, listed, indented]);
+  assert.deepEqual(planUnusedImageCleanup([quoted, listed, indented], source), {
+    remove: [],
+    removeDirectory: false,
+  });
+});
+
+test("reference definitions never turn remote URLs or fenced examples into local assets", () => {
+  const orphan = "assets/1723500000000-abc1234.png";
+  const source = `![remote][remote]
+
+[remote]: https://example.com/${orphan} "${orphan}"
+[protocol relative]: <//example.com/${orphan}>
+[data]: data:image/png;base64,aW1hZ2U=
+[traversal]: ../${orphan}
+[nested traversal]: assets/../${orphan.slice("assets/".length)}
+
+\`\`\`markdown
+[example]: ${orphan}
+\`\`\`
+`;
+
+  assert.deepEqual(referencedAssets(source), []);
+  assert.deepEqual(planUnusedImageCleanup([orphan], source), {
+    remove: [orphan],
+    removeDirectory: true,
+  });
+});
+
 test("sized HTML images round-trip escaped attributes and retain attachment references", async () => {
   const { serializeImageReference, parseHtmlImage } =
     await import("../src/modules/markdown/images/model.ts");

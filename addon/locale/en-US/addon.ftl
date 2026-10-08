@@ -582,10 +582,13 @@ whiteboard-font-family = Font
 
 file-conflict = The file changed outside this editor. Saving was stopped. Your draft is available in the attachment’s Local history menu.
 file-history = Local history…
-file-history-description = Preview saved versions and conflicting drafts. Save a recovery copy without changing the current file. History is local to this device and contains document text/card data, including files embedded in the canvas; separately referenced image and PDF resources are excluded.
+file-history-description = Preview saved versions, drafts preserved during sync, and conflicting drafts. Save a recovery copy without changing the current file. History is local to this device and contains document text/card data, including files embedded in the canvas; separately referenced image and PDF resources are excluded.
 file-history-version = Version
 file-history-preview = Version preview
 file-history-conflict = Conflicting draft
+file-history-draft = Draft preserved during sync
+attachment-sync-conflict = This attachment has a pending remote download or an unresolved sync conflict. Writing was paused. Complete sync and resolve the conflict in Zotero, then reopen the document.
+status-image-cleanup-complete = Unreferenced images cleaned up
 file-history-saved = Before save
 file-history-copy = Save recovery copy…
 file-history-empty = No local history yet.

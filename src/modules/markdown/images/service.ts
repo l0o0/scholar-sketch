@@ -13,6 +13,7 @@ import {
 } from "./model";
 import type { ImageAssetMap } from "../editor-protocol";
 import { getString } from "../../../utils/locale";
+import { withAttachmentWrite } from "../../attachment-sync";
 
 function assertImageCapableItem(
   item: Zotero.Item,
@@ -40,14 +41,16 @@ export async function writeImageAsset(
   mimeType: string,
 ): Promise<string> {
   const extension = validateImageInput(mimeType, bytes.byteLength);
-  const root = storageRoot(item, true);
-  const assetsDirectory = PathUtils.join(root, "assets");
-  await IOUtils.makeDirectory(assetsDirectory, { ignoreExisting: true });
+  return withAttachmentWrite(item, async () => {
+    const root = storageRoot(item, true);
+    const assetsDirectory = PathUtils.join(root, "assets");
+    await IOUtils.makeDirectory(assetsDirectory, { ignoreExisting: true });
 
-  const filename = buildAssetFilename(extension);
-  const relativePath = `assets/${filename}`;
-  await IOUtils.write(PathUtils.join(assetsDirectory, filename), bytes);
-  return relativePath;
+    const filename = buildAssetFilename(extension);
+    const relativePath = `assets/${filename}`;
+    await IOUtils.write(PathUtils.join(assetsDirectory, filename), bytes);
+    return relativePath;
+  });
 }
 
 /** Bounded LRU cache of resolved asset data URLs (keyed by normalized ref). */
@@ -120,6 +123,7 @@ export async function resolveImageAssets(
   return result;
 }
 
+/** Internal to persistence: caller must hold the write gate and check the text revision. */
 export async function cleanupUnusedImageAssets(
   item: Zotero.Item,
   markdown: string,

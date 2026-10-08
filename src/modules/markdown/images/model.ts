@@ -1,5 +1,9 @@
 import { getString } from "../../../utils/locale";
 import { config } from "../../../../package.json";
+import { parser as markdownParser } from "@lezer/markdown";
+import MarkdownIt from "markdown-it";
+
+let unescapeMarkdownDestination: ((value: string) => string) | undefined;
 
 function imageErrorMessage(
   key: Parameters<typeof getString>[0],
@@ -146,6 +150,36 @@ export function referencedAssets(source: string): string[] {
   const wikilink = /!\[\[([^\]\n]+)\]\]/g;
   for (const match of source.matchAll(wikilink)) {
     refs.push(normalizeAssetReference(`assets/${match[1].trim()}`));
+  }
+  // Retain every local reference definition, even if its label is currently
+  // unused. Cleanup must not remove a reference-style image's destination.
+  // The existing CommonMark parser handles labels, titles and multiline URLs
+  // without treating fenced examples or remote URLs as local references.
+  if (source.includes("]:")) {
+    // Keep this lazy: the same module also supplies lightweight editor helpers.
+    const unescapeDestination = (unescapeMarkdownDestination ??=
+      new MarkdownIt().utils.unescapeAll);
+    markdownParser.parse(source).iterate({
+      enter({ node }) {
+        if (node.name !== "LinkReference") return;
+        const url = node.getChild("URL");
+        if (!url) return;
+        const raw = source.slice(url.from, url.to);
+        const literal =
+          raw.startsWith("<") && raw.endsWith(">") ? raw.slice(1, -1) : raw;
+        const destination = unescapeDestination(literal);
+        refs.push(normalizeAssetReference(literal));
+        refs.push(normalizeAssetReference(destination));
+        // URL-encoded local filenames can point at the same physical asset.
+        // Keep the literal spelling too; cleanup deliberately favors keeping
+        // an extra file over deleting a possibly referenced image.
+        try {
+          refs.push(normalizeAssetReference(decodeURIComponent(destination)));
+        } catch {
+          // A malformed escape does not invalidate the literal reference.
+        }
+      },
+    });
   }
   return [...new Set(refs.filter((path): path is string => path !== null))];
 }

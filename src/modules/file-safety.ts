@@ -10,7 +10,7 @@ export interface HistoryItem {
 export interface FileVersion {
   id: string;
   created: string;
-  kind: "saved" | "conflict";
+  kind: "saved" | "conflict" | "draft";
   content: string;
 }
 
@@ -45,7 +45,9 @@ export async function readFileVersions(
         typeof entry.created === "string" &&
         typeof entry.id === "string" &&
         /^[\w-]+$/.test(entry.id) &&
-        (entry.kind === "saved" || entry.kind === "conflict")
+        (entry.kind === "saved" ||
+          entry.kind === "conflict" ||
+          entry.kind === "draft")
       )
         versions.push(entry);
     } catch (error) {
@@ -106,6 +108,11 @@ export class FileConflictError extends Error {
     super(getString("file-conflict"));
     this.name = "FileConflictError";
   }
+}
+
+/** Preserve text outside attachment storage while a sync blocks publication. */
+export async function preserveFileDraft(item: HistoryItem, content: string) {
+  await archive(item, content, "draft");
 }
 
 /** Serialize plugin writers; compare exact content, not unreliable mtime/size. */

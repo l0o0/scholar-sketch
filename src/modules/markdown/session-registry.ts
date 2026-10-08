@@ -48,7 +48,6 @@ export interface OpenSession {
   titleSyncTimer?: number;
   applyingTitleSync?: boolean;
   pendingExplicitSave?: boolean;
-  pendingImageCleanup?: boolean;
   closing?: boolean;
   closePromise?: Promise<void>;
   closeMoreMenu?: () => void;

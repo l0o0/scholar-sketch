@@ -25,7 +25,13 @@ export async function showFileHistory(win: Window, item: Zotero.Item) {
   for (const version of versions) {
     const option = element("option");
     option.value = version.id;
-    option.textContent = `${new Date(version.created).toLocaleString()} · ${getString(version.kind === "conflict" ? "file-history-conflict" : "file-history-saved")}`;
+    const label =
+      version.kind === "draft"
+        ? "file-history-draft"
+        : version.kind === "conflict"
+          ? "file-history-conflict"
+          : "file-history-saved";
+    option.textContent = `${new Date(version.created).toLocaleString()} · ${getString(label)}`;
     select.append(option);
   }
   const preview = element("textarea");
