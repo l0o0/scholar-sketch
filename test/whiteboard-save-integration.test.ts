@@ -49,7 +49,7 @@ test("all save entry points call the coordinator", () => {
 
 test("host persistence uses only schema-v2 canvas APIs", () => {
   assert.match(tab, /readCanvasFile/);
-  assert.match(tab, /writeCanvasFile/);
+  assert.match(tab, /persistCanvasAttachment/);
   assert.match(tab, /parseCanvasDocument/);
   assert.match(tab, /for \(const issue of parsed\.issues\)/);
   assert.match(tab, /issue\.code/);

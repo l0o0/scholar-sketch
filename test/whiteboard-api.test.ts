@@ -186,6 +186,45 @@ test("public canvas API validates, creates, reads and protects replacement write
     assert.equal((await canvasApi.read(1)).canvas.nodes[0].text, "Changed");
     assert.equal(board.attachmentSyncState, "to_upload");
     assert.equal(saves, 1);
+    for (const state of ["to_download", "force_download", "in_conflict"]) {
+      await t.test(
+        `update reports ${state} as WRITE_CONFLICT without replacing the saved Canvas`,
+        async () => {
+          const saved = await canvasApi.read(1);
+          const previousState = board.attachmentSyncState;
+          const previousSaves = saves;
+          const text = `Blocked draft during ${state}`;
+          board.attachmentSyncState = state;
+          try {
+            await assert.rejects(
+              canvasApi.update(1, file(text), {
+                expectedRevision: saved.revision,
+              }),
+              { code: "WRITE_CONFLICT" },
+            );
+            assert.equal(disk.get("/board.canvas"), saved.revision);
+            assert.equal(board.attachmentSyncState, state);
+            assert.equal(saves, previousSaves);
+            assert.ok(
+              [...disk.entries()].some(([path, content]) => {
+                if (
+                  !path.startsWith("/data/scholar-canvas/history/1/BOARD001/")
+                )
+                  return false;
+                const version = JSON.parse(content);
+                return (
+                  version.kind === "draft" &&
+                  JSON.parse(version.content).nodes[0].text === text
+                );
+              }),
+              "the rejected API draft remains recoverable outside attachment storage",
+            );
+          } finally {
+            board.attachmentSyncState = previousState;
+          }
+        },
+      );
+    }
     await assert.rejects(
       canvasApi.update(1, file("Stale"), {
         expectedRevision: original.revision,
@@ -193,6 +232,28 @@ test("public canvas API validates, creates, reads and protects replacement write
       { code: "WRITE_CONFLICT" },
     );
     assert.equal((await canvasApi.read(1)).canvas.nodes[0].text, "Changed");
+    await t.test(
+      "update preserves the native force-upload choice after replacing the Canvas",
+      async () => {
+        const saved = await canvasApi.read(1);
+        const previousState = board.attachmentSyncState;
+        const previousSaves = saves;
+        board.attachmentSyncState = "force_upload";
+        try {
+          await canvasApi.update(1, file("Chosen local version"), {
+            expectedRevision: saved.revision,
+          });
+          assert.equal(
+            (await canvasApi.read(1)).canvas.nodes[0].text,
+            "Chosen local version",
+          );
+          assert.equal(board.attachmentSyncState, "force_upload");
+          assert.equal(saves, previousSaves);
+        } finally {
+          board.attachmentSyncState = previousState;
+        }
+      },
+    );
     editable = false;
     await assert.rejects(canvasApi.create(), { code: "READ_ONLY" });
     editable = true;

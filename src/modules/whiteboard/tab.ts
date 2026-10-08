@@ -13,7 +13,8 @@ import {
   createWhiteboardEditor,
   type NativeAcademicDropResolution,
 } from "./editor";
-import { readCanvasFile, writeCanvasFile } from "./file-io";
+import { readCanvasFile } from "./file-io";
+import { persistCanvasAttachment } from "./persist";
 import {
   parseCanvasDocument,
   type CanvasDocument,
@@ -321,19 +322,6 @@ export function dataUrlToBytes(
     bytes = new TextEncoder().encode(decodeURIComponent(payload));
   }
   return { bytes, mimeType };
-}
-
-function canvasStorageDir(session: WhiteboardSession): string {
-  try {
-    const item = Zotero.Items.get(session.itemID);
-    if (item) {
-      const dir = Zotero.Attachments.getStorageDirectory(item);
-      if (dir?.path) return dir.path;
-    }
-  } catch {
-    // ignore
-  }
-  return PathUtils.parent(session.path) ?? session.path;
 }
 
 async function handlePickAcademicSource(
@@ -833,37 +821,6 @@ function scheduleAutosave(session: WhiteboardSession) {
   }, AUTOSAVE_MS);
 }
 
-async function cleanupUnusedAssets(
-  session: WhiteboardSession,
-  document: CanvasDocument,
-) {
-  try {
-    const root = canvasStorageDir(session);
-    const assetsDir = PathUtils.join(root, "assets");
-    if (!(await IOUtils.exists(assetsDir))) return;
-    const referenced = new Set<string>();
-    for (const node of document.nodes) {
-      const asset = node.kind === "pdf" ? node.data.asset : undefined;
-      if (typeof asset === "string") {
-        referenced.add(asset.split("/").pop() || asset);
-      }
-    }
-    const children = await IOUtils.getChildren(assetsDir);
-    for (const name of children) {
-      if (referenced.has(name)) continue;
-      const full = PathUtils.join(assetsDir, name);
-      try {
-        const info = await IOUtils.stat(full);
-        if (info.type !== "directory") await IOUtils.remove(full);
-      } catch (error) {
-        ztoolkit.log("cleanup asset failed", name, error);
-      }
-    }
-  } catch (error) {
-    ztoolkit.log("cleanup unused whiteboard assets failed", error);
-  }
-}
-
 async function saveSession(
   session: WhiteboardSession,
   opts: { silent?: boolean } = {},
@@ -993,13 +950,12 @@ function mountWhiteboardUI(
       if (!item || !isWhiteboardAttachment(item)) {
         throw new Error("Canvas attachment is gone");
       }
-      const path = (await item.getFilePathAsync()) || session.path;
-      if (!path) throw new Error("Canvas file not found");
-      session.path = await writeCanvasFile(path, document, {
+      if (!session.fileRevision) {
+        throw new Error("Canvas file revision is unavailable");
+      }
+      session.path = await persistCanvasAttachment(item, document, {
         revision: session.fileRevision,
-        item,
       });
-      await cleanupUnusedAssets(session, document);
       session.title = attachmentTitle(item);
     },
     onStateChange: (state) => {

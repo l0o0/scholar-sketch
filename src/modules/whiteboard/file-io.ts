@@ -79,7 +79,12 @@ export async function writeCanvasFile(
     ((targetPath, value, writeOptions) =>
       IOUtils.writeUTF8(targetPath, value, writeOptions));
   const write = (value: string) =>
-    writeUTF8(target, value, { tmpPath: `${target}.tmp`, flush: true });
+    writeUTF8(target, value, {
+      // Zotero excludes dotfiles from attachment ZIPs, including abandoned
+      // temporary files from interrupted atomic writes.
+      tmpPath: target.replace(/([^/\\]+)$/, ".$1.tmp"),
+      flush: true,
+    });
   const content = serializeCanvasDocument(document);
   if (options.revision && options.item) {
     await writeProtectedFile(

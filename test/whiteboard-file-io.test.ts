@@ -215,7 +215,7 @@ test("writes through a same-directory atomic temporary file", async () => {
   assert.equal(calls[0][0], "/tmp/review.canvas");
   assert.match(String(calls[0][1]), /"schemaVersion": 2/);
   assert.deepEqual(calls[0][2], {
-    tmpPath: "/tmp/review.canvas.tmp",
+    tmpPath: "/tmp/.review.canvas.tmp",
     flush: true,
   });
 });

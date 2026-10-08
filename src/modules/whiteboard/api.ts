@@ -11,7 +11,8 @@ import {
 } from "./snapshot";
 import { createWhiteboardAttachment } from "./create";
 import { isWhiteboardAttachment } from "./detect";
-import { readCanvasFile, writeCanvasFile } from "./file-io";
+import { readCanvasFile } from "./file-io";
+import { persistCanvasAttachment } from "./persist";
 import { whiteboardRegistry } from "./session-registry";
 import { createZoteroSourceGateway } from "./source-gateway";
 
@@ -93,7 +94,9 @@ async function apiCall<T>(operation: () => T | Promise<T>): Promise<T> {
     if (error instanceof CanvasApiError) throw error;
     const code = (error as { code?: string })?.code;
     throw new CanvasApiError(
-      code === "WRITE_CONFLICT" ? "WRITE_CONFLICT" : "OPERATION_FAILED",
+      code === "WRITE_CONFLICT" || code === "ATTACHMENT_SYNC_CONFLICT"
+        ? "WRITE_CONFLICT"
+        : "OPERATION_FAILED",
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -202,23 +205,13 @@ export const canvasApi = {
         const item = canvasItem(itemID);
         requireEditable(item.libraryID);
         requireClosed(itemID);
-        const path = await item.getFilePathAsync();
-        if (!path) throw new Error("Canvas file is unavailable");
-        requireClosed(itemID);
-        await writeCanvasFile(path, document, {
-          item,
+        await persistCanvasAttachment(item, document, {
           revision: { content: options.expectedRevision },
           writeUTF8: (target, content, writeOptions) => {
             requireClosed(itemID);
             return IOUtils.writeUTF8(target, content, writeOptions);
           },
         });
-        if (
-          item.attachmentLinkMode === Zotero.Attachments.LINK_MODE_IMPORTED_FILE
-        ) {
-          item.attachmentSyncState = "to_upload";
-          await item.saveTx({ skipSelect: true });
-        }
         return info(item);
       }),
     );
