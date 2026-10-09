@@ -43,7 +43,7 @@ test("reveals only active items outside the outline viewport", () => {
 test("defines unframed geometry and complete collapse", () => {
   const css = outlineSidebarCSS();
 
-  assert.match(css, /inline-size: clamp\(200px, 18vw, 280px\)/);
+  assert.match(css, /inline-size: clamp\(200px, 18vw, 220px\)/);
   assert.match(css, /border-inline-end: 1px solid var\(--zmd-border\)/);
   assert.match(css, /is-outline-collapsed[\s\S]*display: none/);
   assert.match(css, /text-overflow: ellipsis/);
