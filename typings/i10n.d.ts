@@ -495,6 +495,7 @@ export type FluentMessageId =
   | 'whiteboard-sidebar-readonly'
   | 'whiteboard-sidebar-tooltip'
   | 'whiteboard-size'
+  | 'whiteboard-size-auto'
   | 'whiteboard-solid'
   | 'whiteboard-source-available'
   | 'whiteboard-source-idle'

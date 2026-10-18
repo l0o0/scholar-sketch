@@ -644,6 +644,7 @@ whiteboard-batch-style = 批量样式
 whiteboard-ungroup = 取消分组
 
 whiteboard-font-default = 默认字体
+whiteboard-size-auto = 自动
 
 whiteboard-create = 新建白板
 whiteboard-sidebar-empty = 此条目没有白板附件

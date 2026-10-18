@@ -1,6 +1,8 @@
 import type { BasicNode, BasicNodeKind } from "./basic";
 import type { CanvasNodeBase, CanvasNodeStyle, CanvasPoint } from "./core";
 import type { WhiteboardTheme } from "./protocol";
+import { automaticShapeFontSize, type CanvasTextLayout } from "./text-layout";
+export type { CanvasTextLayout } from "./text-layout";
 import {
   isValidAttachmentDataUrl,
   MAX_ATTACHMENT_BYTES,
@@ -451,6 +453,7 @@ export function canvasNodeTextDefaults(
 export function effectiveCanvasNodeTextStyle(
   kind: CanvasNodeKind,
   style: Partial<CanvasNodeStyle> = {},
+  layout?: CanvasTextLayout,
 ): CanvasNodeTextDefaults {
   const defaults = canvasNodeTextDefaults(kind);
   const fontSize = style.fontSize;
@@ -459,7 +462,9 @@ export function effectiveCanvasNodeTextStyle(
     fontSize:
       typeof fontSize === "number" && Number.isFinite(fontSize) && fontSize > 0
         ? fontSize
-        : defaults.fontSize,
+        : kind === "rect" || kind === "ellipse"
+          ? automaticShapeFontSize(style, layout)
+          : defaults.fontSize,
     fontWeight: style.fontWeight ?? defaults.fontWeight,
     fontStyle: style.fontStyle ?? defaults.fontStyle,
     textDecoration: style.textDecoration ?? defaults.textDecoration,
@@ -473,9 +478,10 @@ export function effectiveCanvasNodeTextStyle(
 export function effectiveCanvasNodeUiTextStyle(
   kind: CanvasNodeKind,
   style: Partial<CanvasNodeStyle> = {},
+  layout?: CanvasTextLayout,
 ): CanvasNodeUiTextStyle {
   const { textColor: _deterministicColor, ...effective } =
-    effectiveCanvasNodeTextStyle(kind, style);
+    effectiveCanvasNodeTextStyle(kind, style, layout);
   return {
     ...effective,
     fontFamily:

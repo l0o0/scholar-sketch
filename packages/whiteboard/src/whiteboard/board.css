@@ -1226,6 +1226,15 @@
   border-radius: 999px;
 }
 
+.zmd-board-shape-label {
+  box-sizing: border-box;
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .zmd-board-shape.is-diamond {
   position: relative;
   border: none;
@@ -2018,19 +2027,8 @@
 }
 
 .zmd-board-editor.is-in-shape[data-shape="diamond"] .zmd-board-edit-content {
-  display: contents;
-}
-
-.zmd-board-editor.is-in-shape[data-shape="diamond"] .zmd-board-in-shape-edit {
   width: 54%;
-  height: auto;
-  min-height: 0;
   max-height: 58%;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  text-align: center;
 }
 
 .zmd-board-edit-content {
@@ -2038,7 +2036,9 @@
 }
 
 /* Let normal text layout size the editor, without textarea row rounding. */
-.zmd-board-editor[data-kind="text"] .zmd-board-edit-content {
+.zmd-board-editor[data-kind="text"] .zmd-board-edit-content,
+.zmd-board-editor[data-kind="rect"] .zmd-board-edit-content,
+.zmd-board-editor[data-kind="ellipse"] .zmd-board-edit-content {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   width: 100%;
@@ -2054,7 +2054,9 @@
   visibility: hidden;
 }
 
-.zmd-board-editor.is-in-shape[data-kind="text"] .zmd-board-in-shape-edit {
+.zmd-board-editor.is-in-shape[data-kind="text"] .zmd-board-in-shape-edit,
+.zmd-board-editor.is-in-shape[data-kind="rect"] .zmd-board-in-shape-edit,
+.zmd-board-editor.is-in-shape[data-kind="ellipse"] .zmd-board-in-shape-edit {
   grid-area: 1 / 1;
   height: 100%;
   scrollbar-width: none;
@@ -2090,10 +2092,18 @@
 }
 
 .zmd-board-editor[data-kind="note"] .zmd-board-in-shape-edit,
-.zmd-board-editor[data-kind="text"] .zmd-board-in-shape-edit {
+.zmd-board-editor[data-kind="text"] .zmd-board-in-shape-edit,
+.zmd-board-editor[data-kind="rect"] .zmd-board-in-shape-edit,
+.zmd-board-editor[data-kind="ellipse"] .zmd-board-in-shape-edit {
   min-height: 0;
   padding: 0;
   overflow-wrap: anywhere;
+}
+
+.zmd-board-editor.is-in-shape[data-kind="rect"]:not([data-shape="diamond"]),
+.zmd-board-editor.is-in-shape[data-kind="ellipse"] {
+  /* Match the shape's total text inset, including the 1px editing border. */
+  padding: 11px;
 }
 
 .react-flow__node.is-editing-label .zmd-board-card-title,

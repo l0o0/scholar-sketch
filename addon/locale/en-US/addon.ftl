@@ -644,6 +644,7 @@ whiteboard-batch-style = Batch styles
 whiteboard-ungroup = Ungroup
 
 whiteboard-font-default = Default font
+whiteboard-size-auto = Auto
 
 whiteboard-create = New whiteboard
 whiteboard-sidebar-empty = This item has no whiteboard attachment

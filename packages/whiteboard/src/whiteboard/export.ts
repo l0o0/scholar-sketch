@@ -20,6 +20,7 @@ import type { CanvasDocument } from "../model/document";
 import { isConnectionSide } from "../model/connection";
 import { isSafeAttachmentDataUrl } from "../model/file-attachment";
 import { originalImagePreview } from "./file-import";
+import { glyphWidth, wrappedTextLines } from "../model/text-layout";
 
 export function connectionEndpoint(
   node: Pick<CanvasNode, "position" | "width" | "height">,
@@ -136,76 +137,6 @@ function attribute(name: string, value: string | number | undefined): string {
   return value === undefined ? "" : ` ${name}="${escapeXml(String(value))}"`;
 }
 
-function glyphWidth(character: string, fontSize: number): number {
-  if (/\s/u.test(character)) return fontSize * 0.33;
-  if (/[ilI1.,'`:;!|]/u.test(character)) return fontSize * 0.3;
-  if (/[MW@%&#]/u.test(character)) return fontSize * 0.9;
-  const codePoint = character.codePointAt(0) ?? 0;
-  if (
-    (codePoint >= 0x1100 && codePoint <= 0x11ff) ||
-    (codePoint >= 0x2e80 && codePoint <= 0xa4cf) ||
-    (codePoint >= 0xac00 && codePoint <= 0xd7af) ||
-    (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
-    (codePoint >= 0xfe10 && codePoint <= 0xfe6f) ||
-    (codePoint >= 0xff00 && codePoint <= 0xffef) ||
-    (codePoint >= 0x1f300 && codePoint <= 0x1faff)
-  ) {
-    return fontSize;
-  }
-  return fontSize * 0.6;
-}
-
-function wrapVisualLine(
-  value: string,
-  availableWidth: number,
-  fontSize: number,
-): string[] {
-  const characters = Array.from(value);
-  if (!characters.length) return [""];
-  const lines: string[] = [];
-  let start = 0;
-  while (start < characters.length) {
-    while (start < characters.length && /\s/u.test(characters[start]!)) {
-      start += 1;
-    }
-    if (start >= characters.length) break;
-    let end = start;
-    let width = 0;
-    let lastBreak = -1;
-    while (end < characters.length) {
-      const nextWidth = width + glyphWidth(characters[end]!, fontSize);
-      if (nextWidth > availableWidth && end > start) break;
-      width = nextWidth;
-      if (/\s/u.test(characters[end]!)) lastBreak = end;
-      end += 1;
-      if (width > availableWidth) break;
-    }
-    if (end >= characters.length) {
-      lines.push(characters.slice(start).join("").trimEnd());
-      break;
-    }
-    if (lastBreak >= start) {
-      lines.push(characters.slice(start, lastBreak).join("").trimEnd());
-      start = lastBreak + 1;
-      continue;
-    }
-    lines.push(characters.slice(start, end).join(""));
-    start = end;
-  }
-  return lines.length ? lines : [""];
-}
-
-function wrappedTextLines(
-  value: string,
-  availableWidth: number,
-  fontSize: number,
-): string[] {
-  return value
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .flatMap((line) => wrapVisualLine(line, availableWidth, fontSize));
-}
-
 function textPadding(
   node: CanvasNode,
   width: number,
@@ -216,8 +147,8 @@ function textPadding(
 } {
   if (node.style?.shape === "diamond") {
     return {
-      horizontal: Math.max(12, width * 0.24),
-      vertical: Math.max(8, height * 0.21),
+      horizontal: width * 0.23,
+      vertical: height * 0.21,
     };
   }
   return {
@@ -236,7 +167,11 @@ function textElement(
 ): string {
   const title = canvasNodeText(node);
   if (!title) return "";
-  const style = effectiveCanvasNodeTextStyle(node.kind, node.style);
+  const style = effectiveCanvasNodeTextStyle(node.kind, node.style, {
+    width,
+    height,
+    text: title,
+  });
   const padding = paddingOverride ?? textPadding(node, width, height);
   const fontSize = style.fontSize;
   const lineHeight = fontSize * lineHeightRatio;

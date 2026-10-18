@@ -9,7 +9,10 @@ import {
   frameFromDrag,
   isBorderHit,
 } from "../packages/whiteboard/src/chrome/draw.ts";
-import { RectNode } from "../packages/whiteboard/src/nodes/shapes.tsx";
+import {
+  EllipseNode,
+  RectNode,
+} from "../packages/whiteboard/src/nodes/shapes.tsx";
 import {
   canvasDocumentToFile,
   canvasFileToDocument,
@@ -76,6 +79,89 @@ test("diamond nodes render an SVG border and an inner label region", () => {
   assert.match(markup, /class="zmd-board-shape is-diamond"/);
   assert.match(markup, /<polygon points="50,1 99,50 50,99 1,50"/);
   assert.match(markup, /class="zmd-board-shape-label"/);
+});
+
+for (const variant of ["rect", "diamond", "ellipse"] as const) {
+  test(`${variant} labels adapt to live node dimensions and retain a manual size`, () => {
+    const model = {
+      id: "adaptive-shape",
+      kind: variant === "ellipse" ? ("ellipse" as const) : ("rect" as const),
+      position: { x: 0, y: 0 },
+      width: 120,
+      height: 80,
+      data: { title: "Title" },
+      style: variant === "diamond" ? { shape: "diamond" as const } : {},
+    };
+    const render = (width: number, height: number, fontSize?: number) =>
+      renderToStaticMarkup(
+        createElement(
+          ReactFlowProvider,
+          null,
+          createElement(variant === "ellipse" ? EllipseNode : RectNode, {
+            id: model.id,
+            width,
+            height,
+            data: {
+              model: {
+                ...model,
+                style: { ...model.style, fontSize },
+              },
+            },
+            selected: false,
+          } as never),
+        ),
+      );
+    assert.match(render(120, 80), /font-size:16px/);
+    assert.match(
+      render(480, 240),
+      /font-size:48px/,
+      "font size must follow live resize dimensions before the model is saved",
+    );
+    assert.match(render(480, 240, 24), /font-size:24px/);
+    assert.match(render(120, 80, 24), /font-size:24px/);
+  });
+}
+
+test("shape text insets include the border width used by automatic sizing", () => {
+  for (const kind of ["rect", "ellipse"] as const) {
+    for (const strokeWidth of [undefined, 2, 4]) {
+      const markup = renderToStaticMarkup(
+        createElement(
+          ReactFlowProvider,
+          null,
+          createElement(kind === "ellipse" ? EllipseNode : RectNode, {
+            id: "shape-inset",
+            width: 480,
+            height: 240,
+            data: {
+              model: {
+                id: "shape-inset",
+                kind,
+                position: { x: 0, y: 0 },
+                width: 480,
+                height: 240,
+                data: { title: "Title" },
+                style: { strokeWidth },
+              },
+            },
+            selected: false,
+          } as never),
+        ),
+      );
+      const surfaceStyle = markup.match(
+        /class="zmd-board-shape [^"]+" style="([^"]+)"/,
+      )?.[1];
+      assert.ok(surfaceStyle);
+      const border = Number(surfaceStyle.match(/border-width:(\d+)px/)?.[1]);
+      const padding = Number(surfaceStyle.match(/padding:(\d+)px/)?.[1]);
+      assert.equal(border, strokeWidth ?? 2);
+      assert.equal(
+        border + padding,
+        12,
+        `${kind} must preserve the 24px total inset used to fit text`,
+      );
+    }
+  }
 });
 
 test("diamond SVG export uses polygon geometry and a diamond text clip", () => {

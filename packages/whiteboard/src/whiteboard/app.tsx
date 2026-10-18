@@ -458,6 +458,7 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   textStrike: "Strikethrough",
   fontFamily: "Font",
   fontDefault: "Default font",
+  sizeAuto: "Auto",
   weightBold: "Bold",
   commonColors: "Common custom colors",
   recentColors: "Recently used colors",
@@ -4021,6 +4022,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     ? effectiveCanvasNodeUiTextStyle(
         editingNode.data.model.kind,
         editingNode.data.model.style,
+        { ...nodeSize(editingNode), text: editing?.value },
       )
     : null;
   const menuNode = menu ? nodes.find((node) => node.id === menu.nodeId) : null;
@@ -4820,7 +4822,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                 }}
               >
                 <div className="zmd-board-edit-content">
-                  {editingNode.type === "text" || editingStroke ? (
+                  {editingNode.type === "text" ||
+                  editingNode.type === "rect" ||
+                  editingNode.type === "ellipse" ||
+                  editingStroke ? (
                     <span
                       className="zmd-board-edit-measure"
                       aria-hidden="true"
@@ -4836,8 +4841,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       if (
                         element &&
                         (editingNode.type === "note" ||
-                          editingNode.type === "frame" ||
-                          editingNode.data.model.style?.shape === "diamond")
+                          editingNode.type === "frame")
                       ) {
                         element.style.height = "0px";
                         element.style.height = `${element.scrollHeight}px`;
@@ -4845,6 +4849,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                     }}
                     rows={
                       editingNode.type === "text" ||
+                      editingNode.type === "rect" ||
+                      editingNode.type === "ellipse" ||
                       editingNode.type === "frame" ||
                       editingStroke
                         ? 1
@@ -4869,9 +4875,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                     value={editing.value}
                     style={{
                       ...labelTextStyle(editingTextStyle),
-                      ...(editingNode.data.model.style?.shape === "diamond"
-                        ? { width: "54%" }
-                        : {}),
                       lineHeight: editingNode.type === "note" ? 1.45 : 1.25,
                     }}
                     onChange={(event) => {
@@ -5162,6 +5165,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         {editing && editingNode && editingScreen ? (
           <TextStyleBar
             node={editingNode}
+            text={editing.value}
             labels={labels}
             theme={theme}
             colorScheme={colorScheme}

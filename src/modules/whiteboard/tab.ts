@@ -1209,6 +1209,7 @@ function mountWhiteboardUI(
       textStrike: getString("whiteboard-text-strike"),
       fontFamily: getString("whiteboard-font-family"),
       fontDefault: getString("whiteboard-font-default"),
+      sizeAuto: getString("whiteboard-size-auto"),
       weightBold: getString("whiteboard-weight-bold"),
       commonColors: getString("whiteboard-colors-common"),
       recentColors: getString("whiteboard-colors-recent"),

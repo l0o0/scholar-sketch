@@ -1,6 +1,10 @@
 import type { NodeProps } from "@xyflow/react";
 import { useWhiteboardLabels } from "../chrome/labels";
-import { canvasNodeSurfaceDefaults } from "../model/academic";
+import {
+  canvasNodeSurfaceDefaults,
+  effectiveCanvasNodeUiTextStyle,
+  type CanvasNodeUiTextStyle,
+} from "../model/academic";
 import { labelTextStyle, verticalAlignmentStyle } from "../whiteboard/document";
 import { IconText } from "../whiteboard/icons";
 import {
@@ -59,6 +63,7 @@ function shapeStyle(
   const stroke =
     nodeSurfaceStroke(kind, value) ??
     `var(--zmd-board-text, ${defaults.stroke})`;
+  const strokeWidth = value.strokeWidth ?? defaults.strokeWidth;
   return {
     borderColor: stroke,
     background:
@@ -66,10 +71,9 @@ function shapeStyle(
         ? "transparent"
         : (nodeSurfaceFill(kind, value) ??
           `var(--zmd-board-surface, ${defaults.fill})`),
-    borderWidth:
-      value.shape === "diamond"
-        ? 0
-        : (value.strokeWidth ?? defaults.strokeWidth),
+    borderWidth: value.shape === "diamond" ? 0 : strokeWidth,
+    // The shared text layout uses a total inset of 12px, including the border.
+    padding: value.shape === "diamond" ? 0 : Math.max(0, 12 - strokeWidth),
     borderStyle: resolvedStrokeStyle(value),
     borderRadius:
       kind === "ellipse"
@@ -83,8 +87,10 @@ function shapeStyle(
 
 function DiamondSurface({
   model,
+  textStyle,
 }: {
   model: Extract<CanvasFlowNode["data"]["model"], { kind: "rect" }>;
+  textStyle: CanvasNodeUiTextStyle;
 }) {
   const style = model.style ?? {};
   const defaults = canvasNodeSurfaceDefaults("rect");
@@ -137,7 +143,7 @@ function DiamondSurface({
         <span
           className="zmd-board-shape-label"
           style={{
-            ...labelTextStyle(style),
+            ...labelTextStyle(textStyle),
             display: "block",
             width: "54%",
             maxHeight: "58%",
@@ -150,19 +156,32 @@ function DiamondSurface({
   );
 }
 
-export function RectNode({ data, selected }: NodeProps<CanvasFlowNode>) {
+export function RectNode({
+  data,
+  selected,
+  width,
+  height,
+}: NodeProps<CanvasFlowNode>) {
   const model = data.model;
   if (model.kind !== "rect") return null;
   const diamond = model.style?.shape === "diamond";
+  const textStyle = effectiveCanvasNodeUiTextStyle(model.kind, model.style, {
+    width: width ?? model.width,
+    height: height ?? model.height,
+    text: model.data.title,
+  });
   return (
     <div
       className={`zmd-board-shape ${diamond ? "is-diamond" : "is-rect"}${selected ? " is-selected" : ""}`}
       style={shapeStyle("rect", model.style)}
     >
       <NodeHandles />
-      {diamond ? <DiamondSurface model={model} /> : null}
+      {diamond ? <DiamondSurface model={model} textStyle={textStyle} /> : null}
       {!diamond && model.data.title ? (
-        <span style={labelTextStyle(model.style ?? {})}>
+        <span
+          className="zmd-board-shape-label"
+          style={labelTextStyle(textStyle)}
+        >
           {model.data.title}
         </span>
       ) : null}
@@ -170,9 +189,19 @@ export function RectNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   );
 }
 
-export function EllipseNode({ data, selected }: NodeProps<CanvasFlowNode>) {
+export function EllipseNode({
+  data,
+  selected,
+  width,
+  height,
+}: NodeProps<CanvasFlowNode>) {
   const model = data.model;
   if (model.kind !== "ellipse") return null;
+  const textStyle = effectiveCanvasNodeUiTextStyle(model.kind, model.style, {
+    width: width ?? model.width,
+    height: height ?? model.height,
+    text: model.data.title,
+  });
   return (
     <div
       className={`zmd-board-shape is-ellipse${selected ? " is-selected" : ""}`}
@@ -180,7 +209,10 @@ export function EllipseNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     >
       <NodeHandles />
       {model.data.title ? (
-        <span style={labelTextStyle(model.style ?? {})}>
+        <span
+          className="zmd-board-shape-label"
+          style={labelTextStyle(textStyle)}
+        >
           {model.data.title}
         </span>
       ) : null}

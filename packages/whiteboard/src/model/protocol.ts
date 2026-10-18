@@ -250,6 +250,7 @@ export interface WhiteboardLabels {
   textStrike: string;
   fontFamily: string;
   fontDefault: string;
+  sizeAuto?: string;
   weightBold: string;
   commonColors: string;
   opacity: string;
@@ -1074,6 +1075,7 @@ const whiteboardLabelStringKeys: Record<
   textStrike: true,
   fontFamily: true,
   fontDefault: true,
+  sizeAuto: true,
   weightBold: true,
   commonColors: true,
   opacity: true,
@@ -1118,6 +1120,7 @@ function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
     "quoteCreateClaim",
     "quoteCreateEvidence",
     "shortcutFreeMove",
+    "sizeAuto",
     "shortcutNudge",
     "shortcutNudgeLarge",
   ];

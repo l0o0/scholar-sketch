@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { Window } from "happy-dom";
 import { act, createElement } from "react";
-import { createRoot } from "react-dom/client";
 import { createServer } from "../packages/whiteboard/node_modules/vite/dist/node/index.js";
 import type {
   WhiteboardApp,
@@ -110,6 +109,8 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
   });
   const container = window.document.createElement("div");
   window.document.body.append(container);
+  // React's input event support must be detected after the DOM is installed.
+  const { createRoot } = await import("react-dom/client");
   const root = createRoot(container);
   let runtime: WhiteboardRuntime;
   let bootstrapped = false;
@@ -742,6 +743,87 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     );
     await exitTextEditing();
     assert.deepEqual(runtime!.getSnapshot().nodes, textDocument.nodes);
+    await act(async () =>
+      runtime!.loadSnapshot({
+        version: 2,
+        nodes: [
+          {
+            id: "adaptive-rect",
+            kind: "rect",
+            position: { x: 200, y: 200 },
+            width: 480,
+            height: 240,
+            data: { title: "Title" },
+          },
+        ],
+        connections: [],
+        viewport: { x: 0, y: 0, zoom: 0.5 },
+      }),
+    );
+    const adaptiveRect = container.querySelector<HTMLElement>(
+      '.react-flow__node[data-id="adaptive-rect"]',
+    )!;
+    assert.equal(
+      adaptiveRect.querySelector<HTMLElement>(".zmd-board-shape span")!.style
+        .fontSize,
+      "48px",
+      "shape typography uses canvas dimensions independently of zoom",
+    );
+    await dispatch(adaptiveRect, "click", { clientX: 200, clientY: 150 });
+    await dispatch(
+      container.querySelector(".zmd-board-selection-edit")!,
+      "click",
+    );
+    expectToolbar("text");
+    const shapeEditor = container.querySelector<HTMLTextAreaElement>(
+      ".zmd-board-editor textarea",
+    )!;
+    assert.equal(shapeEditor.style.fontSize, "48px");
+    const fontSizeSelect = container.querySelector<HTMLSelectElement>(
+      '.zmd-board-style-bar.is-text select[aria-label="Size"]',
+    )!;
+    assert.equal(fontSizeSelect.value, "auto");
+    assert.match(fontSizeSelect.selectedOptions[0].textContent ?? "", /48/);
+    const draft = "Draft 图形";
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value",
+      )!.set!.call(shapeEditor, draft);
+      shapeEditor.dispatchEvent(new window.Event("input", { bubbles: true }));
+      shapeEditor.dispatchEvent(new window.Event("change", { bubbles: true }));
+    });
+    const chooseFontSize = async (value: string) => {
+      await dispatch(fontSizeSelect, "pointerdown");
+      await act(async () => {
+        fontSizeSelect.value = value;
+        fontSizeSelect.dispatchEvent(
+          new window.Event("change", { bubbles: true }),
+        );
+      });
+    };
+    await chooseFontSize("24");
+    assert.equal(shapeEditor.style.fontSize, "24px");
+    assert.equal(shapeEditor.value, draft);
+    assert.equal(runtime!.getSnapshot().nodes[0]?.style?.fontSize, 24);
+    await chooseFontSize("auto");
+    assert.equal(shapeEditor.style.fontSize, "48px");
+    assert.equal(shapeEditor.value, draft);
+    assert.equal(runtime!.getSnapshot().nodes[0]?.style?.fontSize, undefined);
+    await exitTextEditing();
+    const editedShape = runtime!.getSnapshot().nodes[0]!;
+    assert.equal(editedShape.kind, "rect");
+    assert.equal(editedShape.kind === "rect" && editedShape.data.title, draft);
+    assert.equal(
+      adaptiveRect.querySelector<HTMLElement>(".zmd-board-shape span")!.style
+        .fontSize,
+      "48px",
+      "committing a draft keeps the same automatic size as the editor",
+    );
+    const reloadedShape = canvasFileToDocument(
+      canvasDocumentToFile(runtime!.getSnapshot()),
+    ).document.nodes[0]!;
+    assert.equal(reloadedShape.style?.fontSize, undefined);
     const edgeDocument = {
       version: 2 as const,
       viewport: { x: 0, y: 0, zoom: 1 },

@@ -9,6 +9,7 @@ import type { ColorSchemeID } from "../model/colorSchemes";
 import type { WhiteboardLabels } from "../model/protocol";
 import type { WhiteboardTheme } from "../model/protocol";
 import type { CanvasFlowNode } from "../nodes";
+import { flowNodeText } from "../whiteboard/document";
 import { StyleMenu } from "./StyleMenu";
 import { ColorPicker } from "./ColorPicker";
 import {
@@ -55,6 +56,7 @@ export function isEditableControl(target: EventTarget | null): boolean {
 
 export function TextStyleBar(props: {
   node?: CanvasFlowNode;
+  text?: string;
   textStyle?: CanvasNodeStyle;
   left: number;
   top: number;
@@ -71,6 +73,13 @@ export function TextStyleBar(props: {
   const effective = effectiveCanvasNodeTextStyle(
     props.node?.data.model.kind ?? "text",
     style,
+    props.node
+      ? {
+          width: props.node.width ?? props.node.data.model.width,
+          height: props.node.height ?? props.node.data.model.height,
+          text: props.text ?? flowNodeText(props.node),
+        }
+      : undefined,
   );
   const [menu, setMenu] = useState<TextMenu>(null);
   const bold = effective.fontWeight === "bold";
@@ -80,6 +89,20 @@ export function TextStyleBar(props: {
   const align = effective.textAlign;
   const valign = effective.verticalAlign;
   const fontSize = effective.fontSize;
+  const supportsAutoSize =
+    props.node?.data.model.kind === "rect" ||
+    props.node?.data.model.kind === "ellipse";
+  const autoSize =
+    supportsAutoSize &&
+    !(
+      typeof style.fontSize === "number" &&
+      Number.isFinite(style.fontSize) &&
+      style.fontSize > 0
+    );
+  const sizes =
+    SIZES.includes(fontSize) || autoSize
+      ? SIZES
+      : [...SIZES, fontSize].sort((a, b) => a - b);
   const fontFamily = style.fontFamily || "";
   const color = style.textColor || canvasThemePalette(props.theme).text;
 
@@ -219,12 +242,23 @@ export function TextStyleBar(props: {
         <select
           title={props.labels.size}
           aria-label={props.labels.size}
-          value={fontSize}
+          value={autoSize ? "auto" : fontSize}
           onChange={(event) =>
-            props.onChange({ fontSize: Number(event.target.value) })
+            props.onChange({
+              fontSize:
+                event.target.value === "auto"
+                  ? undefined
+                  : Number(event.target.value),
+            })
           }
         >
-          {SIZES.map((size) => (
+          {supportsAutoSize ? (
+            <option value="auto">
+              {props.labels.sizeAuto ?? "Auto"}
+              {autoSize ? ` (${fontSize})` : ""}
+            </option>
+          ) : null}
+          {sizes.map((size) => (
             <option key={size} value={size}>
               {size}
             </option>

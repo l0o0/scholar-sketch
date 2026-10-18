@@ -1171,6 +1171,7 @@ test("null-source init requires complete labels and a canonical canvas document"
 
   for (const label of [
     "shortcutFreeMove",
+    "sizeAuto",
     "shortcutNudge",
     "shortcutNudgeLarge",
   ]) {
