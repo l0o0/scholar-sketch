@@ -1,19 +1,20 @@
 {
   "demo": true,
-  "product": "软件更新 · 技术样片",
+  "product": "Scholar Sketch 产品介绍",
   "style": "hybrid",
   "width": 1920,
   "height": 1080,
   "fps": 30,
-  "duration": 10,
+  "duration": 58.5,
   "repo": "/home/user/scholar-sketch",
   "audioRequired": true,
   "sfxRequired": true,
   "typography": {
-    "mode": "bilingual",
-    "zhFont": "PingFang SC / Noto Sans CJK SC",
-    "enFont": "Georgia",
-    "zhStyle": "sans-serif"
+    "mode": "zh",
+    "zhFont": "Noto Sans SC (Film Sans SC)",
+    "enFont": "Inter (product names only)",
+    "zhStyle": "sans-serif",
+    "exceptionReason": "用户选择“横版 45–60 秒，全中文”（2026-10-19），不放英文标题层；产品名等专有名词保留原文。"
   },
   "audio": {
     "ducking": {
@@ -23,97 +24,479 @@
       "file": "assets/music.wav",
       "gain": 0.65
     },
-    "cues": [
-      {
-        "at": 3.45,
-        "actionId": "component-appear",
-        "file": "assets/sfx/click.wav",
-        "gain": 0.8,
-        "role": "sfx",
-        "kind": "click"
-      },
-      {
-        "at": 7.0,
-        "actionId": "close-enter",
-        "file": "assets/sfx/ding-dong.wav",
-        "gain": 0.7,
-        "role": "sfx",
-        "kind": "ding-dong"
-      }
-    ]
+    "beatGrid": {
+      "bpm": 90,
+      "offset": 0
+    },
+    "cues": []
   },
   "shots": [
     {
-      "id": "intro",
-      "start": 0,
-      "end": 3,
+      "id": "brand",
+      "start": 0.0,
+      "end": 4.0,
       "type": "title",
-      "headlineEn": "What's new",
-      "headline": "这次更新，带来了什么？",
-      "description": "先用一句话讲清楚变化，再展示具体怎么用。",
-      "descriptionAt": 0,
-      "claim": false,
-      "source": [],
-      "plainExplanation": "先用一句话讲清楚变化，再展示具体怎么用。",
-      "actions": [
-        {
-          "id": "intro-enter",
-          "at": 0,
-          "action": "copy enters",
-          "soundRequired": false
-        }
+      "headline": "Scholar Sketch",
+      "description": "Zotero 中的 Markdown 编辑器与可视化白板",
+      "plainExplanation": "Scholar Sketch 是 Zotero 插件，在 Zotero 里提供 Markdown 编辑器和可视化白板。",
+      "descriptionAt": 1.6,
+      "claim": true,
+      "source": [
+        "repo:doc/README-zhCN.md",
+        "repo:README.md"
       ],
-      "component": null
-    },
-    {
-      "id": "component",
-      "start": 3,
-      "end": 7,
-      "type": "detail",
-      "headlineEn": "Real components",
-      "headline": "直接用产品里的组件",
-      "description": "把仓库里的按钮和卡片接进来，再用代码安排它们的出场和切换。",
-      "component": "src/presentations.jsx",
-      "descriptionAt": 0,
-      "claim": false,
-      "source": [],
-      "plainExplanation": "把仓库里的按钮和卡片接进来，再用代码安排它们的出场和切换。",
+      "component": null,
       "actions": [
         {
-          "id": "component-enter",
-          "at": 0,
-          "action": "copy enters",
+          "id": "brand-draw",
+          "at": 0.2,
+          "action": "描边遮罩画出原图标志",
           "soundRequired": false
         },
         {
-          "id": "component-appear",
-          "at": 0.45,
-          "action": "controls appear",
+          "id": "brand-fold",
+          "at": 1.2,
+          "action": "折角翻进来，标志落定",
+          "soundRequired": true
+        },
+        {
+          "id": "brand-line",
+          "at": 1.6,
+          "action": "主句淡入",
+          "soundRequired": false
+        }
+      ]
+    },
+    {
+      "id": "entry",
+      "start": 4.0,
+      "end": 7.5,
+      "type": "detail",
+      "headline": "工具栏里，新建笔记或白板",
+      "description": "按钮就在 Zotero 的工具栏上。",
+      "plainExplanation": "点 Zotero 工具栏上的 Scholar Sketch 按钮，菜单里有“新建 Markdown 笔记…”和“新建白板…”。",
+      "descriptionAt": 0.45,
+      "claim": true,
+      "source": [
+        "repo:src/modules/creation-toolbar.ts",
+        "repo:addon/locale/zh-CN/addon.ftl",
+        "repo:addon/content/icons/scholar-sketch-toolbar.svg"
+      ],
+      "component": "reconstruction: menu items from the real menu tree (evidence/zotero-shell-audit.md §2.1) with real icons",
+      "actions": [
+        {
+          "id": "entry-click",
+          "at": 0.2,
+          "action": "光标点工具栏按钮",
+          "soundRequired": true
+        },
+        {
+          "id": "entry-items",
+          "at": 0.4,
+          "action": "两项菜单出现",
+          "soundRequired": false
+        },
+        {
+          "id": "entry-fly",
+          "at": 2.9,
+          "action": "白板图标飞向页眉",
+          "soundRequired": false
+        }
+      ]
+    },
+    {
+      "id": "drop",
+      "start": 7.5,
+      "end": 12.5,
+      "type": "workspace",
+      "headline": "把文献拖进白板",
+      "description": "从文库拖来一篇论文，就生成一张带作者、年份和期刊的文献卡片。",
+      "plainExplanation": "从 Zotero 文库把一篇论文拖到白板上，白板会生成这篇论文的文献卡片，上面有标题、作者、年份、期刊、标签和批注数。",
+      "descriptionAt": 0.5,
+      "claim": true,
+      "source": [
+        "repo:packages/whiteboard/src/nodes/academic.tsx",
+        "repo:src/modules/whiteboard/source-gateway.ts",
+        "repo:docs/architecture.md"
+      ],
+      "component": "packages/whiteboard/src/whiteboard/app.tsx (WhiteboardApp, runtime.beginAcademicDrop) + reconstructed sample-library strip",
+      "actions": [
+        {
+          "id": "drop-grab",
+          "at": 1.0,
+          "action": "按住示例文库第一行",
+          "soundRequired": true
+        },
+        {
+          "id": "drop-release",
+          "at": 2.333,
+          "action": "松手，真实文献卡出现",
+          "soundRequired": true
+        },
+        {
+          "id": "drop-select",
+          "at": 4.4,
+          "action": "点选文献卡",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "canvas"
+    },
+    {
+      "id": "annotations",
+      "start": 12.5,
+      "end": 18.0,
+      "type": "detail",
+      "headline": "PDF 高亮，变成引文卡片",
+      "description": "勾选 PDF 里的高亮，点“添加所选批注”，每条都变成一张带页码的引文卡片。",
+      "plainExplanation": "在文献卡片上点“查看批注”，弹窗列出这篇论文 PDF 里的高亮、颜色和页码；勾选后点“添加所选批注”，每条高亮变成一张引文卡片。",
+      "descriptionAt": 0.3,
+      "claim": true,
+      "source": [
+        "repo:packages/whiteboard/src/chrome/AnnotationBrowser.tsx",
+        "repo:packages/whiteboard/src/chrome/PropertiesPanel.tsx",
+        "repo:addon/locale/zh-CN/addon.ftl"
+      ],
+      "component": "packages/whiteboard/src/chrome/AnnotationBrowser.tsx + PropertiesPanel.tsx inside WhiteboardApp",
+      "actions": [
+        {
+          "id": "ann-details",
+          "at": 0.3,
+          "action": "点“详细属性”",
+          "soundRequired": true
+        },
+        {
+          "id": "ann-open",
+          "at": 0.9,
+          "action": "点“查看批注”",
+          "soundRequired": true
+        },
+        {
+          "id": "ann-tick-1",
+          "at": 2.0,
+          "action": "勾选第一条高亮",
+          "soundRequired": true
+        },
+        {
+          "id": "ann-tick-2",
+          "at": 2.667,
+          "action": "勾选第二条高亮",
+          "soundRequired": true
+        },
+        {
+          "id": "ann-add",
+          "at": 3.333,
+          "action": "点“添加所选批注”，出现两张引文卡",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "canvas"
+    },
+    {
+      "id": "cards",
+      "start": 18.0,
+      "end": 23.5,
+      "type": "workspace",
+      "headline": "五种卡片，一条思路",
+      "description": "问题、观点、证据、总结各有颜色和边框；从引文直接新建观点，自动连好线。",
+      "plainExplanation": "白板有笔记、问题、观点、证据、总结五种卡片，颜色和边框不同；右键引文卡片选“从这条批注新建观点”，旁边会多一张连好线、带出处的观点卡片。",
+      "descriptionAt": 0.5,
+      "claim": true,
+      "source": [
+        "repo:packages/whiteboard/src/model/academic.ts",
+        "repo:packages/whiteboard/src/whiteboard/continuation.ts",
+        "repo:addon/locale/zh-CN/addon.ftl"
+      ],
+      "component": "WhiteboardApp note templates (nodes/academic.tsx NoteNode) + context menu createNoteFromQuote",
+      "actions": [
+        {
+          "id": "cards-context",
+          "at": 2.5,
+          "action": "右键引文卡",
+          "soundRequired": true
+        },
+        {
+          "id": "cards-new-claim",
+          "at": 3.167,
+          "action": "点“从这条批注新建观点”，新观点卡连好线出现",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "canvas"
+    },
+    {
+      "id": "painter",
+      "start": 23.5,
+      "end": 28.5,
+      "type": "macro",
+      "headline": "格式刷，一点就复制样式",
+      "description": "点“格式刷”再点另一张卡片，颜色和边框复制过去，内容不变。",
+      "plainExplanation": "选中一张卡片点“格式刷”，再点另一张卡片，颜色和边框会复制过去，卡片内容和文献引用不变（v0.2.9 新增）。",
+      "descriptionAt": 0.4,
+      "claim": true,
+      "source": [
+        "repo:packages/whiteboard/src/chrome/FormatPaintButton.tsx",
+        "repo:packages/whiteboard/src/model/style-transfer.ts",
+        "repo:CHANGELOG.md"
+      ],
+      "component": "packages/whiteboard/src/chrome/FormatPaintButton.tsx in StyleBar; app.tsx format-paint status",
+      "actions": [
+        {
+          "id": "paint-select",
+          "at": 1.0,
+          "action": "点选绿色源卡",
+          "soundRequired": true
+        },
+        {
+          "id": "paint-arm",
+          "at": 1.667,
+          "action": "点“格式刷”",
+          "soundRequired": true
+        },
+        {
+          "id": "paint-apply",
+          "at": 3.0,
+          "action": "刷到白色文献卡上，样式复制过去",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "canvas",
+      "tag": "v0.2.9 新增"
+    },
+    {
+      "id": "align",
+      "start": 28.5,
+      "end": 32.0,
+      "type": "detail",
+      "headline": "拖动时自动对齐",
+      "description": "靠近其他卡片会出现参考线，松手就贴齐。",
+      "plainExplanation": "拖动卡片时，靠近其他卡片的边缘会出现对齐参考线，松手卡片就贴齐（v0.2.4）。",
+      "descriptionAt": 0.3,
+      "claim": true,
+      "source": [
+        "repo:packages/whiteboard/src/whiteboard/smartGuides.ts",
+        "repo:packages/whiteboard/src/whiteboard/SmartGuideOverlay.tsx"
+      ],
+      "component": "packages/whiteboard/src/whiteboard/SmartGuideOverlay.tsx (smart guides during a real drag)",
+      "actions": [
+        {
+          "id": "align-grab",
+          "at": 0.667,
+          "action": "按住读书笔记卡",
+          "soundRequired": true
+        },
+        {
+          "id": "align-snap",
+          "at": 1.333,
+          "action": "参考线出现并吸附",
+          "soundRequired": true
+        },
+        {
+          "id": "align-release",
+          "at": 1.8,
+          "action": "松手，顶边对齐",
+          "soundRequired": false
+        },
+        {
+          "id": "align-turn",
+          "at": 3.49,
+          "action": "折角翻页开始",
+          "soundRequired": false
+        }
+      ],
+      "chapter": "canvas",
+      "tag": "v0.2.4"
+    },
+    {
+      "id": "write",
+      "start": 32.0,
+      "end": 36.5,
+      "type": "detail",
+      "headline": "在 Zotero 里写 Markdown",
+      "description": "表格、公式和待办直接显示排好的样子，边写边排版。",
+      "plainExplanation": "在 Zotero 里打开 Markdown 笔记，实时预览把表格、公式和待办直接显示成排好版的样子，输入的新内容也马上排好。",
+      "descriptionAt": 0.7,
+      "claim": true,
+      "source": [
+        "repo:src/editor/bootstrap.ts",
+        "repo:src/editor/live-preview/plugin.ts",
+        "repo:CHANGELOG.md"
+      ],
+      "component": "src/editor/bootstrap.ts (production CodeMirror iframe) via src/modules/markdown/editor.ts createMarkdownEditor; outline-sidebar.ts; backlinks.ts",
+      "actions": [
+        {
+          "id": "write-turn",
+          "at": 0.0,
+          "action": "折角翻页进第二章",
+          "soundRequired": true
+        },
+        {
+          "id": "write-type",
+          "at": 1.5,
+          "action": "真实输入一行待办",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "md"
+    },
+    {
+      "id": "links",
+      "start": 36.5,
+      "end": 42.5,
+      "type": "macro",
+      "headline": "输入 [[，引用文献和笔记",
+      "description": "文库里的论文、笔记和白板都能搜到，点一下就插入链接。",
+      "plainExplanation": "写笔记时输入 [[，可以搜到 Zotero 文库里的论文、笔记和白板，用“全部 / 常规条目 / 笔记/附件 / 已打开”筛选，点一下插入链接。",
+      "descriptionAt": 0.5,
+      "claim": true,
+      "source": [
+        "repo:src/editor/link-completion.ts",
+        "repo:src/modules/markdown/document-links.ts",
+        "repo:CHANGELOG.md"
+      ],
+      "component": "src/editor/link-completion.ts popup + src/modules/markdown/document-links.ts searchDocumentLinks",
+      "actions": [
+        {
+          "id": "links-type",
+          "at": 0.8,
+          "action": "真实输入“另见 [[公园”",
+          "soundRequired": true
+        },
+        {
+          "id": "links-popup",
+          "at": 1.4,
+          "action": "引用选择器弹出",
+          "soundRequired": true
+        },
+        {
+          "id": "links-filter",
+          "at": 2.667,
+          "action": "点“常规条目”",
+          "soundRequired": true
+        },
+        {
+          "id": "links-insert",
+          "at": 3.333,
+          "action": "点主角论文，插入链接",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "md"
+    },
+    {
+      "id": "backlinks",
+      "start": 42.5,
+      "end": 46.0,
+      "type": "detail",
+      "headline": "谁引用了这篇笔记",
+      "description": "右侧列出所有链接到这里的笔记。",
+      "plainExplanation": "打开一篇笔记，右侧“引用此笔记”会列出链接到它的其他笔记和引用的那一句。",
+      "descriptionAt": 0.3,
+      "claim": true,
+      "source": [
+        "repo:src/modules/markdown/backlinks.ts",
+        "repo:docs/obsidian-links.md"
+      ],
+      "component": "src/modules/markdown/backlinks.ts mountNoteBacklinks",
+      "actions": [
+        {
+          "id": "back-click",
+          "at": 1.333,
+          "action": "点第一条引用",
+          "soundRequired": true
+        }
+      ],
+      "chapter": "md"
+    },
+    {
+      "id": "dark",
+      "start": 46.0,
+      "end": 49.5,
+      "type": "workspace",
+      "headline": "外观跟随系统",
+      "description": "系统切到深色，笔记和白板一起变深。",
+      "plainExplanation": "外观默认“跟随系统”：系统切到深色模式时，打开的 Markdown 笔记和白板会一起换成深色主题。",
+      "descriptionAt": 0.3,
+      "claim": true,
+      "source": [
+        "repo:addon/prefs.js",
+        "repo:src/modules/markdown/editor.ts",
+        "repo:src/modules/whiteboard/tab.ts"
+      ],
+      "component": "production dark themes: src/ui/theme.ts THEME_TOKENS.dark via applyMarkdownEditorPreferences and WhiteboardApp theme prop",
+      "actions": [
+        {
+          "id": "dark-switch",
+          "at": 1.167,
+          "action": "系统外观切到深色，笔记和白板一起变深",
+          "soundRequired": false
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "start": 49.5,
+      "end": 53.5,
+      "type": "detail",
+      "headline": "笔记和白板，都是普通文件",
+      "description": "存成 .md 和 JSON Canvas，挂在这篇文献下面。",
+      "plainExplanation": "笔记保存为普通 .md 文件，白板保存为 JSON Canvas（.canvas）文件，都是这篇文献的 Zotero 附件。",
+      "descriptionAt": 0.9,
+      "claim": true,
+      "source": [
+        "repo:README.md",
+        "repo:docs/canvas-api.md",
+        "repo:addon/content/icons/attachment-markdown.svg",
+        "repo:addon/content/icons/attachment-canvas.svg"
+      ],
+      "component": "reconstruction: neutral attachment list with real attachment icons and real type names",
+      "actions": [
+        {
+          "id": "files-turn",
+          "at": 0.0,
+          "action": "折角翻页（深色到浅色）",
+          "soundRequired": true
+        },
+        {
+          "id": "files-lift",
+          "at": 1.0,
+          "action": "两个附件行抬起",
           "soundRequired": true
         }
       ]
     },
     {
-      "id": "close",
-      "start": 7,
-      "end": 10,
+      "id": "end",
+      "start": 53.5,
+      "end": 58.5,
       "type": "end",
-      "headlineEn": "Ready to share",
-      "headline": "画面和声音，一起检查",
-      "description": "确认字幕读得完、操作听得见，再导出视频。",
-      "descriptionAt": 0,
+      "headline": "Scholar Sketch",
+      "description": "阅读 · 整理 · 思考",
+      "plainExplanation": "产品标志和中文标语；支持 Zotero 9 / 10 / 11 桌面版。",
+      "descriptionAt": 0.67,
       "claim": false,
       "source": [],
-      "plainExplanation": "确认字幕读得完、操作听得见，再导出视频。",
+      "component": null,
       "actions": [
         {
-          "id": "close-enter",
-          "at": 0,
-          "action": "copy enters",
-          "soundRequired": true
+          "id": "end-logo",
+          "at": 0.0,
+          "action": "标志回到中央",
+          "soundRequired": false
+        },
+        {
+          "id": "end-chord",
+          "at": 0.667,
+          "action": "主和弦落下，标语出现",
+          "soundRequired": false
         }
-      ],
-      "component": null
+      ]
     }
-  ]
+  ],
+  "scope": {
+    "versions": "product as of v0.2.9",
+    "platforms": [
+      "zotero-desktop-plugin"
+    ]
+  }
 }

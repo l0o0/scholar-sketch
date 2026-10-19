@@ -1,10 +1,11 @@
 import './fake-api.js';
+import './library/zotero.js';   // the film's one fake Zotero, installed before any product module
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import {Film} from './film.jsx';
 import {seek, frame, master} from './engine.js';
-import {SHOT_BUILDERS} from './shots/index.js';
+import {SHOT_BUILDERS, LAYER_BUILDERS} from './shots/index.js';
 // If the product uses motion/framer-motion, make its micro-animations jump to the end state:
 //   import {MotionGlobalConfig} from 'motion/react'; MotionGlobalConfig.skipAnimations = true;
 
@@ -19,7 +20,7 @@ window.__filmReady = (async () => {
   // Builders run after layout exists: they can measure real component positions.
   // Builders may be async. Only await real Promises: a GSAP timeline is thenable and a paused one
   // never resolves, so `tl => tl.set(...)` returning the timeline must not be awaited.
-  for (const build of Object.values(SHOT_BUILDERS)) { const r = build(master); if (r instanceof Promise) await r; }
+  for (const build of [...LAYER_BUILDERS, ...Object.values(SHOT_BUILDERS)]) { const r = build(master); if (r instanceof Promise) await r; }
   await seek(0);
 })();
 let t0 = null, req = null;

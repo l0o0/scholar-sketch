@@ -29,7 +29,7 @@ export default {
   external: ['/fonts/*'],
   // real zh-CN Fluent strings are read as text; KaTeX fonts are inlined the same way production does.
   loaders: {'.ftl': 'text', '.woff2': 'dataurl', '.woff': 'dataurl', '.ttf': 'dataurl'},
-  define: {__ZOTERO_SKIN_FILES__: JSON.stringify(zoteroSkin)},
+  define: {__ZOTERO_SKIN_FILES__: JSON.stringify(zoteroSkin), __HAS_POSTER__: JSON.stringify(existsSync(new URL('./public/poster.png', import.meta.url).pathname))},
   esbuild: {
     // The root tsconfig extends zotero-types/entries/sandbox (devDependency, not installed). Mirror its
     // compiler options (zotero-types@4.1.3 entries/base: target ES2022, experimentalDecorators) so the

@@ -45,6 +45,94 @@
       ],
       "format": "esm"
     },
+    "../../packages/fake-zotero/src/index.ts": {
+      "bytes": 18941,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../addon/locale/zh-CN/addon.ftl": {
+      "bytes": 31657,
+      "imports": []
+    },
+    "src/md/zh.js": {
+      "bytes": 523,
+      "imports": [
+        {
+          "path": "../../addon/locale/zh-CN/addon.ftl",
+          "kind": "import-statement",
+          "original": "@addon/locale/zh-CN/addon.ftl"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/library/fixture.js": {
+      "bytes": 5813,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/library/zotero.js": {
+      "bytes": 4311,
+      "imports": [
+        {
+          "path": "../../packages/fake-zotero/src/index.ts",
+          "kind": "import-statement",
+          "original": "@zotero-plugin/fake-zotero"
+        },
+        {
+          "path": "src/md/zh.js",
+          "kind": "import-statement",
+          "original": "../md/zh.js"
+        },
+        {
+          "path": "src/library/fixture.js",
+          "kind": "import-statement",
+          "original": "./fixture.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
     "node_modules/react/cjs/react.production.js": {
       "bytes": 18040,
       "imports": [
@@ -298,11 +386,11 @@
       "format": "esm"
     },
     "plan.json": {
-      "bytes": 3003,
+      "bytes": 16220,
       "imports": []
     },
     "src/engine.js": {
-      "bytes": 1945,
+      "bytes": 2570,
       "imports": [
         {
           "path": "node_modules/gsap/index.js",
@@ -324,6 +412,22 @@
           "kind": "import-statement",
           "original": "./film-store.js"
         },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/shots/index.js": {
+      "bytes": 406,
+      "imports": [
         {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
           "kind": "import-statement",
@@ -374,8 +478,8 @@
       ],
       "format": "cjs"
     },
-    "src/kit/text.jsx": {
-      "bytes": 1037,
+    "src/stage/placeholder.jsx": {
+      "bytes": 291,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -396,131 +500,12 @@
           "path": "node_modules/react/jsx-runtime.js",
           "kind": "import-statement",
           "original": "react/jsx-runtime"
-        }
-      ],
-      "format": "esm"
-    },
-    "assets/fallback/primitives.jsx": {
-      "bytes": 863,
-      "imports": [
-        {
-          "path": "node_modules/react/index.js",
-          "kind": "import-statement",
-          "original": "react"
-        },
-        {
-          "path": "<define:__ZOTERO_SKIN_FILES__>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "<define:process.env>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "node_modules/react/jsx-runtime.js",
-          "kind": "import-statement",
-          "original": "react/jsx-runtime"
-        }
-      ],
-      "format": "esm"
-    },
-    "src/presentations.jsx": {
-      "bytes": 719,
-      "imports": [
-        {
-          "path": "node_modules/react/index.js",
-          "kind": "import-statement",
-          "original": "react"
-        },
-        {
-          "path": "assets/fallback/primitives.jsx",
-          "kind": "import-statement",
-          "original": "../assets/fallback/primitives.jsx"
-        },
-        {
-          "path": "<define:__ZOTERO_SKIN_FILES__>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "<define:process.env>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "node_modules/react/jsx-runtime.js",
-          "kind": "import-statement",
-          "original": "react/jsx-runtime"
-        }
-      ],
-      "format": "esm"
-    },
-    "src/shots/sample.jsx": {
-      "bytes": 1453,
-      "imports": [
-        {
-          "path": "node_modules/react/index.js",
-          "kind": "import-statement",
-          "original": "react"
-        },
-        {
-          "path": "src/kit/text.jsx",
-          "kind": "import-statement",
-          "original": "../kit/text.jsx"
-        },
-        {
-          "path": "src/engine.js",
-          "kind": "import-statement",
-          "original": "../engine.js"
-        },
-        {
-          "path": "src/presentations.jsx",
-          "kind": "import-statement",
-          "original": "../presentations.jsx"
-        },
-        {
-          "path": "<define:__ZOTERO_SKIN_FILES__>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "<define:process.env>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "node_modules/react/jsx-runtime.js",
-          "kind": "import-statement",
-          "original": "react/jsx-runtime"
-        }
-      ],
-      "format": "esm"
-    },
-    "src/shots/index.js": {
-      "bytes": 394,
-      "imports": [
-        {
-          "path": "src/shots/sample.jsx",
-          "kind": "import-statement",
-          "original": "./sample.jsx"
-        },
-        {
-          "path": "<define:__ZOTERO_SKIN_FILES__>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "<define:process.env>",
-          "kind": "import-statement",
-          "external": true
         }
       ],
       "format": "esm"
     },
     "src/film.jsx": {
-      "bytes": 603,
+      "bytes": 1151,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -543,6 +528,11 @@
           "original": "./shots/index.js"
         },
         {
+          "path": "src/stage/placeholder.jsx",
+          "kind": "import-statement",
+          "original": "./stage/placeholder.jsx"
+        },
+        {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
           "kind": "import-statement",
           "external": true
@@ -561,12 +551,17 @@
       "format": "esm"
     },
     "src/client.jsx": {
-      "bytes": 1484,
+      "bytes": 1623,
       "imports": [
         {
           "path": "src/fake-api.js",
           "kind": "import-statement",
           "original": "./fake-api.js"
+        },
+        {
+          "path": "src/library/zotero.js",
+          "kind": "import-statement",
+          "original": "./library/zotero.js"
         },
         {
           "path": "node_modules/react/index.js",
@@ -630,7 +625,7 @@
           "bytesInOutput": 17
         },
         "node_modules/react/cjs/react.production.js": {
-          "bytesInOutput": 7950
+          "bytesInOutput": 7977
         },
         "node_modules/react/index.js": {
           "bytesInOutput": 59
@@ -648,7 +643,7 @@
           "bytesInOutput": 261
         },
         "node_modules/react-dom/cjs/react-dom-client.production.js": {
-          "bytesInOutput": 205091
+          "bytesInOutput": 205143
         },
         "node_modules/react-dom/client.js": {
           "bytesInOutput": 261
@@ -660,7 +655,7 @@
           "bytesInOutput": 59
         },
         "src/client.jsx": {
-          "bytesInOutput": 646
+          "bytesInOutput": 656
         },
         "src/fake-api.js": {
           "bytesInOutput": 877
@@ -668,44 +663,50 @@
         "src/fixtures/api.js": {
           "bytesInOutput": 31
         },
+        "src/library/zotero.js": {
+          "bytesInOutput": 1919
+        },
+        "../../packages/fake-zotero/src/index.ts": {
+          "bytesInOutput": 6379
+        },
+        "src/md/zh.js": {
+          "bytesInOutput": 157
+        },
+        "../../addon/locale/zh-CN/addon.ftl": {
+          "bytesInOutput": 46374
+        },
+        "src/library/fixture.js": {
+          "bytesInOutput": 5383
+        },
         "src/film.jsx": {
-          "bytesInOutput": 407
+          "bytesInOutput": 679
         },
         "src/film-store.js": {
           "bytesInOutput": 179
         },
         "src/engine.js": {
-          "bytesInOutput": 662
+          "bytesInOutput": 576
         },
         "node_modules/gsap/index.js": {
           "bytesInOutput": 58
         },
         "node_modules/gsap/gsap-core.js": {
-          "bytesInOutput": 51634
+          "bytesInOutput": 51616
         },
         "node_modules/gsap/CSSPlugin.js": {
-          "bytesInOutput": 18930
+          "bytesInOutput": 18886
         },
         "plan.json": {
-          "bytesInOutput": 2409
+          "bytesInOutput": 14643
         },
         "src/shots/index.js": {
-          "bytesInOutput": 115
+          "bytesInOutput": 36
         },
-        "src/shots/sample.jsx": {
-          "bytesInOutput": 1002
-        },
-        "src/kit/text.jsx": {
-          "bytesInOutput": 609
-        },
-        "src/presentations.jsx": {
-          "bytesInOutput": 702
-        },
-        "assets/fallback/primitives.jsx": {
-          "bytesInOutput": 603
+        "src/stage/placeholder.jsx": {
+          "bytesInOutput": 229
         }
       },
-      "bytes": 300940
+      "bytes": 370833
     }
   }
 }

@@ -1,23 +1,68 @@
-/* Film layer. Each film writes its own frame design system here (from DIRECTION.md); the
-   rules below are only the mechanics every film needs. */
+/* Film layer: mechanics every film needs + this film's frame system (DIRECTION.md §5). */
 /* film layout uses border-box; product subtrees keep their own box model (browser default + product CSS) */
 :where(*:not(#whiteboard-root, #whiteboard-root *)) { box-sizing:border-box; }
 html,body { margin:0; background:#000; }
-#film { position:relative; width:1920px; height:1080px; overflow:hidden; background:#0b0b0b; color:#f5f5f5; font-family:"PingFang SC","Noto Sans CJK SC",sans-serif; }
+#film {
+  position:relative; width:1920px; height:1080px; overflow:hidden; background:#f2f2ee; color:#1a2527;
+  --film-font-zh:"Film Sans SC","PingFang SC",sans-serif;
+  --film-font-en:Inter,"Film Sans SC",sans-serif;
+  font-family:var(--film-font-zh);
+}
 /* the film clock owns motion: freeze CSS transitions/animations so any frame renders in isolation */
 #film *, #film *::before, #film *::after { transition:none !important; animation-duration:0s !important; animation-delay:0s !important; }
-.shot { position:absolute; inset:0; overflow:hidden; opacity:0; visibility:hidden; }
+.shot { position:absolute; inset:0; overflow:hidden; opacity:0; visibility:hidden; pointer-events:none; }
+.shot * { pointer-events:auto; }
+.layer { position:absolute; inset:0; overflow:hidden; opacity:0; z-index:10; }
 .split { display:inline-block; white-space:pre-wrap; }
 .split .u { display:inline-block; }
 .product-root { position:relative; }
 .film-cursor { position:absolute; left:0; top:0; z-index:80; pointer-events:none; opacity:0; }
-.film-cursor svg { position:relative; z-index:2; display:block; transform-origin:6px 3px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
-.film-ripple { position:absolute; left:-12px; top:-15px; width:40px; height:40px; border-radius:50%; background:rgba(127,127,127,.25); border:1.5px solid rgba(127,127,127,.6); opacity:0; }
+.film-cursor svg { position:relative; z-index:2; display:block; transform-origin:6px 3px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.25)); }
+.film-ripple { position:absolute; left:-12px; top:-15px; width:40px; height:40px; border-radius:50%; background:rgba(26,37,39,.12); border:1.5px solid rgba(26,37,39,.45); opacity:0; }
 
-/* technical sample only */
-.sample-title { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding-left:160px; }
-.sample-title .en { font-family:Georgia,serif; font-size:120px; }
-.sample-title .zh { font-size:56px; margin-top:20px; color:#bbb; }
-.sample-component { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-.neutral-fixture { width:900px; padding:60px; border:1px solid #444; border-radius:20px; background:#161616; }
-.neutral-fixture h2 { font-size:48px; margin:20px 0; } .neutral-fixture p { font-size:28px; color:#aaa; } .fx-label { font-size:20px; letter-spacing:.2em; color:#888; }
+/* paper (outer desk): no dots, one step darker than the product canvas #fbfbfc */
+#paper { position:absolute; inset:0; background:#f2f2ee; z-index:0; }
+
+/* page-turn flap and crease (src/stage/fold.js) */
+#fold-flap { position:absolute; left:0; top:0; z-index:90; pointer-events:none; overflow:visible; }
+#fold-flap .crease { opacity:0; stroke-linecap:round; }
+#poster { position:absolute; inset:0; width:1920px; height:1080px; z-index:100; pointer-events:none; }
+
+/* ---- typography (Chinese: Film Sans SC = Noto Sans SC, OFL; Latin product names: Inter) ---- */
+.en { font-family:var(--film-font-en); }
+.caption .line { display:block; }
+
+/* margin notes (layout L): column x 96–560 */
+.caption-margin { position:absolute; left:96px; top:0; width:464px; height:1080px; opacity:0; }
+.caption-margin .cap-tag { position:absolute; left:0; top:332px; }
+.caption-margin .cap-title { position:absolute; left:0; top:392px; width:464px; margin:0; }
+.caption-margin .cap-desc { position:absolute; left:0; top:560px; width:448px; margin:0; }
+.cap-tag { display:inline-block; font-size:22px; font-weight:500; line-height:1; color:#596066; padding:6px 14px; border:1px solid #c9cfcc; border-radius:999px; }
+.cap-title { font-size:58px; font-weight:600; line-height:1.22; letter-spacing:.01em; color:#1a2527; }
+.cap-desc { font-size:32px; font-weight:400; line-height:1.6; color:#454d50; }
+
+/* top band (layouts T and D): title left, description right, y 56–236 */
+.caption-band { position:absolute; left:96px; top:0; width:1728px; height:250px; opacity:0; }
+.caption-band .cap-tag { position:absolute; left:0; top:64px; }
+.caption-band .cap-title { position:absolute; left:0; top:112px; width:820px; margin:0; font-size:56px; }
+.caption-band .cap-desc { position:absolute; left:880px; top:116px; width:848px; margin:0; }
+.is-dark .cap-title { color:#e8eaed; }
+.is-dark .cap-desc { color:#b4bcc6; }
+.is-dark .cap-tag { color:#9aa3b2; border-color:#3d4452; }
+
+/* chapter header (页眉): real attachment icon + chapter name + short sage line */
+.chapter-header { position:absolute; display:flex; align-items:center; gap:14px; font-size:26px; font-weight:500; color:#596066; opacity:0; }
+.chapter-header img { width:44px; height:44px; display:block; }
+.chapter-header::after { content:""; position:absolute; left:0; top:62px; width:48px; height:2px; background:#718b7a; }
+
+/* product window frames (fixed base size; layouts move/scale them with transforms) */
+.win { position:absolute; left:0; top:0; transform-origin:0 0; border-radius:16px; overflow:hidden; background:#fbfbfc;
+  box-shadow:0 0 0 1px #dcdcd5, 0 1px 2px rgba(16,24,40,.06), 0 10px 28px rgba(16,24,40,.07); }
+.win.is-dark { background:#1a1d24; box-shadow:0 0 0 1px #3d4452, 0 1px 2px rgba(0,0,0,.2), 0 10px 28px rgba(0,0,0,.25); }
+
+/* "示意" marker on reconstructions */
+.recon-mark { position:absolute; font-size:18px; font-weight:400; color:#9aa1a0; letter-spacing:.06em; }
+
+/* placeholder for shots not built yet (technical sample only) */
+.placeholder { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:24px; font-size:40px; color:#9aa1a0; }
+.placeholder b { font-family:var(--film-font-en); font-size:28px; }
