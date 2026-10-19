@@ -6,6 +6,8 @@ import {flushSync} from 'react-dom';
 import {Film} from './film.jsx';
 import {seek, frame, master} from './engine.js';
 import {SHOT_BUILDERS, LAYER_BUILDERS} from './shots/index.js';
+import plan from '../plan.json';
+import {preloadGlyphs, EXTRA_GLYPHS} from './stage/glyphs.js';
 // If the product uses motion/framer-motion, make its micro-animations jump to the end state:
 //   import {MotionGlobalConfig} from 'motion/react'; MotionGlobalConfig.skipAnimations = true;
 
@@ -16,6 +18,7 @@ window.__master = master;
 window.__filmReady = (async () => {
   await document.fonts.ready;
   await new Promise(r => setTimeout(r, 800));   // fixture fetches and effects settle
+  await preloadGlyphs(document, document.body.textContent + JSON.stringify(plan) + EXTRA_GLYPHS);
   await frame(); await frame();
   // Builders run after layout exists: they can measure real component positions.
   // Builders may be async. Only await real Promises: a GSAP timeline is thenable and a paused one

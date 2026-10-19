@@ -633,8 +633,43 @@
       ],
       "format": "esm"
     },
+    "src/fixtures/wb-labels.zh.json": {
+      "bytes": 8636,
+      "imports": []
+    },
+    "src/stage/glyphs.js": {
+      "bytes": 1114,
+      "imports": [
+        {
+          "path": "src/library/fixture.js",
+          "kind": "import-statement",
+          "original": "../library/fixture.js"
+        },
+        {
+          "path": "src/fixtures/wb-labels.zh.json",
+          "kind": "import-statement",
+          "original": "../fixtures/wb-labels.zh.json"
+        },
+        {
+          "path": "../../addon/locale/zh-CN/addon.ftl",
+          "kind": "import-statement",
+          "original": "@addon/locale/zh-CN/addon.ftl"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
     "src/client.jsx": {
-      "bytes": 1623,
+      "bytes": 1817,
       "imports": [
         {
           "path": "src/fake-api.js",
@@ -675,6 +710,16 @@
           "path": "src/shots/index.js",
           "kind": "import-statement",
           "original": "./shots/index.js"
+        },
+        {
+          "path": "plan.json",
+          "kind": "import-statement",
+          "original": "../plan.json"
+        },
+        {
+          "path": "src/stage/glyphs.js",
+          "kind": "import-statement",
+          "original": "./stage/glyphs.js"
         },
         {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
@@ -738,7 +783,7 @@
           "bytesInOutput": 59
         },
         "src/client.jsx": {
-          "bytesInOutput": 656
+          "bytesInOutput": 723
         },
         "src/fake-api.js": {
           "bytesInOutput": 877
@@ -796,9 +841,15 @@
         },
         "src/stage/placeholder.jsx": {
           "bytesInOutput": 229
+        },
+        "src/stage/glyphs.js": {
+          "bytesInOutput": 564
+        },
+        "src/fixtures/wb-labels.zh.json": {
+          "bytesInOutput": 10462
         }
       },
-      "bytes": 373153
+      "bytes": 384246
     }
   }
 }
