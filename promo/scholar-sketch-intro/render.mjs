@@ -20,6 +20,8 @@ if (still === null && !partial && !plan.demo && plan.audioRequired && plan.sfxRe
   if (!report.cues?.length) throw new Error('Music-only report: SFX cues missing.');
   if (!audio || digest(await readFile(audio)) !== report.master.sha256) throw new Error('Use the verified BGM + SFX master.');
 }
+const buildInfo = JSON.parse(await readFile('dist/build-info.json', 'utf8').catch(() => '{}'));
+if (buildInfo.planSha256 !== createHash('sha256').update(await readFile('plan.json')).digest('hex')) throw new Error('dist/ was built from another plan.json: run node build.mjs first.');
 await mkdir(path.dirname(output), {recursive: true});
 const {server, url} = await serve();
 // SwiftShader keeps WebGL (Three.js layers) available in headless capture.
@@ -48,7 +50,8 @@ try {
     if (failures.length) throw new Error(failures.join('\n'));
     const ff = ['-v', 'error', '-y', '-framerate', String(plan.fps), '-i', path.join(frames, '%06d.jpg')];
     if (audio) ff.push('-ss', String(from), '-i', audio, '-map', '0:v:0', '-map', '1:a:0', '-af', 'apad', '-c:a', 'aac', '-b:a', '256k', '-ar', '48000');
-    ff.push('-t', String(to - from), '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output);
+    // JPEG frames are full-range BT.601; convert and tag BT.709 so HD players show the brand colours exactly
+    ff.push('-t', String(to - from), '-vf', 'scale=out_color_matrix=bt709:out_range=tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output);
     await new Promise((res, rej) => { const p = spawn('ffmpeg', ff, {stdio: 'inherit'}); p.on('error', rej); p.on('close', c => c === 0 ? res() : rej(new Error(`ffmpeg exited ${c}`))); });
   }
   console.log(output);

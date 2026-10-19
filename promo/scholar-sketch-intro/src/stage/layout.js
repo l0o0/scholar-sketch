@@ -26,7 +26,8 @@ export const COLOR = {
 /** Shot window helper: time of a named action in film seconds. */
 import plan from '../../plan.json';
 export function actionTime(actionId) {
-  for (const s of plan.shots) for (const a of s.actions || []) if (a.id === actionId) return s.start + a.at;
+  // snapped to the frame grid so every layer that compares t against an action time flips on the same frame
+  for (const s of plan.shots) for (const a of s.actions || []) if (a.id === actionId) return Math.round((s.start + a.at) * plan.fps) / plan.fps;
   throw new Error(`Unknown action "${actionId}"`);
 }
 export const shotOf = id => plan.shots.find(s => s.id === id);

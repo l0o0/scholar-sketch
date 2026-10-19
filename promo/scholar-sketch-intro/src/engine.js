@@ -29,13 +29,16 @@ export const onDriveRange = (start, end, fn) => drivers.push({start, end, fn});
 export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
 const PAD = 0.8;   // shots stay mounted/visible this long around their window so transitions can overlap
 const near = (s, t) => t >= s.start - PAD && t < s.end + PAD;
+let lastT = 0;
 
 export async function seek(seconds) {
   const t = Math.min(Math.max(Number(seconds) || 0, 0), plan.duration - 1 / plan.fps);
   flushSync(() => FilmClock.set(t));
   // Drivers run in registration order and one at a time: persistent product layers share global state.
   for (const d of drivers) if (near(d, t)) await d.fn(t - d.start, t);
+  if (t < lastT) master.seek(0, true);   // backward seeks replay from 0: tweens with immediateRender:false stay pure
   master.seek(t, true);
+  lastT = t;
   for (const s of shots) {
     const el = document.querySelector(`section[data-shot="${s.id}"]`);
     if (el) el.style.visibility = near(s, t) ? 'visible' : 'hidden';

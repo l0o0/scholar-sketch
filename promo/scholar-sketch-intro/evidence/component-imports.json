@@ -386,11 +386,11 @@
       "format": "esm"
     },
     "plan.json": {
-      "bytes": 23690,
+      "bytes": 23622,
       "imports": []
     },
     "src/engine.js": {
-      "bytes": 2570,
+      "bytes": 2716,
       "imports": [
         {
           "path": "node_modules/gsap/index.js",
@@ -601,7 +601,7 @@
       "format": "esm"
     },
     "src/stage/layout.js": {
-      "bytes": 1841,
+      "bytes": 1986,
       "imports": [
         {
           "path": "plan.json",
@@ -8506,7 +8506,7 @@
       "format": "esm"
     },
     "src/canvas/captions.jsx": {
-      "bytes": 2197,
+      "bytes": 2185,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -11977,7 +11977,7 @@
           "bytesInOutput": 3766
         },
         "../../packages/whiteboard/src/whiteboard/sourceState.ts": {
-          "bytesInOutput": 5286
+          "bytesInOutput": 5289
         },
         "node_modules/react-dom/cjs/react-dom-server-legacy.browser.production.js": {
           "bytesInOutput": 100111
@@ -12277,7 +12277,7 @@
           "bytesInOutput": 179
         },
         "src/engine.js": {
-          "bytesInOutput": 809
+          "bytesInOutput": 839
         },
         "node_modules/gsap/index.js": {
           "bytesInOutput": 59
@@ -12289,7 +12289,7 @@
           "bytesInOutput": 18877
         },
         "plan.json": {
-          "bytesInOutput": 18845
+          "bytesInOutput": 18745
         },
         "src/shots/index.js": {
           "bytesInOutput": 208
@@ -12316,7 +12316,7 @@
           "bytesInOutput": 5965
         },
         "src/stage/layout.js": {
-          "bytesInOutput": 635
+          "bytesInOutput": 663
         },
         "src/shots/canvas.js": {
           "bytesInOutput": 229
@@ -12904,7 +12904,7 @@
           "bytesInOutput": 1720
         },
         "src/canvas/captions.jsx": {
-          "bytesInOutput": 1867
+          "bytesInOutput": 1843
         },
         "src/shots/notes.js": {
           "bytesInOutput": 240
@@ -12943,7 +12943,7 @@
           "bytesInOutput": 568
         }
       },
-      "bytes": 2031430
+      "bytes": 2031367
     },
     ".build/client.css": {
       "imports": [

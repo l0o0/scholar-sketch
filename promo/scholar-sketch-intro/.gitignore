@@ -16,3 +16,4 @@ assets/music.wav
 assets/master.wav
 assets/sfx-stem.wav
 assets/music-ducked.wav
+__pycache__/

@@ -57,4 +57,7 @@ for (const pg of integration.framePages || []) {
   if (!html.includes(pg.out + '.js')) throw new Error(`framePages: script tag not replaced in ${pg.html.from}`);
   await writeFile(path.join('dist', pg.out + '.html'), html);
 }
+// render.mjs refuses a dist/ built from another plan.json (renders must follow the current plan)
+const {createHash} = await import('node:crypto');
+await writeFile('dist/build-info.json', JSON.stringify({planSha256: createHash('sha256').update(await readFile('plan.json')).digest('hex')}) + '\n');
 console.log('Built dist/index.html; imports recorded in evidence/component-imports.json');
