@@ -796,7 +796,7 @@ export const livePreviewBlockDecorations = StateField.define<DecorationSet>({
       );
     }
     return transaction.state.field(liveStructure) !==
-      transaction.startState.field(liveStructure)
+      transaction.startState.field(liveStructure, false)
       ? buildBlockDecorations(transaction.state)
       : decorations;
   },
@@ -1018,7 +1018,7 @@ export const livePreviewMathDecorations = StateField.define<DecorationSet>({
     return transaction.docChanged ||
       transaction.selection ||
       transaction.state.field(liveStructure) !==
-        transaction.startState.field(liveStructure)
+        transaction.startState.field(liveStructure, false)
       ? buildMathDecorations(transaction.state)
       : decorations;
   },
@@ -1026,7 +1026,10 @@ export const livePreviewMathDecorations = StateField.define<DecorationSet>({
 });
 
 function canUpdateLocally(transaction: Transaction): boolean {
-  const structure = transaction.startState.field(liveStructure);
+  // Switching from Source to Live adds the live fields in this transaction,
+  // so the start state has no structure to update from.
+  const structure = transaction.startState.field(liveStructure, false);
+  if (!structure) return false;
   if (structure.syntaxPending) {
     const tree = syntaxTree(transaction.state);
     const mappedCoverage = transaction.changes.mapPos(structure.tree.length, 1);
@@ -1555,7 +1558,7 @@ class LivePreviewPlugin {
         update.startState.facet(EditorView.editable) ||
       (!update.docChanged &&
         update.state.field(liveStructure) !==
-          update.startState.field(liveStructure)) ||
+          update.startState.field(liveStructure, false)) ||
       update.transactions.some(
         (transaction) =>
           transaction.docChanged && !canUpdateLocally(transaction),
@@ -1834,7 +1837,7 @@ class VisibleLinksPlugin {
       update.viewportChanged ||
       syntaxTree(update.state) !== syntaxTree(update.startState) ||
       update.state.field(liveStructure) !==
-        update.startState.field(liveStructure) ||
+        update.startState.field(liveStructure, false) ||
       this.composing !==
         (update.view.plugin(livePreviewViewPlugin)?.composing ?? false)
     )
