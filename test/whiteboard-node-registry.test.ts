@@ -29,6 +29,7 @@ import {
   listNodeSpecs,
 } from "../packages/whiteboard/src/nodes/index.ts";
 import { labelTextStyle } from "../packages/whiteboard/src/whiteboard/document.ts";
+import { WhiteboardThemeContext } from "../packages/whiteboard/src/whiteboard/rendering.tsx";
 
 const labels = new Proxy(
   {
@@ -54,23 +55,27 @@ const canvasCss = readFileSync(
   "utf8",
 );
 
-function renderNode(model: CanvasNode) {
+function renderNode(model: CanvasNode, theme: WhiteboardTheme = "light") {
   const Component = getNodeSpec(model.kind).Component;
   return renderToStaticMarkup(
     createElement(
-      WhiteboardLabelsProvider,
-      { value: labels },
+      WhiteboardThemeContext.Provider,
+      { value: theme },
       createElement(
-        ReactFlowProvider,
-        null,
-        createElement(Component, {
-          id: model.id,
-          type: model.kind,
-          data: { model },
-          selected: false,
-          width: model.width,
-          height: model.height,
-        } as never),
+        WhiteboardLabelsProvider,
+        { value: labels },
+        createElement(
+          ReactFlowProvider,
+          null,
+          createElement(Component, {
+            id: model.id,
+            type: model.kind,
+            data: { model },
+            selected: false,
+            width: model.width,
+            height: model.height,
+          } as never),
+        ),
       ),
     ),
   );
@@ -144,6 +149,51 @@ test("card shells keep React Flow handles visible beyond their border", () => {
   const cardRule = canvasCss.match(/\.zmd-board-card\s*\{([^}]*)\}/)?.[1];
   assert.ok(cardRule, "missing card shell rule");
   assert.match(cardRule, /overflow:\s*visible/);
+});
+
+test("a palette-filled card follows the theme and keeps readable text", () => {
+  const card = (fill: string, textColor?: string) => ({
+    ...createAcademicNode("literature", { x: 0, y: 0 }, "literature-fill", {
+      source: { library: { type: "user" }, itemKey: "ITEM1234" },
+      snapshot: { title: "A careful paper", creators: "Chen", year: "2026" },
+    }),
+    style: { fill, stroke: "#519a73", ...(textColor ? { textColor } : {}) },
+  });
+  for (const fill of ["#dcece3", "#2b5c43"]) {
+    const light = renderNode(card(fill), "light");
+    assert.match(light, /--zmd-board-node-fill:#dcece3/);
+    assert.match(light, /--zmd-node-ink:#111827/);
+    assert.match(light, /--zmd-node-ink-muted:#[\da-f]{6}/);
+    const dark = renderNode(card(fill), "dark");
+    assert.match(dark, /--zmd-board-node-fill:#2b5c43/);
+    assert.match(dark, /--zmd-node-ink:#e8eaed/);
+    assert.match(dark, /--zmd-board-node-stroke:#519a73/);
+  }
+  const pinned = renderNode(card("#dcece3", "#1f2937"), "dark");
+  assert.match(pinned, /--zmd-board-node-fill:#dcece3/);
+  assert.match(pinned, /--zmd-node-ink:#111827/);
+  assert.doesNotMatch(
+    renderNode(card("transparent"), "dark"),
+    /--zmd-node-ink/,
+  );
+
+  for (const selector of [
+    /\n\n\.zmd-board-card-meta,\s*\.zmd-board-card-preview\s*\{([^}]*)\}/,
+    /\n\n\.zmd-board-card-comment,\s*\.zmd-board-card-count\s*\{([^}]*)\}/,
+    /\n\n\.zmd-board-card-tags\s*\{([^}]*)\}/,
+  ]) {
+    assert.match(
+      canvasCss.match(selector)?.[1] ?? "",
+      /color:\s*var\(--zmd-node-ink-muted,/,
+    );
+  }
+  const cardRule = canvasCss.match(/\.zmd-board-card\s*\{([^}]*)\}/)?.[1];
+  assert.match(cardRule ?? "", /\scolor:\s*var\(--zmd-node-ink,/);
+  // The selection outline sits on the board, so it keeps the theme colour.
+  assert.match(
+    cardRule ?? "",
+    /--zmd-card-selected:\s*var\(--zmd-board-text, #111827\)/,
+  );
 });
 
 test("renders concise literature and quote snapshots with localized kinds", () => {
@@ -695,7 +745,8 @@ test("Basic shape labels use theme text independently from an explicit stroke", 
         data: { ...created.data, title: `${kind} label` },
         style: { ...(created.style ?? {}), stroke: "#dc2626" },
       };
-      const displayColor = "var(--zmd-board-text, #111827)";
+      const displayColor =
+        "var(--zmd-node-ink, var(--zmd-board-text, #111827))";
       assert.equal(labelTextStyle(model.style).color, displayColor);
       assert.equal(
         labelTextStyle(effectiveCanvasNodeUiTextStyle(kind, model.style)).color,
@@ -708,7 +759,7 @@ test("Basic shape labels use theme text independently from an explicit stroke", 
       assert.match(
         markup,
         new RegExp(
-          `style="[^"]*color:var\\(--zmd-board-text, #111827\\)[^"]*"[^>]*>(?:<span class="zmd-board-stroke-label-text"[^>]*>)?${kind} label<\\/span>`,
+          `style="[^"]*color:var\\(--zmd-node-ink, var\\(--zmd-board-text, #111827\\)\\)[^"]*"[^>]*>(?:<span class="zmd-board-stroke-label-text"[^>]*>)?${kind} label<\\/span>`,
         ),
       );
       if (kind === "line" || kind === "arrow") {

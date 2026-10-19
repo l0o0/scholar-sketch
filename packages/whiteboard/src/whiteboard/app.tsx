@@ -10,6 +10,7 @@ import { THEME_TOKENS, UI_METRICS } from "../../../../src/ui/theme";
 import { flushSync } from "react-dom";
 import {
   FullCanvasRenderContext,
+  WhiteboardThemeContext,
   attachCanvasHandles,
   shouldCullCanvasNodes,
   waitForCanvasPaint,
@@ -120,6 +121,7 @@ import {
   type ColorSchemeID,
 } from "../model/colorSchemes";
 import { canvasNodeTypes, type CanvasFlowNode } from "../nodes";
+import { nodeSurfaceInk } from "../nodes/CardShell";
 import { PropertiesPanel } from "../chrome/PropertiesPanel";
 import { GroupPicker } from "../chrome/GroupPicker";
 import { joinFrame } from "./groupMembership";
@@ -5122,6 +5124,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                         editingSurfaceDefaults?.radius ??
                         8),
                   ...verticalAlignmentStyle(editingTextStyle),
+                  ...(editingStroke
+                    ? {}
+                    : nodeSurfaceInk(
+                        editingNode.data.model.style ?? {},
+                        theme,
+                      )),
                   ...(editingStrokeCenter
                     ? {
                         left: editingNode.position.x + editingStrokeCenter.x,
@@ -5783,7 +5791,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
   return (
     <FullCanvasRenderContext.Provider value={exportStatus === "busy"}>
-      {canvas}
+      <WhiteboardThemeContext.Provider value={theme}>
+        {canvas}
+      </WhiteboardThemeContext.Provider>
     </FullCanvasRenderContext.Provider>
   );
 }

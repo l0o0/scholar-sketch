@@ -6,8 +6,11 @@ import {
   type NoteType,
   type CanvasNodeKind,
 } from "../model/academic";
+import { nodeFillInk, themedNodeFill } from "../model/colorSchemes";
 import type { CanvasNodeStyle } from "../model/core";
+import type { WhiteboardTheme } from "../model/protocol";
 import { IconItem, NoteTypeIcon, IconQuote } from "../whiteboard/icons";
+import { useWhiteboardTheme } from "../whiteboard/rendering";
 
 export function NodeHandles() {
   return (
@@ -24,6 +27,7 @@ export function NodeHandles() {
 export function nodeSurfaceFill(
   kind: CanvasNodeKind,
   style: Partial<CanvasNodeStyle>,
+  theme: WhiteboardTheme,
 ): string | undefined {
   if (style.fillStyle === "none" || style.fill === "transparent") {
     return "transparent";
@@ -32,11 +36,26 @@ export function nodeSurfaceFill(
   if (defaultFill === "transparent" && style.fill === undefined) {
     return style.fillStyle === "hatch" ? "transparent" : undefined;
   }
+  const themedFill = themedNodeFill(style, theme);
   if (style.fillStyle === "hatch") {
-    const fill = style.fill || `var(--zmd-board-surface, ${defaultFill})`;
+    const fill = themedFill || `var(--zmd-board-surface, ${defaultFill})`;
     return `repeating-linear-gradient(135deg, ${fill} 0, ${fill} 6px, rgba(148, 163, 184, 0.25) 6px, rgba(148, 163, 184, 0.25) 8px)`;
   }
-  return style.fill;
+  return themedFill;
+}
+
+// Text on a manual solid fill takes its colours from that fill, not the theme.
+export function nodeSurfaceInk(
+  style: Partial<CanvasNodeStyle>,
+  theme: WhiteboardTheme,
+): CSSProperties {
+  const ink = nodeFillInk(style, theme);
+  return ink
+    ? ({
+        "--zmd-node-ink": ink.text,
+        "--zmd-node-ink-muted": ink.muted,
+      } as CSSProperties)
+    : {};
 }
 
 export function nodeSurfaceStroke(
@@ -58,9 +77,10 @@ export function nodeSurfaceStroke(
 export function nodeSurfaceStyle(
   kind: CanvasNodeKind,
   style: Partial<CanvasNodeStyle>,
+  theme: WhiteboardTheme,
 ): CSSProperties {
   const stroke = nodeSurfaceStroke(kind, style);
-  const fill = nodeSurfaceFill(kind, style);
+  const fill = nodeSurfaceFill(kind, style, theme);
   const strokeStyle =
     style.strokeStyle ??
     (style.dashed === undefined
@@ -80,6 +100,7 @@ export function nodeSurfaceStyle(
     ...(style.radius !== undefined
       ? { "--zmd-board-node-radius": `${style.radius}px` }
       : {}),
+    ...nodeSurfaceInk(style, theme),
   } as CSSProperties;
 }
 
@@ -109,6 +130,7 @@ export function CardShell(props: {
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const theme = useWhiteboardTheme();
   const nodeStyle = props.nodeStyle ?? {};
   const light =
     props.noteType && props.noteType !== "note"
@@ -156,7 +178,7 @@ export function CardShell(props: {
                 "--zmd-note-stroke-dark": dark.stroke,
               }
             : {}),
-          ...nodeSurfaceStyle(props.kind, surfaceStyle),
+          ...nodeSurfaceStyle(props.kind, surfaceStyle, theme),
           ...(nodeStyle.textColor
             ? {
                 color: nodeStyle.textColor,

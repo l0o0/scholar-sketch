@@ -893,3 +893,29 @@ test("dark SVG defaults remain visible against the configured background", () =>
   assert.match(svg, /stroke="#6b7280"/);
   assert.doesNotMatch(svg, /stroke="#1f2937"/);
 });
+
+test("dark SVG maps light palette fills and picks readable text", () => {
+  const rect = createBasicNode("rect", { x: 0, y: 0 }, "rect");
+  rect.style = { ...rect.style, fill: "#dcece3" };
+  if (rect.kind === "rect") rect.data.title = "Pale card";
+  const document: CanvasDocument = {
+    version: 2,
+    nodes: [rect],
+    connections: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+  const appearance = { fontFamily: "Georgia", backgroundColor: "#12141a" };
+  const dark = buildCanvasSvg(document, undefined, {
+    ...appearance,
+    theme: "dark",
+  });
+  assert.match(dark, /<rect[^>]*fill="#2b5c43"/);
+  assert.match(dark, /<text[^>]*fill="#e8eaed"/);
+  const light = buildCanvasSvg(document, undefined, {
+    ...appearance,
+    theme: "light",
+  });
+  assert.match(light, /<rect[^>]*fill="#dcece3"/);
+  assert.match(light, /<text[^>]*fill="#111827"/);
+  assert.equal(rect.style.fill, "#dcece3");
+});
