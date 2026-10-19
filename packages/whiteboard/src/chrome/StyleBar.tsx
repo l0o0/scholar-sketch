@@ -3,6 +3,7 @@ import { ColorPicker } from "./ColorPicker";
 import { colorPalette } from "./color";
 import type { ColorSchemeID } from "../model/colorSchemes";
 import { useFloatingStyleBar } from "./FloatingStyleBar";
+import { FormatPaintButton } from "./FormatPaintButton";
 import type { CanvasNodeStyle } from "../model/core";
 import {
   canvasNodeUiSurfaceDefaults,
@@ -43,6 +44,8 @@ export function StyleBar(props: {
   theme: WhiteboardTheme;
   colorScheme?: ColorSchemeID;
   onEdit?: () => void;
+  onStartFormatPaint?: (continuous: boolean) => void;
+  formatPaintMode?: "single" | "continuous";
   onToggleDetails?: () => void;
   detailsOpen?: boolean;
   detailsButtonRef?: Ref<HTMLButtonElement>;
@@ -104,6 +107,16 @@ export function StyleBar(props: {
         >
           <IconEdit />
         </button>
+      ) : null}
+      {props.onStartFormatPaint ? (
+        <FormatPaintButton
+          labels={props.labels}
+          mode={props.formatPaintMode}
+          onStart={(continuous) => {
+            setMenu(null);
+            props.onStartFormatPaint?.(continuous);
+          }}
+        />
       ) : null}
       <div className="zmd-board-style-controls">
         {(["stroke", "fill"] as const)

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.9 - 2026-10-19
+
+### Features
+
+- Add a whiteboard format painter with single-use and continuous modes, source and target highlights, a brush cursor, and an explicit exit action
+- Add context-menu Copy style and Paste style, including multi-selection paste with a single undo step
+- Transfer compatible appearance and text styles while preserving contents, academic sources, dimensions, geometry, and group membership
+- Preserve automatic font sizing and theme defaults when transferring styles; restore defaults by clearing old overrides
+- Prevent painting gestures from opening links or literature, editing text, moving nodes, or creating connections
+
 ## 0.2.7 - 2026-10-15
 
 ### Features

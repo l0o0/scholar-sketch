@@ -165,6 +165,15 @@ export interface WhiteboardLabels {
   settings: string;
   editText: string;
   copy: string;
+  copyStyle?: string;
+  pasteStyle?: string;
+  formatPainter?: string;
+  formatPainterContinuous?: string;
+  formatPainterTooltip?: string;
+  formatPainterHint?: string;
+  formatPainterContinuousHint?: string;
+  cancelFormatPainter?: string;
+  styleCopied?: string;
   delete: string;
   openItem: string;
   alignLeft: string;
@@ -990,6 +999,15 @@ const whiteboardLabelStringKeys: Record<
   settings: true,
   editText: true,
   copy: true,
+  copyStyle: true,
+  pasteStyle: true,
+  formatPainter: true,
+  formatPainterContinuous: true,
+  formatPainterTooltip: true,
+  formatPainterHint: true,
+  formatPainterContinuousHint: true,
+  cancelFormatPainter: true,
+  styleCopied: true,
   delete: true,
   openItem: true,
   alignLeft: true,
@@ -1106,6 +1124,15 @@ const whiteboardLabelStringKeys: Record<
 function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
   if (!isPlainRecord(value)) return false;
   const optional = [
+    "copyStyle",
+    "pasteStyle",
+    "formatPainter",
+    "formatPainterContinuous",
+    "formatPainterTooltip",
+    "formatPainterHint",
+    "formatPainterContinuousHint",
+    "cancelFormatPainter",
+    "styleCopied",
     "searchCanvas",
     "duplicateSelection",
     "layoutAllConfirm",

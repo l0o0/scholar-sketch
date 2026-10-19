@@ -39,6 +39,14 @@ export const IconSave = () => (
   </Icon>
 );
 
+export const IconFormatPaint = () => (
+  <Icon>
+    <rect x="3" y="3" width="14" height="6" rx="1.5" />
+    <path d="M17 6h3v7H10v3" />
+    <rect x="8" y="16" width="4" height="6" rx="1" />
+  </Icon>
+);
+
 export const IconZotero = () => (
   <Icon stroke="#cc2936" strokeWidth="2.8">
     <path d="M5 5h14L5 19h14" />

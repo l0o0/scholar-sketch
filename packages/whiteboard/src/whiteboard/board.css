@@ -234,6 +234,22 @@
   outline-offset: 1px;
 }
 
+.zmd-board-notice.zmd-board-format-status {
+  box-sizing: border-box;
+  top: auto;
+  bottom: 16px;
+  max-width: min(520px, calc(100% - 96px));
+  border-color: color-mix(
+    in srgb,
+    var(--zmd-board-accent, #2563eb) 45%,
+    var(--zmd-board-border, #e5e7eb)
+  );
+}
+
+.zmd-board-format-status > span {
+  overflow-wrap: anywhere;
+}
+
 .zmd-board-properties {
   right: 16px;
   top: 72px;
@@ -713,6 +729,46 @@
 
 .zmd-board-host.is-eraser .react-flow__pane {
   cursor: cell;
+}
+
+/* The brush cursor is limited to canvas content; toolbar controls stay native. */
+.zmd-board-host.is-format-painter .react-flow__pane,
+.zmd-board-host.is-format-painter .react-flow__node,
+.zmd-board-host.is-format-painter .react-flow__node * {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='white' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='14' height='6' rx='1.5'/%3E%3Cpath fill='none' d='M17 6h3v7H10v3'/%3E%3Crect x='8' y='16' width='4' height='8' rx='1'/%3E%3C/g%3E%3Cg fill='white' stroke='%23111827' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='14' height='6' rx='1.5'/%3E%3Cpath fill='none' d='M17 6h3v7H10v3'/%3E%3Crect x='8' y='16' width='4' height='8' rx='1'/%3E%3C/g%3E%3C/svg%3E")
+      4 4,
+    copy;
+}
+
+.zmd-board-host.is-format-painter .react-flow__handle,
+.zmd-board-host.is-format-painter .react-flow__resize-control,
+.zmd-board-host.is-format-painter .react-flow__edgeupdater {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Paint only an affordance outside the node, preserving Frame hit regions. */
+.zmd-board-host.is-format-painter
+  .react-flow__node:is(.is-format-source, .is-format-target)::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: -4px;
+  border-radius: 10px;
+  outline: 1px dashed var(--zmd-board-accent, #2563eb);
+  pointer-events: none;
+}
+
+.zmd-board-host.is-format-painter .react-flow__node.is-format-target::after {
+  outline-width: 2px;
+  outline-style: solid;
+  box-shadow: 0 0 0 4px var(--zmd-board-accent-soft, rgba(37, 99, 235, 0.12));
+}
+
+.zmd-board-host[data-exporting]
+  .react-flow__node:is(.is-format-source, .is-format-target)::after {
+  display: none;
 }
 
 .zmd-board-card {
@@ -1452,6 +1508,7 @@
 }
 
 .zmd-board-style-bar > .zmd-board-selection-edit,
+.zmd-board-style-bar > .zmd-board-format-paint,
 .zmd-board-style-bar > .zmd-board-selection-details {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -1463,7 +1520,8 @@
   padding: 0;
 }
 
-.zmd-board-selection-edit + .zmd-board-style-controls {
+.zmd-board-selection-edit + .zmd-board-style-controls,
+.zmd-board-format-paint + .zmd-board-style-controls {
   padding-inline: 8px;
   border-inline: 1px solid var(--zmd-board-border, #e5e7eb);
 }
@@ -2115,11 +2173,16 @@
 }
 
 .zmd-board-context-menu {
+  box-sizing: border-box;
   position: fixed;
   z-index: 30;
   display: flex;
   flex-direction: column;
   min-width: 180px;
+  max-width: calc(100vw - 16px);
+  max-height: min(520px, calc(100vh - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px;
   border: 1px solid var(--zmd-board-border, #e5e7eb);
   border-radius: 8px;
@@ -2128,6 +2191,7 @@
 }
 
 .zmd-board-context-menu button {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;

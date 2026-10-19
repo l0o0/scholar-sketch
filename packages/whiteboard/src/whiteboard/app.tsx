@@ -73,6 +73,12 @@ import {
   type NoteSource,
 } from "../model/academic";
 import { createBasicNode } from "../model/basic";
+import {
+  applyNodeStyle,
+  copyNodeStyle,
+  supportsNodeStyleTransfer,
+  type CopiedNodeStyle,
+} from "../model/style-transfer";
 import { hasDefaultTutorialViewport } from "../model/tutorial";
 import {
   demoCanvasDocument,
@@ -196,7 +202,14 @@ import {
   withEdgeStyle,
 } from "./document";
 import { armEditFocusHold, handleEditBlur } from "./editFocus";
-import { IconCopy, IconEdit, IconExport, IconOpen, IconTrash } from "./icons";
+import {
+  IconCopy,
+  IconEdit,
+  IconExport,
+  IconFormatPaint,
+  IconOpen,
+  IconTrash,
+} from "./icons";
 import {
   beginFrameDragState,
   assignNodeToFrame,
@@ -459,6 +472,16 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   fontFamily: "Font",
   fontDefault: "Default font",
   sizeAuto: "Auto",
+  copyStyle: "Copy style",
+  pasteStyle: "Paste style",
+  formatPainter: "Format painter",
+  formatPainterContinuous: "Continuous format painter",
+  formatPainterTooltip: "Click to apply once; double-click to keep applying",
+  formatPainterHint: "Click a target to apply style · Esc to exit",
+  formatPainterContinuousHint:
+    "Continuous format painter · Click targets to apply · Esc to exit",
+  cancelFormatPainter: "Cancel format painter",
+  styleCopied: "Style copied",
   weightBold: "Bold",
   commonColors: "Common custom colors",
   recentColors: "Recently used colors",
@@ -1117,6 +1140,26 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const [edgeEditorHeight, setEdgeEditorHeight] = useState(32);
   const [editingEdge, setEditingEdge] = useState<EdgeEditingState | null>(null);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [copiedStyle, setCopiedStyle] = useState<CopiedNodeStyle | null>(null);
+  const [formatPainter, setFormatPainter] = useState<{
+    sourceId: string;
+    style: CopiedNodeStyle;
+    continuous: boolean;
+  } | null>(null);
+  const formatPainterRef = useRef(formatPainter);
+  const [formatTargetId, setFormatTargetId] = useState<string | null>(null);
+  const lastPaintedNodeRef = useRef<string | null>(null);
+  const [styleFeedback, setStyleFeedback] = useState<string | null>(null);
+  const cancelFormatPainter = useCallback(() => {
+    formatPainterRef.current = null;
+    setFormatPainter(null);
+    setFormatTargetId(null);
+  }, []);
+  useEffect(() => {
+    if (!styleFeedback) return;
+    const timeout = window.setTimeout(() => setStyleFeedback(null), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [styleFeedback]);
   const [groupPicker, setGroupPicker] = useState<{ ids: string[] } | null>(
     null,
   );
@@ -1264,6 +1307,33 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, []);
   const activeToolRef = useRef(activeTool);
   activeToolRef.current = activeTool;
+  useEffect(() => {
+    if (
+      !editable ||
+      selectedTool !== "select" ||
+      editing ||
+      editingEdge ||
+      annotationBrowser ||
+      imageViewer ||
+      groupPicker ||
+      searchOpen ||
+      (formatPainter &&
+        !nodes.some((node) => node.id === formatPainter.sourceId))
+    )
+      cancelFormatPainter();
+  }, [
+    editable,
+    selectedTool,
+    editing,
+    editingEdge,
+    annotationBrowser,
+    imageViewer,
+    groupPicker,
+    searchOpen,
+    nodes,
+    formatPainter,
+    cancelFormatPainter,
+  ]);
 
   useEffect(
     () => () => {
@@ -1354,6 +1424,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   const loadSnapshot = useCallback(
     (value: CanvasDocument) => {
+      cancelFormatPainter();
+      setCopiedStyle(null);
+      setStyleFeedback(null);
+      lastPaintedNodeRef.current = null;
       setGroupPicker(null);
       setGroupPreviewId(null);
       setGroupFeedback(null);
@@ -1379,7 +1453,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       loadDocumentSnapshot(value);
       setSourceCycle(sourceGenerationRef.current);
     },
-    [cancelIdleResolution, clearCanvasNotice, loadDocumentSnapshot],
+    [
+      cancelFormatPainter,
+      cancelIdleResolution,
+      clearCanvasNotice,
+      loadDocumentSnapshot,
+    ],
   );
 
   const applySourceResolutionBatch = useCallback(
@@ -2080,7 +2159,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       flowPosition?: { x: number; y: number },
     ) => {
       const width = 220;
-      const height = 340;
+      const height = 480;
       setMenu({
         x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
         y: Math.max(
@@ -2738,6 +2817,101 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     [bump, pushHistory],
   );
 
+  const copyStyleFromNode = useCallback(
+    (nodeId: string) => {
+      const node = nodesRef.current.find(
+        (candidate) => candidate.id === nodeId,
+      );
+      const style = node && copyNodeStyle(node.data.model);
+      if (!style) return;
+      cancelFormatPainter();
+      setCopiedStyle(style);
+      setStyleFeedback(labels.styleCopied ?? "Style copied");
+      setMenu(null);
+    },
+    [nodesRef, cancelFormatPainter, labels.styleCopied],
+  );
+
+  const startFormatPainter = useCallback(
+    (nodeId: string, continuous: boolean) => {
+      if (!editableRef.current || editingRef.current || editingEdge) return;
+      const node = nodesRef.current.find(
+        (candidate) => candidate.id === nodeId,
+      );
+      const style = node && copyNodeStyle(node.data.model);
+      if (!style) return;
+      const session = { sourceId: nodeId, style, continuous };
+      formatPainterRef.current = session;
+      setFormatPainter(session);
+      setCopiedStyle(style);
+      setFormatTargetId(null);
+      setStyleFeedback(null);
+      setMenu(null);
+      setDetailsTarget(null);
+      setActiveTool("select");
+      setNodes((current) =>
+        current.map((item) => ({ ...item, selected: item.id === nodeId })),
+      );
+      setEdges((current) =>
+        current.map((edge) => ({ ...edge, selected: false })),
+      );
+    },
+    [editingEdge, nodesRef, setNodes, setEdges],
+  );
+
+  const applyStyleToNodes = useCallback(
+    (ids: readonly string[], style: CopiedNodeStyle) => {
+      if (!editableRef.current || editingRef.current || editingEdge) return;
+      const targets = new Set(ids);
+      let changed = false;
+      const next = nodesRef.current.map((node) => {
+        if (!targets.has(node.id)) return node;
+        const model = applyNodeStyle(node.data.model, style);
+        if (model === node.data.model) return node;
+        changed = true;
+        return { ...node, data: { ...node.data, model } };
+      });
+      if (!changed) return;
+      pushHistory();
+      setNodes(next);
+      bump();
+    },
+    [editingEdge, nodesRef, pushHistory, setNodes, bump],
+  );
+
+  const paintNode = useCallback(
+    (nodeId: string) => {
+      const session = formatPainterRef.current;
+      if (!session || !editableRef.current || session.sourceId === nodeId)
+        return;
+      const node = nodesRef.current.find(
+        (candidate) => candidate.id === nodeId,
+      );
+      if (!node || !supportsNodeStyleTransfer(node.data.model)) return;
+      applyStyleToNodes([nodeId], session.style);
+      lastPaintedNodeRef.current = nodeId;
+      if (!session.continuous) cancelFormatPainter();
+    },
+    [applyStyleToNodes, cancelFormatPainter, nodesRef],
+  );
+
+  const pasteCopiedStyle = useCallback(
+    (nodeId?: string) => {
+      if (!copiedStyle) return;
+      const clicked = nodesRef.current.find((node) => node.id === nodeId);
+      const ids =
+        clicked && !clicked.selected
+          ? [clicked.id]
+          : nodesRef.current
+              .filter((node) => node.selected)
+              .map((node) => node.id);
+      cancelFormatPainter();
+      applyStyleToNodes(ids, copiedStyle);
+      setMenu(null);
+    },
+    [copiedStyle, nodesRef, cancelFormatPainter, applyStyleToNodes],
+  );
+
   const startEdit = useCallback((nodeId: string) => {
     const transition = beginNodeEditing(nodesRef.current, nodeId);
     if (!transition) return;
@@ -2755,6 +2929,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       editableRef.current &&
       activeToolRef.current === "select" &&
       !editingRef.current &&
+      !formatPainterRef.current &&
       !editingEdge &&
       !annotationBrowserRef.current &&
       !imageViewer &&
@@ -3509,6 +3684,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
 
   const closeEditing = useCallback(() => {
+    cancelFormatPainter();
     clearSmartGuides();
     if (nodeDragRef.current) nodeDragRef.current.ending = true;
     editingRevisionRef.current += 1;
@@ -3518,7 +3694,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     setNodes((current) =>
       current.map((item) => ({ ...item, className: undefined })),
     );
-  }, [clearSmartGuides, setNodes]);
+  }, [cancelFormatPainter, clearSmartGuides, setNodes]);
 
   const loadCanvasSnapshot = useCallback(
     (snapshot: CanvasDocument) => {
@@ -3615,6 +3791,20 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (formatPainterRef.current && event.key === "Escape") {
+        event.preventDefault();
+        cancelFormatPainter();
+        setMenu(null);
+        canvasHostRef.current?.focus();
+        return;
+      }
+      if (
+        formatPainterRef.current &&
+        (event.key.startsWith("Arrow") ||
+          event.key === "Delete" ||
+          event.key === "Backspace")
+      )
+        return;
       if (
         event.key === "Escape" &&
         (continuationRef.current || reconnectingRef.current)
@@ -3682,7 +3872,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             setHelpOpen(false);
             setDetailsTarget(null);
           },
-          setActiveTool,
+          setActiveTool(tool) {
+            cancelFormatPainter();
+            setActiveTool(tool);
+          },
           deleteSelection: deleteCanvasElements,
           nudgeSelected,
           fitView,
@@ -3699,6 +3892,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     editingEdge,
     imageViewer,
     groupPicker,
+    cancelFormatPainter,
     closeGroupPicker,
     cancelDraw,
     deleteCanvasElements,
@@ -3955,21 +4149,39 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [currentSourceRequests, nodes, requestSources]);
 
   const selectedNodes = nodes.filter((node) => node.selected);
+  const formatPainting = Boolean(
+    formatPainter && editable && activeTool === "select",
+  );
   const renderedNodes = useMemo(
     () =>
       attachCanvasHandles(
-        groupPreviewId
-          ? nodes.map((node) =>
-              node.id === groupPreviewId
-                ? {
-                    ...node,
-                    className: `${node.className ?? ""} is-group-target`.trim(),
-                  }
-                : node,
-            )
-          : nodes,
+        nodes.map((node) => {
+          const highlights = [
+            node.id === groupPreviewId ? "is-group-target" : "",
+            formatPainting && node.id === formatPainter?.sourceId
+              ? "is-format-source"
+              : "",
+            formatPainting && node.id === formatTargetId
+              ? "is-format-target"
+              : "",
+          ].filter(Boolean);
+          return highlights.length
+            ? {
+                ...node,
+                className: [node.className, ...highlights]
+                  .filter(Boolean)
+                  .join(" "),
+              }
+            : node;
+        }),
       ),
-    [nodes, groupPreviewId],
+    [
+      nodes,
+      groupPreviewId,
+      formatPainting,
+      formatPainter?.sourceId,
+      formatTargetId,
+    ],
   );
   const selectedEdges = edges.filter((edge) => edge.selected);
   useEffect(() => {
@@ -4194,15 +4406,62 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             "--zmd-menu-shadow": `${UI_METRICS.menuShadow} ${THEME_TOKENS[theme].menuShadow}`,
           } as CSSProperties
         }
-        className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}${fileDropTargetId ? " is-file-drop-target" : ""}`}
+        className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}${fileDropTargetId ? " is-file-drop-target" : ""}${formatPainting ? " is-format-painter" : ""}`}
         data-theme={theme}
         data-file-drop-target={fileDropTargetId ?? undefined}
         tabIndex={-1}
         onDragOver={onCanvasDragOver}
         onDragLeave={onCanvasDragLeave}
         onDrop={onCanvasDrop}
+        onClickCapture={(event) => {
+          const target = event.target as Element;
+          const nodeId = target
+            .closest(".react-flow__node")
+            ?.getAttribute("data-id");
+          if (
+            formatPainting &&
+            target.closest(
+              ".react-flow__node, .react-flow__pane, .react-flow__edge",
+            )
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (nodeId) paintNode(nodeId);
+          } else if (
+            nodeId &&
+            event.detail > 1 &&
+            lastPaintedNodeRef.current === nodeId
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+          } else if (event.detail <= 1) {
+            lastPaintedNodeRef.current = null;
+          }
+        }}
+        onDoubleClickCapture={(event) => {
+          const target = event.target as Element;
+          const nodeId = target
+            .closest(".react-flow__node")
+            ?.getAttribute("data-id");
+          if (
+            (formatPainting &&
+              target.closest(
+                ".react-flow__node, .react-flow__pane, .react-flow__edge",
+              )) ||
+            (nodeId && lastPaintedNodeRef.current === nodeId)
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
         onDoubleClick={(event) => {
-          if (activeTool !== "select" || editing || editingEdge) return;
+          if (
+            formatPainting ||
+            activeTool !== "select" ||
+            editing ||
+            editingEdge
+          )
+            return;
           const target = event.target as HTMLElement | null;
           if (
             target?.closest(
@@ -4221,9 +4480,18 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           );
         }}
         onPointerDownCapture={(event) => {
+          const target = event.target as Element;
+          if (
+            formatPainting &&
+            event.button === 0 &&
+            target.closest(".react-flow__node")
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           const current = editingRef.current;
           if (!current || event.button !== 0) return;
-          const target = event.target as Element;
           const nodeId = target
             .closest(".react-flow__node")
             ?.getAttribute("data-id");
@@ -4249,6 +4517,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onOpenSettings={props.onOpenSettings}
           activeTool={activeTool}
           onSelectTool={(tool) => {
+            cancelFormatPainter();
             if (tool === "literature") {
               const editingId = editingRef.current?.nodeId;
               if (
@@ -4549,6 +4818,29 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           deleteKeyCode={null}
           panActivationKeyCode={null}
           onKeyDownCapture={(event) => {
+            if (formatPainting) {
+              const nodeId = (event.target as Element)
+                .closest(".react-flow__node")
+                ?.getAttribute("data-id");
+              if (nodeId && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                event.stopPropagation();
+                paintNode(nodeId);
+              } else if (
+                [
+                  "ArrowUp",
+                  "ArrowDown",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "Delete",
+                  "Backspace",
+                ].includes(event.key)
+              ) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+              return;
+            }
             captureCanvasArrowKey(
               event,
               Boolean(editing || imageViewer),
@@ -4557,19 +4849,39 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           }}
           panOnDrag={activeTool === "hand" ? true : [1, 2]}
           panOnScroll={spacePressed && activeTool === "hand"}
-          selectionOnDrag={activeTool === "select"}
-          elementsSelectable={activeTool === "select"}
-          nodesDraggable={!eraser && !editing && activeTool === "select"}
+          selectionOnDrag={!formatPainting && activeTool === "select"}
+          elementsSelectable={!formatPainting && activeTool === "select"}
+          nodesDraggable={
+            !formatPainting && !eraser && !editing && activeTool === "select"
+          }
           nodesConnectable={
             editable &&
+            !formatPainting &&
             !eraser &&
             !editing &&
             !editingEdge &&
             activeTool === "select"
           }
           edgesReconnectable={
-            editable && !eraser && !editing && activeTool === "select"
+            editable &&
+            !formatPainting &&
+            !eraser &&
+            !editing &&
+            activeTool === "select"
           }
+          onNodeMouseEnter={(_event, node) => {
+            if (
+              formatPainting &&
+              node.id !== formatPainter?.sourceId &&
+              supportsNodeStyleTransfer(node.data.model)
+            )
+              setFormatTargetId(node.id);
+          }}
+          onNodeMouseLeave={(_event, node) => {
+            setFormatTargetId((current) =>
+              current === node.id ? null : current,
+            );
+          }}
           onInit={(instance) => {
             flowRef.current = instance;
             if (fitPendingViewRef.current) fitPendingView();
@@ -4942,6 +5254,56 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               setMenu(null);
             }}
           >
+            {menuNode && supportsNodeStyleTransfer(menuNode.data.model) ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => copyStyleFromNode(menuNode.id)}
+                >
+                  <IconCopy />
+                  <span>{labels.copyStyle ?? "Copy style"}</span>
+                </button>
+                {[false, true].map((continuous) => (
+                  <button
+                    key={String(continuous)}
+                    type="button"
+                    disabled={
+                      !editable ||
+                      Boolean(editing || editingEdge || annotationBrowser)
+                    }
+                    onClick={() => startFormatPainter(menuNode.id, continuous)}
+                  >
+                    <IconFormatPaint />
+                    <span>
+                      {continuous
+                        ? (labels.formatPainterContinuous ??
+                          "Continuous format painter")
+                        : (labels.formatPainter ?? "Format painter")}
+                    </span>
+                  </button>
+                ))}
+              </>
+            ) : null}
+            {(
+              menuNode
+                ? supportsNodeStyleTransfer(menuNode.data.model)
+                : selectedNodes.some((node) =>
+                    supportsNodeStyleTransfer(node.data.model),
+                  )
+            ) ? (
+              <button
+                type="button"
+                disabled={
+                  !copiedStyle ||
+                  !editable ||
+                  Boolean(editing || editingEdge || annotationBrowser)
+                }
+                onClick={() => pasteCopiedStyle(menuNode?.id)}
+              >
+                <IconFormatPaint />
+                <span>{labels.pasteStyle ?? "Paste style"}</span>
+              </button>
+            ) : null}
             {menuNode ? (
               <>
                 <button
@@ -5162,6 +5524,37 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             {groupFeedback}
           </div>
         ) : null}
+        {formatPainter || styleFeedback ? (
+          <div
+            className="zmd-board-notice zmd-board-format-status"
+            role="status"
+          >
+            <IconFormatPaint />
+            <span>
+              {formatPainter
+                ? formatPainter.continuous
+                  ? (labels.formatPainterContinuousHint ??
+                    "Continuous format painter · Click targets to apply · Esc to exit")
+                  : (labels.formatPainterHint ??
+                    "Click a target to apply style · Esc to exit")
+                : styleFeedback}
+            </span>
+            {formatPainter ? (
+              <button
+                type="button"
+                aria-label={
+                  labels.cancelFormatPainter ?? "Cancel format painter"
+                }
+                onClick={() => {
+                  cancelFormatPainter();
+                  canvasHostRef.current?.focus();
+                }}
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {editing && editingNode && editingScreen ? (
           <TextStyleBar
             node={editingNode}
@@ -5313,6 +5706,18 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               height: nodeSize(toolbarNode).height * zoom,
             }}
             onEdit={() => startEdit(toolbarNode.id)}
+            onStartFormatPaint={
+              editable && supportsNodeStyleTransfer(toolbarNode.data.model)
+                ? (continuous) => startFormatPainter(toolbarNode.id, continuous)
+                : undefined
+            }
+            formatPaintMode={
+              formatPainter?.sourceId === toolbarNode.id
+                ? formatPainter.continuous
+                  ? "continuous"
+                  : "single"
+                : undefined
+            }
             onToggleDetails={() => {
               setDetailsTarget((current) =>
                 current === toolbarNode.id ? null : toolbarNode.id,
