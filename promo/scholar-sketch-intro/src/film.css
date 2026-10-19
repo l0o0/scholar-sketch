@@ -1,6 +1,7 @@
 /* Film layer. Each film writes its own frame design system here (from DIRECTION.md); the
    rules below are only the mechanics every film needs. */
-* { box-sizing:border-box; }
+/* film layout uses border-box; product subtrees keep their own box model (browser default + product CSS) */
+:where(*:not(#whiteboard-root, #whiteboard-root *)) { box-sizing:border-box; }
 html,body { margin:0; background:#000; }
 #film { position:relative; width:1920px; height:1080px; overflow:hidden; background:#0b0b0b; color:#f5f5f5; font-family:"PingFang SC","Noto Sans CJK SC",sans-serif; }
 /* the film clock owns motion: freeze CSS transitions/animations so any frame renders in isolation */

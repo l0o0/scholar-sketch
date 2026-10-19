@@ -5,3 +5,6 @@ dist/
 renders/draft*.mp4
 renders/technical-demo.mp4
 evidence/tech-stills/
+# generated from node_modules/@fontsource/noto-sans-sc by tools/gen-cjk-font.mjs (build runs it)
+public/fonts/
+src/fonts.generated.css

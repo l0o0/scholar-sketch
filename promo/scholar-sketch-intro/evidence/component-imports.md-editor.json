@@ -1,0 +1,3339 @@
+{
+  "inputs": {
+    "<define:__ZOTERO_SKIN_FILES__>": {
+      "bytes": 2,
+      "imports": []
+    },
+    "<define:process.env>": {
+      "bytes": 2,
+      "imports": []
+    },
+    "../../src/editor/link-completion.ts": {
+      "bytes": 13680,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@marijn+find-cluster-break@1.0.4/node_modules/@marijn/find-cluster-break/src/index.js": {
+      "bytes": 4270,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js": {
+      "bytes": 147400,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@marijn+find-cluster-break@1.0.4/node_modules/@marijn/find-cluster-break/src/index.js",
+          "kind": "import-statement",
+          "original": "@marijn/find-cluster-break"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-labels.ts": {
+      "bytes": 1006,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-config.ts": {
+      "bytes": 303,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../src/editor/table-labels.ts",
+          "kind": "import-statement",
+          "original": "./table-labels"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js": {
+      "bytes": 83369,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/style-mod@4.1.4/node_modules/style-mod/src/style-mod.js": {
+      "bytes": 7042,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js": {
+      "bytes": 2630,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/crelt@1.0.7/node_modules/crelt/index.js": {
+      "bytes": 951,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js": {
+      "bytes": 493290,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/style-mod@4.1.4/node_modules/style-mod/src/style-mod.js",
+          "kind": "import-statement",
+          "original": "style-mod"
+        },
+        {
+          "path": "../../node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js",
+          "kind": "import-statement",
+          "original": "w3c-keyname"
+        },
+        {
+          "path": "../../node_modules/.pnpm/crelt@1.0.7/node_modules/crelt/index.js",
+          "kind": "import-statement",
+          "original": "crelt"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js": {
+      "bytes": 29915,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js": {
+      "bytes": 6935,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js": {
+      "bytes": 102129,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "../../node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js",
+          "kind": "import-statement",
+          "original": "style-mod"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/decode.mjs": {
+      "bytes": 2843,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/encode.mjs": {
+      "bytes": 2211,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/format.mjs": {
+      "bytes": 485,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/parse.mjs": {
+      "bytes": 9733,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/index.mjs": {
+      "bytes": 200,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/decode.mjs",
+          "kind": "import-statement",
+          "original": "./lib/decode.mjs"
+        },
+        {
+          "path": "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/encode.mjs",
+          "kind": "import-statement",
+          "original": "./lib/encode.mjs"
+        },
+        {
+          "path": "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/format.mjs",
+          "kind": "import-statement",
+          "original": "./lib/format.mjs"
+        },
+        {
+          "path": "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/parse.mjs",
+          "kind": "import-statement",
+          "original": "./lib/parse.mjs"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/uc.micro@3.0.0/node_modules/uc.micro/build/index.mjs": {
+      "bytes": 5328,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode-codepoint.js": {
+      "bytes": 1160,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/decode-shared.js": {
+      "bytes": 617,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-html.js": {
+      "bytes": 32453,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/decode-shared.js",
+          "kind": "import-statement",
+          "original": "../internal/decode-shared.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-xml.js": {
+      "bytes": 314,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/decode-shared.js",
+          "kind": "import-statement",
+          "original": "../internal/decode-shared.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/bin-trie-flags.js": {
+      "bytes": 942,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode.js": {
+      "bytes": 22923,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode-codepoint.js",
+          "kind": "import-statement",
+          "original": "./decode-codepoint.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-html.js",
+          "kind": "import-statement",
+          "original": "./generated/decode-data-html.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-xml.js",
+          "kind": "import-statement",
+          "original": "./generated/decode-data-xml.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/bin-trie-flags.js",
+          "kind": "import-statement",
+          "original": "./internal/bin-trie-flags.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode-codepoint.js",
+          "kind": "import-statement",
+          "original": "./decode-codepoint.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-html.js",
+          "kind": "import-statement",
+          "original": "./generated/decode-data-html.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-xml.js",
+          "kind": "import-statement",
+          "original": "./generated/decode-data-xml.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/escape.js": {
+      "bytes": 4740,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/encode-shared.js": {
+      "bytes": 3618,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/encode-html.js": {
+      "bytes": 13401,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/encode-shared.js",
+          "kind": "import-statement",
+          "original": "../internal/encode-shared.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/encode.js": {
+      "bytes": 3272,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/escape.js",
+          "kind": "import-statement",
+          "original": "./escape.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/encode-html.js",
+          "kind": "import-statement",
+          "original": "./generated/encode-html.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/index.js": {
+      "bytes": 3604,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode.js",
+          "kind": "import-statement",
+          "original": "./decode.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/encode.js",
+          "kind": "import-statement",
+          "original": "./encode.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/escape.js",
+          "kind": "import-statement",
+          "original": "./escape.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode.js",
+          "kind": "import-statement",
+          "original": "./decode.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/encode.js",
+          "kind": "import-statement",
+          "original": "./encode.js"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/escape.js",
+          "kind": "import-statement",
+          "original": "./escape.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/linkify-it@6.1.0/node_modules/linkify-it/build/index.mjs": {
+      "bytes": 19931,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/uc.micro@3.0.0/node_modules/uc.micro/build/index.mjs",
+          "kind": "import-statement",
+          "original": "uc.micro"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/punycode.js@2.3.1/node_modules/punycode.js/punycode.es6.js": {
+      "bytes": 12780,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs": {
+      "bytes": 117656,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/index.mjs",
+          "kind": "import-statement",
+          "original": "mdurl"
+        },
+        {
+          "path": "../../node_modules/.pnpm/uc.micro@3.0.0/node_modules/uc.micro/build/index.mjs",
+          "kind": "import-statement",
+          "original": "uc.micro"
+        },
+        {
+          "path": "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/index.js",
+          "kind": "import-statement",
+          "original": "entities"
+        },
+        {
+          "path": "../../node_modules/.pnpm/linkify-it@6.1.0/node_modules/linkify-it/build/index.mjs",
+          "kind": "import-statement",
+          "original": "linkify-it"
+        },
+        {
+          "path": "../../node_modules/.pnpm/punycode.js@2.3.1/node_modules/punycode.js/punycode.es6.js",
+          "kind": "import-statement",
+          "original": "punycode.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/document-link-shared.ts": {
+      "bytes": 2682,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js": {
+      "bytes": 87285,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/note-links.ts": {
+      "bytes": 19689,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/document-link-shared.ts",
+          "kind": "import-statement",
+          "original": "./document-link-shared"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs",
+          "kind": "import-statement",
+          "original": "markdown-it"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/math-syntax.ts": {
+      "bytes": 5250,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/inline.ts": {
+      "bytes": 6618,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/note-links.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/note-links"
+        },
+        {
+          "path": "../../src/editor/live-preview/math-syntax.ts",
+          "kind": "import-statement",
+          "original": "./math-syntax"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/link-target.ts": {
+      "bytes": 5721,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs",
+          "kind": "import-statement",
+          "original": "markdown-it"
+        },
+        {
+          "path": "../../src/editor/live-preview/inline.ts",
+          "kind": "import-statement",
+          "original": "./live-preview/inline"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/preferences.ts": {
+      "bytes": 1144,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/editor-view-state.ts": {
+      "bytes": 478,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+commands@6.11.1/node_modules/@codemirror/commands/dist/index.js": {
+      "bytes": 84624,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js": {
+      "bytes": 90042,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js": {
+      "bytes": 71678,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js": {
+      "bytes": 20875,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+css@1.3.6/node_modules/@lezer/css/dist/index.js": {
+      "bytes": 19697,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js": {
+      "bytes": 15969,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+css@1.3.6/node_modules/@lezer/css/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/css"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js": {
+      "bytes": 80756,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js": {
+      "bytes": 20788,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/autocomplete"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js": {
+      "bytes": 26142,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/html"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/lang-css"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/lang-javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js": {
+      "bytes": 21741,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/autocomplete"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/lang-html"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+search@6.7.2/node_modules/@codemirror/search/dist/index.js": {
+      "bytes": 48927,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/crelt@1.0.7/node_modules/crelt/index.js",
+          "kind": "import-statement",
+          "original": "crelt"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../package.json": {
+      "bytes": 5620,
+      "imports": []
+    },
+    "../../src/modules/markdown/editor-protocol.ts": {
+      "bytes": 15573,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/editor-view-state.ts",
+          "kind": "import-statement",
+          "original": "./editor-view-state"
+        },
+        {
+          "path": "../../src/modules/markdown/document-link-shared.ts",
+          "kind": "import-statement",
+          "original": "./document-link-shared"
+        },
+        {
+          "path": "../../src/modules/markdown/note-links.ts",
+          "kind": "import-statement",
+          "original": "./note-links"
+        },
+        {
+          "path": "../../package.json",
+          "kind": "import-statement",
+          "original": "../../../package.json"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/outline.ts": {
+      "bytes": 2658,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/ui/theme.ts": {
+      "bytes": 3861,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/theme-tokens.ts": {
+      "bytes": 433,
+      "imports": [
+        {
+          "path": "../../src/ui/theme.ts",
+          "kind": "import-statement",
+          "original": "../../ui/theme"
+        },
+        {
+          "path": "../../src/ui/theme.ts",
+          "kind": "import-statement",
+          "original": "../../ui/theme"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/theme.ts": {
+      "bytes": 23757,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/preferences.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/preferences"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "@codemirror/state",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "../../src/modules/markdown/theme-tokens.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/theme-tokens"
+        },
+        {
+          "path": "../../src/ui/theme.ts",
+          "kind": "import-statement",
+          "original": "../ui/theme"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/code-language-aliases.ts": {
+      "bytes": 1008,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js": {
+      "bytes": 1981,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js": {
+      "bytes": 1876,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/json"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js": {
+      "bytes": 17503,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js": {
+      "bytes": 4259,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/yaml"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+legacy-modes@6.5.4/node_modules/@codemirror/legacy-modes/mode/shell.js": {
+      "bytes": 4570,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-sql@6.10.0/node_modules/@codemirror/lang-sql/dist/index.js": {
+      "bytes": 53368,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/autocomplete"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+python@1.1.19/node_modules/@lezer/python/dist/index.js": {
+      "bytes": 43981,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js": {
+      "bytes": 13319,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+python@1.1.19/node_modules/@lezer/python/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/python"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/autocomplete"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+java@1.1.3/node_modules/@lezer/java/dist/index.js": {
+      "bytes": 40573,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-java@6.0.2/node_modules/@codemirror/lang-java/dist/index.js": {
+      "bytes": 1883,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+java@1.1.3/node_modules/@lezer/java/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/java"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+cpp@1.1.6/node_modules/@lezer/cpp/dist/index.js": {
+      "bytes": 105518,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp/dist/index.js": {
+      "bytes": 1707,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+cpp@1.1.6/node_modules/@lezer/cpp/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/cpp"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+go@1.0.1/node_modules/@lezer/go/dist/index.js": {
+      "bytes": 28563,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-go@6.0.1/node_modules/@codemirror/lang-go/dist/index.js": {
+      "bytes": 8177,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+go@1.0.1/node_modules/@lezer/go/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/go"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/autocomplete"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/common"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js": {
+      "bytes": 72319,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/lr"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/highlight"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js": {
+      "bytes": 1459,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/rust"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/code-languages.ts": {
+      "bytes": 3742,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../src/modules/markdown/code-language-aliases.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/code-language-aliases"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-javascript"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-json"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-html"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-css"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-yaml"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+legacy-modes@6.5.4/node_modules/@codemirror/legacy-modes/mode/shell.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/legacy-modes/mode/shell"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-sql@6.10.0/node_modules/@codemirror/lang-sql/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-sql"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-python"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-java@6.0.2/node_modules/@codemirror/lang-java/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-java"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-cpp"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-cpp"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-go@6.0.1/node_modules/@codemirror/lang-go/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-go"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js",
+          "kind": "dynamic-import",
+          "original": "@codemirror/lang-rust"
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/image-debug.ts": {
+      "bytes": 773,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/editor-protocol.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/editor-protocol"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/utils/locale.ts": {
+      "bytes": 4531,
+      "imports": [
+        {
+          "path": "../../package.json",
+          "kind": "import-statement",
+          "original": "../../package.json"
+        },
+        {
+          "path": "../../typings/i10n",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/frontmatter.ts": {
+      "bytes": 11476,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/images/html.ts": {
+      "bytes": 2746,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/images/reference.ts": {
+      "bytes": 1864,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/images/html.ts",
+          "kind": "import-statement",
+          "original": "./html"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/images/model.ts": {
+      "bytes": 12482,
+      "imports": [
+        {
+          "path": "../../src/utils/locale.ts",
+          "kind": "import-statement",
+          "original": "../../../utils/locale"
+        },
+        {
+          "path": "../../package.json",
+          "kind": "import-statement",
+          "original": "../../../../package.json"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs",
+          "kind": "import-statement",
+          "original": "markdown-it"
+        },
+        {
+          "path": "../../src/modules/markdown/frontmatter.ts",
+          "kind": "import-statement",
+          "original": "../frontmatter"
+        },
+        {
+          "path": "../../src/modules/markdown/images/html.ts",
+          "kind": "import-statement",
+          "original": "./html"
+        },
+        {
+          "path": "../../src/modules/markdown/images/html.ts",
+          "kind": "import-statement",
+          "original": "./html"
+        },
+        {
+          "path": "../../src/modules/markdown/images/reference.ts",
+          "kind": "import-statement",
+          "original": "./reference"
+        },
+        {
+          "path": "../../src/modules/markdown/images/reference.ts",
+          "kind": "import-statement",
+          "original": "./reference"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/image-viewer.ts": {
+      "bytes": 3056,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/image-controls.ts": {
+      "bytes": 16612,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+commands@6.11.1/node_modules/@codemirror/commands/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/commands"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/images/model"
+        },
+        {
+          "path": "../../src/modules/markdown/image-viewer.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/image-viewer"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/blocks.ts": {
+      "bytes": 2459,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/active-lines.ts": {
+      "bytes": 1461,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/structure.ts": {
+      "bytes": 2302,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/assets.ts": {
+      "bytes": 1763,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/editor-protocol.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/editor-protocol"
+        },
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/images/model"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/images.ts": {
+      "bytes": 850,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/images/model"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/line-cache.ts": {
+      "bytes": 2232,
+      "imports": [
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/images/model"
+        },
+        {
+          "path": "../../src/editor/live-preview/inline.ts",
+          "kind": "import-statement",
+          "original": "./inline"
+        },
+        {
+          "path": "../../src/editor/live-preview/images.ts",
+          "kind": "import-statement",
+          "original": "./images"
+        },
+        {
+          "path": "../../src/editor/live-preview/structure.ts",
+          "kind": "import-statement",
+          "original": "./structure"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@mdit+helper@1.1.1_markdown-it@15.0.2/node_modules/@mdit/helper/dist/index.js": {
+      "bytes": 1086,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@mdit+plugin-tex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-tex/dist/index.js": {
+      "bytes": 3956,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/katex@0.18.9/node_modules/katex/dist/katex.mjs": {
+      "bytes": 603019,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../node_modules/.pnpm/@mdit+plugin-katex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-katex/dist/index.js": {
+      "bytes": 1184,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@mdit+helper@1.1.1_markdown-it@15.0.2/node_modules/@mdit/helper/dist/index.js",
+          "kind": "import-statement",
+          "original": "@mdit/helper"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@mdit+plugin-tex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-tex/dist/index.js",
+          "kind": "import-statement",
+          "original": "@mdit/plugin-tex"
+        },
+        {
+          "path": "../../node_modules/.pnpm/katex@0.18.9/node_modules/katex/dist/katex.mjs",
+          "kind": "import-statement",
+          "original": "katex"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/modules/markdown/math.ts": {
+      "bytes": 1915,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs",
+          "kind": "import-statement",
+          "original": "markdown-it"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@mdit+plugin-katex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-katex/dist/index.js",
+          "kind": "import-statement",
+          "original": "@mdit/plugin-katex"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/math.ts": {
+      "bytes": 1689,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../src/modules/markdown/math.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/math"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table.ts": {
+      "bytes": 8624,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-selection.ts": {
+      "bytes": 2719,
+      "imports": [
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "./table"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-operations.ts": {
+      "bytes": 14785,
+      "imports": [
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "./table"
+        },
+        {
+          "path": "../../src/editor/table-selection.ts",
+          "kind": "import-statement",
+          "original": "./table-selection"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-cell-edit.ts": {
+      "bytes": 8261,
+      "imports": [
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "./table"
+        },
+        {
+          "path": "../../src/editor/table-operations.ts",
+          "kind": "import-statement",
+          "original": "./table-operations"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-edge-actions.ts": {
+      "bytes": 1250,
+      "imports": [
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "./table"
+        },
+        {
+          "path": "../../src/editor/table-operations.ts",
+          "kind": "import-statement",
+          "original": "./table-operations"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/plugin.ts": {
+      "bytes": 61955,
+      "imports": [
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../src/editor/live-preview/blocks.ts",
+          "kind": "import-statement",
+          "original": "./blocks"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../src/editor/live-preview/active-lines.ts",
+          "kind": "import-statement",
+          "original": "./active-lines"
+        },
+        {
+          "path": "../../src/editor/live-preview/structure.ts",
+          "kind": "import-statement",
+          "original": "./structure"
+        },
+        {
+          "path": "../../src/editor/live-preview/inline.ts",
+          "kind": "import-statement",
+          "original": "./inline"
+        },
+        {
+          "path": "../../src/editor/live-preview/assets.ts",
+          "kind": "import-statement",
+          "original": "./assets"
+        },
+        {
+          "path": "../../src/editor/live-preview/line-cache.ts",
+          "kind": "import-statement",
+          "original": "./line-cache"
+        },
+        {
+          "path": "../../src/editor/live-preview/math-syntax.ts",
+          "kind": "import-statement",
+          "original": "./math-syntax"
+        },
+        {
+          "path": "../../src/editor/live-preview/math.ts",
+          "kind": "import-statement",
+          "original": "./math"
+        },
+        {
+          "path": "../../src/modules/markdown/math.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/math"
+        },
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../../modules/markdown/images/model"
+        },
+        {
+          "path": "../../src/editor/live-preview/images.ts",
+          "kind": "import-statement",
+          "original": "./images"
+        },
+        {
+          "path": "../../src/editor/table-config.ts",
+          "kind": "import-statement",
+          "original": "../table-config"
+        },
+        {
+          "path": "../../src/editor/image-debug.ts",
+          "kind": "import-statement",
+          "original": "../image-debug"
+        },
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "../table"
+        },
+        {
+          "path": "../../src/editor/table-selection.ts",
+          "kind": "import-statement",
+          "original": "../table-selection"
+        },
+        {
+          "path": "../../src/editor/table-cell-edit.ts",
+          "kind": "import-statement",
+          "original": "../table-cell-edit"
+        },
+        {
+          "path": "../../src/editor/table-edge-actions.ts",
+          "kind": "import-statement",
+          "original": "../table-edge-actions"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/live-preview/index.ts": {
+      "bytes": 678,
+      "imports": [
+        {
+          "path": "../../src/editor/live-preview/plugin.ts",
+          "kind": "import-statement",
+          "original": "./plugin"
+        },
+        {
+          "path": "../../src/editor/live-preview/plugin.ts",
+          "kind": "import-statement",
+          "original": "./plugin"
+        },
+        {
+          "path": "../../src/editor/live-preview/active-lines.ts",
+          "kind": "import-statement",
+          "original": "./active-lines"
+        },
+        {
+          "path": "../../src/editor/live-preview/structure.ts",
+          "kind": "import-statement",
+          "original": "./structure"
+        },
+        {
+          "path": "../../src/editor/live-preview/inline.ts",
+          "kind": "import-statement",
+          "original": "./inline"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/table-menu.ts": {
+      "bytes": 6102,
+      "imports": [
+        {
+          "path": "../../src/editor/table-labels.ts",
+          "kind": "import-statement",
+          "original": "./table-labels"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "../../src/editor/bootstrap.ts": {
+      "bytes": 61832,
+      "imports": [
+        {
+          "path": "../../src/editor/link-completion.ts",
+          "kind": "import-statement",
+          "original": "./link-completion"
+        },
+        {
+          "path": "../../src/editor/table-config.ts",
+          "kind": "import-statement",
+          "original": "./table-config"
+        },
+        {
+          "path": "../../src/editor/link-target.ts",
+          "kind": "import-statement",
+          "original": "./link-target"
+        },
+        {
+          "path": "../../src/modules/markdown/preferences.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/preferences"
+        },
+        {
+          "path": "../../src/modules/markdown/editor-view-state.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/editor-view-state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/state"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+commands@6.11.1/node_modules/@codemirror/commands/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/commands"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/lang-markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js",
+          "kind": "import-statement",
+          "original": "@lezer/markdown"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/language"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+search@6.7.2/node_modules/@codemirror/search/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/search"
+        },
+        {
+          "path": "../../src/modules/markdown/editor-protocol.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/editor-protocol"
+        },
+        {
+          "path": "../../src/editor/outline.ts",
+          "kind": "import-statement",
+          "original": "./outline"
+        },
+        {
+          "path": "../../src/modules/markdown/note-links.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/note-links"
+        },
+        {
+          "path": "../../src/editor/theme.ts",
+          "kind": "import-statement",
+          "original": "./theme"
+        },
+        {
+          "path": "../../src/editor/code-languages.ts",
+          "kind": "import-statement",
+          "original": "./code-languages"
+        },
+        {
+          "path": "../../src/editor/image-debug.ts",
+          "kind": "import-statement",
+          "original": "./image-debug"
+        },
+        {
+          "path": "../../src/editor/image-controls.ts",
+          "kind": "import-statement",
+          "original": "./image-controls"
+        },
+        {
+          "path": "../../src/modules/markdown/images/model.ts",
+          "kind": "import-statement",
+          "original": "../modules/markdown/images/model"
+        },
+        {
+          "path": "../../src/editor/live-preview/index.ts",
+          "kind": "import-statement",
+          "original": "./live-preview"
+        },
+        {
+          "path": "../../src/editor/live-preview/assets.ts",
+          "kind": "import-statement",
+          "original": "./live-preview/assets"
+        },
+        {
+          "path": "../../src/editor/table.ts",
+          "kind": "import-statement",
+          "original": "./table"
+        },
+        {
+          "path": "../../src/editor/table-cell-edit.ts",
+          "kind": "import-statement",
+          "original": "./table-cell-edit"
+        },
+        {
+          "path": "../../src/editor/table-selection.ts",
+          "kind": "import-statement",
+          "original": "./table-selection"
+        },
+        {
+          "path": "../../src/editor/table-edge-actions.ts",
+          "kind": "import-statement",
+          "original": "./table-edge-actions"
+        },
+        {
+          "path": "../../src/editor/table-operations.ts",
+          "kind": "import-statement",
+          "original": "./table-operations"
+        },
+        {
+          "path": "../../src/editor/table-menu.ts",
+          "kind": "import-statement",
+          "original": "./table-menu"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/md/link-icons.js": {
+      "bytes": 1488,
+      "imports": [
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/md/editor-frame.js": {
+      "bytes": 607,
+      "imports": [
+        {
+          "path": "../../src/editor/bootstrap.ts",
+          "kind": "import-statement",
+          "original": "@plugin/editor/bootstrap.ts"
+        },
+        {
+          "path": "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js",
+          "kind": "import-statement",
+          "original": "@codemirror/view"
+        },
+        {
+          "path": "src/md/link-icons.js",
+          "kind": "import-statement",
+          "original": "./link-icons.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "dist/md-editor.js": {
+      "imports": [],
+      "exports": [],
+      "entryPoint": "src/md/editor-frame.js",
+      "inputs": {
+        "<define:__ZOTERO_SKIN_FILES__>": {
+          "bytesInOutput": 23
+        },
+        "<define:process.env>": {
+          "bytesInOutput": 23
+        },
+        "../../node_modules/.pnpm/@marijn+find-cluster-break@1.0.4/node_modules/@marijn/find-cluster-break/src/index.js": {
+          "bytesInOutput": 2355
+        },
+        "../../node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/dist/index.js": {
+          "bytesInOutput": 47310
+        },
+        "../../node_modules/.pnpm/@lezer+common@1.5.3/node_modules/@lezer/common/dist/index.js": {
+          "bytesInOutput": 27992
+        },
+        "../../node_modules/.pnpm/style-mod@4.1.4/node_modules/style-mod/src/style-mod.js": {
+          "bytesInOutput": 2262
+        },
+        "../../node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js": {
+          "bytesInOutput": 1533
+        },
+        "../../node_modules/.pnpm/crelt@1.0.7/node_modules/crelt/index.js": {
+          "bytesInOutput": 636
+        },
+        "../../node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/dist/index.js": {
+          "bytesInOutput": 173818
+        },
+        "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js": {
+          "bytesInOutput": 7166
+        },
+        "../../node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js": {
+          "bytesInOutput": 2241
+        },
+        "../../node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/dist/index.js": {
+          "bytesInOutput": 33381
+        },
+        "../../node_modules/.pnpm/@lezer+markdown@1.7.2_patch_hash=vqbbeiavlwesglekt5rsf57riy/node_modules/@lezer/markdown/dist/index.js": {
+          "bytesInOutput": 35877
+        },
+        "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js": {
+          "bytesInOutput": 8565
+        },
+        "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js": {
+          "bytesInOutput": 26587
+        },
+        "../../node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js": {
+          "bytesInOutput": 14509
+        },
+        "../../node_modules/.pnpm/@lezer+css@1.3.6/node_modules/@lezer/css/dist/index.js": {
+          "bytesInOutput": 17258
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js": {
+          "bytesInOutput": 11107
+        },
+        "../../node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js": {
+          "bytesInOutput": 77862
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js": {
+          "bytesInOutput": 9168
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js": {
+          "bytesInOutput": 14321
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js": {
+          "bytesInOutput": 8556
+        },
+        "../../node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js": {
+          "bytesInOutput": 1634
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js": {
+          "bytesInOutput": 766
+        },
+        "../../node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js": {
+          "bytesInOutput": 10880
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js": {
+          "bytesInOutput": 2022
+        },
+        "../../node_modules/.pnpm/@codemirror+legacy-modes@6.5.4/node_modules/@codemirror/legacy-modes/mode/shell.js": {
+          "bytesInOutput": 2647
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-sql@6.10.0/node_modules/@codemirror/lang-sql/dist/index.js": {
+          "bytesInOutput": 32439
+        },
+        "../../node_modules/.pnpm/@lezer+python@1.1.19/node_modules/@lezer/python/dist/index.js": {
+          "bytesInOutput": 38232
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js": {
+          "bytesInOutput": 7182
+        },
+        "../../node_modules/.pnpm/@lezer+java@1.1.3/node_modules/@lezer/java/dist/index.js": {
+          "bytesInOutput": 39895
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-java@6.0.2/node_modules/@codemirror/lang-java/dist/index.js": {
+          "bytesInOutput": 808
+        },
+        "../../node_modules/.pnpm/@lezer+cpp@1.1.6/node_modules/@lezer/cpp/dist/index.js": {
+          "bytesInOutput": 103240
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp/dist/index.js": {
+          "bytesInOutput": 757
+        },
+        "../../node_modules/.pnpm/@lezer+go@1.0.1/node_modules/@lezer/go/dist/index.js": {
+          "bytesInOutput": 27054
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-go@6.0.1/node_modules/@codemirror/lang-go/dist/index.js": {
+          "bytesInOutput": 3801
+        },
+        "../../node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js": {
+          "bytesInOutput": 70313
+        },
+        "../../node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js": {
+          "bytesInOutput": 595
+        },
+        "src/md/editor-frame.js": {
+          "bytesInOutput": 159
+        },
+        "../../src/editor/bootstrap.ts": {
+          "bytesInOutput": 26287
+        },
+        "../../src/editor/link-completion.ts": {
+          "bytesInOutput": 6625
+        },
+        "../../src/editor/table-config.ts": {
+          "bytesInOutput": 70
+        },
+        "../../src/editor/table-labels.ts": {
+          "bytesInOutput": 741
+        },
+        "../../src/editor/link-target.ts": {
+          "bytesInOutput": 2122
+        },
+        "../../node_modules/.pnpm/markdown-it@15.0.2/node_modules/markdown-it/dist/markdown-it.mjs": {
+          "bytesInOutput": 51214
+        },
+        "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/index.mjs": {
+          "bytesInOutput": 82
+        },
+        "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/decode.mjs": {
+          "bytesInOutput": 1319
+        },
+        "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/encode.mjs": {
+          "bytesInOutput": 836
+        },
+        "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/format.mjs": {
+          "bytesInOutput": 257
+        },
+        "../../node_modules/.pnpm/mdurl@2.1.0/node_modules/mdurl/lib/parse.mjs": {
+          "bytesInOutput": 2388
+        },
+        "../../node_modules/.pnpm/uc.micro@3.0.0/node_modules/uc.micro/build/index.mjs": {
+          "bytesInOutput": 5331
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/index.js": {
+          "bytesInOutput": 231
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode.js": {
+          "bytesInOutput": 5456
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/decode-codepoint.js": {
+          "bytesInOutput": 394
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/generated/decode-data-html.js": {
+          "bytesInOutput": 32222
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/decode-shared.js": {
+          "bytesInOutput": 165
+        },
+        "../../node_modules/.pnpm/entities@8.0.0/node_modules/entities/dist/internal/bin-trie-flags.js": {
+          "bytesInOutput": 181
+        },
+        "../../node_modules/.pnpm/linkify-it@6.1.0/node_modules/linkify-it/build/index.mjs": {
+          "bytesInOutput": 11288
+        },
+        "../../node_modules/.pnpm/punycode.js@2.3.1/node_modules/punycode.js/punycode.es6.js": {
+          "bytesInOutput": 2397
+        },
+        "../../src/editor/live-preview/inline.ts": {
+          "bytesInOutput": 2354
+        },
+        "../../src/modules/markdown/note-links.ts": {
+          "bytesInOutput": 2604
+        },
+        "../../src/modules/markdown/document-link-shared.ts": {
+          "bytesInOutput": 385
+        },
+        "../../src/editor/live-preview/math-syntax.ts": {
+          "bytesInOutput": 1870
+        },
+        "../../src/modules/markdown/preferences.ts": {
+          "bytesInOutput": 450
+        },
+        "../../src/modules/markdown/editor-view-state.ts": {
+          "bytesInOutput": 204
+        },
+        "../../node_modules/.pnpm/@codemirror+commands@6.11.1/node_modules/@codemirror/commands/dist/index.js": {
+          "bytesInOutput": 23286
+        },
+        "../../node_modules/.pnpm/@codemirror+search@6.7.2/node_modules/@codemirror/search/dist/index.js": {
+          "bytesInOutput": 20268
+        },
+        "../../src/modules/markdown/editor-protocol.ts": {
+          "bytesInOutput": 3316
+        },
+        "../../package.json": {
+          "bytesInOutput": 152
+        },
+        "../../src/editor/outline.ts": {
+          "bytesInOutput": 985
+        },
+        "../../src/editor/theme.ts": {
+          "bytesInOutput": 14261
+        },
+        "../../src/modules/markdown/theme-tokens.ts": {
+          "bytesInOutput": 123
+        },
+        "../../src/ui/theme.ts": {
+          "bytesInOutput": 1739
+        },
+        "../../src/editor/code-languages.ts": {
+          "bytesInOutput": 2073
+        },
+        "../../src/modules/markdown/code-language-aliases.ts": {
+          "bytesInOutput": 448
+        },
+        "../../src/editor/image-debug.ts": {
+          "bytesInOutput": 350
+        },
+        "../../src/editor/image-controls.ts": {
+          "bytesInOutput": 10089
+        },
+        "../../src/modules/markdown/images/model.ts": {
+          "bytesInOutput": 2080
+        },
+        "../../src/utils/locale.ts": {
+          "bytesInOutput": 8
+        },
+        "../../src/modules/markdown/frontmatter.ts": {
+          "bytesInOutput": 164
+        },
+        "../../src/modules/markdown/images/html.ts": {
+          "bytesInOutput": 1239
+        },
+        "../../src/modules/markdown/images/reference.ts": {
+          "bytesInOutput": 752
+        },
+        "../../src/modules/markdown/image-viewer.ts": {
+          "bytesInOutput": 1853
+        },
+        "../../src/editor/live-preview/index.ts": {
+          "bytesInOutput": 40
+        },
+        "../../src/editor/live-preview/plugin.ts": {
+          "bytesInOutput": 25242
+        },
+        "../../src/editor/live-preview/blocks.ts": {
+          "bytesInOutput": 1210
+        },
+        "../../src/editor/live-preview/active-lines.ts": {
+          "bytesInOutput": 401
+        },
+        "../../src/editor/live-preview/structure.ts": {
+          "bytesInOutput": 813
+        },
+        "../../src/editor/live-preview/assets.ts": {
+          "bytesInOutput": 498
+        },
+        "../../src/editor/live-preview/line-cache.ts": {
+          "bytesInOutput": 437
+        },
+        "../../src/editor/live-preview/images.ts": {
+          "bytesInOutput": 210
+        },
+        "../../src/editor/live-preview/math.ts": {
+          "bytesInOutput": 959
+        },
+        "../../src/modules/markdown/math.ts": {
+          "bytesInOutput": 744
+        },
+        "../../node_modules/.pnpm/@mdit+plugin-katex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-katex/dist/index.js": {
+          "bytesInOutput": 1011
+        },
+        "../../node_modules/.pnpm/@mdit+helper@1.1.1_markdown-it@15.0.2/node_modules/@mdit/helper/dist/index.js": {
+          "bytesInOutput": 158
+        },
+        "../../node_modules/.pnpm/@mdit+plugin-tex@1.1.1_markdown-it@15.0.2/node_modules/@mdit/plugin-tex/dist/index.js": {
+          "bytesInOutput": 3940
+        },
+        "../../node_modules/.pnpm/katex@0.18.9/node_modules/katex/dist/katex.mjs": {
+          "bytesInOutput": 267814
+        },
+        "../../src/editor/table.ts": {
+          "bytesInOutput": 3173
+        },
+        "../../src/editor/table-selection.ts": {
+          "bytesInOutput": 943
+        },
+        "../../src/editor/table-cell-edit.ts": {
+          "bytesInOutput": 2951
+        },
+        "../../src/editor/table-operations.ts": {
+          "bytesInOutput": 6091
+        },
+        "../../src/editor/table-edge-actions.ts": {
+          "bytesInOutput": 422
+        },
+        "../../src/editor/table-menu.ts": {
+          "bytesInOutput": 2604
+        },
+        "src/md/link-icons.js": {
+          "bytesInOutput": 645
+        }
+      },
+      "bytes": 1426080
+    }
+  }
+}
