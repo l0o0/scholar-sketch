@@ -1,0 +1,60 @@
+/* The film's own cards (#1 brand, #2 entry, #11 dark copy, #12 files, #13 end). Frame system: DIRECTION.md §5. */
+.bd-stage, .en-stage, .dk-stage, .fl-stage, .ed-stage { position:absolute; inset:0; }
+
+/* #1 — the original logo, drawn through masks; 1× at integer coordinates */
+.bd-logo { position:absolute; }
+.bd-ink { position:absolute; left:0; top:0; overflow:visible; }
+.bd-crop { position:absolute; top:0; left:0; overflow:hidden; }
+.bd-move { position:absolute; inset:0; }
+.bd-crop img, .ed-logo { position:absolute; top:0; left:0; display:block; max-width:none; }
+.bd-icon { transform-origin:150px 183.8px; }
+.bd-line { position:absolute; left:96px; top:668px; width:1728px; margin:0; text-align:center;
+  font-size:52px; font-weight:500; line-height:1.4; color:#1a2527; opacity:0; }
+
+/* #2 — toolbar icon + two plain rows (reconstruction of the menu's creation items) */
+.en-tool { position:absolute; transform-origin:50% 50%; opacity:0; }
+.en-tool img { display:block; width:100%; height:100%; }
+.en-well { position:absolute; width:132px; height:132px; border-radius:26px; background:rgba(26,37,39,.065); opacity:0; }
+.en-rule { position:absolute; width:1px; background:#c9cfcc; transform-origin:50% 0; transform:scaleY(0); }
+.en-rows { position:absolute; width:max-content; }
+.en-row { position:relative; display:flex; align-items:center; gap:20px; padding:0 28px 0 16px; opacity:0; }
+.en-hover { position:absolute; inset:0; border-radius:14px; background:rgba(26,37,39,.065); opacity:0; }
+.en-ico { position:relative; display:block; flex:none; }
+.en-label { position:relative; font-size:40px; font-weight:400; line-height:1; color:#1a2527; white-space:nowrap; }
+.en-mark { display:flex; justify-content:flex-end; padding:14px 28px 0 0; opacity:0; }
+.en-rows .recon-mark, .fl-list .recon-mark { position:static; }
+.en-fly { position:absolute; left:0; top:0; width:48px; height:48px; display:block; }
+.en-cursor { position:absolute; inset:0; opacity:0; pointer-events:none; }
+.en-cursor .film-cursor { z-index:auto; }
+
+/* centred card caption (#2, #12): same type scale as the margin notes, centred in the safe area */
+.caption-card { position:absolute; left:96px; top:0; width:1728px; height:1080px; opacity:0; text-align:center; }
+.caption-card .cap-title, .caption-card .cap-desc { position:absolute; left:0; width:1728px; margin:0; }
+.en-stage .caption-card .cap-title { top:560px; }
+.en-stage .caption-card .cap-desc { top:652px; }
+.fl-stage .caption-card .cap-title { top:236px; }
+.fl-stage .caption-card .cap-desc { top:328px; }
+
+/* #12 — neutral attachment list */
+.fl-list { position:absolute; left:480px; top:450px; width:960px; }
+.fl-row { position:relative; height:76px; display:flex; align-items:center; }
+.fl-paper { gap:16px; padding-left:8px; }
+.fl-chev { display:block; flex:none; }
+.fl-title { font-size:34px; font-weight:500; color:#1a2527; white-space:nowrap; }
+.fl-meta { font-size:26px; font-weight:400; color:#6b7280; margin-left:12px; white-space:nowrap; }
+.fl-child { padding-left:64px; padding-right:28px; }
+.fl-card { position:absolute; left:44px; right:0; top:4px; bottom:4px; border-radius:14px; background:#ffffff;
+  box-shadow:0 0 0 1px #e3e3dc, 0 1px 2px rgba(16,24,40,.06), 0 8px 22px rgba(16,24,40,.08); opacity:0; }
+.fl-icon-slot { position:relative; display:block; width:40px; height:40px; flex:none; }
+.fl-ico { display:block; width:40px; height:40px; }
+.fl-name { position:relative; margin-left:20px; font-size:34px; font-weight:400; color:#1a2527; white-space:nowrap; }
+.fl-type { position:relative; margin-left:auto; font-size:26px; font-weight:400; color:#6b7280; white-space:nowrap; }
+.fl-mark { display:flex; justify-content:flex-end; padding:16px 28px 0 0; }
+
+/* #13 — end card */
+.ed-push { position:absolute; inset:0; transform-origin:960px 540px; }
+.ed-logo { opacity:0; }
+.ed-tag { position:absolute; left:96px; top:680px; width:1728px; margin:0; text-align:center; font-size:34px; font-weight:500;
+  line-height:1.4; letter-spacing:.5em; text-indent:.5em; color:#596066; opacity:0; }
+.ed-platform { position:absolute; left:96px; top:752px; width:1728px; margin:0; text-align:center; font-size:24px; font-weight:400;
+  line-height:1.4; color:#6b7280; opacity:0; }

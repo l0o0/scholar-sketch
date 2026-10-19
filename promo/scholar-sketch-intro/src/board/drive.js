@@ -6,8 +6,12 @@ import {localToScreen} from './local-space.js';
 // Coordinates: with local-space.js installed, rects inside .wb-scale are in product px, and so are the
 // clientX/clientY of every event sent here — the same space the product computes in.
 
-const root = () => document.querySelector('section[data-shot="component"]');
+// The board lives in the persistent full-frame layer `.layer-board` (src/canvas/board-layer.jsx).
+let ROOT = '.layer-board';
+export const setDriveRoot = sel => { ROOT = sel; };
+const root = () => document.querySelector(ROOT);
 export const $ = sel => root()?.querySelector(sel);
+export const $$ = sel => [...(root()?.querySelectorAll(sel) ?? [])];
 export const nodeEl = id => $(`.react-flow__node[data-id="${id}"]`);
 
 /** Point of an element in product px (fx, fy = fraction of its box). */
@@ -35,6 +39,14 @@ export function realClick(el, p = at(el)) {
   fire(el, 'pointerdown', p); fire(el, 'mousedown', p);
   fire(el, 'pointerup', p); fire(el, 'mouseup', p);
   fire(el, 'click', p);
+}
+/** Right click: the browser sends pointerdown/mousedown (button 2), pointerup/mouseup, then contextmenu. */
+export function contextClick(el, p = at(el)) {
+  hover(el, p);
+  const b = {button: 2, buttons: 2};
+  fire(el, 'pointerdown', p, b); fire(el, 'mousedown', p, b);
+  fire(el, 'pointerup', p, {button: 2, buttons: 0}); fire(el, 'mouseup', p, {button: 2, buttons: 0});
+  fire(el, 'contextmenu', p, {button: 2, buttons: 0});
 }
 /** Press on el, then move the window-level mouse (d3-drag listens on window) and release. */
 export const drag = {

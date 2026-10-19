@@ -1,0 +1,808 @@
+{
+  "music": {
+    "source": "code-original",
+    "script": "assets/audio/score.py",
+    "output": "assets/music.wav",
+    "sha256": "7621efd88aa8d74061ee930d0b5891199efa4da6212de3a423ac34705363a2c7",
+    "seed": 2909,
+    "environment": {
+      "python": "3.13",
+      "numpy": "2.5.4",
+      "scipy": "1.18.1",
+      "soundfile": "0.14.0",
+      "matplotlib (charts only)": "3.11.2",
+      "ffmpeg": "6.1.1",
+      "venv": "python3 -m venv .venv-audio && .venv-audio/bin/pip install numpy==2.5.4 scipy==1.18.1 soundfile==0.14.0 matplotlib==3.11.2 (not committed)"
+    },
+    "reproducible": "two runs produce byte-identical assets/music.wav",
+    "duration": 58.5,
+    "bpm": 90,
+    "meter": "4/4",
+    "key": "F major",
+    "beatGrid": {
+      "beat": 0.666667,
+      "phase": 0.5,
+      "barOrigin": 2.5,
+      "note": "beats at 0.5 + k*2/3 s; bars at 2.5 + m*8/3 s"
+    },
+    "onGridActions": {
+      "drop-grab": {
+        "time": 8.5,
+        "bar": 2,
+        "beat": 2
+      },
+      "drop-release": {
+        "time": 9.833,
+        "bar": 2,
+        "beat": 4
+      },
+      "ann-tick-1": {
+        "time": 14.5,
+        "bar": 4,
+        "beat": 3
+      },
+      "ann-tick-2": {
+        "time": 15.167,
+        "bar": 4,
+        "beat": 4
+      },
+      "ann-add": {
+        "time": 15.833,
+        "bar": 5,
+        "beat": 1
+      },
+      "cards-context": {
+        "time": 20.5,
+        "bar": 6,
+        "beat": 4
+      },
+      "cards-new-claim": {
+        "time": 21.167,
+        "bar": 7,
+        "beat": 1
+      },
+      "paint-select": {
+        "time": 24.5,
+        "bar": 8,
+        "beat": 2
+      },
+      "paint-arm": {
+        "time": 25.167,
+        "bar": 8,
+        "beat": 3
+      },
+      "paint-apply": {
+        "time": 26.5,
+        "bar": 9,
+        "beat": 1
+      },
+      "align-grab": {
+        "time": 29.167,
+        "bar": 10,
+        "beat": 1
+      },
+      "align-snap": {
+        "time": 29.833,
+        "bar": 10,
+        "beat": 2
+      },
+      "links-filter": {
+        "time": 39.167,
+        "bar": 13,
+        "beat": 4
+      },
+      "links-insert": {
+        "time": 39.833,
+        "bar": 14,
+        "beat": 1
+      },
+      "back-click": {
+        "time": 43.833,
+        "bar": 15,
+        "beat": 3
+      },
+      "dark-switch": {
+        "time": 47.167,
+        "bar": 16,
+        "beat": 4
+      },
+      "files-lift": {
+        "time": 50.5,
+        "bar": 18,
+        "beat": 1
+      }
+    },
+    "instruments": [
+      "felt piano (additive, inharmonic partials, velocity felt low-pass, two detuned strings, felt thump, damper)",
+      "bowed-string pad (3 detuned band-limited saws, slow vibrato, raised-cosine bow attack, low-pass 0.7–1.9 kHz, high-pass 110 Hz)",
+      "sine bass (sine + 2nd/3rd harmonic, soft attack)",
+      "paper ticks (band-passed noise grains 2.4–7 kHz) on beats 2 and 4, bars 2–10 and #9 links only, pulled back while reading, skipped where an action SFX falls",
+      "convolution room (2.6 s decorrelated noise IR, low-passed 4.5 kHz)"
+    ],
+    "notUsed": [
+      "drum kit",
+      "marimba",
+      "electronic pulse",
+      "risers",
+      "sub impacts",
+      "sidechain"
+    ],
+    "sections": [
+      {
+        "name": "#1 brand",
+        "start": 0.0,
+        "end": 4.0,
+        "music": "sparse single felt-piano notes C5 · F4 (lands with the logo fold at brand-fold) · A4 · G4; pedal held to 4.0"
+      },
+      {
+        "name": "#2 entry",
+        "start": 4.0,
+        "end": 7.5,
+        "music": "open fifths F–C (4.0), D–A (5.17), Bb–F (6.50) over a soft bowed pad; RH A4, G4; C5 pickup at 7.50 into A"
+      },
+      {
+        "name": "A 研究白板",
+        "start": 7.833,
+        "end": 31.833,
+        "music": "broken-chord felt piano + sine bass on the 0.5 s-phase grid, paper ticks on beats 2/4 (pulled back while reading); chord changes on drop (7.83), ann-add (15.83), cards-new-claim (21.17), paint-apply (26.50)"
+      },
+      {
+        "name": "motif 思路",
+        "start": 20.5,
+        "end": 24.133,
+        "music": "upward pentatonic line C5 (cards-context) → D5 on cards-new-claim → F5 → G5 → A5 held"
+      },
+      {
+        "name": "stop-time",
+        "start": 25.833,
+        "end": 26.5,
+        "music": "one beat: piano and bass damped, only the bowed pad (C7sus4) holds"
+      },
+      {
+        "name": "turn 1",
+        "start": 31.833,
+        "end": 32.833,
+        "music": "page turn (write-turn 32.0): only the bowed pad, Csus4 held, resolving to F as B starts"
+      },
+      {
+        "name": "B Markdown 笔记",
+        "start": 32.833,
+        "end": 46.0,
+        "music": "steady eighth-note felt-piano arpeggio (like writing), LH dyads + sine bass; chord changes 34.50, 37.17, links-insert 39.83, backlinks 42.50, 45.17; paper ticks only in #9 links"
+      },
+      {
+        "name": "#11 dark",
+        "start": 46.0,
+        "end": 49.5,
+        "music": "Bbmaj7 pad darkens (900 Hz); at dark-switch a low Dm9 (D2 A2 F3 C4 E4) on piano + D2 sine bass + dark pad (700 Hz)"
+      },
+      {
+        "name": "#12 files",
+        "start": 49.5,
+        "end": 53.5,
+        "music": "only long felt-piano notes: Bb2+F3 & D5 on files-lift (50.50), C5 51.83, C3+G3 52.50, G4 53.17 (common tone into Fadd9)"
+      },
+      {
+        "name": "#13 end",
+        "start": 53.5,
+        "end": 58.5,
+        "music": "final Fadd9 (F2 C3 A3 F4 G4 C5) rolled on end-chord 54.167; pedal up 57.15; silent from ~58.2"
+      }
+    ],
+    "mastering": "high-pass 38 Hz, low shelf −3 dB @ 140 Hz, normalised to −17.5 LUFS, look-ahead limiter at −4.5 dBFS (peak-to-loudness 13 dB so mix_audio.py can normalise the film mix linearly)",
+    "analysis": {
+      "integratedLufs": -17.56,
+      "samplePeakDbfs": -4.5,
+      "bandEnergyPercent": {
+        "20-60": 0.0,
+        "60-120": 8.3,
+        "120-250": 24.9,
+        "250-500": 40.9,
+        "500-1000": 19.7,
+        "1000-2000": 5.5,
+        "2000-4000": 0.6,
+        "4000-8000": 0.0,
+        "8000-20000": 0.0
+      },
+      "lowEndBelow120HzPercent": 8.3,
+      "topPeaks": [
+        {
+          "t": 23.875,
+          "dbfs": -4.5
+        },
+        {
+          "t": 15.927,
+          "dbfs": -4.5
+        },
+        {
+          "t": 26.638,
+          "dbfs": -4.5
+        },
+        {
+          "t": 54.329,
+          "dbfs": -4.5
+        },
+        {
+          "t": 13.248,
+          "dbfs": -4.5
+        },
+        {
+          "t": 54.592,
+          "dbfs": -4.5
+        },
+        {
+          "t": 10.525,
+          "dbfs": -4.5
+        },
+        {
+          "t": 47.253,
+          "dbfs": -4.5
+        }
+      ],
+      "perSecond": [
+        {
+          "sec": 0,
+          "lufs1s": -19.1,
+          "peakDbfs": -8.9
+        },
+        {
+          "sec": 1,
+          "lufs1s": -19.6,
+          "peakDbfs": -9.2
+        },
+        {
+          "sec": 2,
+          "lufs1s": -21.5,
+          "peakDbfs": -12.3
+        },
+        {
+          "sec": 3,
+          "lufs1s": -22.6,
+          "peakDbfs": -14.1
+        },
+        {
+          "sec": 4,
+          "lufs1s": -17.7,
+          "peakDbfs": -7.6
+        },
+        {
+          "sec": 5,
+          "lufs1s": -17.6,
+          "peakDbfs": -4.8
+        },
+        {
+          "sec": 6,
+          "lufs1s": -20.2,
+          "peakDbfs": -9.1
+        },
+        {
+          "sec": 7,
+          "lufs1s": -17.6,
+          "peakDbfs": -6.3
+        },
+        {
+          "sec": 8,
+          "lufs1s": -18.0,
+          "peakDbfs": -10.1
+        },
+        {
+          "sec": 9,
+          "lufs1s": -17.7,
+          "peakDbfs": -8.6
+        },
+        {
+          "sec": 10,
+          "lufs1s": -16.8,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 11,
+          "lufs1s": -16.4,
+          "peakDbfs": -6.3
+        },
+        {
+          "sec": 12,
+          "lufs1s": -17.1,
+          "peakDbfs": -8.1
+        },
+        {
+          "sec": 13,
+          "lufs1s": -14.4,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 14,
+          "lufs1s": -15.8,
+          "peakDbfs": -6.6
+        },
+        {
+          "sec": 15,
+          "lufs1s": -16.3,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 16,
+          "lufs1s": -15.0,
+          "peakDbfs": -4.7
+        },
+        {
+          "sec": 17,
+          "lufs1s": -18.5,
+          "peakDbfs": -8.4
+        },
+        {
+          "sec": 18,
+          "lufs1s": -15.7,
+          "peakDbfs": -5.0
+        },
+        {
+          "sec": 19,
+          "lufs1s": -15.5,
+          "peakDbfs": -5.2
+        },
+        {
+          "sec": 20,
+          "lufs1s": -17.1,
+          "peakDbfs": -8.0
+        },
+        {
+          "sec": 21,
+          "lufs1s": -14.4,
+          "peakDbfs": -5.2
+        },
+        {
+          "sec": 22,
+          "lufs1s": -16.5,
+          "peakDbfs": -5.6
+        },
+        {
+          "sec": 23,
+          "lufs1s": -17.2,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 24,
+          "lufs1s": -16.0,
+          "peakDbfs": -7.5
+        },
+        {
+          "sec": 25,
+          "lufs1s": -16.7,
+          "peakDbfs": -5.6
+        },
+        {
+          "sec": 26,
+          "lufs1s": -14.7,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 27,
+          "lufs1s": -16.3,
+          "peakDbfs": -5.5
+        },
+        {
+          "sec": 28,
+          "lufs1s": -18.6,
+          "peakDbfs": -8.9
+        },
+        {
+          "sec": 29,
+          "lufs1s": -17.8,
+          "peakDbfs": -8.9
+        },
+        {
+          "sec": 30,
+          "lufs1s": -17.0,
+          "peakDbfs": -6.6
+        },
+        {
+          "sec": 31,
+          "lufs1s": -17.8,
+          "peakDbfs": -6.3
+        },
+        {
+          "sec": 32,
+          "lufs1s": -21.0,
+          "peakDbfs": -9.6
+        },
+        {
+          "sec": 33,
+          "lufs1s": -17.6,
+          "peakDbfs": -6.6
+        },
+        {
+          "sec": 34,
+          "lufs1s": -19.0,
+          "peakDbfs": -9.0
+        },
+        {
+          "sec": 35,
+          "lufs1s": -21.6,
+          "peakDbfs": -11.0
+        },
+        {
+          "sec": 36,
+          "lufs1s": -20.3,
+          "peakDbfs": -11.1
+        },
+        {
+          "sec": 37,
+          "lufs1s": -15.6,
+          "peakDbfs": -6.0
+        },
+        {
+          "sec": 38,
+          "lufs1s": -19.2,
+          "peakDbfs": -10.6
+        },
+        {
+          "sec": 39,
+          "lufs1s": -19.7,
+          "peakDbfs": -8.2
+        },
+        {
+          "sec": 40,
+          "lufs1s": -18.6,
+          "peakDbfs": -9.6
+        },
+        {
+          "sec": 41,
+          "lufs1s": -19.9,
+          "peakDbfs": -10.2
+        },
+        {
+          "sec": 42,
+          "lufs1s": -15.8,
+          "peakDbfs": -6.4
+        },
+        {
+          "sec": 43,
+          "lufs1s": -17.4,
+          "peakDbfs": -8.6
+        },
+        {
+          "sec": 44,
+          "lufs1s": -20.8,
+          "peakDbfs": -10.2
+        },
+        {
+          "sec": 45,
+          "lufs1s": -17.6,
+          "peakDbfs": -8.9
+        },
+        {
+          "sec": 46,
+          "lufs1s": -21.2,
+          "peakDbfs": -11.8
+        },
+        {
+          "sec": 47,
+          "lufs1s": -15.7,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 48,
+          "lufs1s": -18.2,
+          "peakDbfs": -8.0
+        },
+        {
+          "sec": 49,
+          "lufs1s": -18.5,
+          "peakDbfs": -8.6
+        },
+        {
+          "sec": 50,
+          "lufs1s": -20.5,
+          "peakDbfs": -7.9
+        },
+        {
+          "sec": 51,
+          "lufs1s": -23.0,
+          "peakDbfs": -12.5
+        },
+        {
+          "sec": 52,
+          "lufs1s": -21.0,
+          "peakDbfs": -10.2
+        },
+        {
+          "sec": 53,
+          "lufs1s": -23.7,
+          "peakDbfs": -14.1
+        },
+        {
+          "sec": 54,
+          "lufs1s": -14.5,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 55,
+          "lufs1s": -17.2,
+          "peakDbfs": -8.1
+        },
+        {
+          "sec": 56,
+          "lufs1s": -18.3,
+          "peakDbfs": -7.2
+        },
+        {
+          "sec": 57,
+          "lufs1s": -25.8,
+          "peakDbfs": -11.4
+        },
+        {
+          "sec": 58,
+          "lufs1s": -63.2,
+          "peakDbfs": -46.6
+        }
+      ],
+      "charts": [
+        "evidence/audio/music-spectrum.png",
+        "evidence/audio/music-loudness.png",
+        "evidence/audio/music-ltas.png"
+      ]
+    }
+  },
+  "sfx": [
+    {
+      "file": "brush.wav",
+      "path": "assets/sfx/brush.wav",
+      "role": "format painter applies",
+      "usedBy": [
+        "paint-apply"
+      ],
+      "sha256": "a7a4cd6f0d8277fb9182c37d3583d9f59c73b07ffefc1be7a36d86c2c2922100",
+      "durationSec": 0.26,
+      "onsetSec": 0.06,
+      "peakSec": 0.107,
+      "peakDbfs": -12.4,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "click-alt.wav",
+      "path": "assets/sfx/click-alt.wav",
+      "role": "second click timbre (opening, context menu, arming, inserting)",
+      "usedBy": [
+        "ann-open",
+        "cards-context",
+        "paint-arm",
+        "links-insert"
+      ],
+      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527",
+      "durationSec": 0.12,
+      "onsetSec": 0.001,
+      "peakSec": 0.007,
+      "peakDbfs": -21.4,
+      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
+      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+    },
+    {
+      "file": "click-drop-pair.wav",
+      "path": "assets/sfx/click-drop-pair.wav",
+      "role": "click + two quote cards land (one event)",
+      "usedBy": [
+        "ann-add"
+      ],
+      "sha256": "6dc2598945afdda5a10e2a045db0d35e7f0115fced389ef4e09130cfc4a6442e",
+      "durationSec": 0.24,
+      "onsetSec": 0.002,
+      "peakSec": 0.02,
+      "peakDbfs": -13.2,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+    },
+    {
+      "file": "click-drop.wav",
+      "path": "assets/sfx/click-drop.wav",
+      "role": "click + one card lands (one event)",
+      "usedBy": [
+        "cards-new-claim"
+      ],
+      "sha256": "8f45d564457704ed1e062cd99d48aed37ff693849421e67b71fab0e86ba0355f",
+      "durationSec": 0.16,
+      "onsetSec": 0.002,
+      "peakSec": 0.02,
+      "peakDbfs": -13.2,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+    },
+    {
+      "file": "click.wav",
+      "path": "assets/sfx/click.wav",
+      "role": "UI click / select",
+      "usedBy": [
+        "entry-click",
+        "drop-select",
+        "ann-details",
+        "cards-commit",
+        "paint-select",
+        "links-filter"
+      ],
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13",
+      "durationSec": 0.16,
+      "onsetSec": 0.001,
+      "peakSec": 0.008,
+      "peakDbfs": -19.9,
+      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
+      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+    },
+    {
+      "file": "logo-fold.wav",
+      "path": "assets/sfx/logo-fold.wav",
+      "role": "the logo corner folds in",
+      "usedBy": [
+        "brand-fold"
+      ],
+      "sha256": "3c61c99e984b5107cc21d402fe1b0d458c1307afb85512cd2354691fa51166a1",
+      "durationSec": 0.14,
+      "onsetSec": 0.001,
+      "peakSec": 0.021,
+      "peakDbfs": -14.0,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "page-turn.wav",
+      "path": "assets/sfx/page-turn.wav",
+      "role": "the two folded-corner page turns",
+      "usedBy": [
+        "write-turn",
+        "files-turn"
+      ],
+      "sha256": "b3cd46b7842e1ab290aa1b7cb9e2df76ce2635714e77e42b7569377b1fe313ea",
+      "durationSec": 1.32,
+      "onsetSec": 0.305,
+      "peakSec": 0.358,
+      "peakDbfs": -10.5,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "paper-slide.wav",
+      "path": "assets/sfx/paper-slide.wav",
+      "role": "drag start: a paper or card is picked up and slides",
+      "usedBy": [
+        "drop-grab",
+        "align-grab"
+      ],
+      "sha256": "0e1ed6af3cd8f3eb18bb97efbb96acaa88ff08f16034643176abdbfaee700ba1",
+      "durationSec": 0.62,
+      "onsetSec": 0.048,
+      "peakSec": 0.103,
+      "peakDbfs": -11.7,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "pop-pair.wav",
+      "path": "assets/sfx/pop-pair.wav",
+      "role": "two menu rows appear (optional cue)",
+      "usedBy": [
+        "entry-items"
+      ],
+      "sha256": "c2e53aec51ec07c288c59a0f4df8fe88a85ed784a717a75520835197cca2da53",
+      "durationSec": 0.45,
+      "onsetSec": 0.001,
+      "peakSec": 0.006,
+      "peakDbfs": -17.8,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+    },
+    {
+      "file": "pop.wav",
+      "path": "assets/sfx/pop.wav",
+      "role": "popup appears / attachment rows lift (very light)",
+      "usedBy": [
+        "links-popup",
+        "files-lift"
+      ],
+      "sha256": "ea11b896eb402c995a63f01ff298f0def88deed0ce96d37eb5f52d266b654dc9",
+      "durationSec": 0.22,
+      "onsetSec": 0.001,
+      "peakSec": 0.006,
+      "peakDbfs": -15.1,
+      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
+      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+    },
+    {
+      "file": "snap-tick.wav",
+      "path": "assets/sfx/snap-tick.wav",
+      "role": "alignment guides snap",
+      "usedBy": [
+        "align-snap"
+      ],
+      "sha256": "9d58b22827a867317f271f7139320b056f754018aa72d5cb3e3d0f7f9e5a6249",
+      "durationSec": 0.04,
+      "onsetSec": 0.0,
+      "peakSec": 0.001,
+      "peakDbfs": -18.4,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "soft-drop.wav",
+      "path": "assets/sfx/soft-drop.wav",
+      "role": "a card lands",
+      "usedBy": [
+        "drop-release"
+      ],
+      "sha256": "583d54efe319ca61bd98d330128fecc23a1b2c442688bbf291b8e2dc23169bd8",
+      "durationSec": 0.1,
+      "onsetSec": 0.002,
+      "peakSec": 0.002,
+      "peakDbfs": -13.2,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "toggle.wav",
+      "path": "assets/sfx/toggle.wav",
+      "role": "tick a highlight checkbox",
+      "usedBy": [
+        "ann-tick-1",
+        "ann-tick-2"
+      ],
+      "sha256": "509be1af88150e4acf3c273ae29ab404027876fb61d705de5f21d7a62b99d6b6",
+      "durationSec": 0.25,
+      "onsetSec": 0.001,
+      "peakSec": 0.08,
+      "peakDbfs": -18.9,
+      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
+      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+    },
+    {
+      "file": "typing-claim.wav",
+      "path": "assets/sfx/typing-claim.wav",
+      "role": "",
+      "usedBy": [
+        "cards-type"
+      ],
+      "sha256": "1f633c68f4cd55aad964b27edeb500ca96c69f66b4ad9fb5d17aedea6438b66c",
+      "durationSec": 1.2,
+      "onsetSec": 0.001,
+      "peakSec": 0.09,
+      "peakDbfs": -19.5,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
+      "file": "typing-long.wav",
+      "path": "assets/sfx/typing-long.wav",
+      "role": "product typing, two bursts",
+      "usedBy": [
+        "write-type"
+      ],
+      "sha256": "0e224323e2d9fbaeb47b5d9b54bf526b749f4b332d48ddfd855a30b87123446c",
+      "durationSec": 1.45,
+      "onsetSec": 0.001,
+      "peakSec": 0.396,
+      "peakDbfs": -21.8,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+    },
+    {
+      "file": "typing-short.wav",
+      "path": "assets/sfx/typing-short.wav",
+      "role": "product typing, one burst",
+      "usedBy": [
+        "links-type"
+      ],
+      "sha256": "10d3c3b09f889c32864df20903e239afe1fd160fe3e7b78387ff7fb7a8dc0bf4",
+      "durationSec": 0.65,
+      "onsetSec": 0.001,
+      "peakSec": 0.251,
+      "peakDbfs": -19.4,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+    }
+  ],
+  "bundledNotUsed": [
+    {
+      "file": "typing.wav",
+      "reason": "bundled typing.wav peaks at −26.4 dBFS (−29.4 after mix_audio.py's mono→stereo); at the mixer's max gain 4 it stayed 2.4 dB under the ducked music at links-type (37.3 s). Replaced by typing-short.wav (same make_sfx.py keystroke recipe and key times, +7 dB)."
+    }
+  ],
+  "sfxSearch": "No recorded SFX library was searched or downloaded for this part; every sound is procedural (bundled skill WAVs or generated here). BRIEF.md asked to look for fitting material first: not done — the paper/desk sounds this film needs were synthesized instead.",
+  "listening": "Not auditioned: this environment cannot play audio. Checked only by measurement (landmarks, per-cue peak vs ducked music, loudness, spectra)."
+}

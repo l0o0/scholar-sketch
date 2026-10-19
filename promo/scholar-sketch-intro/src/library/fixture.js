@@ -14,7 +14,7 @@ export const KEYS = {
 
 export const ITEMS = [
   {id: 1, key: KEYS.paper, itemType: 'journalArticle',
-    fields: {title: '城市公园冷岛效应的尺度阈值', date: '2024-03-18', publicationTitle: '城市环境研究'},
+    fields: {title: '城市公园冷岛效应的尺度阈值', date: '2024-03-18', publicationTitle: '城市环境研究', creators: '林晓、周宁'},
     creators: [author('林', '晓'), author('周', '宁')], tags: [{tag: '城市绿地'}, {tag: '热岛'}]},
   {id: 2, key: KEYS.pdf, itemType: 'attachment', parentID: 1, attachmentContentType: 'application/pdf',
     fields: {title: '城市公园冷岛效应的尺度阈值.pdf'}},
@@ -30,10 +30,10 @@ export const ITEMS = [
   {id: 6, key: KEYS.readingNote, itemType: 'note', parentID: 1,
     note: '<p>读书笔记</p><p>冷岛范围约为公园半径的 1.5 倍；</p><p>水体能再加强降温。</p>'},
   {id: 7, key: KEYS.greenway, itemType: 'journalArticle',
-    fields: {title: '街区绿道网络与夏季地表温度', date: '2025-06-02', publicationTitle: '景观与规划'},
+    fields: {title: '街区绿道网络与夏季地表温度', date: '2025-06-02', publicationTitle: '景观与规划', creators: '陈思远'},
     creators: [author('陈', '思远')], tags: [{tag: '绿道'}, {tag: '连通性'}]},
   {id: 8, key: KEYS.water, itemType: 'journalArticle',
-    fields: {title: '水体与林地组合的降温效应', date: '2023-09-12', publicationTitle: '生态城市'},
+    fields: {title: '水体与林地组合的降温效应', date: '2023-09-12', publicationTitle: '生态城市', creators: '沈一帆'},
     creators: [author('沈', '一帆')], tags: [{tag: '水体'}]},
   {id: 10, key: KEYS.note, parentID: 1, itemType: 'attachment', attachmentContentType: 'text/markdown', fields: {title: '公园尺度阅读笔记'}},
   {id: 11, key: KEYS.greenwayNote, parentID: 7, itemType: 'attachment', attachmentContentType: 'text/markdown', fields: {title: '绿道网络阅读笔记'}},
@@ -53,7 +53,7 @@ export const FILENAMES = {
  *  source text, which is real behaviour but not what this film is about. */
 export const NOTE_TEXT = `# 公园尺度阅读笔记
 
-本周精读 [城市公园冷岛效应的尺度阈值](zotero://select/library/items/${KEYS.paper})，并对照 [[绿道网络阅读笔记]] 里的结论。
+本周精读林晓、周宁的这篇论文，并对照 [[绿道网络阅读笔记]] 里的结论。
 
 ## 关键结论
 

@@ -1,0 +1,14 @@
+/* Chapter 2 (Markdown 笔记) — layer "note" and its band captions. Frame system: DIRECTION.md §5, film.css.
+   This file is bundled before film.css, so overrides of film.css rules use a higher specificity. */
+
+/* chapter header in the top band (layout T): it sits above the band title (title glyphs start near y 120),
+   so the sage line moves from under the header to its right, on the icon's centre line */
+.layer-note .chapter-header.note-header { left:96px; top:56px; opacity:1; }
+.layer-note .chapter-header.note-header::after { left:auto; right:-62px; top:21px; }
+
+/* note window: fixed base size, moved/scaled as a whole (GSAP x/y/scale, origin top-left) */
+.layer-note .win.note-win { width:1792px; height:774px; }
+.layer-note .note-cam { position:absolute; left:0; top:0; width:1792px; height:774px; transform-origin:0 0; }
+.layer-note .note-product { position:absolute; left:0; top:0; transform-origin:0 0; transform:scale(1.6); }
+.layer-note .md-tab { position:relative; width:100%; height:100%; }
+.layer-note .film-cursor { z-index:80; }

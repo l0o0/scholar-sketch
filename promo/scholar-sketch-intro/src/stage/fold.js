@@ -52,7 +52,8 @@ export function registerTurns(turns) {
         else clip = t < (turn.release ?? Infinity) ? NONE : '';
       }
       el.style.clipPath = clip;
-      el.style.zIndex = lifted ? '85' : '';
+      if (!('z0' in el.dataset)) el.dataset.z0 = el.style.zIndex;   // sections carry an inline z-index (film.jsx)
+      el.style.zIndex = lifted ? '85' : el.dataset.z0;
     }
     const flap = document.querySelector('#fold-flap .flap'), crease = document.querySelector('#fold-flap .crease');
     const active = sorted.find(turn => t >= turn.start && t < turn.start + turn.dur);
