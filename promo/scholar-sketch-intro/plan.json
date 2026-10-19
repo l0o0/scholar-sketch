@@ -1,0 +1,119 @@
+{
+  "demo": true,
+  "product": "软件更新 · 技术样片",
+  "style": "hybrid",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 10,
+  "repo": "/home/user/scholar-sketch",
+  "audioRequired": true,
+  "sfxRequired": true,
+  "typography": {
+    "mode": "bilingual",
+    "zhFont": "PingFang SC / Noto Sans CJK SC",
+    "enFont": "Georgia",
+    "zhStyle": "sans-serif"
+  },
+  "audio": {
+    "ducking": {
+      "enabled": true
+    },
+    "music": {
+      "file": "assets/music.wav",
+      "gain": 0.65
+    },
+    "cues": [
+      {
+        "at": 3.45,
+        "actionId": "component-appear",
+        "file": "assets/sfx/click.wav",
+        "gain": 0.8,
+        "role": "sfx",
+        "kind": "click"
+      },
+      {
+        "at": 7.0,
+        "actionId": "close-enter",
+        "file": "assets/sfx/ding-dong.wav",
+        "gain": 0.7,
+        "role": "sfx",
+        "kind": "ding-dong"
+      }
+    ]
+  },
+  "shots": [
+    {
+      "id": "intro",
+      "start": 0,
+      "end": 3,
+      "type": "title",
+      "headlineEn": "What's new",
+      "headline": "这次更新，带来了什么？",
+      "description": "先用一句话讲清楚变化，再展示具体怎么用。",
+      "descriptionAt": 0,
+      "claim": false,
+      "source": [],
+      "plainExplanation": "先用一句话讲清楚变化，再展示具体怎么用。",
+      "actions": [
+        {
+          "id": "intro-enter",
+          "at": 0,
+          "action": "copy enters",
+          "soundRequired": false
+        }
+      ],
+      "component": null
+    },
+    {
+      "id": "component",
+      "start": 3,
+      "end": 7,
+      "type": "detail",
+      "headlineEn": "Real components",
+      "headline": "直接用产品里的组件",
+      "description": "把仓库里的按钮和卡片接进来，再用代码安排它们的出场和切换。",
+      "component": "src/presentations.jsx",
+      "descriptionAt": 0,
+      "claim": false,
+      "source": [],
+      "plainExplanation": "把仓库里的按钮和卡片接进来，再用代码安排它们的出场和切换。",
+      "actions": [
+        {
+          "id": "component-enter",
+          "at": 0,
+          "action": "copy enters",
+          "soundRequired": false
+        },
+        {
+          "id": "component-appear",
+          "at": 0.45,
+          "action": "controls appear",
+          "soundRequired": true
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "start": 7,
+      "end": 10,
+      "type": "end",
+      "headlineEn": "Ready to share",
+      "headline": "画面和声音，一起检查",
+      "description": "确认字幕读得完、操作听得见，再导出视频。",
+      "descriptionAt": 0,
+      "claim": false,
+      "source": [],
+      "plainExplanation": "确认字幕读得完、操作听得见，再导出视频。",
+      "actions": [
+        {
+          "id": "close-enter",
+          "at": 0,
+          "action": "copy enters",
+          "soundRequired": true
+        }
+      ],
+      "component": null
+    }
+  ]
+}

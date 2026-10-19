@@ -1,0 +1,74 @@
+{
+  "ready": true,
+  "cached": false,
+  "engine": "browser",
+  "missing": [],
+  "warnings": [],
+  "fingerprint": "67007aaf4a83d2a25f5c82672d000fcb69a2a8a0e7bac9ec5b63a1a3159624ce",
+  "details": {
+    "schema": 2,
+    "engine": "browser",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "versions": {
+      "python": {
+        "path": "/usr/bin/python3",
+        "version": "3.13.16"
+      },
+      "node": {
+        "path": "/opt/node22/bin/node",
+        "version": "v22.22.0"
+      },
+      "npm": {
+        "path": "/opt/node22/bin/npm",
+        "version": "10.9.4"
+      },
+      "ffmpeg": {
+        "path": "/usr/bin/ffmpeg",
+        "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers"
+      },
+      "ffprobe": {
+        "path": "/usr/bin/ffprobe",
+        "version": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers"
+      }
+    },
+    "packages": {
+      "playwright": {
+        "version": "1.56.1",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/playwright/package.json"
+      },
+      "esbuild": {
+        "version": "0.27.3",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/esbuild/package.json"
+      },
+      "react": {
+        "version": "19.3.0",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/react/package.json"
+      },
+      "react-dom": {
+        "version": "19.3.0",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/react-dom/package.json"
+      },
+      "gsap": {
+        "version": "3.15.0",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/gsap/package.json"
+      },
+      "three": {
+        "version": "0.186.1",
+        "path": "/home/user/scholar-sketch/promo/scholar-sketch-intro/node_modules/three/package.json"
+      }
+    },
+    "manifests": {
+      "package.json": "996f0ffb0c0737e15cefeba749fdc7da73ec62a14bcd9f69daa0aec5b257d87d",
+      "package-lock.json": "c00696778f6d44a87616535e931217d9cf8b93c4d0361f3a0eaadc5583c3ae9e"
+    },
+    "browserEnv": {
+      "PLAYWRIGHT_BROWSERS_PATH": "/opt/pw-browsers",
+      "HYPERFRAMES_CHROME_PATH": null
+    }
+  },
+  "browser": {
+    "launched": true,
+    "playwrightVersion": "1.56.1"
+  },
+  "next": "Continue; do not load onboarding."
+}

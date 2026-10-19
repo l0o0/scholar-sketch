@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.build/
+# draft renders and scratch stills stay local; the final film is committed explicitly
+renders/draft*.mp4
+renders/technical-demo.mp4
+evidence/tech-stills/
