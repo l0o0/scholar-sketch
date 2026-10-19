@@ -425,9 +425,92 @@
       ],
       "format": "esm"
     },
-    "src/shots/index.js": {
-      "bytes": 406,
+    "src/stage/layout.js": {
+      "bytes": 1841,
       "imports": [
+        {
+          "path": "plan.json",
+          "kind": "import-statement",
+          "original": "../../plan.json"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/stage/fold.js": {
+      "bytes": 3733,
+      "imports": [
+        {
+          "path": "src/engine.js",
+          "kind": "import-statement",
+          "original": "../engine.js"
+        },
+        {
+          "path": "src/stage/layout.js",
+          "kind": "import-statement",
+          "original": "./layout.js"
+        },
+        {
+          "path": "plan.json",
+          "kind": "import-statement",
+          "original": "../../plan.json"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/stage/turns.js": {
+      "bytes": 626,
+      "imports": [
+        {
+          "path": "src/stage/fold.js",
+          "kind": "import-statement",
+          "original": "./fold.js"
+        },
+        {
+          "path": "src/stage/layout.js",
+          "kind": "import-statement",
+          "original": "./layout.js"
+        },
+        {
+          "path": "<define:__ZOTERO_SKIN_FILES__>",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "<define:process.env>",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/shots/index.js": {
+      "bytes": 470,
+      "imports": [
+        {
+          "path": "src/stage/turns.js",
+          "kind": "import-statement",
+          "original": "../stage/turns.js"
+        },
         {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
           "kind": "import-statement",
@@ -505,7 +588,7 @@
       "format": "esm"
     },
     "src/film.jsx": {
-      "bytes": 1151,
+      "bytes": 1179,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -643,7 +726,7 @@
           "bytesInOutput": 261
         },
         "node_modules/react-dom/cjs/react-dom-client.production.js": {
-          "bytesInOutput": 205143
+          "bytesInOutput": 205171
         },
         "node_modules/react-dom/client.js": {
           "bytesInOutput": 261
@@ -679,19 +762,19 @@
           "bytesInOutput": 5383
         },
         "src/film.jsx": {
-          "bytesInOutput": 679
+          "bytesInOutput": 715
         },
         "src/film-store.js": {
           "bytesInOutput": 179
         },
         "src/engine.js": {
-          "bytesInOutput": 576
+          "bytesInOutput": 622
         },
         "node_modules/gsap/index.js": {
           "bytesInOutput": 58
         },
         "node_modules/gsap/gsap-core.js": {
-          "bytesInOutput": 51616
+          "bytesInOutput": 51644
         },
         "node_modules/gsap/CSSPlugin.js": {
           "bytesInOutput": 18886
@@ -700,13 +783,22 @@
           "bytesInOutput": 14643
         },
         "src/shots/index.js": {
-          "bytesInOutput": 36
+          "bytesInOutput": 44
+        },
+        "src/stage/turns.js": {
+          "bytesInOutput": 287
+        },
+        "src/stage/fold.js": {
+          "bytesInOutput": 1524
+        },
+        "src/stage/layout.js": {
+          "bytesInOutput": 363
         },
         "src/stage/placeholder.jsx": {
           "bytesInOutput": 229
         }
       },
-      "bytes": 370833
+      "bytes": 373153
     }
   }
 }

@@ -4,4 +4,5 @@
 export const LAYERS = [];
 export const SHOT_VIEWS = {};
 export const SHOT_BUILDERS = {};
-export const LAYER_BUILDERS = [];
+import {buildTurns} from '../stage/turns.js';
+export const LAYER_BUILDERS = [() => buildTurns()];
