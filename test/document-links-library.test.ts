@@ -330,6 +330,8 @@ test("navigation waits for an existing tab's document refresh before locating a 
   const persisted = new Promise<string>(
     (resolve) => (releasePersisted = resolve),
   );
+  let refreshStarted!: () => void;
+  const reading = new Promise<void>((resolve) => (refreshStarted = resolve));
   const session = {
     tabID: "target-tab",
     surface: "tab" as const,
@@ -355,7 +357,10 @@ test("navigation waits for an existing tab's document refresh before locating a 
     hasLocalWork: () => false,
     flush: async () => {},
     getCurrentValue: () => value,
-    readPersisted: () => persisted,
+    readPersisted: () => {
+      refreshStarted();
+      return persisted;
+    },
     applyPersisted: (next: string) => {
       value = next;
     },
@@ -406,14 +411,27 @@ test("navigation waits for an existing tab's document refresh before locating a 
     currentItem: source,
     win: main,
   });
-  for (
-    let attempt = 0;
-    attempt < 100 && !session.documentSyncRefresh;
-    attempt++
-  ) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  // The first `import("./tab")` can take thousands of event-loop turns, so
+  // wait for the refresh to read the file instead of counting turns.
+  const started = await Promise.race([
+    reading.then(() => true),
+    navigation.then(
+      () => false,
+      () => false,
+    ),
+  ]);
+  assert.ok(started, "opening the existing tab refreshes its document");
   assert.ok(session.documentSyncRefresh);
+  // Hold the read open. Navigation that skips the refresh finishes within a
+  // few milliseconds against the old text; correct navigation cannot finish.
+  const finishedEarly = await Promise.race([
+    navigation.then(
+      () => true,
+      () => true,
+    ),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 100)),
+  ]);
+  assert.equal(finishedEarly, false, "navigation waits for the refresh");
   releasePersisted("# Target\n\n## Details\n");
   const result = await navigation;
   assert.equal(result.status, "opened");
