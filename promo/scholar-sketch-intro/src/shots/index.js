@@ -13,4 +13,4 @@ const parts = [brand, canvas, notes];
 export const LAYERS = [...notes.layers, ...canvas.layers];
 export const SHOT_VIEWS = Object.assign({}, ...parts.map(p => p.views));
 export const SHOT_BUILDERS = Object.assign({}, ...parts.map(p => p.builders));
-export const LAYER_BUILDERS = [() => buildTurns(), ...canvas.layerBuilders, ...notes.layerBuilders];
+export const LAYER_BUILDERS = [tl => buildTurns(tl), ...canvas.layerBuilders, ...notes.layerBuilders];

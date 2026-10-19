@@ -9,7 +9,7 @@ export const BREAKS = {
   drop: {title: '把文献拖进白板', desc: '从文库拖来一篇论文，\n就生成一张带作者、年份\n和期刊的文献卡片。'},
   annotations: {title: 'PDF 高亮，\n变成引文卡片', desc: '勾选 PDF 里的高亮，\n点“添加所选批注”，\n每条都变成一张\n带页码的引文卡片。'},
   cards: {title: '五种卡片，\n一条思路', desc: '问题、观点、证据、总结\n各有颜色和边框；\n从引文直接新建观点，\n自动连好线。'},
-  painter: {title: '格式刷，\n一点就复制样式', desc: '点“格式刷”再点另一张卡片，\n颜色和边框复制过去，\n内容不变。'},
+  painter: {title: '用格式刷\n复制样式', desc: '点“格式刷”再点另一张卡，\n颜色和边框复制过去，\n内容不变。'},
   align: {title: '拖动时自动对齐', desc: '靠近其他卡片会出现参考线，\n松手就贴齐。'},
 };
 const strip = s => s.replace(/\n/g, '');

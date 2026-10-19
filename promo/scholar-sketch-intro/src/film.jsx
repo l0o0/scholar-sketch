@@ -9,6 +9,7 @@ export function Film() {
   return <main id="film" className="film-theme">
     <div id="paper" />
     <div id="paper-dark" />
+    <div id="paper-sheet" />
     {LAYERS.map(L => <div key={L.id} className={'layer layer-' + L.id} data-layer={L.id}><L.View /></div>)}
     {shots.map((s, i) => {
       const View = SHOT_VIEWS[s.id] || Placeholder;

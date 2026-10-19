@@ -1,0 +1,205 @@
+{
+  "note": "Per-shot reuse evidence (references/component-pipeline.md). reuseMode says what is a real production component and what is a labelled reconstruction (示意).",
+  "shots": [
+    {
+      "part": "canvas",
+      "shotId": "drop",
+      "reuseMode": "real component + labelled reconstruction strip",
+      "components": [
+        "packages/whiteboard/src/whiteboard/app.tsx WhiteboardApp (zh labels src/fixtures/wb-labels.zh.json, theme prop, ReactFlowProvider + FlowBridge camera)",
+        "runtime.beginAcademicDrop (app.tsx:3963) + runtime.resolveAcademicAcquisitionBatch with src/modules/whiteboard/source-gateway.ts createZoteroSourceGateway().acquireItem (host logic of tab.ts handleDropAcademicSources)",
+        "nodes/academic.tsx LiteratureNode, FrameNode, NoteNode",
+        "CanvasNoticeRegion closed with its own × in the same seek step",
+        "public/addon-icons/attachment-canvas.svg (chapter header)"
+      ],
+      "stateDriver": "board-build.js onDriveRange(7.5, 50.2) step 'drop' at drop-release; camera keys via xyflow setViewport; window slide on GSAP master",
+      "exceptions": "'示例文库 · 示意' strip and the drag ghost are film reconstructions (neutral rows, no Zotero icons, marked 示意); the Zotero item-tree drag source cannot be mounted. Placeholder 'Loading…' never reaches a frame (acquisition is synchronous)."
+    },
+    {
+      "part": "canvas",
+      "shotId": "annotations",
+      "reuseMode": "real component, real clicks",
+      "components": [
+        "chrome/StyleBar.tsx (详细属性 button)",
+        "chrome/PropertiesPanel.tsx (查看批注)",
+        "chrome/AnnotationBrowser.tsx via onListLiteratureAnnotations -> gateway.listAnnotations",
+        "sourceState.ts createQuoteBatchRuntime (添加所选批注) -> QuoteNode x2"
+      ],
+      "stateDriver": "real clicks at ann-details/ann-open/ann-tick-1/ann-tick-2/ann-add; same step: pane click (closes properties panel + deselect) then viewport cut solved in the rehearsal so quote 1's dot lands on the popup's dot (measured Δ 0.01 px x, 0.46 px y)",
+      "exceptions": "Window 'camera' 0.92 implemented as a scale of the whole board window around its centre (13.7–14.1, back 15.9–16.9)."
+    },
+    {
+      "part": "canvas",
+      "shotId": "cards",
+      "reuseMode": "real component, real context menu path",
+      "components": [
+        "app.tsx onNodeContextMenu -> .zmd-board-context-menu",
+        "continuation.ts createNoteFromQuote via menu item 从这条批注新建观点 (VERIFIED: claim card created, connected, note reference footer shows the paper)",
+        "textarea.zmd-board-in-shape-edit (real input of the claim text)",
+        "NoteNode with references footer"
+      ],
+      "stateDriver": "contextClick on the 2nd quote at cards-context, click menu item at cards-new-claim, typed value 21.5–22.6 (12 cps, native setter + input event, idempotent per frame), commit by a real click on empty canvas at 22.95",
+      "exceptions": "Right-clicks the SECOND quote (see planChangeRequests). No caret is drawn in the textarea in the capture browser (not focused) — deterministic."
+    },
+    {
+      "part": "canvas",
+      "shotId": "painter",
+      "reuseMode": "real component",
+      "components": [
+        "chrome/FormatPaintButton.tsx in StyleBar",
+        "model/style-transfer.ts",
+        "app.tsx format-paint status bar (点击目标应用样式 · Esc 退出)",
+        "board.css painter cursor image (read from the pane's computed cursor and drawn on the film cursor layer)"
+      ],
+      "stateDriver": "clicks at paint-select, paint-arm, hover 26.05, click target at paint-apply (single-use mode exits itself), pane click 27.1",
+      "exceptions": "Source card style is a manual product-palette style {fill #dcece3, stroke #519a73, textColor #2b5c43, 2px, r12} so the paint is visible and the title stays readable in dark mode."
+    },
+    {
+      "part": "canvas",
+      "shotId": "align",
+      "reuseMode": "real component, real drag",
+      "components": [
+        "whiteboard/smartGuides.ts + SmartGuideOverlay.tsx during an xyflow/d3 node drag"
+      ],
+      "stateDriver": "drag.down + 2px kick at align-grab, window-level mousemove each frame 29.2–30.2 (power2.inOut), product snap enters exactly on frame 895 = align-snap 29.833 (horizontal guide appears that frame), drag.up at align-release, pane click 30.95",
+      "exceptions": "Product style bar of the dragged (selected) card covers most of the vertical guide; the horizontal guide + anchor dots are visible."
+    },
+    {
+      "part": "canvas",
+      "shotId": "dark",
+      "reuseMode": "real component, real theme prop",
+      "components": [
+        "WhiteboardApp theme prop light->dark (what tab.ts:118-140 sets from prefers-color-scheme), THEME_TOKENS.dark",
+        ".win.is-dark (film.css)"
+      ],
+      "stateDriver": "theme is a store owned by the board driver (systemTheme), flipped at dark-switch with flushSync; window slides to LAYOUT.D 46.0–46.6; viewport = fit of the whole chapter board",
+      "exceptions": "Board layer only; the #11 caption/paper-dark belong to other parts. Chapter header stays hidden."
+    },
+    {
+      "part": "notes",
+      "shotId": "write",
+      "reuseMode": "real product components mounted in the film page (iframe editor through the production bridge)",
+      "components": [
+        "src/editor/bootstrap.ts (production CodeMirror page, dist/md-editor.html) via src/modules/markdown/editor.ts createMarkdownEditor + applyMarkdownEditorPreferences (src/md/editor-iframe.js)",
+        "src/editor/live-preview/plugin.ts (TaskCheckboxWidget, table, math)",
+        "src/modules/markdown/outline-sidebar.ts mountOutlineSidebar",
+        "src/modules/markdown/backlinks.ts mountNoteBacklinks",
+        "src/modules/markdown/styles.ts injectMarkdownStyles",
+        "addon/content/icons/attachment-markdown.svg (chapter header)",
+        "film: stage/captions.jsx Caption band"
+      ],
+      "stateDriver": "src/notes/note-editor.js drive(t), one onDriveRange(31.9–50.2) driver. Typing is a minimal-diff view.dispatch (userEvent input.type): ASCII keys one by one and Chinese as IME word commits, starting at 33.50. Enter at 34.90 moves the caret off the task line, so the product draws its own checkbox. The editor scroll is a pure function of t (33.00–33.45 down to the bottom; this is a real wheel-equivalent scrollTop on the CM scrollDOM). The active outline entry is recorded per phase and restored on seeks.",
+      "exceptions": "The Markdown tab toolbar and status bar are not mounted; the window frames the outline, editor and backlinks, using the same DOM skeleton and classes as tab.ts mountEditorUI. The page turn itself is shared code (stage/turns.js)."
+    },
+    {
+      "part": "notes",
+      "shotId": "links",
+      "reuseMode": "real product components and real clicks",
+      "components": [
+        "src/editor/link-completion.ts popup (inside the editor iframe)",
+        "src/modules/markdown/document-links.ts searchDocumentLinks via src/md/zotero-host.js on the shared fake Zotero (src/library/zotero.js)",
+        "same editor / outline / backlinks as write",
+        "kit/cursor.jsx pointer (film overlay, frame coordinates)"
+      ],
+      "stateDriver": "drive(t). Real clicks: button[data-link-filter=regular] at 39.167 and the paper row at 39.833. The completion inserts [城市公园冷岛效应的尺度阈值](zotero://select/library/items/PARKCOOL); this is recorded once in the builder and restored on random seeks. The driver waits for aria-busy=false and visibility:visible before capture, and re-requests the popup with a selection dispatch if a window blur dismissed it. Camera: GSAP fromTo on .note-cam (x/y/scale, origin 0 0) reaches total 2.0, aimed at native positions measured on the real popup and paragraph.",
+      "exceptions": "None rebuilt. Zotero's own item-type icons (journal-article, attachment-pdf) are not in the repo, so those rows show the product's own no-icon state."
+    },
+    {
+      "part": "notes",
+      "shotId": "backlinks",
+      "reuseMode": "real product component; hover only",
+      "components": [
+        "src/modules/markdown/backlinks.ts mountNoteBacklinks (2 entries, plain [[公园尺度阅读笔记]] excerpts)",
+        "kit/cursor.jsx pointer"
+      ],
+      "stateDriver": "Camera push 42.5–43.3 to a total of 2.018, right-aligned. At 43.833 the pointer rests on the first entry and real pointerover, mouseover and pointermove events are dispatched. There is no click: in the product a click opens the citing note in a new tab.",
+      "exceptions": "The product has no hover or active style for backlink entries, so nothing highlights in the panel (see planChangeRequests)."
+    },
+    {
+      "part": "notes",
+      "shotId": "dark",
+      "reuseMode": "real product dark theme through the real preference path",
+      "components": [
+        "fake Zotero pref extensions.zotero.bamboo.theme='dark' + applyMarkdownEditorPreferences() (editor.ts) → .zotero-markdown-root.theme-dark + iframe setTheme",
+        "film .win.is-dark"
+      ],
+      "stateDriver": "Window moves to LAYOUT.D (64,252,s0.62) at 46.0–46.6 while the camera eases back to 1.6. The driver sets the theme from t (dark from 47.167, light before). onRender toggles .win.is-dark from t.",
+      "exceptions": "#paper-dark, the board window and the dark caption belong to the dark-shot owner and are not built here."
+    },
+    {
+      "part": "brand",
+      "shotId": "brand",
+      "reuseMode": "original brand asset + film layer (no product UI)",
+      "components": [
+        "public/brand/logo-lockup.png (official lockup, English tagline cropped), shown at 1x and integer position 532,277",
+        "SVG <mask> x2 over the same PNG: ink stroke A (30 px) and wide companion stroke B (84 px) that fills the ink corner, minus a crisp sage-fold polygon; fold mask = a 45-degree half-plane wipe of that polygon",
+        "two CSS crops of the same PNG (icon x<300 | wordmark x>=300) from 1.50 on"
+      ],
+      "stateDriver": "GSAP master: stroke A stroke-dashoffset 0.20-1.20 (power1.inOut); wordmark fade+rise 1.50-1.90; line fade+rise 1.60-2.05; #poster fades 1 to 0 over 0.30-0.60; exit 3.70-4.00. onRender('brand'): B dashoffset derived from A's value (same arc length); fold wipe polygon from t; switches the masked copy to the plain PNG at 1.50",
+      "exceptions": "none. Every visible pixel is the PNG. Verified at t=2.5 against a PIL composite of the PNG on #f2f2ee: max diff 1/255. While masked (t<1.5) the max diff is 3/255, on faint pixels outside the outline."
+    },
+    {
+      "part": "brand",
+      "shotId": "entry",
+      "reuseMode": "real icons + reconstructed menu rows (marked 示意)",
+      "components": [
+        "addon/content/icons/scholar-sketch-toolbar.svg (96 px)",
+        "attachment-markdown.svg and attachment-canvas.svg (48 px)",
+        "strings read at runtime from addon/locale/zh-CN/addon.ftl: toolbar-create-markdown = 新建 Markdown 笔记… and menuitem-new-whiteboard = 新建白板… (item order matches creation-toolbar.ts:96-103)",
+        "src/kit/cursor.jsx film cursor",
+        "<Caption id=entry variant=card> + revealCaption"
+      ],
+      "stateDriver": "GSAP master: toolbar icon co-moves and crossfades with the shrinking logo page 3.70-4.00; click press and button well at 4.20; rule line 4.32; rows 4.40 and 4.60; hover 5.38; caption title 4.10, description 4.45, exit 7.20; flyer left/top/width/height 6.90-7.50 to 96,96,44. onRender('entry'): paintCursor keyframes (click 4.20, rests on 新建白板… 5.45); flyer and row-icon visibility switch at 6.90 and 7.50",
+      "exceptions": "The menu rows are not the XUL menupopup, which has no appearance in a browser (zotero-shell-audit §2.1). They are plain rows on paper with the 示意 mark."
+    },
+    {
+      "part": "brand",
+      "shotId": "dark",
+      "reuseMode": "film layer only (copy + desk)",
+      "components": [
+        "<Caption id=dark variant=band> inside .dk-wrap",
+        "#paper-dark (shared element)"
+      ],
+      "stateDriver": "GSAP master: #paper-dark opacity 0 to 1, 47.167-47.517 (power1.inOut). revealCaption: title 46.15, description 46.40, exit 49.20-49.50. onRender('dark'): .is-dark toggled on .dk-wrap at t >= 47.357, the moment the desk sits halfway in contrast between the two text colours (contrast never drops below 3.6:1)",
+      "exceptions": "Needs the fold.js z-index fix (sharedChanges). Without it the band is hidden under #paper-dark."
+    },
+    {
+      "part": "brand",
+      "shotId": "files",
+      "reuseMode": "reconstruction (marked 示意) with real icons and real type names",
+      "components": [
+        "attachment-markdown.svg and attachment-canvas.svg (40 px)",
+        "neutral gray file glyph for the PDF (inline SVG; no Zotero icon)",
+        "names from src/library/fixture.js: paper 城市公园冷岛效应的尺度阈值 · 林晓、周宁 · 2024; PDF 城市公园冷岛效应的尺度阈值.pdf; FILENAMES 公园尺度阅读笔记.md and 公园尺度研究.canvas",
+        "type names from addon.ftl: document-link-kind-markdown = Markdown 文档, document-link-kind-canvas = Canvas 白板",
+        "<Caption id=files variant=card>"
+      ],
+      "stateDriver": "onRender('files'): section opacity is 1 exactly when t >= 49.5, so the page lies under the dark page and the existing turn uncovers it. GSAP master: caption title 50.05, description 50.40; files-lift at 50.50 (two rows y -6 with a white card and soft shadow, others to 40%); hand-off 53.30-54.10 (list clears; both icons drift into the logo page, scale 1.6, fade)",
+      "exceptions": "Neutral list, not Zotero's item tree."
+    },
+    {
+      "part": "brand",
+      "shotId": "end",
+      "reuseMode": "original brand asset + film type",
+      "components": [
+        "public/brand/logo-lockup.png at the same position and scale as #1",
+        "tagline 阅读 · 整理 · 思考 (plan end.description)",
+        "platform line v0.2.9 · 支持 Zotero 9 / 10 / 11 桌面版 (Latin text in Inter spans)"
+      ],
+      "stateDriver": "GSAP master: logo opacity 53.60-54.10; tagline fade+rise at end-chord 54.167; platform line at 54.667; push 1.000 to 1.015 over 53.5-58.5 (sine.inOut, origin 960,540)",
+      "exceptions": "The push takes the PNG up to 1.015x (DIRECTION #13 asks for this push). The platform-line string came from the task; it is not in plan.json."
+    },
+    {
+      "part": "audio",
+      "shotId": "all shots (audio only)",
+      "reuseMode": "n/a: no visuals; music and SFX only",
+      "components": [
+        "assets/music.wav (assets/audio/score.py)",
+        "assets/sfx/*.wav (4 copied from the skill unchanged + 11 generated by tools/audio/make_film_sfx.py)",
+        "plan.json audio.cues (proposed in evidence/audio-cues.proposed.json)"
+      ],
+      "stateDriver": "none at runtime; the skill's scripts/mix_audio.py places the cues from plan.json (at = actionTime − syncOffset) and ducks the music",
+      "exceptions": "No src/ files, no shot view, no layer builder, so there is no src/shots/audio.js to register. node build.mjs passes unchanged."
+    }
+  ]
+}

@@ -1,0 +1,822 @@
+{
+  "planSha256": "9fc4dfab483d35bfcf97214e5c6608a2b746058c3e36c03d01a7a97483a7bc55",
+  "music": {
+    "file": "assets/music.wav",
+    "gain": 0.65,
+    "sha256": "7621efd88aa8d74061ee930d0b5891199efa4da6212de3a423ac34705363a2c7"
+  },
+  "cues": [
+    {
+      "actionId": "brand-fold",
+      "file": "assets/sfx/logo-fold.wav",
+      "kind": "click",
+      "gain": 0.7,
+      "syncOffset": 0.001,
+      "at": 1.199,
+      "role": "sfx",
+      "sha256": "3c61c99e984b5107cc21d402fe1b0d458c1307afb85512cd2354691fa51166a1"
+    },
+    {
+      "actionId": "entry-click",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 2.91,
+      "syncOffset": 0.001,
+      "at": 4.199,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "entry-items",
+      "file": "assets/sfx/pop-pair.wav",
+      "kind": "pop",
+      "gain": 1.04,
+      "syncOffset": 0.001,
+      "at": 4.399,
+      "role": "sfx",
+      "sha256": "c2e53aec51ec07c288c59a0f4df8fe88a85ed784a717a75520835197cca2da53"
+    },
+    {
+      "actionId": "drop-grab",
+      "file": "assets/sfx/paper-slide.wav",
+      "kind": "sweep",
+      "gain": 0.5,
+      "syncOffset": 0.103,
+      "at": 8.397,
+      "role": "sfx",
+      "duck": {
+        "hold": 0.35
+      },
+      "sha256": "0e1ed6af3cd8f3eb18bb97efbb96acaa88ff08f16034643176abdbfaee700ba1"
+    },
+    {
+      "actionId": "drop-release",
+      "file": "assets/sfx/soft-drop.wav",
+      "kind": "pop",
+      "gain": 0.69,
+      "syncOffset": 0.002,
+      "at": 9.831,
+      "role": "sfx",
+      "sha256": "583d54efe319ca61bd98d330128fecc23a1b2c442688bbf291b8e2dc23169bd8"
+    },
+    {
+      "actionId": "drop-select",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 2.63,
+      "syncOffset": 0.001,
+      "at": 11.899,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "ann-details",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.9,
+      "syncOffset": 0.001,
+      "at": 12.799,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "ann-open",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 3.91,
+      "syncOffset": 0.001,
+      "at": 13.399,
+      "role": "sfx",
+      "duck": {
+        "db": 4.5
+      },
+      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527"
+    },
+    {
+      "actionId": "ann-tick-1",
+      "file": "assets/sfx/toggle.wav",
+      "kind": "toggle",
+      "gain": 2.75,
+      "syncOffset": 0.001,
+      "at": 14.499,
+      "role": "sfx",
+      "sha256": "509be1af88150e4acf3c273ae29ab404027876fb61d705de5f21d7a62b99d6b6"
+    },
+    {
+      "actionId": "ann-tick-2",
+      "file": "assets/sfx/toggle.wav",
+      "kind": "toggle",
+      "gain": 2.17,
+      "syncOffset": 0.001,
+      "at": 15.166,
+      "role": "sfx",
+      "sha256": "509be1af88150e4acf3c273ae29ab404027876fb61d705de5f21d7a62b99d6b6"
+    },
+    {
+      "actionId": "ann-add",
+      "file": "assets/sfx/click-drop-pair.wav",
+      "kind": "click",
+      "gain": 1.45,
+      "syncOffset": 0.002,
+      "at": 15.831,
+      "role": "sfx",
+      "sha256": "6dc2598945afdda5a10e2a045db0d35e7f0115fced389ef4e09130cfc4a6442e"
+    },
+    {
+      "actionId": "cards-context",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 3.14,
+      "syncOffset": 0.001,
+      "at": 20.499,
+      "role": "sfx",
+      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527"
+    },
+    {
+      "actionId": "cards-new-claim",
+      "file": "assets/sfx/click-drop.wav",
+      "kind": "click",
+      "gain": 1.3,
+      "syncOffset": 0.002,
+      "at": 21.165,
+      "role": "sfx",
+      "sha256": "8f45d564457704ed1e062cd99d48aed37ff693849421e67b71fab0e86ba0355f"
+    },
+    {
+      "actionId": "cards-type",
+      "file": "assets/sfx/typing-claim.wav",
+      "kind": "typing",
+      "gain": 2.16,
+      "syncOffset": 0.001,
+      "at": 21.499,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 1.1
+      },
+      "sha256": "1f633c68f4cd55aad964b27edeb500ca96c69f66b4ad9fb5d17aedea6438b66c"
+    },
+    {
+      "actionId": "cards-commit",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 2.29,
+      "syncOffset": 0.001,
+      "at": 22.949,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "paint-select",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 3.06,
+      "syncOffset": 0.001,
+      "at": 24.499,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "paint-arm",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 4.0,
+      "syncOffset": 0.001,
+      "at": 25.166,
+      "role": "sfx",
+      "duck": {
+        "db": 4.0
+      },
+      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527"
+    },
+    {
+      "actionId": "paint-apply",
+      "file": "assets/sfx/brush.wav",
+      "kind": "sweep",
+      "gain": 1.15,
+      "syncOffset": 0.107,
+      "at": 26.393,
+      "role": "sfx",
+      "sha256": "a7a4cd6f0d8277fb9182c37d3583d9f59c73b07ffefc1be7a36d86c2c2922100"
+    },
+    {
+      "actionId": "align-grab",
+      "file": "assets/sfx/paper-slide.wav",
+      "kind": "sweep",
+      "gain": 0.54,
+      "syncOffset": 0.103,
+      "at": 29.064,
+      "role": "sfx",
+      "duck": {
+        "hold": 0.35
+      },
+      "sha256": "0e1ed6af3cd8f3eb18bb97efbb96acaa88ff08f16034643176abdbfaee700ba1"
+    },
+    {
+      "actionId": "align-snap",
+      "file": "assets/sfx/snap-tick.wav",
+      "kind": "click",
+      "gain": 1.0,
+      "syncOffset": 0.0,
+      "at": 29.833,
+      "role": "sfx",
+      "sha256": "9d58b22827a867317f271f7139320b056f754018aa72d5cb3e3d0f7f9e5a6249"
+    },
+    {
+      "actionId": "write-turn",
+      "file": "assets/sfx/page-turn.wav",
+      "kind": "sweep",
+      "gain": 0.43,
+      "syncOffset": 0.358,
+      "at": 31.642,
+      "role": "sfx",
+      "duck": {
+        "db": 3,
+        "hold": 0.75,
+        "release": 0.35
+      },
+      "sha256": "b3cd46b7842e1ab290aa1b7cb9e2df76ce2635714e77e42b7569377b1fe313ea"
+    },
+    {
+      "actionId": "write-type",
+      "file": "assets/sfx/typing-long.wav",
+      "kind": "typing",
+      "gain": 1.91,
+      "syncOffset": 0.001,
+      "at": 33.499,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 1.4
+      },
+      "sha256": "0e224323e2d9fbaeb47b5d9b54bf526b749f4b332d48ddfd855a30b87123446c"
+    },
+    {
+      "actionId": "links-type",
+      "file": "assets/sfx/typing-short.wav",
+      "kind": "typing",
+      "gain": 1.98,
+      "syncOffset": 0.001,
+      "at": 37.299,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 0.6
+      },
+      "sha256": "10d3c3b09f889c32864df20903e239afe1fd160fe3e7b78387ff7fb7a8dc0bf4"
+    },
+    {
+      "actionId": "links-popup",
+      "file": "assets/sfx/pop.wav",
+      "kind": "pop",
+      "gain": 1.09,
+      "syncOffset": 0.001,
+      "at": 37.899,
+      "role": "sfx",
+      "sha256": "ea11b896eb402c995a63f01ff298f0def88deed0ce96d37eb5f52d266b654dc9"
+    },
+    {
+      "actionId": "links-filter",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.93,
+      "syncOffset": 0.001,
+      "at": 39.166,
+      "role": "sfx",
+      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13"
+    },
+    {
+      "actionId": "links-insert",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 3.15,
+      "syncOffset": 0.001,
+      "at": 39.832,
+      "role": "sfx",
+      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527"
+    },
+    {
+      "actionId": "files-turn",
+      "file": "assets/sfx/page-turn.wav",
+      "kind": "sweep",
+      "gain": 0.75,
+      "syncOffset": 0.358,
+      "at": 49.142,
+      "role": "sfx",
+      "duck": {
+        "db": 3,
+        "hold": 0.75,
+        "release": 0.35
+      },
+      "sha256": "b3cd46b7842e1ab290aa1b7cb9e2df76ce2635714e77e42b7569377b1fe313ea"
+    },
+    {
+      "actionId": "files-lift",
+      "file": "assets/sfx/pop.wav",
+      "kind": "pop",
+      "gain": 1.42,
+      "syncOffset": 0.001,
+      "at": 50.499,
+      "role": "sfx",
+      "sha256": "ea11b896eb402c995a63f01ff298f0def88deed0ce96d37eb5f52d266b654dc9"
+    }
+  ],
+  "master": {
+    "file": "assets/master.wav",
+    "sha256": "3eb6848476114660d4369b8d01c2cdc019312a5fbb321d2fd66cb6a5fc8bcc28"
+  },
+  "sfxStem": {
+    "file": "assets/sfx-stem.wav",
+    "sha256": "08343e299e7af10cb4a6e1c53e54eb639c4fcc7e2b05b984459f1869b61755b8"
+  },
+  "musicStem": {
+    "file": "assets/music-ducked.wav",
+    "sha256": "3685544d2adf06ce805753613deaa98a7812938dc6d58cb4cd270884028fc5ab"
+  },
+  "ducking": {
+    "method": "cue-envelope",
+    "windows": [
+      {
+        "actionId": "brand-fold",
+        "kind": "click",
+        "start": 1.16,
+        "attackEnd": 1.2,
+        "holdEnd": 1.3,
+        "end": 1.5,
+        "db": 3
+      },
+      {
+        "actionId": "entry-click",
+        "kind": "click",
+        "start": 4.16,
+        "attackEnd": 4.2,
+        "holdEnd": 4.3,
+        "end": 4.5,
+        "db": 3
+      },
+      {
+        "actionId": "entry-items",
+        "kind": "pop",
+        "start": 4.36,
+        "attackEnd": 4.4,
+        "holdEnd": 4.5200000000000005,
+        "end": 4.760000000000001,
+        "db": 3.5
+      },
+      {
+        "actionId": "drop-grab",
+        "kind": "sweep",
+        "start": 8.46,
+        "attackEnd": 8.5,
+        "holdEnd": 8.85,
+        "end": 9.2,
+        "db": 4
+      },
+      {
+        "actionId": "drop-release",
+        "kind": "pop",
+        "start": 9.793000000000001,
+        "attackEnd": 9.833,
+        "holdEnd": 9.953,
+        "end": 10.193,
+        "db": 3.5
+      },
+      {
+        "actionId": "drop-select",
+        "kind": "click",
+        "start": 11.86,
+        "attackEnd": 11.899999999999999,
+        "holdEnd": 11.999999999999998,
+        "end": 12.199999999999998,
+        "db": 3
+      },
+      {
+        "actionId": "ann-details",
+        "kind": "click",
+        "start": 12.76,
+        "attackEnd": 12.799999999999999,
+        "holdEnd": 12.899999999999999,
+        "end": 13.099999999999998,
+        "db": 3
+      },
+      {
+        "actionId": "ann-open",
+        "kind": "click-alt",
+        "start": 13.36,
+        "attackEnd": 13.399999999999999,
+        "holdEnd": 13.499999999999998,
+        "end": 13.699999999999998,
+        "db": 4.5
+      },
+      {
+        "actionId": "ann-tick-1",
+        "kind": "toggle",
+        "start": 14.46,
+        "attackEnd": 14.5,
+        "holdEnd": 14.62,
+        "end": 14.86,
+        "db": 3
+      },
+      {
+        "actionId": "ann-tick-2",
+        "kind": "toggle",
+        "start": 15.127,
+        "attackEnd": 15.167,
+        "holdEnd": 15.286999999999999,
+        "end": 15.527,
+        "db": 3
+      },
+      {
+        "actionId": "ann-add",
+        "kind": "click",
+        "start": 15.793000000000001,
+        "attackEnd": 15.833,
+        "holdEnd": 15.933,
+        "end": 16.133,
+        "db": 3
+      },
+      {
+        "actionId": "cards-context",
+        "kind": "click-alt",
+        "start": 20.46,
+        "attackEnd": 20.5,
+        "holdEnd": 20.6,
+        "end": 20.8,
+        "db": 3
+      },
+      {
+        "actionId": "cards-new-claim",
+        "kind": "click",
+        "start": 21.127,
+        "attackEnd": 21.166999999999998,
+        "holdEnd": 21.267,
+        "end": 21.467,
+        "db": 3
+      },
+      {
+        "actionId": "cards-type",
+        "kind": "typing",
+        "start": 21.46,
+        "attackEnd": 21.5,
+        "holdEnd": 22.6,
+        "end": 22.85,
+        "db": 3.5
+      },
+      {
+        "actionId": "cards-commit",
+        "kind": "click",
+        "start": 22.910000000000004,
+        "attackEnd": 22.950000000000003,
+        "holdEnd": 23.050000000000004,
+        "end": 23.250000000000004,
+        "db": 3
+      },
+      {
+        "actionId": "paint-select",
+        "kind": "click",
+        "start": 24.46,
+        "attackEnd": 24.5,
+        "holdEnd": 24.6,
+        "end": 24.8,
+        "db": 3
+      },
+      {
+        "actionId": "paint-arm",
+        "kind": "click-alt",
+        "start": 25.127000000000002,
+        "attackEnd": 25.167,
+        "holdEnd": 25.267000000000003,
+        "end": 25.467000000000002,
+        "db": 4.0
+      },
+      {
+        "actionId": "paint-apply",
+        "kind": "sweep",
+        "start": 26.46,
+        "attackEnd": 26.5,
+        "holdEnd": 26.7,
+        "end": 27.05,
+        "db": 4
+      },
+      {
+        "actionId": "align-grab",
+        "kind": "sweep",
+        "start": 29.127000000000002,
+        "attackEnd": 29.167,
+        "holdEnd": 29.517000000000003,
+        "end": 29.867000000000004,
+        "db": 4
+      },
+      {
+        "actionId": "align-snap",
+        "kind": "click",
+        "start": 29.793,
+        "attackEnd": 29.833,
+        "holdEnd": 29.933,
+        "end": 30.133,
+        "db": 3
+      },
+      {
+        "actionId": "write-turn",
+        "kind": "sweep",
+        "start": 31.96,
+        "attackEnd": 32.0,
+        "holdEnd": 32.75,
+        "end": 33.1,
+        "db": 3
+      },
+      {
+        "actionId": "write-type",
+        "kind": "typing",
+        "start": 33.46,
+        "attackEnd": 33.5,
+        "holdEnd": 34.9,
+        "end": 35.15,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-type",
+        "kind": "typing",
+        "start": 37.26,
+        "attackEnd": 37.3,
+        "holdEnd": 37.9,
+        "end": 38.15,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-popup",
+        "kind": "pop",
+        "start": 37.86,
+        "attackEnd": 37.9,
+        "holdEnd": 38.019999999999996,
+        "end": 38.26,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-filter",
+        "kind": "click",
+        "start": 39.126999999999995,
+        "attackEnd": 39.166999999999994,
+        "holdEnd": 39.266999999999996,
+        "end": 39.467,
+        "db": 3
+      },
+      {
+        "actionId": "links-insert",
+        "kind": "click-alt",
+        "start": 39.793,
+        "attackEnd": 39.833,
+        "holdEnd": 39.933,
+        "end": 40.133,
+        "db": 3
+      },
+      {
+        "actionId": "files-turn",
+        "kind": "sweep",
+        "start": 49.46,
+        "attackEnd": 49.5,
+        "holdEnd": 50.25,
+        "end": 50.6,
+        "db": 3
+      },
+      {
+        "actionId": "files-lift",
+        "kind": "pop",
+        "start": 50.46,
+        "attackEnd": 50.5,
+        "holdEnd": 50.62,
+        "end": 50.86,
+        "db": 3.5
+      }
+    ],
+    "overlap": "deepest-envelope-wins"
+  },
+  "timing": [
+    {
+      "actionId": "brand-fold",
+      "fileStart": 1.199,
+      "audibleLandmark": 1.2,
+      "actionTime": 1.2,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "entry-click",
+      "fileStart": 4.199,
+      "audibleLandmark": 4.2,
+      "actionTime": 4.2,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "entry-items",
+      "fileStart": 4.399,
+      "audibleLandmark": 4.4,
+      "actionTime": 4.4,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-grab",
+      "fileStart": 8.397,
+      "audibleLandmark": 8.5,
+      "actionTime": 8.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-release",
+      "fileStart": 9.831,
+      "audibleLandmark": 9.833,
+      "actionTime": 9.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-select",
+      "fileStart": 11.899,
+      "audibleLandmark": 11.899999999999999,
+      "actionTime": 11.9,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "ann-details",
+      "fileStart": 12.799,
+      "audibleLandmark": 12.799999999999999,
+      "actionTime": 12.8,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "ann-open",
+      "fileStart": 13.399,
+      "audibleLandmark": 13.399999999999999,
+      "actionTime": 13.4,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "ann-tick-1",
+      "fileStart": 14.499,
+      "audibleLandmark": 14.5,
+      "actionTime": 14.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-tick-2",
+      "fileStart": 15.166,
+      "audibleLandmark": 15.167,
+      "actionTime": 15.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-add",
+      "fileStart": 15.831,
+      "audibleLandmark": 15.833,
+      "actionTime": 15.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-context",
+      "fileStart": 20.499,
+      "audibleLandmark": 20.5,
+      "actionTime": 20.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-new-claim",
+      "fileStart": 21.165,
+      "audibleLandmark": 21.166999999999998,
+      "actionTime": 21.167,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "cards-type",
+      "fileStart": 21.499,
+      "audibleLandmark": 21.5,
+      "actionTime": 21.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-commit",
+      "fileStart": 22.949,
+      "audibleLandmark": 22.950000000000003,
+      "actionTime": 22.95,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-select",
+      "fileStart": 24.499,
+      "audibleLandmark": 24.5,
+      "actionTime": 24.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-arm",
+      "fileStart": 25.166,
+      "audibleLandmark": 25.167,
+      "actionTime": 25.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-apply",
+      "fileStart": 26.393,
+      "audibleLandmark": 26.5,
+      "actionTime": 26.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "align-grab",
+      "fileStart": 29.064,
+      "audibleLandmark": 29.167,
+      "actionTime": 29.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "align-snap",
+      "fileStart": 29.833,
+      "audibleLandmark": 29.833,
+      "actionTime": 29.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "write-turn",
+      "fileStart": 31.642,
+      "audibleLandmark": 32.0,
+      "actionTime": 32.0,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "write-type",
+      "fileStart": 33.499,
+      "audibleLandmark": 33.5,
+      "actionTime": 33.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-type",
+      "fileStart": 37.299,
+      "audibleLandmark": 37.3,
+      "actionTime": 37.3,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-popup",
+      "fileStart": 37.899,
+      "audibleLandmark": 37.9,
+      "actionTime": 37.9,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-filter",
+      "fileStart": 39.166,
+      "audibleLandmark": 39.166999999999994,
+      "actionTime": 39.167,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "links-insert",
+      "fileStart": 39.832,
+      "audibleLandmark": 39.833,
+      "actionTime": 39.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "files-turn",
+      "fileStart": 49.142,
+      "audibleLandmark": 49.5,
+      "actionTime": 49.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "files-lift",
+      "fileStart": 50.499,
+      "audibleLandmark": 50.5,
+      "actionTime": 50.5,
+      "errorFrames": 0.0
+    }
+  ],
+  "warnings": [],
+  "normalization": {
+    "requested": "linear",
+    "normalization_type": "linear",
+    "measurement": {
+      "input_i": "-21.69",
+      "input_tp": "-7.91",
+      "input_lra": "4.60",
+      "input_thresh": "-31.81",
+      "output_i": "-15.92",
+      "output_tp": "-1.50",
+      "output_lra": "3.70",
+      "output_thresh": "-25.97",
+      "normalization_type": "dynamic",
+      "target_offset": "-0.08"
+    },
+    "output": {
+      "input_i": "-21.62",
+      "input_tp": "-7.92",
+      "input_lra": "4.10",
+      "input_thresh": "-31.68",
+      "output_i": "-15.93",
+      "output_tp": "-2.23",
+      "output_lra": "4.10",
+      "output_thresh": "-25.99",
+      "normalization_type": "linear",
+      "target_offset": "-0.07"
+    }
+  },
+  "listeningStatus": "Not auditioned by script; listen to isolated SFX, final mix and encoded MP4."
+}

@@ -24,6 +24,8 @@ html,body { margin:0; background:#000; }
 #paper { position:absolute; inset:0; background:#f2f2ee; z-index:0; }
 /* #11: the desk under the product's dark theme (opacity animated at the dark switch) */
 #paper-dark { position:absolute; inset:0; background:#1a2527; z-index:1; opacity:0; }
+/* the outgoing page's paper during the first page turn (the board layer itself is transparent) */
+#paper-sheet { position:absolute; inset:0; background:#f2f2ee; z-index:1; opacity:0; }
 
 /* page-turn flap and crease (src/stage/fold.js) */
 #fold-flap { position:absolute; left:0; top:0; z-index:90; pointer-events:none; overflow:visible; }

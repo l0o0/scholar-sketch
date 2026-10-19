@@ -21,7 +21,7 @@ export const typedUnits = (units, t, at) => units.filter(([o]) => t >= at + o).m
 export const PAPER_TITLE = '城市公园冷岛效应的尺度阈值';
 
 export const T = {
-  layerOn: write.start - 0.1,                         // 31.90 under the board page before the first turn
+  layerOn: write.start,                               // 32.00: the first turn starts; the paper sheet under the board page hides it until the crease passes
   turn: actionTime('write-turn'),                     // 32.00 page turn reveals chapter 2 (stage/turns.js)
   focusFrom: write.start,                             // the editor takes focus once its page is revealed
   scrollDown: [writeType - 0.5, writeType - 0.05],   // 33.00–33.45 scroll (wheel) down to 下一步: the note is taller than the window

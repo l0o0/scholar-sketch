@@ -11266,7 +11266,7 @@
       "format": "esm"
     },
     "src/notes/time.js": {
-      "bytes": 4041,
+      "bytes": 4092,
       "imports": [
         {
           "path": "src/stage/layout.js",
@@ -11511,7 +11511,7 @@
       "format": "esm"
     },
     "src/stage/turns.js": {
-      "bytes": 626,
+      "bytes": 880,
       "imports": [
         {
           "path": "src/stage/fold.js",
@@ -11537,7 +11537,7 @@
       "format": "esm"
     },
     "src/shots/index.js": {
-      "bytes": 1066,
+      "bytes": 1068,
       "imports": [
         {
           "path": "src/shots/brand.js",
@@ -11599,7 +11599,7 @@
       "format": "esm"
     },
     "src/film.jsx": {
-      "bytes": 1179,
+      "bytes": 1208,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -12271,7 +12271,7 @@
           "bytesInOutput": 5421
         },
         "src/film.jsx": {
-          "bytesInOutput": 773
+          "bytesInOutput": 810
         },
         "src/film-store.js": {
           "bytesInOutput": 179
@@ -12922,7 +12922,7 @@
           "bytesInOutput": 2247
         },
         "src/notes/time.js": {
-          "bytesInOutput": 1170
+          "bytesInOutput": 1167
         },
         "src/notes/notes.css": {
           "bytesInOutput": 0
@@ -12931,7 +12931,7 @@
           "bytesInOutput": 609
         },
         "src/stage/turns.js": {
-          "bytesInOutput": 289
+          "bytesInOutput": 388
         },
         "src/stage/fold.js": {
           "bytesInOutput": 1597
@@ -12943,7 +12943,7 @@
           "bytesInOutput": 568
         }
       },
-      "bytes": 2031297
+      "bytes": 2031430
     },
     ".build/client.css": {
       "imports": [
