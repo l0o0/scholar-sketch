@@ -8506,7 +8506,7 @@
       "format": "esm"
     },
     "src/canvas/captions.jsx": {
-      "bytes": 2185,
+      "bytes": 2168,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -11418,7 +11418,7 @@
       "format": "esm"
     },
     "src/notes/captions.jsx": {
-      "bytes": 1012,
+      "bytes": 986,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -12904,7 +12904,7 @@
           "bytesInOutput": 1720
         },
         "src/canvas/captions.jsx": {
-          "bytesInOutput": 1843
+          "bytesInOutput": 1798
         },
         "src/shots/notes.js": {
           "bytesInOutput": 240
@@ -12928,7 +12928,7 @@
           "bytesInOutput": 0
         },
         "src/notes/captions.jsx": {
-          "bytesInOutput": 609
+          "bytesInOutput": 560
         },
         "src/stage/turns.js": {
           "bytesInOutput": 388
@@ -12943,7 +12943,7 @@
           "bytesInOutput": 568
         }
       },
-      "bytes": 2031367
+      "bytes": 2031273
     },
     ".build/client.css": {
       "imports": [

@@ -5,7 +5,7 @@ import {Caption, revealCaption} from '../stage/captions.jsx';
 import {shot} from '../engine.js';
 
 const BREAKS = {
-  write: {desc: '表格、公式和待办直接显示排好的样子，\n边写边排版。'},
+  write: {desc: '表格、公式和待办，写下就排好版。'},
   links: {desc: '文库里的论文、笔记和白板都能搜到，\n点一下就插入链接。'},
   backlinks: {},
 };
