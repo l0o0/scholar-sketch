@@ -14,7 +14,10 @@ export const LAYOUT = {
   // T — chapter 2 (Markdown 笔记): copy in a top band, note window full width below.
   T: {note: {x: 64, y: 250, s: 1}, band: {x: 96, y: 56, h: 180}},
   // D — #11 深色: two pages on the desk, note behind-left, board in front-right; copy in the top band.
-  D: {note: {x: 64, y: 252, s: 0.62}, board: {x: 956, y: 300, s: 0.72}, band: {x: 96, y: 56, h: 180}},
+  // The board window's left edge sits on the note's sidebar divider (no sliced glyphs); the note fixer
+  // tunes note.x/s so its 引用此笔记 divider lands exactly on x = board.x. #11 shows a theme change, not text
+  // to read, so text here is below the 22 px rule (DIRECTION §5.4 exception).
+  D: {note: {x: 64, y: 262, s: 0.66}, board: {x: 972, y: 300, s: 0.70}, band: {x: 96, y: 56, h: 180}},
 };
 
 export const COLOR = {
