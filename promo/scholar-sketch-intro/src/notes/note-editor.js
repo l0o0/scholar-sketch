@@ -15,7 +15,7 @@ import {mountNoteBacklinks} from '@plugin/modules/markdown/backlinks.ts';
 import {mountIframeEditor} from '../md/editor-iframe.js';
 import {NOTE_TEXT, OTHER_NOTES, ITEMS} from '../library/fixture.js';
 import {zh} from '../md/zh.js';
-import {T, TODO_TEXT, TODO_UNITS, LINK_UNITS, PAPER_TITLE, typedUnits} from './time.js';
+import {T, TODO_TEXT, TODO_UNITS, LINK_UNITS, PAPER_TITLE, typedUnits, past} from './time.js';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function waitFor(cond, tries = 150) {
@@ -27,24 +27,29 @@ async function waitFor(cond, tries = 150) {
 async function settleMessages() { for (let i = 0; i < 3; i++) { await sleep(0); await frame(); } }
 
 // Documents along the film (all derived from the shared NOTE_TEXT).
-const PARA_END = NOTE_TEXT.indexOf('里的结论。') + '里的结论。'.length;   // end of paragraph 1
+const PARA_END = NOTE_TEXT.indexOf('\n', NOTE_TEXT.indexOf('本周精读'));   // end of paragraph 1
 if (PARA_END < 5) throw new Error('note fixture: paragraph 1 anchor not found');
-const WRITTEN = NOTE_TEXT + TODO_TEXT + '\n';                            // after #8: new task + Enter
-const withQuery = q => WRITTEN.slice(0, PARA_END) + q + WRITTEN.slice(PARA_END);
+// #8 types the new task on the blank line right under the existing one (the note goes on below it)
+const TASK_LINE = '- [x] 把引文放进研究白板\n';
+const TODO_AT = NOTE_TEXT.indexOf(TASK_LINE) + TASK_LINE.length;
+if (TODO_AT < TASK_LINE.length) throw new Error('note fixture: task list anchor not found');
+const typedDoc = text => NOTE_TEXT.slice(0, TODO_AT) + text + NOTE_TEXT.slice(TODO_AT);
 
 /** Phases whose sidebar "active outline" entry is recorded once and restored on seeks. */
 const PHASES = [['base', -Infinity], ['scrolled', T.scrollDown[1]], ['typing', T.writeType], ['written', T.writeEnter],
   ['unscrolled', T.scrollUp[1]], ['caret', T.linksCaret], ['query', T.linksType], ['chosen', T.linksInsert], ['off', T.caretOff], ['dark', T.darkSwitch]];
 const ease = u => (u <= 0 ? 0 : u >= 1 ? 1 : u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);   // power2.inOut
 const span = (t, [a, b]) => ease((t - a) / (b - a));
-/** Editor scroll as a fraction of the current document's maximum (a wheel scroll in the real editor). */
+/** Editor scroll as a fraction of the #8 target scrollTop (a wheel scroll in the real editor). */
 const scrollAt = t => (t < T.linksStart - 0.5 ? span(t, T.scrollDown) : 1 - span(t, T.scrollUp));
-const phaseAt = t => PHASES.filter(([, at]) => t >= at).pop()[0];
+const phaseAt = t => PHASES.filter(([, at]) => past(t, at)).pop()[0];
 
 export function createNoteEditor(root) {
   const q = sel => root.querySelector(sel);
-  const REC = {chosen: null, offAnchor: null, active: {}, lists: {}, scroll: {}};
-  let ed = null, outline = null, outlineItems = [], outlineSeq = 0, hovered = false;
+  // entered: doc + caret after the real Enter (#8); chosen: after the real [[ completion (#9);
+  // scroll.write: editor scrollTop (px) of the #8 wheel scroll, measured once on the real layout
+  const REC = {entered: null, chosen: null, offAnchor: null, active: {}, lists: {}, scroll: {write: 0}};
+  let ed = null, outline = null, outlineItems = [], outlineSeq = 0, activeSeq = 0;
 
   const popup = () => ed.doc().querySelector('.zmd-link-completion');
   const popupFilter = () => popup()?.querySelector('button[aria-pressed="true"]')?.dataset.linkFilter ?? null;
@@ -58,21 +63,21 @@ export function createNoteEditor(root) {
   const backlinkButtons = () => [...root.querySelectorAll('.zmd-backlinks > div > button')];
 
   function wantedCore(t) {
-    const theme = t >= T.darkSwitch ? 'dark' : 'light';
-    const focus = t >= T.focusFrom;
-    if (t >= T.linksInsert && REC.chosen) {
-      return {doc: REC.chosen.doc, anchor: t >= T.caretOff ? REC.offAnchor : REC.chosen.anchor, filter: null, theme, focus};
+    const theme = past(t, T.darkSwitch) ? 'dark' : 'light';   // same frame as the board (frame-snapped action time)
+    const focus = past(t, T.focusFrom);
+    if (past(t, T.linksInsert) && REC.chosen) {
+      return {doc: REC.chosen.doc, anchor: past(t, T.caretOff) ? REC.offAnchor : REC.chosen.anchor, filter: null, theme, focus};
     }
-    if (t >= T.linksCaret) {
-      const text = typedUnits(LINK_UNITS, t, T.linksType);
-      const filter = text.includes('[[') ? (t >= T.linksFilter ? 'regular' : 'all') : null;
-      return {doc: withQuery(text), anchor: PARA_END + text.length, filter, theme, focus};
+    if (past(t, T.linksCaret) && REC.entered) {
+      const text = typedUnits(LINK_UNITS, t, T.linksType), doc = REC.entered.doc;
+      const filter = text.includes('[[') ? (past(t, T.linksFilter) ? 'regular' : 'all') : null;
+      return {doc: doc.slice(0, PARA_END) + text + doc.slice(PARA_END), anchor: PARA_END + text.length, filter, theme, focus};
     }
-    if (t >= T.writeEnter) return {doc: WRITTEN, anchor: WRITTEN.length, filter: null, theme, focus};
+    if (past(t, T.writeEnter) && REC.entered) return {doc: REC.entered.doc, anchor: REC.entered.anchor, filter: null, theme, focus};
     const text = typedUnits(TODO_UNITS, t, T.writeType);
-    return {doc: NOTE_TEXT + text, anchor: NOTE_TEXT.length + text.length, filter: null, theme, focus};
+    return {doc: typedDoc(text), anchor: TODO_AT + text.length, filter: null, theme, focus};
   }
-  const wanted = t => ({...wantedCore(t), scroll: scrollAt(t), active: REC.active[phaseAt(t)], hover: t >= T.backHover && t < T.darkMove[0]});
+  const wanted = t => ({...wantedCore(t), scroll: Math.round(REC.scroll.write * scrollAt(t)), active: REC.active[phaseAt(t)]});
 
   /** Doc + caret as one minimal-diff transaction (the same path typed input takes; idempotent). */
   function setDoc(v, text, anchor) {
@@ -94,16 +99,23 @@ export function createNoteEditor(root) {
     if (ed.setTheme(w.theme)) await settleMessages();
     const v = ed.view(); if (!v) return;
     if (w.focus && !v.hasFocus) { v.focus(); await waitFor(() => v.dom.classList.contains('cm-focused'), 30); }
-    const seq0 = outlineSeq;
+    const seq0 = outlineSeq, act0 = activeSeq;
     // after an edit the product re-publishes the outline ~100 ms later (bootstrap.ts scheduleOutlineUpdate):
     // wait for it so the sidebar never depends on wall-clock timing
     const changed = setDoc(v, w.doc, w.anchor);
-    // scroll right after the edit, before the product's outline timer reads it
-    const sd = v.scrollDOM, top = Math.round(w.scroll * Math.max(0, sd.scrollHeight - sd.clientHeight));
-    const scrolled = Math.abs(sd.scrollTop - top) > 0.5;
-    if (scrolled) sd.scrollTop = top;
-    if (changed === 'doc') { await frame(); await waitFor(() => outlineSeq > seq0, 120); }
-    else if (changed || scrolled) await settleMessages();
+    // scroll after CodeMirror has measured the edit (its scroll anchoring would otherwise move a scrollTop set
+    // in the same tick, e.g. pin it to the bottom) and before the product's outline timer reads it; absolute
+    // px: the Enter in #8 grows the note below the window, it must not move what is on screen
+    if (changed === 'doc') await frame();
+    const sd = v.scrollDOM;
+    let scrolled = false;
+    for (let i = 0; i < 4; i++) {
+      const top = Math.min(w.scroll, Math.max(0, sd.scrollHeight - sd.clientHeight));
+      if (Math.abs(sd.scrollTop - top) <= 0.5) break;
+      sd.scrollTop = top; scrolled = true; await frame();
+    }
+    if (changed === 'doc') await waitFor(() => outlineSeq > seq0, 120);
+    if (changed || scrolled || activeSeq !== act0) await settleMessages();
     if (w.filter) {
       // the popup is closed by any window blur (link-completion.ts onWindowBlur): re-request it the way a
       // caret move does (requestLinkSearch runs on every selectionSet)
@@ -114,13 +126,8 @@ export function createNoteEditor(root) {
         await waitFor(() => popupSettled() && popupFilter() === w.filter);
       }
     }
-    // backlink entry: pointer rests on it (a click would open the citing note in a new tab and leave this one)
-    const first = backlinkButtons()[0];
-    if (first && w.hover !== hovered) {
-      for (const type of w.hover ? ['pointerover', 'pointerenter', 'mouseover', 'pointermove'] : ['pointerout', 'pointerleave', 'mouseout'])
-        first.dispatchEvent(new (type.startsWith('pointer') ? PointerEvent : MouseEvent)(type, {bubbles: !/enter|leave/.test(type)}));
-      hovered = w.hover;
-    }
+    // #10 backlinks: the film pointer only points (in the panel's left margin, beside an entry); the product
+    // has no hover state there and a click would open the citing note, so nothing is dispatched.
     // Sidebar "active" entry is UI state fed by async messages: restore the value recorded for this phase.
     if (w.active !== undefined && activeOutline() !== w.active) {
       await settleMessages();
@@ -166,7 +173,7 @@ export function createNoteEditor(root) {
     ed = mountIframeEditor(q('.zotero-markdown-editor-host'), {
       channel: 'film-note', doc: NOTE_TEXT,
       onOutline: (items, activeID) => { outlineSeq++; outlineItems = items; outline.update(items, activeID); },
-      onOutlineActive: activeID => { outlineSeq++; outline.setActive(activeID); },
+      onOutlineActive: activeID => { activeSeq++; outline.setActive(activeID); },
     });
     await ed.ready();
     // The editor iframe is its own document: its CJK web fonts (unicode-range subsets) load lazily, so a glyph
@@ -181,12 +188,38 @@ export function createNoteEditor(root) {
 
   /** Perform the real interactions once, in order, and record what later seeks restore. */
   async function record() {
+    // #8 scroll target: wheel down until the window's top edge sits in the blank line above the table
+    // (~24 px above its top border), which brings 下一步 to mid-window; the bottom edge then falls between lines
+    // both before and after the Enter (the note goes on below the task list). Kept 5 px short of the end:
+    // CodeMirror pins a view scrolled within 4 px of the bottom to the bottom when the doc grows (the Enter
+    // would then move the page), and the product's outline would mark the last heading (相关文献) active.
+    {
+      const v = ed.view(), sd = v.scrollDOM, table = ed.doc().querySelector('.cm-line.zmd-lp-table-header');
+      if (!table) throw new Error('[notes] table not rendered');
+      const top = table.getBoundingClientRect().top - sd.getBoundingClientRect().top + sd.scrollTop;
+      REC.scroll.write = Math.floor(Math.min(top - 24, sd.scrollHeight - sd.clientHeight - 5));
+    }
+    // #8 Enter: the real keymap (lang-markdown insertNewlineContinueMarkup continues the task list)
+    await drive(T.writeEnter - 0.01);
+    {
+      const v = ed.view(), W = ed.iframe.contentWindow;
+      v.contentDOM.dispatchEvent(new W.KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true}));
+      await frame(); await settleMessages();
+      REC.entered = {doc: v.state.doc.toString(), anchor: v.state.selection.main.head};
+      const head = NOTE_TEXT.slice(0, TODO_AT) + TODO_TEXT, tail = NOTE_TEXT.slice(TODO_AT);
+      if (!REC.entered.doc.startsWith(head) || !REC.entered.doc.endsWith(tail) || REC.entered.anchor <= head.length)
+        throw new Error('[notes] unexpected Enter result: ' + JSON.stringify(REC.entered.doc.slice(head.length - 8, head.length + 16)));
+    }
     // [[ results under each filter (reported in the build notes)
     await drive(T.linksFilter - 0.01);
     REC.lists.all = rowTexts();
     REC.measure = {popupAll: popup() && nativeRect(popup()), regularBtn: nativeRect(popup().querySelector('button[data-link-filter="regular"]')),
       paraTop: nativePos(NOTE_TEXT.indexOf('本周精读')), caret: nativePos(ed.view().state.selection.main.head),
-      backlink: nativeRect(backlinkButtons()[0]), backlinks: backlinkButtons().map(b => b.textContent)};
+      backlink: nativeRect(backlinkButtons()[0]), backlinks: backlinkButtons().map(b => b.textContent),
+      backTitles: backlinkButtons().map(b => nativeRect(b.querySelector('strong'))),
+      h1Text: (() => { const l = ed.doc().querySelector('.cm-line.zmd-lp-h1'), rg = ed.doc().createRange(); rg.selectNodeContents(l);
+        const r = rg.getBoundingClientRect(), o = frameOffset(); return {x: o.x + r.left, y: o.y + r.top, w: r.width, h: r.height}; })(),
+      aside: nativeRect(q('.zotero-markdown-backlinks-sidebar')), workspace: nativeRect(q('.zotero-markdown-workspace'))};
     await drive(T.linksInsert - 0.01);
     REC.lists.regular = rowTexts();
     const row = popupRows().find(b => b.textContent.includes(PAPER_TITLE) && !b.textContent.includes('.pdf'));
@@ -201,7 +234,13 @@ export function createNoteEditor(root) {
     REC.offAnchor = REC.chosen.doc.indexOf('\n', REC.chosen.anchor) + 1;   // start of the next (blank) line
     if (popup()) console.error('[notes] popup still open after choosing');
     // forward pass: the sidebar's active outline entry for every phase
-    for (const [name, at] of PHASES) { await drive(Math.max(at, T.layerOn) + 0.01); await settleMessages(); REC.active[name] = activeOutline(); }
+    // (the product publishes it asynchronously: 100 ms outline timer after an edit, rAF after a scroll; wait
+    // for both so the value recorded belongs to this phase and not to the previous one)
+    for (const [name, at] of PHASES) {
+      await drive(Math.max(at, T.layerOn) + 0.01);
+      await sleep(180); await settleMessages();
+      REC.active[name] = activeOutline();
+    }
     await drive(T.layerOn);
   }
 

@@ -23,7 +23,10 @@ window.__filmReady = (async () => {
   // Builders run after layout exists: they can measure real component positions.
   // Builders may be async. Only await real Promises: a GSAP timeline is thenable and a paused one
   // never resolves, so `tl => tl.set(...)` returning the timeline must not be awaited.
-  for (const build of [...LAYER_BUILDERS, ...Object.values(SHOT_BUILDERS)]) { const r = build(master); if (r instanceof Promise) await r; }
+  // Each builder starts with the master playhead at 0: the board's rehearsal seeks the master to measure
+  // camera targets, and GSAP renders a child added behind the playhead at once (recording wrong start values).
+  for (const build of [...LAYER_BUILDERS, ...Object.values(SHOT_BUILDERS)]) { master.seek(0, true); const r = build(master); if (r instanceof Promise) await r; }
+  master.seek(0, true);
   await seek(0);
 })();
 let t0 = null, req = null;

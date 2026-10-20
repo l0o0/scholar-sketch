@@ -1,40 +1,147 @@
 #!/usr/bin/env python3
-"""Synthesize the Scholar Sketch film's own paper/desk sounds. No samples or recordings.
+"""Synthesize the Scholar Sketch film's own paper/desk/UI sounds. No samples or recordings.
 
 Same approach as the skill's scripts/make_sfx.py (standard library only, procedural, 48 kHz 16-bit,
 fixed seeds) with a small RBJ biquad for filtered noise. Written as dual-mono stereo (L = R): mix_audio.py
 converts mono cues to stereo with ffmpeg's default −3 dB centre mix, so a stereo file keeps its measured
-peak in the mix. Sounds (DIRECTION.md §6 sound column):
-  paper-slide      drag a paper (drop-grab, align-grab)            ~0.62 s, soft contact, friction peak ~0.10 s
-  soft-drop        a card lands (drop-release, cards-new-claim)    ~80 ms, two soft partials 330/780 Hz
-  click-drop       click + the new card lands (cards-new-claim)     make_sfx.py's click, soft-drop 18 ms later (one event:
-                                                                   two cues on the same frame would stack their peaks)
-  click-drop-pair  click + two quote cards land (ann-add)          click, soft-drops at +18 ms and +113 ms
+peak in the mix.
+
+The felt-piano score holds ~60 % of its energy at 250–1000 Hz and almost nothing above 2 kHz (review
+2026-10-19), so every UI sound carries a short band-passed noise "contact" (10–20 ms, 2–4 / 2–5 kHz): the
+click is heard as a click there even when a piano note rings in its tonal band. Sounds (DIRECTION.md §6):
+  click / click-alt / toggle / pop   the skill's make_sfx.py recipes re-synthesized sample-exactly (checked
+                   against assets/audio/sfx/*.wav in the skill) + a soft 2–4 kHz contact at the onset; pop
+                   trimmed to 0.13 s (its tail is −29 dB by then) so it stays one short event
+  paper-slide      drag a paper (drop-grab)                        ~0.62 s, soft contact, friction peak ~0.10 s
+  paper-drag       the reading-note card follows the pointer (align-grab): contact at the grab, friction that
+                   lasts exactly from align-grab to align-snap in plan.json (ends 20 ms before the snap)
+  soft-drop        a card lands (drop-release)                     ~80 ms knock 330/780 Hz + 2–5 kHz contact
+  click-drop       click + one card lands (cards-new-claim, ann-add) click, soft-drop 18 ms later (one event:
+                   two cues on the same frame would stack their peaks; ann-add's two quote cards appear on the
+                   same frame, so it is one landing too)
   brush            format painter applies (paint-apply)           ~0.26 s band-passed bristle swish, peak ~0.09 s
   page-turn        the two folded-corner page turns               ~1.3 s: lift rustle, crest at ~0.35 s (turn start),
                                                                    fold-sweep rustle, soft settle at ~1.05 s (turn end)
-  snap-tick        alignment snap (align-snap)                     ~40 ms, very light high tick
-  logo-fold        the logo's corner folds in (brand-fold)         ~0.14 s soft paper crease tick + body
-  typing-long      two keyboard bursts over 1.4 s (write-type)     make_sfx.py's keystroke recipe, other timings/seed
-  pop-pair         two very light pops 0.2 s apart (entry-items)   make_sfx.py's pop recipe, softer
-  typing-short     one keyboard burst 0.65 s (links-type)          make_sfx.py's 'typing' (same six key times), +7 dB:
-                                                                   the bundled typing.wav peaks at −26.4 dBFS (−29.4 after
-                                                                   mix_audio.py's mono→stereo), below the music even at gain 4
-Usage: python3 tools/audio/make_film_sfx.py --output assets/sfx [--force]
+  snap-tick        alignment snap (align-snap)                     ~45 ms high tick 2.35/3.9 kHz with a 1.25 kHz body
+                                                                   and a 2.5–5 kHz contact
+  logo-fold        the logo's corner folds in (brand-fold)         ~75 ms paper flick: 2–6 kHz noise + fibre grains,
+                                                                   no low body (the first draft's 306 Hz knock fused
+                                                                   with the score's F4)
+  typing-claim     the claim card's 13 characters at 12/s (cards-type, src/canvas/board-build.js CLAIM)
+  typing-long      the to-do line (write-type), from src/notes/time.js TODO_UNITS: one key per ASCII unit on
+                   the frame it appears, a short pinyin burst (1–2 lighter keys) ending with the commit key on the
+                   frame each Chinese word appears, Enter on writeEnter
+  typing-short     the [[ query (links-type), from src/notes/time.js LINK_UNITS, same rules
+  pop-pair         two very light pops 0.2 s apart (entry-items)   make_sfx.py's pop recipe, softer, light contact
+The typing schedules and the drag length are read from the project (plan.json, src/notes/time.js), so a
+rebuild follows retimed actions. Keystrokes: make_sfx.py's 'typing' recipe (bell 650–830 Hz + noise click).
+Usage: python3 tools/audio/make_film_sfx.py --output assets/sfx [--force] [--only NAME ...]
+       python3 tools/audio/make_film_sfx.py --schedule      (print the typing key times and the drag length)
 """
 import argparse
 import array
+import json
 import math
 from pathlib import Path
 import random
+import re
 import sys
 import wave
 
 RATE = 48000
-NAMES = ['paper-slide', 'soft-drop', 'click-drop', 'click-drop-pair', 'brush', 'page-turn', 'snap-tick', 'logo-fold', 'typing-long', 'pop-pair', 'typing-short', 'typing-claim']
-SEEDS = {'paper-slide': 3101, 'soft-drop': 3102, 'click-drop': 3103, 'click-drop-pair': 3104, 'brush': 3105,   # fixed per sound,
-         'page-turn': 3106, 'snap-tick': 3107, 'logo-fold': 3108, 'typing-long': 3109, 'pop-pair': 3110,      # independent of
-         'typing-short': 3111, 'typing-claim': 3112}                                                                                # list order
+PROJECT = Path(__file__).resolve().parents[2]
+NAMES = ['click', 'click-alt', 'toggle', 'pop', 'paper-slide', 'paper-drag', 'soft-drop', 'click-drop', 'brush', 'page-turn',
+         'snap-tick', 'logo-fold', 'typing-long', 'pop-pair', 'typing-short', 'typing-claim']
+RETIRED = ['click-drop-pair']   # ann-add's two quote cards appear on one frame: one landing (click-drop)
+SEEDS = {'paper-slide': 3101, 'soft-drop': 3102, 'click-drop': 3103, 'brush': 3105,                     # fixed per sound,
+         'page-turn': 3106, 'snap-tick': 3107, 'logo-fold': 3108, 'typing-long': 3109, 'pop-pair': 3110,  # independent of
+         'typing-short': 3111, 'typing-claim': 3112, 'paper-drag': 3113, 'click': 3114,                # list order
+         'click-alt': 3115, 'toggle': 3116, 'pop': 3117}
+
+
+# ── what the picture does (read from the project, so a rebuild follows retimed actions) ──────────────────
+def _plan():
+    return json.loads((PROJECT / 'plan.json').read_text())
+
+
+def action_time(action_id):
+    """src/stage/layout.js actionTime(): shot.start + action.at snapped to the frame grid (JS Math.round)."""
+    plan = _plan()
+    for s in plan['shots']:
+        for a in s.get('actions', []):
+            if a['id'] == action_id:
+                return math.floor((s['start'] + a['at']) * plan['fps'] + 0.5) / plan['fps']
+    raise KeyError(action_id)
+
+
+def first_frame(t):
+    """Time of the first rendered frame f / fps with f / fps >= t (render.mjs seeks f / plan.fps)."""
+    fps = _plan()['fps']
+    f = max(0, math.ceil(t * fps) - 1)
+    while f / fps < t:
+        f += 1
+    return f / fps
+
+
+def js_units(name):
+    """[[offset, text], ...] of an export in src/notes/time.js (TODO_UNITS, LINK_UNITS)."""
+    src = (PROJECT / 'src/notes/time.js').read_text()
+    m = re.search(r'export const ' + name + r'\s*=\s*\[(.*?)\]\s*;', src, re.S)
+    if not m:
+        raise SystemExit(f'make_film_sfx.py: {name} not found in src/notes/time.js')
+    units = [(float(o), t.replace("\\'", "'")) for o, t in re.findall(r"\[\s*([0-9.]+)\s*,\s*'((?:[^'\\]|\\.)*)'\s*\]", m.group(1))]
+    if not units:
+        raise SystemExit(f'make_film_sfx.py: could not parse {name}')
+    return units
+
+
+def js_write_enter():
+    src = (PROJECT / 'src/notes/time.js').read_text()
+    m = re.search(r'writeEnter:\s*(?:snap\(\s*)?writeType\s*\+\s*([0-9.]+)', src)   # time.js may frame-snap it
+    if not m:
+        raise SystemExit('make_film_sfx.py: writeEnter not found in src/notes/time.js')
+    return float(m.group(1))
+
+
+IME_GAP = 0.06       # pinyin keys before a commit, this far apart (a quick roll)
+
+
+def typed_keys(units, action_id, enter=None):
+    """Keystrokes (t from the action time, level, kind) for typed units: one key per ASCII character on the frame
+    the unit appears; a Chinese unit is an IME commit, so a short pinyin burst (1–2 lighter keys, 60 ms apart,
+    never closer than 40 ms to the previous key) ends with the commit key on the frame the word appears."""
+    at = action_time(action_id)
+    keys, prev = [], None
+    for off, text in units:
+        t = first_frame(at + off) - at
+        if all(ord(ch) < 128 for ch in text):
+            # several ASCII characters in one unit land together; one key per unit is what the picture shows
+            keys.append((t, 1.0, 'key'))
+        else:
+            if prev is not None:
+                n = min(2, int((t - prev - 0.04) / IME_GAP + 1e-9))
+                keys += [(t - j * IME_GAP, 0.7, 'pinyin') for j in range(n, 0, -1)]
+            keys.append((t, 1.0, 'commit'))
+        prev = t
+    if enter is not None:
+        keys.append((first_frame(at + enter) - at, 1.1, 'enter'))
+    return [(round(t, 4), lv, kind) for t, lv, kind in keys]
+
+
+def key_schedule(name):
+    """(t, level) of every keystroke in a typing file (t = seconds from the file start), or None."""
+    if name == 'typing-claim':
+        return [(k / 12, 1.0) for k in range(13)]
+    if name == 'typing-long':
+        return [(t, lv) for t, lv, _ in typed_keys(js_units('TODO_UNITS'), 'write-type', js_write_enter())]
+    if name == 'typing-short':
+        return [(t, lv) for t, lv, _ in typed_keys(js_units('LINK_UNITS'), 'links-type')]
+    return None
+
+
+def drag_length():
+    """align-grab → align-snap: how long the card visibly follows the pointer."""
+    return action_time('align-snap') - action_time('align-grab')
 
 
 def biquad(x, kind, f0, q=0.707):
@@ -129,8 +236,72 @@ def crackle(rng, n, density_fn, lo=2200, hi=7000):
     return biquad(biquad(x, 'hp', lo, 0.7), 'lp', hi, 0.7)
 
 
+def band_noise(rng, n, lo, hi):
+    """White noise through 2nd-order high-pass lo and low-pass hi, each applied twice (≈ 24 dB/oct skirts)."""
+    pre = 256                                           # let the filters settle before the part we keep
+    x = noise(rng, n + pre)
+    for _ in range(2):
+        x = biquad(x, 'hp', lo, 0.707)
+    for _ in range(2):
+        x = biquad(x, 'lp', hi, 0.707)
+    return x[pre:]
+
+
+def contact(rng, lo=2000, hi=4000, dur=0.014, tau=0.003):
+    """The 10–20 ms contact transient: band-passed noise, 0.3 ms attack, exponential decay; peak 1."""
+    n = round(dur * RATE)
+    x = band_noise(rng, n, lo, hi)
+    out = [v * (1 - math.exp(-i / RATE / 0.0003)) * math.exp(-i / RATE / tau) * min(1.0, (n - i) / (0.003 * RATE))
+           for i, v in enumerate(x)]
+    return norm(out, 1.0)
+
+
+def skill_sound(kind):
+    """scripts/make_sfx.py's click / click-alt / pop / toggle, exactly (float samples before 16-bit rounding)."""
+    duration = {'click': .16, 'click-alt': .12, 'pop': .22, 'toggle': .25}[kind]
+    samples = [0.0] * round(duration * RATE)
+
+    def bell(at, frequency, length, level):
+        offset = round(at * RATE)
+        for i in range(min(round(length * RATE), len(samples) - offset)):
+            t = i / RATE
+            env = (1 - math.exp(-t / 0.004)) * math.exp(-t / (length / 5)) * min(1, (length - t) / .025)
+            partial = math.sin(math.tau * frequency * t) + .16 * math.sin(math.tau * frequency * 2 * t) * math.exp(-t * 12)
+            samples[offset + i] += level * env * partial
+    if kind == 'click':
+        bell(0, 740, .14, .15)
+    elif kind == 'click-alt':
+        bell(0, 590, .10, .14)
+    elif kind == 'pop':
+        for i in range(len(samples)):
+            t = i / RATE
+            phase = math.tau * (240 * t + 480 * .022 * (1 - math.exp(-t / .022)))
+            samples[i] = .22 * math.sin(phase) * (1 - math.exp(-t / .002)) * math.exp(-t * 28)
+    else:
+        bell(0, 600, .11, .13)
+        bell(.07, 920, .15, .16)
+    return samples
+
+
+CONTACT = {   # UI sound: (contact level × the recipe's peak, band, length, decay, at)
+    'click': [(0.55, 2000, 4000, 0.014, 0.003, 0.0)],
+    'click-alt': [(0.55, 1900, 3800, 0.014, 0.003, 0.0)],
+    'toggle': [(0.45, 2000, 4000, 0.012, 0.0025, 0.0), (0.35, 2400, 4500, 0.010, 0.002, 0.07)],
+    'pop': [(0.45, 2000, 4000, 0.012, 0.0025, 0.0)],
+}
+
+
 def sound(kind):
     rng = random.Random(SEEDS[kind])
+    if kind in CONTACT:
+        out = skill_sound(kind)
+        if kind == 'pop':                               # one short event: −29 dB by 0.12 s, cut at 0.13 s
+            out = out[:round(0.13 * RATE)]
+            out = [v * min(1.0, (len(out) - i) / (0.015 * RATE)) for i, v in enumerate(out)]
+        pk = max(abs(v) for v in out)
+        for lv, lo, hi, dur, tau, at in CONTACT[kind]:
+            add(out, contact(rng, lo, hi, dur, tau), at, lv * pk)
+        return out
     if kind == 'paper-slide':
         dur = 0.62
         n = round(dur * RATE)
@@ -148,24 +319,47 @@ def sound(kind):
         press = partial_knock([410], [0.006], [0.25], 0.03)
         add(out, press, 0.0)
         return norm(out, 0.26)
+    if kind == 'paper-drag':
+        # the card is picked up (contact at 0 = the measured onset, aligned with align-grab) and follows the pointer
+        # until it snaps: friction only while it visibly moves, gone 20 ms before align-snap's tick
+        dur = max(0.25, drag_length() - 0.02)
+        n = round(dur * RATE)
+        base = sweep_bp(noise(rng, n), 2600, 1900, 0.9)
+        flutter = biquad(noise(rng, n), 'lp', 40, 0.7)
+        fm = max(abs(v) for v in flutter) or 1
+        out = []
+        for i, v in enumerate(base):
+            t = i / RATE
+            env = (t / 0.06) ** 1.5 if t < 0.06 else 1.0 - 0.35 * (t - 0.06) / max(0.01, dur - 0.06)
+            env *= min(1.0, (dur - t) / 0.06)
+            out.append(v * env * (0.72 + 0.28 * abs(flutter[i]) / fm))
+        out = norm(out, 1.0)
+        grain = crackle(rng, n, lambda t: 140, 1800, 6000)
+        out = [a + 0.18 * b for a, b in zip(out, grain)]
+        add(out, norm(partial_knock([410], [0.006], [0.25], 0.03), 0.5), 0.0)
+        add(out, contact(rng, 2000, 4500, 0.012, 0.0025), 0.0, 0.8)
+        return norm(out, 0.24)
     if kind == 'soft-drop':
         out = partial_knock([330, 780], [0.020, 0.011], [1.0, 0.45], 0.10)
         tap = biquad(noise(rng, round(0.012 * RATE)), 'lp', 1600, 0.7)
         add(out, [v * math.exp(-i / RATE / 0.003) * 0.25 for i, v in enumerate(tap)], 0.0)
+        # the card's edge meeting the board: a 16 ms 2–5 kHz contact the piano cannot cover (review: the 340 Hz
+        # knock alone sat inside the piano band, +3.5 dB in its own band)
+        add(out, contact(rng, 2000, 5000, 0.016, 0.0035), 0.0, 0.55 * max(abs(v) for v in out))
         return norm([v * min(1.0, (0.10 - i / RATE) / 0.015) for i, v in enumerate(out)], 0.22)
-    if kind in ('click-drop', 'click-drop-pair'):
-        # make_sfx.py 'click' (bell 740 Hz, 0.14 s) exactly, then the card(s) landing
+    if kind == 'click-drop':
+        # make_sfx.py 'click' (bell 740 Hz, 0.14 s) exactly + its contact, then the card landing (+ its contact)
         click = [0.0] * round(0.14 * RATE)
         for i in range(len(click)):
             t = i / RATE
             env = (1 - math.exp(-t / 0.004)) * math.exp(-t / (.14 / 5)) * min(1, (.14 - t) / .025)
             click[i] = .15 * env * (math.sin(math.tau * 740 * t) + .16 * math.sin(math.tau * 1480 * t) * math.exp(-t * 12))
-        dur = 0.24 if kind == 'click-drop-pair' else 0.16
+        dur = 0.16
         out = [0.0] * round(dur * RATE)
         add(out, norm(click, 1.0), 0.0)
-        drops = [(0.018, [330, 780], 0.8)] + ([(0.113, [350, 830], 0.65)] if kind == 'click-drop-pair' else [])
-        for at, fr, lv in drops:
-            add(out, norm(partial_knock(fr, [0.020, 0.011], [1.0, 0.45], 0.10), lv), at)
+        add(out, contact(rng, 2000, 4000, 0.014, 0.003), 0.0, 0.55)
+        add(out, norm(partial_knock([330, 780], [0.020, 0.011], [1.0, 0.45], 0.10), 0.8), 0.018)
+        add(out, contact(rng, 2000, 5000, 0.014, 0.003), 0.018, 0.35)
         return norm([v * min(1.0, (dur - i / RATE) / 0.015) for i, v in enumerate(out)], 0.22)
     if kind == 'brush':
         dur = 0.26
@@ -210,19 +404,49 @@ def sound(kind):
         add(out, [v * math.exp(-i / RATE / 0.005) for i, v in enumerate(tap)], crest + 0.70, 0.35)
         return norm(out, 0.30)
     if kind == 'snap-tick':
-        out = partial_knock([2350, 3900], [0.005, 0.003], [1.0, 0.6], 0.04, drop=0.0, attack=0.0004)
-        clk = biquad(noise(rng, round(0.002 * RATE)), 'hp', 3000, 0.7)
-        add(out, clk, 0.0, 0.3)
-        return norm(out, 0.12)
+        # still a light high tick, now with a little body and a contact so it is not mistaken for the score's
+        # high partials (review: the first draft sat under the music at its own moment)
+        out = partial_knock([2350, 3900], [0.006, 0.0035], [1.0, 0.6], 0.045, drop=0.0, attack=0.0004)
+        add(out, partial_knock([1250], [0.008], [0.45], 0.045, drop=0.0, attack=0.0006), 0.0)
+        add(out, contact(rng, 2500, 5000, 0.010, 0.002), 0.0, 0.7)
+        return norm([v * min(1.0, (0.045 - i / RATE) / 0.008) for i, v in enumerate(out)], 0.2)
     if kind == 'logo-fold':
-        n = round(0.14 * RATE)
-        out = [0.0] * n
-        crease = biquad(biquad(noise(rng, round(0.03 * RATE)), 'hp', 1800, 0.7), 'lp', 5000, 0.7)
-        add(out, [v * (1 - math.exp(-i / RATE / 0.0005)) * math.exp(-i / RATE / 0.006) for i, v in enumerate(crease)], 0.0)
-        add(out, partial_knock([280, 610], [0.016, 0.009], [0.5, 0.25], 0.09), 0.018)
-        return norm([v * min(1.0, (0.14 - i / RATE) / 0.02) for i, v in enumerate(out)], 0.20)
-    if kind in ('typing-long', 'typing-short', 'typing-claim'):
-        # keystrokes exactly as scripts/make_sfx.py 'typing', two bursts (DIRECTION #8: 键盘声两簇)
+        # a paper flick (like page-turn's crest crinkle): 2–6 kHz noise snap + a few fibre grains, 75 ms, no body
+        dur = 0.075
+        n = round(dur * RATE)
+        flick = band_noise(rng, n, 2000, 6000)
+        out = [v * (1 - math.exp(-i / RATE / 0.0004)) * (0.75 * math.exp(-i / RATE / 0.007) + 0.25 * math.exp(-i / RATE / 0.025))
+               for i, v in enumerate(flick)]
+        out = norm(out, 1.0)
+        grains = crackle(rng, n, lambda t: 900 * math.exp(-t / 0.02), 2200, 6500)
+        add(out, norm(grains, 1.0), 0.0, 0.35)
+        return norm([v * min(1.0, (dur - i / RATE) / 0.015) for i, v in enumerate(out)], 0.20)
+    if kind in ('typing-long', 'typing-short'):
+        # keystrokes as scripts/make_sfx.py 'typing', on the picture's own input schedule (key_schedule)
+        keys = typed_keys(*((js_units('TODO_UNITS'), 'write-type', js_write_enter()) if kind == 'typing-long'
+                            else (js_units('LINK_UNITS'), 'links-type')))
+        dur = keys[-1][0] + 0.12
+        samples = [0.0] * round(dur * RATE)
+
+        def bell(at, frequency, length, level):
+            offset = round(at * RATE)
+            for i in range(min(round(length * RATE), len(samples) - offset)):
+                t = i / RATE
+                env = (1 - math.exp(-t / 0.004)) * math.exp(-t / (length / 5)) * min(1, (length - t) / .025)
+                partial = math.sin(math.tau * frequency * t) + .16 * math.sin(math.tau * frequency * 2 * t) * math.exp(-t * 12)
+                samples[offset + i] += level * env * partial
+        for j, (at, lv, what) in enumerate(keys):
+            if what == 'enter':
+                bell(at, 540, .08, .075 * lv)
+            else:
+                bell(at, 650 + 90 * (j % 3), .06, .07 * lv * (0.92 + 0.16 * rng.random()))
+            pos = round(at * RATE)
+            for i in range(round(.022 * RATE)):
+                if pos + i < len(samples):
+                    samples[pos + i] += .04 * lv * rng.uniform(-1, 1) * math.sin(math.pi * i / (.022 * RATE)) * math.exp(-i / RATE * 120)
+        return [v * 2.2 for v in samples]
+    if kind == 'typing-claim':
+        # keystrokes exactly as scripts/make_sfx.py 'typing' (unchanged since the first draft)
         dur = 1.45
         samples = [0.0] * round(dur * RATE)
 
@@ -233,21 +457,16 @@ def sound(kind):
                 env = (1 - math.exp(-t / 0.004)) * math.exp(-t / (length / 5)) * min(1, (length - t) / .025)
                 partial = math.sin(math.tau * frequency * t) + .16 * math.sin(math.tau * frequency * 2 * t) * math.exp(-t * 12)
                 samples[offset + i] += level * env * partial
-        hits = [0, .085, .18, .245, .39, .49, .80, .875, .965, 1.04, 1.16, 1.25, 1.33]
-        if kind == 'typing-short':
-            dur, hits = 0.65, hits[:6]
-            samples = samples[:round(dur * RATE)]
-        if kind == 'typing-claim':   # the claim card's 13 characters at 12/s (src/canvas/board-build.js CLAIM)
-            hits = [k / 12 for k in range(13)]
-            dur = 1.2
-            samples = samples[:round(dur * RATE)]
+        hits = [k / 12 for k in range(13)]   # the claim card's 13 characters at 12/s (src/canvas/board-build.js CLAIM)
+        dur = 1.2
+        samples = samples[:round(dur * RATE)]
         for j, at in enumerate(hits):
             bell(at, 650 + 90 * (j % 3), .06, .07 * (0.92 + 0.16 * rng.random()))
             pos = round(at * RATE)
             for i in range(round(.022 * RATE)):
                 if pos + i < len(samples):
                     samples[pos + i] += .04 * rng.uniform(-1, 1) * math.sin(math.pi * i / (.022 * RATE)) * math.exp(-i / RATE * 120)
-        return [v * (1.6 if kind == 'typing-long' else 2.2) for v in samples]   # typing-claim uses typing-short's level
+        return [v * 2.2 for v in samples]
     if kind == 'pop-pair':
         out = [0.0] * round(0.45 * RATE)
         for at, base, lv in [(0.0, 240, 0.16), (0.2, 270, 0.13)]:
@@ -257,6 +476,7 @@ def sound(kind):
                 phase = math.tau * (base * t + 2 * base * .022 * (1 - math.exp(-t / .022)))
                 one.append(lv * math.sin(phase) * (1 - math.exp(-t / .002)) * math.exp(-t * 28))
             add(out, one, at)
+            add(out, contact(rng, 2000, 4000, 0.012, 0.0025), at, 0.35 * lv)
         return out
     raise ValueError(kind)
 
@@ -270,11 +490,25 @@ def to_pcm(samples):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--output', type=Path)
     p.add_argument('--force', action='store_true', help='overwrite this script\'s own outputs')
     p.add_argument('--only', nargs='*', choices=NAMES)
+    p.add_argument('--schedule', action='store_true', help='print the typing key schedules and the drag length, write nothing')
     args = p.parse_args()
+    if args.schedule:
+        print(json.dumps({'typing-long': typed_keys(js_units('TODO_UNITS'), 'write-type', js_write_enter()),
+                          'typing-short': typed_keys(js_units('LINK_UNITS'), 'links-type'),
+                          'paper-drag': {'alignGrab': action_time('align-grab'), 'alignSnap': action_time('align-snap'),
+                                         'seconds': round(drag_length() - 0.02, 4)}}, ensure_ascii=False, indent=1))
+        return
+    if not args.output:
+        p.error('--output is required')
     names = args.only or NAMES
+    if args.force and not args.only:
+        for old in RETIRED:                     # sounds this script used to write and no cue uses any more
+            if (args.output / (old + '.wav')).exists():
+                (args.output / (old + '.wav')).unlink()
+                print('removed', args.output / (old + '.wav'))
     if not args.force and any((args.output / (name + '.wav')).exists() for name in names):
         p.error('Sound files already exist; pass --force to regenerate this script\'s own sounds.')
     args.output.mkdir(parents=True, exist_ok=True)

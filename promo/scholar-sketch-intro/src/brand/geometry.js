@@ -34,6 +34,9 @@ export const TOOL = {x: 634, y: 352, size: 96, cx: 682, cy: 400};
 export const TOOL_SCALE = (67.5 / 219.6 + 85.5 / 287.4) / 2;
 export const ROWS = {x: 778, y: 320, rowH: 72, gap: 16, icon: 48};
 export const HEADER_ICON = {x: 96, y: 96, size: 44};   // chapter-1 header icon (layout L)
+/** Film cursor box in #2 (px). The arrow path spans ≈ 0.81 of the box plus its white stroke: 35 px → ≈ 30 px
+ *  tall on screen (DIRECTION §5.6). Keep in sync with .en-cursor .film-cursor svg in brand.css. */
+export const CURSOR = 35;
 
 /** Exact product strings from the shipped zh-CN locale. */
 export function ftlString(key) {

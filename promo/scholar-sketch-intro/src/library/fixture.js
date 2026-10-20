@@ -22,13 +22,13 @@ export const ITEMS = [
     annotationText: '公园面积超过 2 公顷后，降温距离不再明显增加。', annotationComment: '阈值效应：小公园怎么办？',
     annotationColor: '#ffd400', annotationPageLabel: '5', annotationPosition: '{"pageIndex":4}', annotationSortIndex: '00004|000120|00001'},
   {id: 4, key: KEYS.annWater, itemType: 'annotation', parentID: 2, annotationType: 'highlight',
-    annotationText: '水体与林地组合的降温最强，平均低 1.8 ℃。',
+    annotationText: '水体加林地降温最强，平均低 1.8\u00a0°C。',   // no-break space: number and unit never split
     annotationColor: '#5fb236', annotationPageLabel: '7', annotationPosition: '{"pageIndex":6}', annotationSortIndex: '00006|000340|00001'},
   {id: 5, key: KEYS.annSmall, itemType: 'annotation', parentID: 2, annotationType: 'highlight',
     annotationText: '小于 0.5 公顷的绿地，降温范围只有几十米。',
     annotationColor: '#ffd400', annotationPageLabel: '9', annotationPosition: '{"pageIndex":8}', annotationSortIndex: '00008|000210|00001'},
   {id: 6, key: KEYS.readingNote, itemType: 'note', parentID: 1,
-    note: '<p>读书笔记</p><p>冷岛范围约为公园半径的 1.5 倍；</p><p>水体能再加强降温。</p>'},
+    note: '<p>读书笔记</p><p>冷岛约为公园半径的 1.5 倍；</p><p>水体能再加强降温。</p>'},
   {id: 7, key: KEYS.greenway, itemType: 'journalArticle',
     fields: {title: '街区绿道网络与夏季地表温度', date: '2025-06-02', publicationTitle: '景观与规划', creators: '陈思远'},
     creators: [author('陈', '思远')], tags: [{tag: '绿道'}, {tag: '连通性'}]},
@@ -50,23 +50,30 @@ export const FILENAMES = {
 };
 
 /** The note open in the editor (chapter 2). No frontmatter or footnotes: live preview shows those as
- *  source text, which is real behaviour but not what this film is about. */
+ *  source text, which is real behaviour but not what this film is about.
+ *  Layout notes (measured at the 1.6 window): paragraph 1 stays on ONE line both with the typed
+ *  “原文见 [[公园” (#9) and with the inserted paper link; “## 关键结论” has no blank line under it so that at
+ *  scroll 0 the window's bottom edge falls in the blank line under “下一步” instead of cutting the heading;
+ *  “## 相关文献” below the task list gives the editor room to scroll “下一步” up to mid-window in #8. */
 export const NOTE_TEXT = `# 公园尺度阅读笔记
 
-本周精读林晓、周宁的这篇论文，并对照 [[绿道网络阅读笔记]] 里的结论。
+本周精读这篇论文，对照 [[绿道网络阅读笔记]]。
 
 ## 关键结论
-
-公园面积超过 2 公顷后，降温距离不再明显增加。降温强度记为 $\\Delta T = T_{城区} - T_{公园}$。
+公园面积超过 2 公顷后，降温距离不再明显增加。降温强度记为 $\\Delta T = T_{\\text{城区}} - T_{\\text{公园}}$。
 
 | 公园面积 | 降温距离 | 平均降温 |
 | --- | --- | --- |
-| 小于 0.5 公顷 | 约 50 米 | 0.6 ℃ |
-| 2 公顷以上 | 约 300 米 | 1.8 ℃ |
+| 小于 0.5 公顷 | 约 50 米 | 0.6 °C |
+| 2 公顷以上 | 约 300 米 | 1.8 °C |
 
 ## 下一步
 
 - [x] 把引文放进研究白板
+
+## 相关文献
+
+- 水体与林地组合的降温效应
 `;
 
 /** Other notes that link back to the open note (the "引用此笔记" panel lists them). */

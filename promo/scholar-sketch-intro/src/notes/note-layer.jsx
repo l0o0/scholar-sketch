@@ -11,11 +11,15 @@ import {LAYOUT, NOTE_WIN} from '../stage/layout.js';
 import {zh} from '../md/zh.js';
 import {Cursor} from '../kit/cursor.jsx';
 import {createNoteEditor} from './note-editor.js';
-import {T} from './time.js';
+import {T, past} from './time.js';
 import './notes.css';
 
 const NATIVE = {w: NOTE_WIN.w / NOTE_WIN.scale, h: NOTE_WIN.h / NOTE_WIN.scale};   // 1120 × 483.75
-const ZOOM = {links: 1.25};   // camera on top of 1.6: total 2.0 for the [[ popup (引用此笔记: see backCam)
+const BACK_TOTAL = 2.6;   // #10 引用此笔记 push: 1.6 × camera 1.625 (the [[ push and #11 are fitted to measurements)
+// Film pointer: the arrow is drawn at a constant size in frame px whatever the camera (DIRECTION §5.6 30 px:
+// the black arrow measures 31 px from tip to tail, 33 px with its white stroke; svg box 38 px, set in
+// notes.css); TIP is where the arrow's tip sits inside the scaled svg (viewBox 24, tip at 5,2.5).
+const POINTER_PX = 38, TIP = {x: 5 / 24 * POINTER_PX, y: 2.5 / 24 * POINTER_PX};
 
 export function NoteLayerView() {
   return <>
@@ -72,18 +76,22 @@ function paintPointer(el, {win, cam}, t, segments) {
   if (!seg) { el.style.opacity = '0'; return; }
   const fade = 0.15;
   const alpha = Math.min(1, (t - seg.show[0]) / fade, (seg.show[1] - t) / fade);
-  const p = pathAt(seg.keys, t);
   // native tab px → camera px (×1.6) → window px (camera transform) → frame px (window transform)
   const g = (node, k) => Number(gsap.getProperty(node, k));
-  const cx = g(cam, 'x') + g(cam, 'scaleX') * p.x * NOTE_WIN.scale, cy = g(cam, 'y') + g(cam, 'scaleY') * p.y * NOTE_WIN.scale;
-  const fx = g(win, 'x') + g(win, 'scaleX') * cx, fy = g(win, 'y') + g(win, 'scaleY') * cy;
+  const toFrame = q => {
+    const cx = g(cam, 'x') + g(cam, 'scaleX') * q.x * NOTE_WIN.scale, cy = g(cam, 'y') + g(cam, 'scaleY') * q.y * NOTE_WIN.scale;
+    return {x: g(win, 'x') + g(win, 'scaleX') * cx, y: g(win, 'y') + g(win, 'scaleY') * cy};
+  };
+  const f = toFrame(pathAt(seg.keys, t));
   el.style.opacity = String(Math.max(0, alpha));
-  el.style.transform = `translate(${(fx - 6).toFixed(2)}px, ${(fy - 3).toFixed(2)}px)`;
-  const since = (seg.clicks || []).map(c => t - c).filter(d => d >= 0 && d < 0.45)[0];
+  el.style.transform = `translate(${(f.x - TIP.x).toFixed(2)}px, ${(f.y - TIP.y).toFixed(2)}px)`;
+  const click = (seg.clicks || []).find(c => t - c >= 0 && t - c < 0.45), since = click === undefined ? undefined : t - click;
   el.querySelector('svg').style.transform = since !== undefined && since < 0.18 ? `scale(${0.84 + 0.16 * since / 0.18})` : '';
+  // the ripple stays where the click landed (on the product), even when the pointer moves on
   const r = el.querySelector('.film-ripple');
+  const at = click === undefined ? f : toFrame(pathAt(seg.keys, click));
   r.style.opacity = since !== undefined ? String(1 - since / 0.45) : '0';
-  r.style.transform = since !== undefined ? `scale(${0.4 + since * 3})` : '';
+  r.style.transform = since !== undefined ? `translate(${(at.x - f.x).toFixed(2)}px, ${(at.y - f.y).toFixed(2)}px) scale(${0.4 + since * 3})` : '';
 }
 
 /** Camera that shows the native region [ox, ox + w/k] × [oy, oy + h/k] (clamped to the tab). */
@@ -110,15 +118,34 @@ export async function buildNoteLayer(tl) {
   const M = note.REC.measure;
 
   // ---- camera targets (measured on the real product) ----
-  // [[ push: paragraph 1 (with the typed query) + the popup under 全部, its tallest state
-  const para = M.paraTop, pop = M.popupAll;
-  const box = {x0: Math.min(para.x, pop.x) - 24, x1: pop.x + pop.w + 24, y0: para.y - 28, y1: pop.y + pop.h + 20};
-  // left-aligned: the outline stays whole at the window's own edge instead of being cut mid-word
-  const linksCam = camFor(ZOOM.links, Math.min(0, box.x0), Math.min(box.y0, box.y1 - NATIVE.h / ZOOM.links));
-  // 引用此笔记 right-aligned; the zoom is chosen so the left edge lands in the editor's margin, 23 native px
-  // before the text column (at the planned 2.08 the edge would cut the first character of every line)
-  const backLeft = para.x - 23, backCam = camFor(NATIVE.w / (NATIVE.w - backLeft), NATIVE.w, 0);
-  note.REC.cams = {linksCam, backCam, box};
+  const para = M.paraTop, pop = M.popupAll, divider = M.aside.x;   // 引用此笔记 panel's left edge (native px)
+  // [[ push (total ≈ 2.08): the outline stays whole at the window's left edge and the 引用此笔记 divider sits
+  // exactly on the window's right edge, so no panel glyphs are sliced; paragraph 1 + the popup (its tallest
+  // state, 4 results under 全部) fit vertically.
+  const kLinks = NATIVE.w / divider;
+  const box = {y0: para.y - 28, y1: pop.y + pop.h + 20};
+  const linksCam = camFor(kLinks, 0, Math.min(box.y0, Math.max(0, box.y1 - NATIVE.h / kLinks)));
+  // 引用此笔记 push (total 2.6): the panel's right edge on the window edge, the panel as large as the push
+  // allows (≈ 38 % of the window); the note's text runs off the window's left edge
+  const kBack = BACK_TOTAL / NOTE_WIN.scale, backCam = camFor(kBack, NATIVE.w, 0);
+  // #11 (layout D, window at LAYOUT.D.note.s): the editor column alone, from the editor's left margin to the
+  // 引用此笔记 divider, which lands exactly on the board window's left edge (LAYOUT.D.board.x): the board covers
+  // the panel and no glyph is sliced at the overlap.
+  const Dn = LAYOUT.D.note, Db = LAYOUT.D.board, edgeWin = (Db.x - Dn.x) / Dn.s;   // board edge in note-window px
+  const darkLeft = M.workspace.x + 2;                                       // just inside the outline's border
+  const kDark = edgeWin / ((divider - darkLeft) * NOTE_WIN.scale);
+  // Where the note window rises above the board (Dn.y < Db.y) the top of the 引用此笔记 panel shows in a strip
+  // above the board: start the view just under the note's title line so that strip holds only the panel's
+  // empty band between its header and the first entry (no half glyphs at the board's top edge).
+  const strip = Math.max(0, (Db.y - Dn.y) / (Dn.s * NOTE_WIN.scale * kDark));   // native px
+  let darkTop = 0;
+  if (strip > 0) {
+    const lo = M.h1Text.y + M.h1Text.h + 1, hi = M.backTitles[0].y - strip - 1;
+    if (lo > hi) console.error('[notes] #11: no clean top for the note window', {lo, hi, strip});
+    darkTop = (lo + hi) / 2;
+  }
+  const darkCam = camFor(kDark, darkLeft, darkTop);
+  note.REC.cams = {linksCam, backCam, darkCam, box, divider, strip};
 
   const ID = {x: 0, y: 0, scale: 1};
   const cmove = (from, to, at, dur) => tl.fromTo(cam, {x: from.x, y: from.y, scale: from.scale},
@@ -127,7 +154,7 @@ export async function buildNoteLayer(tl) {
   cmove(ID, linksCam, T.pushIn[0], T.pushIn[1] - T.pushIn[0]);
   cmove(linksCam, ID, T.pullBack[0], T.pullBack[1] - T.pullBack[0]);
   cmove(ID, backCam, T.backPush[0], T.backPush[1] - T.backPush[0]);
-  cmove(backCam, ID, T.darkMove[0], T.darkMove[1] - T.darkMove[0]);
+  cmove(backCam, darkCam, T.darkMove[0], T.darkMove[1] - T.darkMove[0]);
 
   const L = LAYOUT.T.note, D = LAYOUT.D.note;
   tl.set(win, {transformOrigin: '0 0', x: L.x, y: L.y, scale: L.s}, 0);
@@ -137,29 +164,36 @@ export async function buildNoteLayer(tl) {
   tl.set(layer, {opacity: 0}, T.layerOff);
 
   // ---- pointer (native tab px; clicks are the real clicks the driver performs at the same times) ----
-  const c = r => ({x: r.x + r.w / 2, y: r.y + r.h / 2});
-  const regular = c(M.regularBtn), paper = {x: M.paperRow.x + 64, y: M.paperRow.y + M.paperRow.h * 0.42};
-  const entry = {x: M.backlink.x + 64, y: M.backlink.y + 15};
+  // Tips go to the leading edge of what is clicked (never onto the label being read):
+  //   常规条目: the button's left padding, on the label's centre line
+  //   the paper row: the row's empty icon column (papers have no Zotero item icon here), on the title line
+  //   backlinks: the panel's left margin, beside each entry's title (pointing only)
+  const regular = {x: M.regularBtn.x + 7, y: M.regularBtn.y + M.regularBtn.h * 0.42};
+  const paper = {x: M.paperRow.x + 9, y: M.paperRow.y + M.paperRow.h * 0.3};
+  const beside = r => ({x: divider + 6, y: r.y + r.h * 0.3});
+  const [entry1, entry2] = M.backTitles.map(beside);
   const segments = [
     {show: [T.cursorIn, T.caretOff + 0.35], clicks: [T.linksFilter, T.linksInsert], keys: [
-      {at: T.cursorIn, x: pop.x + pop.w + 46, y: pop.y + 14},
-      {at: T.cursorIn + 0.15, hold: true, x: pop.x + pop.w + 46, y: pop.y + 14},
-      {at: T.linksFilter - 0.07, x: regular.x + 6, y: regular.y + 2},
-      {at: T.linksFilter + 0.17, hold: true, x: regular.x + 6, y: regular.y + 2},
+      {at: T.cursorIn, x: pop.x + pop.w - 36, y: pop.y + pop.h - 16},
+      {at: T.cursorIn + 0.15, hold: true, x: pop.x + pop.w - 36, y: pop.y + pop.h - 16},
+      {at: T.linksFilter - 0.07, x: regular.x, y: regular.y},
+      {at: T.linksFilter + 0.17, hold: true, x: regular.x, y: regular.y},
       {at: T.linksInsert - 0.06, x: paper.x, y: paper.y},
       {at: T.linksInsert + 0.15, hold: true, x: paper.x, y: paper.y},
-      {at: T.caretOff + 0.35, x: paper.x + 40, y: paper.y + 70},
+      {at: T.caretOff + 0.35, x: pop.x + pop.w - 36, y: paper.y + 30},
     ]},
     {show: [T.backPush[1] - 0.35, T.headerOut + 0.15], keys: [
-      {at: T.backPush[1] - 0.35, x: entry.x - 150, y: entry.y + 150},
-      {at: T.backPush[1] - 0.15, hold: true, x: entry.x - 150, y: entry.y + 150},
-      {at: T.backHover - 0.03, x: entry.x, y: entry.y},
+      {at: T.backPush[1] - 0.35, x: entry1.x - 90, y: entry1.y + 110},
+      {at: T.backPush[1] - 0.15, hold: true, x: entry1.x - 90, y: entry1.y + 110},
+      {at: T.backHover - 0.03, x: entry1.x, y: entry1.y},
+      {at: T.backNext[0], hold: true, x: entry1.x, y: entry1.y},
+      {at: T.backNext[1], x: entry2.x, y: entry2.y},
     ]},
   ];
 
   onDriveRange(T.layerOn, T.layerOff, (_l, t) => note.drive(t));
   onRenderRange(T.layerOn, T.layerOff, (_l, t) => {
-    win.classList.toggle('is-dark', t >= T.darkSwitch);
+    win.classList.toggle('is-dark', past(t, T.darkSwitch));
     paintPointer(pointer, {win, cam}, t, segments);
   });
   window.__notes = note;

@@ -1,14 +1,23 @@
 /* Chapter 2 (Markdown 笔记) — layer "note" and its band captions. Frame system: DIRECTION.md §5, film.css.
    This file is bundled before film.css, so overrides of film.css rules use a higher specificity. */
 
-/* chapter header in the top band (layout T): it sits above the band title (title glyphs start near y 120),
-   so the sage line moves from under the header to its right, on the icon's centre line */
+/* chapter header in the top band (layout T): the same device as chapter 1 (film.css .chapter-header: icon 44 +
+   name 26/500 #596066, 48×2 sage rule 62 px below the header top, i.e. under the icon); the band title and
+   description move down to clear it (rule y 118–120, title box from y 128) */
 .layer-note .chapter-header.note-header { left:96px; top:56px; opacity:1; }
-.layer-note .chapter-header.note-header::after { left:auto; right:-62px; top:21px; }
+section[data-shot="write"] .caption-band .cap-title,
+section[data-shot="links"] .caption-band .cap-title,
+section[data-shot="backlinks"] .caption-band .cap-title { top:128px; }
+section[data-shot="write"] .caption-band .cap-desc,
+section[data-shot="links"] .caption-band .cap-desc,
+section[data-shot="backlinks"] .caption-band .cap-desc { top:132px; }
 
 /* note window: fixed base size, moved/scaled as a whole (GSAP x/y/scale, origin top-left) */
 .layer-note .win.note-win { width:1792px; height:774px; }
 .layer-note .note-cam { position:absolute; left:0; top:0; width:1792px; height:774px; transform-origin:0 0; }
 .layer-note .note-product { position:absolute; left:0; top:0; transform-origin:0 0; transform:scale(1.6); }
 .layer-note .md-tab { position:relative; width:100%; height:100%; }
+/* film pointer in frame px: constant size whatever the camera (black arrow 31 px tip to tail, 33 px with
+   its white stroke); tip at (7.92, 3.96) = note-layer.jsx TIP */
 .layer-note .film-cursor { z-index:80; }
+.layer-note .film-cursor svg { width:38px; height:38px; transform-origin:7.92px 3.96px; }

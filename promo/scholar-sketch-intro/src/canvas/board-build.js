@@ -9,9 +9,9 @@
 import {onDriveRange, onRenderRange, frame} from '../engine.js';
 import {actionTime, LAYOUT, BOARD_WIN} from '../stage/layout.js';
 import {$, $$, nodeEl, at, realClick, hover, drag, contextClick} from '../board/drive.js';
-import {paintCursor} from '../kit/cursor.jsx';
-import {IDS, SLOT, ALIGN, EXTENT} from '../board/fixture.js';
-import {KEYS} from '../library/fixture.js';
+import {screenRect} from '../board/local-space.js';
+import {IDS, SLOT, ALIGN} from '../board/fixture.js';
+import {KEYS, ITEMS} from '../library/fixture.js';
 import labels from '../fixtures/wb-labels.zh.json';
 import {flushSync} from 'react-dom';
 import {wb, initialBoard, S, PW, PH, DARK_AT, STRIP_ROWS, systemTheme, themeAt} from './board-layer.jsx';
@@ -21,16 +21,31 @@ export const T = {
   on: 7.5, slideEnd: 8.4, grab: A('drop-grab'), release: A('drop-release'), stripOut: 10.1, pushFrom: 10.7,
   select: A('drop-select'), details: A('ann-details'), open: A('ann-open'), zoomOutFrom: 13.7,
   tick1: A('ann-tick-1'), tick2: A('ann-tick-2'), add: A('ann-add'), settleFrom: 15.9, settleTo: 16.9,
-  overviewFrom: 18.0, overviewTo: 18.9, overviewHold: 19.3, pushQuoteTo: 20.05, context: A('cards-context'), newClaim: A('cards-new-claim'),
-  typeFrom: 21.5, commitClaim: 22.95, paintFrom: 23.5, paintTo: 24.1, paintSelect: A('paint-select'), paintArm: A('paint-arm'),
+  // #5: pull out to the whole board, REST on it for 1.0 s inside the shot, push to the quote before the right-click
+  overviewFrom: 18.0, overviewTo: 18.6, overviewHold: 19.6, pushQuoteTo: 20.3, context: A('cards-context'), newClaim: A('cards-new-claim'),
+  // #6 opens on a hard cut to the painter framing (no whip pan between shots)
+  typeFrom: 21.5, commitClaim: 22.95, paintFrom: 23.5, paintSelect: A('paint-select'), paintArm: A('paint-arm'),
   paintHover: 26.05, paintApply: A('paint-apply'), paintDeselect: 27.1,
-  alignFrom: 28.5, alignTo: 28.9, alignGrab: A('align-grab'), alignSnap: A('align-snap'), alignRelease: A('align-release'),
-  alignDeselect: 30.95, cursorOff: 31.45, turnEnd: A('write-turn') + 0.7,
+  // #6 → #7: one calm 0.95 s move after the painter's deselect (27.10) and read hold
+  alignFrom: 28.1, alignTo: 29.05, alignGrab: A('align-grab'), alignSnap: A('align-snap'), alignRelease: A('align-release'),
+  alignDeselect: 30.95, cursorOff: 31.4, turnEnd: A('write-turn') + 0.7,
   darkOn: 45.9, darkFrom: 46.0, darkTo: 46.6, dark: DARK_AT, filesTurnEnd: A('files-turn') + 0.7,
 };
-// The reading note moves up 18 flow px (power2.inOut); it enters the product's snap distance (6 screen px,
-// smartGuides.ts) at align-snap, then settles before the release.
-const DRAG = {from: T.alignGrab + 1 / 30, to: 30.2};
+// The reading note is dragged up ALIGN.drop (61) flow px: speeds up over 0.1 s, moves at 118 flow px/s, eases into
+// the row. While it is more than 6 screen px from the row the product snaps it to its 16 px grid
+// (smartGuides.ts computeSmartSnap), so the card visibly steps up with the pointer on frames 880 / 884 / 888
+// (29.333 / 29.467 / 29.600); on frame 892 (29.733) it comes within the snap distance: it jumps 13 px into the row and
+// the guide appears, 0.57 s before the release (30.30). align-snap is that frame.
+const DRAG = {from: 29.2, accel: 0.1, speed: 118, ease: 0.06};
+function dragMoved(t) {
+  const {from, accel, speed: v, ease: c} = DRAG, d = ALIGN.drop, a0 = v * accel / 2, bEnd = d - v * c / 2;
+  if (t <= from) return 0;
+  if (t < from + accel) return a0 * ((t - from) / accel) ** 2;
+  const tb = from + accel + (bEnd - a0) / v;
+  if (t < tb) return a0 + v * (t - from - accel);
+  const tau = Math.min(c, t - tb);
+  return bEnd + v * tau - v * tau * tau / (2 * c);
+}
 /** The claim typed into the new card (real input into the product's textarea, 12 characters a second). */
 export const CLAIM = {text: '小公园也该留出水面和林地。', cps: 12};
 
@@ -43,29 +58,53 @@ const fitView = ({x0, y0, x1, y1}, pad = 14) => {
   return view((x0 + x1) / 2, (y0 + y1) / 2, zoom);
 };
 const flowToLocal = (v, p) => ({x: p.x * v.zoom + v.x, y: p.y * v.zoom + v.y});
+/** Viewport that puts flow point f at local (product px) point l. */
+const place = (f, l, zoom) => ({zoom, x: l.x - f.x * zoom, y: l.y - f.y * zoom});
+// Product chrome in local px (measured): top toolbar y 16–62, format-painter status y 465–507 (x 220–454),
+// zoom controls x 633–659 / y 430–508.
 const LIT = {x: SLOT.x, y: SLOT.y, w: 280, h: 200};                  // ACADEMIC_SOURCE_CARD_SIZE.literature
 const Q2 = {x: SLOT.x + 608, y: SLOT.y, w: 280, h: 192};             // sourceState.ts QUOTE_LAYOUT (2nd column)
+const ROW2 = {y: 288, x0: 20, x1: 600};                               // greenway … claim (the question card starts at 664)
 // In-product camera views (xyflow viewport). `dot` is solved during the rehearsal (手法 3).
 const views = {
-  drop: {x: 222, y: 70, zoom: 1},
-  lit: view(LIT.x + LIT.w / 2, LIT.y + LIT.h / 2, 1.15),
-  quotes: view(SLOT.x + 304 + (280 + 24 + 280) / 2, SLOT.y + 96 - 6, 1.0),
-  // the whole board before #5's new claim: group + its two quotes (928 flow px wide), the five card types
-  overview: fitView({x0: 0, y0: 0, x1: 928, y1: 630}, 10),
-  q2: view((Q2.x + Q2.x + Q2.w + 48 + 260) / 2, Q2.y + Q2.h / 2, 1.1),
-  paint: view(LIT.x + LIT.w / 2, (LIT.y + 288 + 150) / 2, 1.1),
-  align: view(296, 532, 1.15),
-  dark: fitView(EXTENT, 10),
+  drop: {x: 222, y: 80, zoom: 1},                                     // the 反驳 label stays below the frame
+  // #3→#4: the hero card on the LEFT of the board (local x 20, y 285 = frame y 583). With room on its right, the
+  // product's placePropertiesPanel puts 详细属性 beside the card (it tries right / left before bottom / top), clear of
+  // the selection style bar above the card, the top toolbar and the zoom controls (panel ends at local x 632); the
+  // card title stays uncovered. Row 2 starts at the bottom edge, so no card or edge label is cut there.
+  lit: place(LIT, {x: 20, y: 285}, 1.0),
+  // settle after the dot-match jump: both quotes, the paper card fully OUT on the left (no sliver at the window edge)
+  quotes: view(SLOT.x + 304 + (280 + 24 + 280) / 2 + 24, SLOT.y + 96 - 6, 1.0),
+  // the whole board before #5's new claim: group + its two quotes (928 flow px wide), the five card types and the
+  // align row with the reading note still in its low start position
+  overview: fitView({x0: 0, y0: 0, x1: 928, y1: ALIGN.rowY + ALIGN.drop + ALIGN.h}, 10),
+  // quote p.7 + the claim it grows (956–1216) at 1.1; row 2 (the question card, the 相关 edge and its label) just
+  // below the frame, so nothing of it is cut at an edge
+  q2: view(922, 72, 1.1),
+  // #6 at zoom 1.0: the dropped paper (target, y 48) and the green source card (ends 424) fit between the toolbar
+  // and the product's format-painter status bar, which then sits on empty canvas (the 反驳 label to its right);
+  // the first quote and the claim are whole, the right edge falls just before the 相关 label; the frame ends at
+  // flow y 498, just above the align row.
+  paint: place({x: LIT.x, y: LIT.y}, {x: 86, y: 73}, 1.0),
+  // #7 at zoom 1.0: row 2 fully below the toolbar (greenway top at local 96; the group's footers sit under the
+  // toolbar), the align row at frame y 628–887 and the note's start position (bottom at frame y 999) in view.
+  align: place({x: ROW2.x0, y: ROW2.y}, {x: 32, y: 96}, 1.0),
+  // #11 dark (window at 0.70): only default-styled cards — both quotes, claim, question — at 1.1; the two mint
+  // literature cards (x 20–300) are out on the left, the align row out below.
+  dark: place({x: 616, y: Q2.y}, {x: 337, y: 88.8}, 1.1),       // the 反驳 label just below the frame
   dot: null,
 };
-// Camera keys: hold between equal views, ease (power2.inOut) between different ones, `cut` = jump.
+// Camera keys: hold between equal views, ease (quad in-out; 'cubic' = power2.inOut) between different ones,
+// `cut` = jump.
 const CAM = [
   [T.on, 'drop'], [T.pushFrom, 'drop'], [T.select, 'lit'], [T.add, 'lit'], [T.add, 'dot', 'cut'],
   [T.settleFrom, 'dot'], [T.settleTo, 'quotes'], [T.overviewFrom, 'quotes'], [T.overviewTo, 'overview'],
-  [T.overviewHold, 'overview'], [T.pushQuoteTo, 'q2'], [T.paintFrom, 'q2'], [T.paintTo, 'paint'], [T.alignFrom, 'paint'], [T.alignTo, 'align'],
+  [T.overviewHold, 'overview'], [T.pushQuoteTo, 'q2'], [T.paintFrom, 'q2'], [T.paintFrom, 'paint', 'cut'],
+  [T.alignFrom, 'paint'], [T.alignTo, 'align', 'cubic'],
   [T.darkOn - 0.1, 'align'], [T.darkOn - 0.1, 'dark', 'cut'],
 ];
 const ease2 = u => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+const ease3 = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 function viewportAt(t) {
   const v = name => views[name] || views.lit;
   if (t < CAM[0][0]) return v(CAM[0][1]);
@@ -74,7 +113,7 @@ function viewportAt(t) {
     const [at1, n1, mode] = CAM[i], [at0, n0] = CAM[i - 1];
     if (t < at1) {
       if (mode === 'cut' || n0 === n1) return v(n0);
-      const u = ease2((t - at0) / (at1 - at0)), p = v(n0), q = v(n1);
+      const u = (mode === 'cubic' ? ease3 : ease2)((t - at0) / (at1 - at0)), p = v(n0), q = v(n1);
       // interpolate the viewed centre and log-zoom so a push-in travels in a straight line on screen
       const z = Math.exp(Math.log(p.zoom) + (Math.log(q.zoom) - Math.log(p.zoom)) * u);
       const pc = {x: (CENTER.x - p.x) / p.zoom, y: (CENTER.y - p.y) / p.zoom}, qc = {x: (CENTER.x - q.x) / q.zoom, y: (CENTER.y - q.y) / q.zoom};
@@ -93,7 +132,7 @@ const quoteId = annotationKey => snapshot().nodes.find(n => n.kind === 'quote' &
 const claimFromQuote = () => snapshot().nodes.find(n => n.kind === 'note' && n.noteType === 'claim' && n.id !== IDS.claim)?.id;
 const byText = (sel, text) => $$(sel).find(el => el.textContent.trim().includes(text));
 const annRow = text => $$('.zmd-board-annotation-group li').find(li => li.textContent.includes(text));
-const ANN = {first: '公园面积超过 2 公顷后', second: '水体与林地组合'};
+const ANN = {first: '公园面积超过 2 公顷后', second: '水体加林地降温'};
 const settle = async () => {
   await new Promise(r => setTimeout(r, 0));
   // the board resolves sources on requestIdleCallback; let it run before the frame is taken
@@ -120,7 +159,11 @@ function typeInto(value) {
 }
 
 // ---------------------------------------------------------------- steps (absolute film seconds)
-// target(): element to aim the cursor at; point(): explicit cursor point (product px); click:false = no ripple.
+// target(): element acted on; aim(el): where the pointer tip goes (product px) — an icon or the empty part of a card,
+// never the middle of the words the viewer is reading; the real events are sent at that same point.
+// point(): explicit point (empty canvas); click:false = no ripple.
+const iconOf = el => at(el.querySelector('svg') || el);
+const aimOf = step => { const el = step.target?.(); return step.point ? step.point() : step.aim ? step.aim(el) : at(el, step.fx ?? 0.5, step.fy ?? 0.5); };
 let grabOffset = {x: 0, y: 0};
 const STEPS = [
   {at: T.release, name: 'drop', point: () => blankAt(T.release, SLOT), async run() {
@@ -130,53 +173,55 @@ const STEPS = [
     await waitFor(() => $('.zmd-board-notice button'), 'drop notice');
     realClick($('.zmd-board-notice button'));          // "已添加 1 个来源…" closed with its own ×, same seek step
   }},
-  {at: T.select, name: 'select-lit', target: () => nodeEl(IDS.lit), fy: 0.3, run() { realClick(nodeEl(IDS.lit), at(nodeEl(IDS.lit), 0.5, 0.3)); }},
-  {at: T.details, name: 'details', target: () => $('.zmd-board-style-bar .zmd-board-selection-details'), run() { realClick($('.zmd-board-style-bar .zmd-board-selection-details')); }},
-  {at: T.open, name: 'open-annotations', target: () => byText('.zmd-board-properties button', labels.viewAnnotations), async run() {
-    realClick(byText('.zmd-board-properties button', labels.viewAnnotations));
+  // the empty lower right of the card (below the tags)
+  {at: T.select, name: 'select-lit', target: () => nodeEl(IDS.lit), fx: 0.75, fy: 0.66, run() { realClick(this.target(), aimOf(this)); }},
+  {at: T.details, name: 'details', target: () => $('.zmd-board-style-bar .zmd-board-selection-details'), aim: iconOf, run() { realClick(this.target(), aimOf(this)); }},
+  {at: T.open, name: 'open-annotations', target: () => byText('.zmd-board-properties button', labels.viewAnnotations), aim: iconOf, async run() {
+    realClick(this.target(), aimOf(this));
     await waitFor(() => annRow(ANN.second), 'annotation list');
   }},
-  {at: T.tick1, name: 'tick-1', target: () => annRow(ANN.first).querySelector('input'), run() { realClick(annRow(ANN.first).querySelector('input')); }},
-  {at: T.tick2, name: 'tick-2', target: () => annRow(ANN.second).querySelector('input'), run() { realClick(annRow(ANN.second).querySelector('input')); }},
-  {at: T.add, name: 'add-quotes', target: () => $('.zmd-board-annotation-browser > footer button'), async run() {
-    realClick($('.zmd-board-annotation-browser > footer button'));
+  {at: T.tick1, name: 'tick-1', target: () => annRow(ANN.first).querySelector('input'), run() { realClick(this.target(), aimOf(this)); }},
+  {at: T.tick2, name: 'tick-2', target: () => annRow(ANN.second).querySelector('input'), run() { realClick(this.target(), aimOf(this)); }},
+  // a text-only button: the tip at the left edge of its label
+  {at: T.add, name: 'add-quotes', target: () => $('.zmd-board-annotation-browser > footer button'), fx: 0.1, fy: 0.6, async run() {
+    realClick(this.target(), aimOf(this));
     await waitFor(() => quoteId('ANNOT002'), 'quote cards');
     await frame();
     // same step: close the properties panel and deselect (a click on empty canvas), so no chrome is anchored
     // to a selection when the viewport jumps
     realClick(pane(), blankAt(T.add - 1e-3, BLANK.afterAdd));
   }},
-  {at: T.context, name: 'context-quote', target: () => nodeEl(quoteId('ANNOT002')), fy: 0.42, run() {
-    const el = nodeEl(quoteId('ANNOT002')); contextClick(el, at(el, 0.5, 0.42));
+  // right-click in the empty part of the quote card, below its text
+  {at: T.context, name: 'context-quote', target: () => nodeEl(quoteId('ANNOT002')), fx: 0.8, fy: 0.62, run() {
+    contextClick(this.target(), aimOf(this));
   }},
-  {at: T.newClaim, name: 'new-claim', target: () => byText('.zmd-board-context-menu button, [role="menu"] button', labels.quoteCreateClaim), async run() {
-    realClick(byText('.zmd-board-context-menu button, [role="menu"] button', labels.quoteCreateClaim));
+  {at: T.newClaim, name: 'new-claim', target: () => byText('.zmd-board-context-menu button, [role="menu"] button', labels.quoteCreateClaim), aim: iconOf, async run() {
+    realClick(this.target(), aimOf(this));
     await waitFor(() => claimFromQuote(), 'claim from quote');
   }},
   {at: T.commitClaim, name: 'commit-claim', point: () => blankAt(T.commitClaim, BLANK.claim), async run() {
     if (typeInto(CLAIM.text)) await frame();             // a jump straight here still commits the whole sentence
     realClick(pane(), blankAt(T.commitClaim, BLANK.claim));
   }},
-  {at: T.paintSelect, name: 'select-source', target: () => nodeEl(IDS.greenway), fy: 0.4, run() { realClick(nodeEl(IDS.greenway), at(nodeEl(IDS.greenway), 0.5, 0.4)); }},
-  {at: T.paintArm, name: 'arm-painter', target: () => $('.zmd-board-style-bar .zmd-board-format-paint'), run() { realClick($('.zmd-board-style-bar .zmd-board-format-paint')); }},
-  {at: T.paintHover, name: 'hover-target', click: false, target: () => nodeEl(IDS.lit), fy: 0.42, run() { hover(nodeEl(IDS.lit), at(nodeEl(IDS.lit), 0.5, 0.42)); }},
-  {at: T.paintApply, name: 'paint-target', target: () => nodeEl(IDS.lit), fy: 0.42, run() { realClick(nodeEl(IDS.lit), at(nodeEl(IDS.lit), 0.5, 0.42)); }},
+  {at: T.paintSelect, name: 'select-source', target: () => nodeEl(IDS.greenway), fx: 0.85, fy: 0.45, run() { realClick(this.target(), aimOf(this)); }},
+  {at: T.paintArm, name: 'arm-painter', target: () => $('.zmd-board-style-bar .zmd-board-format-paint'), aim: iconOf, run() { realClick(this.target(), aimOf(this)); }},
+  {at: T.paintHover, name: 'hover-target', click: false, target: () => nodeEl(IDS.lit), fx: 0.82, fy: 0.52, run() { hover(this.target(), aimOf(this)); }},
+  {at: T.paintApply, name: 'paint-target', target: () => nodeEl(IDS.lit), fx: 0.82, fy: 0.52, run() { realClick(this.target(), aimOf(this)); }},
   {at: T.paintDeselect, name: 'deselect-paint', point: () => blankAt(T.paintDeselect, BLANK.paint), run() { realClick(pane(), blankAt(T.paintDeselect, BLANK.paint)); }},
+  // the header row of the note card, right of its 笔记 label
   {at: T.alignGrab, name: 'grab-note', target: () => nodeEl(IDS.zNote), fy: 0.14, run() {
-    const p = at(nodeEl(IDS.zNote), 0.5, 0.14); drag.start = p; drag.down(nodeEl(IDS.zNote), p);
+    const p = aimOf(this); drag.start = p; drag.down(this.target(), p);
   }},
   {at: T.alignRelease, name: 'release-note', click: false, async run() {
-    drag.move(dragPoint(1)); await frame();             // a jump straight here still ends the drag where it should
-    drag.up(dragPoint(1)); drag.start = null;
+    drag.move(dragPoint(ALIGN.drop)); await frame();     // a jump straight here still ends the drag where it should
+    drag.up(dragPoint(ALIGN.drop)); drag.start = null;
   }},
   {at: T.alignDeselect, name: 'deselect-note', point: () => blankAt(T.alignDeselect, BLANK.align), run() { realClick(pane(), blankAt(T.alignDeselect, BLANK.align)); }},
 ];
 // With local-space.js the drag runs in product px: a flow delta d is a mouse delta d × xyflow zoom.
 // xyflow spends the 2 px kick on its drag threshold, so after it the card follows the mouse 1:1 (÷ zoom).
-const dragPoint = u => {
-  const e = ease2(Math.min(1, Math.max(0, u)));
-  return {x: drag.start.x, y: drag.start.y - 2 - ALIGN.drop * views.align.zoom * e};
-};
+// m = flow px moved since the kick (dragMoved).
+const dragPoint = m => ({x: drag.start.x, y: drag.start.y - 2 - m * views.align.zoom});
 
 // ---------------------------------------------------------------- context (window pose, viewport, theme)
 let master = null;
@@ -220,7 +265,7 @@ async function driveTo(t) {
     if (typeInto(typedAt(t))) await frame();
   }
   if (t >= DRAG.from && drag.start && done === STEPS.findIndex(s => s.name === 'release-note')) {
-    drag.move(dragPoint(Math.min(1, (t - DRAG.from) / (DRAG.to - DRAG.from))));
+    drag.move(dragPoint(dragMoved(t)));
     await frame();
   }
   // Capture-browser workaround (see canvas.css .cv-win): after the product state has painted once, flip the
@@ -232,10 +277,20 @@ async function driveTo(t) {
 }
 
 // ---------------------------------------------------------------- cursor path (measured in the rehearsal)
-const cursor = {keys: [], clicks: [], show: [8.15, T.cursorOff]};
+// The pointer is on screen only while it acts: each window starts with the pointer coming in towards its first
+// target and ends after its last action (fades of 0.12 s). It is hidden while the camera moves without it (the
+// push before #3's select, the dot-match jump and settle, #5's overview, the typing, the cut, the painter → align
+// move), so it never slides over the board in screen space.
+const SHOW = [[8.15, 10.25], [11.3, 15.95], [19.95, 21.4], [22.4, 23.3], [23.9, 27.45], [28.8, T.cursorOff]];
+const FADE = 0.12;
+const ENTER = {x: 64, y: 84};                            // a window's first move starts this far below-right of its target
+const cursor = {keys: [], clicks: []};
 const TRAVEL = 0.62;
-const REST = {x: 600, y: 120};                           // cursor parks on empty canvas (right of the toolbar) while the camera works
 function addKey(at, p) { cursor.keys.push({at, x: p.x, y: p.y}); }
+// Constant on-screen size: the arrow is 26 px tall in its own px; the overlay is scaled by the product scale S and
+// the window pose, so counter-scale to 30 frame px. (The overlay is outside the xyflow viewport: its zoom does
+// not apply.)
+const CURSOR_PX = 30, ARROW_PX = 26;
 
 // ---------------------------------------------------------------- builder
 export async function buildBoardLayer(tl) {
@@ -252,6 +307,7 @@ export async function buildBoardLayer(tl) {
   // chapter header: the icon lands at 7.5 (the entry shot's flying icon), the name and sage rule fade in
   const name = header.querySelector('.cv-header-name');
   tl.set(header, {opacity: 0, '--cv-rule': 0}, 0);
+  tl.set(name, {opacity: 0, y: 8}, 0);   // the name fades in after T.on; keep it hidden on the frames before
   tl.set(header, {opacity: 1}, T.on);
   tl.fromTo(name, {opacity: 0, y: 8}, {opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', immediateRender: false}, T.on + 0.05);
   tl.fromTo(header, {'--cv-rule': 0}, {'--cv-rule': 1, duration: 0.4, ease: 'power2.out', immediateRender: false}, T.on + 0.2);
@@ -269,7 +325,7 @@ export async function buildBoardLayer(tl) {
   tl.to(strip, {opacity: 0, duration: 0.6, ease: 'power1.inOut'}, T.stripOut);
 
   // Fonts: unicode-range subsets load lazily; load every glyph the board can show before any frame is taken.
-  const glyphs = [...new Set(JSON.stringify(labels) + JSON.stringify(initialBoard) + layer.textContent + CLAIM.text + '已添加个来源无法添加批注条从这条新建观点' + JSON.stringify(STRIP_ROWS))].join('');
+  const glyphs = [...new Set(JSON.stringify(labels) + JSON.stringify(initialBoard) + layer.textContent + CLAIM.text + '已添加个来源无法添加批注条从这条新建观点' + JSON.stringify(STRIP_ROWS) + JSON.stringify(ITEMS) + '\u00a0°')].join('');
   await Promise.all([
     ...['400', '700'].map(w => document.fonts.load(`${w} 16px "PingFang SC"`, glyphs).catch(() => [])),
     ...['400', '500', '700'].map(w => document.fonts.load(`${w} 16px "Film Sans SC"`, glyphs).catch(() => [])),
@@ -281,7 +337,7 @@ export async function buildBoardLayer(tl) {
   const row = strip.querySelector('.cv-row');
   const rowLocal = {x: (strip.offsetLeft + row.offsetLeft + 64) / S, y: (strip.offsetTop + row.offsetTop + row.offsetHeight * 0.45) / S};
   grabOffset = {x: rowLocal.x - (strip.offsetLeft + row.offsetLeft) / S, y: rowLocal.y - (strip.offsetTop + row.offsetTop) / S};
-  addKey(cursor.show[0], {x: rowLocal.x + 190, y: rowLocal.y + 96});   // enters from the canvas side
+  addKey(SHOW[0][0], {x: rowLocal.x + 190, y: rowLocal.y + 96});     // enters from the canvas side
   addKey(T.grab, rowLocal);
   cursor.clicks.push(T.grab);
   let last = rowLocal;
@@ -289,15 +345,23 @@ export async function buildBoardLayer(tl) {
     await applyContext(step.at - 1e-4);
     const el = step.target?.();
     if (step.target && !el) throw new Error(`[canvas] step ${step.name}: target missing`);
-    const p = step.point ? step.point() : el ? at(el, 0.5, step.fy ?? 0.5) : null;
+    const p = step.point || step.target ? aimOf(step) : null;
     let popupDot = null;
     if (step.name === 'add-quotes') { const d = annRow(ANN.first).querySelector('.zmd-board-annotation-color'); popupDot = at(d); }
     if (p) {
       const prev = cursor.keys[cursor.keys.length - 1];
-      const travel = step.name === 'drop' ? step.at - 0.13 - T.grab : Math.min(TRAVEL, step.at - prev.at - 0.12);
-      addKey(step.at - travel - (step.name === 'drop' ? 0.13 : 0), last);
-      addKey(step.at - (step.name === 'drop' ? 0.13 : 0), p);
-      if (step.name === 'drop') addKey(step.at, p);
+      const win = SHOW.find(([a, b]) => step.at >= a && step.at < b);
+      if (win && prev.at < win[0]) {
+        // first action of a window: come in from below-right of the target (hidden before the window starts)
+        addKey(win[0] - 1e-3, last);
+        addKey(win[0], {x: p.x + ENTER.x, y: p.y + ENTER.y});
+        addKey(step.at, p);
+      } else {
+        const travel = step.name === 'drop' ? step.at - 0.13 - T.grab : Math.min(TRAVEL, step.at - prev.at - 0.12);
+        addKey(step.at - travel - (step.name === 'drop' ? 0.13 : 0), last);
+        addKey(step.at - (step.name === 'drop' ? 0.13 : 0), p);
+        if (step.name === 'drop') addKey(step.at, p);
+      }
       last = p;
     }
     if (step.click !== false) cursor.clicks.push(step.at - FRAME_EPS);
@@ -311,8 +375,11 @@ export async function buildBoardLayer(tl) {
       views.dot = {zoom: z, x: popupDot.x - flow.x * z, y: popupDot.y - flow.y * z};
       dotCheck.popup = popupDot;
     }
-    if (step.name === 'grab-note') { addKey(DRAG.to, dragPoint(1)); last = dragPoint(1); }
-    if (step.name === 'add-quotes') { addKey(16.3, last); last = REST; addKey(17.0, last); }
+    // the drag itself is drawn from the real pointer path (cursorAt); after the release it rests where it let go
+    if (step.name === 'grab-note') { dragStart = {...drag.start}; last = dragPoint(ALIGN.drop); addKey(T.alignRelease, last); }
+    // after arming the painter the brush leaves the 格式刷 button within 3 frames (up-right, towards the paper card
+    // it will paint), then waits for the move to the target
+    if (step.name === 'arm-painter') { last = {x: p.x + 100, y: p.y - 56}; addKey(step.at + 0.1, last); }
   }
   addKey(T.cursorOff, last);
   await reset();
@@ -324,10 +391,33 @@ const FRAME_OFF = 1940;                                  // window parked just r
 export const dotCheck = {popup: null};
 window.__cvDot = dotCheck;
 
+let dragStart = null;                                    // the note-card grab point measured in the rehearsal
+/** Where the pointer tip is at film time t (product px): the measured key path, or the real drag path. */
+function cursorAt(t) {
+  if (dragStart && t >= T.alignGrab - FRAME_EPS && t < T.alignRelease) {
+    const m = t < DRAG.from ? 0 : dragMoved(t);
+    return {x: dragStart.x, y: dragStart.y - 2 - m * views.align.zoom};
+  }
+  return pointAt(t);
+}
+function paintBoardCursor(el, t, win) {
+  const o = Math.max(0, ...SHOW.map(([a, b]) => Math.min(1, (t - a) / FADE, (b - t) / FADE)));
+  el.style.opacity = String(o);
+  if (!o) return;
+  const p = cursorAt(t);
+  const k = CURSOR_PX / (ARROW_PX * S * (screenRect(win).width / BOARD_WIN.w || 1));
+  el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${k})`;
+  const since = cursor.clicks.map(c => t - c).filter(d => d >= 0 && d < 0.45)[0];
+  el.querySelector('svg').style.transform = since !== undefined && since < 0.18 ? `scale(${0.84 + 0.16 * since / 0.18})` : '';
+  const r = el.querySelector('.film-ripple');
+  r.style.opacity = since !== undefined ? String(1 - since / 0.45) : '0';
+  r.style.transform = since !== undefined ? `scale(${0.4 + since * 3})` : '';
+}
+
 /** Film overlay: cursor (or the product's own painter cursor), the strip row highlight, the drag ghost. */
 function renderOverlay(layer, t) {
   const el = layer.querySelector('.film-cursor');
-  paintCursor(el, t, cursor.keys, cursor.clicks, cursor.show);
+  paintBoardCursor(el, t, layer.querySelector('.cv-win'));
   const painting = !!layer.querySelector('.zmd-board-host.is-format-painter');
   const svg = el.querySelector('svg'); let img = el.querySelector('img');
   if (painting) {

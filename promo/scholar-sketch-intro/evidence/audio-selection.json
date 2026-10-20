@@ -3,7 +3,7 @@
     "source": "code-original",
     "script": "assets/audio/score.py",
     "output": "assets/music.wav",
-    "sha256": "7621efd88aa8d74061ee930d0b5891199efa4da6212de3a423ac34705363a2c7",
+    "sha256": "2ec3fe366d00d1c79a560547086ca5076d246530b2ccff081b6bb148277ddeb0",
     "seed": 2909,
     "environment": {
       "python": "3.13",
@@ -76,16 +76,6 @@
         "bar": 9,
         "beat": 1
       },
-      "align-grab": {
-        "time": 29.167,
-        "bar": 10,
-        "beat": 1
-      },
-      "align-snap": {
-        "time": 29.833,
-        "bar": 10,
-        "beat": 2
-      },
       "links-filter": {
         "time": 39.167,
         "bar": 13,
@@ -112,11 +102,331 @@
         "beat": 1
       }
     },
+    "nearGrid": {
+      "align-grab": {
+        "time": 29.167,
+        "bar": 10,
+        "beat": 1,
+        "offFrames": 0.01,
+        "asserted": false
+      },
+      "align-snap": {
+        "time": 29.733,
+        "bar": 10,
+        "beat": 2,
+        "offFrames": -3.0,
+        "asserted": false
+      }
+    },
+    "sfxFramesKeptClear": {
+      "cues": [
+        [
+          1.2,
+          -0.07,
+          0.05
+        ],
+        [
+          4.2,
+          -0.07,
+          0.05
+        ],
+        [
+          4.4,
+          -0.07,
+          0.05
+        ],
+        [
+          9.833,
+          -0.07,
+          0.05
+        ],
+        [
+          11.9,
+          -0.07,
+          0.05
+        ],
+        [
+          12.8,
+          -0.07,
+          0.05
+        ],
+        [
+          13.4,
+          -0.07,
+          0.05
+        ],
+        [
+          14.5,
+          -0.07,
+          0.05
+        ],
+        [
+          15.167,
+          -0.07,
+          0.05
+        ],
+        [
+          15.833,
+          -0.07,
+          0.05
+        ],
+        [
+          20.5,
+          -0.07,
+          0.05
+        ],
+        [
+          21.167,
+          -0.07,
+          0.05
+        ],
+        [
+          21.5,
+          -0.15,
+          0.05
+        ],
+        [
+          22.95,
+          -0.07,
+          0.05
+        ],
+        [
+          24.5,
+          -0.07,
+          0.05
+        ],
+        [
+          25.167,
+          -0.07,
+          0.05
+        ],
+        [
+          29.733,
+          -0.07,
+          0.05
+        ],
+        [
+          33.5,
+          -0.15,
+          0.05
+        ],
+        [
+          37.3,
+          -0.15,
+          0.05
+        ],
+        [
+          37.9,
+          -0.07,
+          0.05
+        ],
+        [
+          39.167,
+          -0.07,
+          0.05
+        ],
+        [
+          39.833,
+          -0.07,
+          0.05
+        ],
+        [
+          50.5,
+          -0.07,
+          0.05
+        ]
+      ],
+      "moves": [
+        {
+          "cue": 1.2,
+          "from": 1.2,
+          "notes": [
+            65
+          ],
+          "voice": "brand",
+          "to": 1.5
+        },
+        {
+          "cue": 9.833,
+          "from": 9.833,
+          "notes": [
+            69
+          ],
+          "voice": "rh",
+          "to": "tied"
+        },
+        {
+          "cue": 11.9,
+          "from": 11.833,
+          "notes": [
+            65
+          ],
+          "voice": "rh",
+          "to": "tied"
+        },
+        {
+          "cue": 14.5,
+          "from": 14.5,
+          "notes": [
+            48,
+            55
+          ],
+          "voice": "lh",
+          "to": 14.833
+        },
+        {
+          "cue": 14.5,
+          "from": 14.5,
+          "notes": [
+            72
+          ],
+          "voice": "rh",
+          "to": 14.833
+        },
+        {
+          "cue": 15.167,
+          "from": 15.167,
+          "notes": [
+            67
+          ],
+          "voice": "rh",
+          "to": "tied"
+        },
+        {
+          "cue": 15.833,
+          "from": 15.833,
+          "notes": [
+            53,
+            60,
+            69,
+            72,
+            77
+          ],
+          "voice": "chord",
+          "to": 16.167
+        },
+        {
+          "cue": 21.167,
+          "from": 21.167,
+          "notes": [
+            53,
+            62
+          ],
+          "voice": "lh",
+          "to": 21.833
+        },
+        {
+          "cue": 24.5,
+          "from": 24.5,
+          "notes": [
+            65
+          ],
+          "voice": "rh",
+          "to": "tied"
+        },
+        {
+          "cue": 25.167,
+          "from": 25.167,
+          "notes": [
+            48,
+            55,
+            70,
+            72
+          ],
+          "voice": "chord",
+          "to": 25.5
+        },
+        {
+          "cue": 33.5,
+          "from": 33.5,
+          "notes": [
+            65
+          ],
+          "voice": "arp",
+          "to": "tied"
+        },
+        {
+          "cue": 37.3,
+          "from": 37.167,
+          "notes": [
+            62
+          ],
+          "voice": "arp",
+          "to": "tied"
+        },
+        {
+          "cue": 37.3,
+          "from": 37.167,
+          "notes": [
+            53,
+            62
+          ],
+          "voice": "lh",
+          "to": 37.5
+        },
+        {
+          "cue": 37.9,
+          "from": 37.833,
+          "notes": [
+            65
+          ],
+          "voice": "arp",
+          "to": "tied"
+        },
+        {
+          "cue": 39.167,
+          "from": 39.167,
+          "notes": [
+            72
+          ],
+          "voice": "arp",
+          "to": "tied"
+        },
+        {
+          "cue": 39.833,
+          "from": 39.833,
+          "notes": [
+            64
+          ],
+          "voice": "arp",
+          "to": "tied"
+        },
+        {
+          "cue": 39.833,
+          "from": 39.833,
+          "notes": [
+            52,
+            60
+          ],
+          "voice": "lh",
+          "to": 40.167
+        },
+        {
+          "cue": 50.5,
+          "from": 50.5,
+          "notes": [
+            46,
+            53
+          ],
+          "voice": "files",
+          "to": 50.833
+        },
+        {
+          "cue": 50.5,
+          "from": 50.5,
+          "notes": [
+            74
+          ],
+          "voice": "files",
+          "to": 50.833
+        }
+      ]
+    },
     "instruments": [
       "felt piano (additive, inharmonic partials, velocity felt low-pass, two detuned strings, felt thump, damper)",
       "bowed-string pad (3 detuned band-limited saws, slow vibrato, raised-cosine bow attack, low-pass 0.7–1.9 kHz, high-pass 110 Hz)",
-      "sine bass (sine + 2nd/3rd harmonic, soft attack)",
-      "paper ticks (band-passed noise grains 2.4–7 kHz) on beats 2 and 4, bars 2–10 and #9 links only, pulled back while reading, skipped where an action SFX falls",
+      "sine bass (sine + 2nd/3rd harmonic, soft attack; not under the #11 dark chord)",
+      "paper ticks (band-passed noise grains 2.4–7 kHz) on beats 2 and 4, bars 2–10 and #9 links only, pulled back while reading, skipped within 120 ms of an action SFX",
       "convolution room (2.6 s decorrelated noise IR, low-passed 4.5 kHz)"
     ],
     "notUsed": [
@@ -132,7 +442,7 @@
         "name": "#1 brand",
         "start": 0.0,
         "end": 4.0,
-        "music": "sparse single felt-piano notes C5 · F4 (lands with the logo fold at brand-fold) · A4 · G4; pedal held to 4.0"
+        "music": "sparse single felt-piano notes C5 · F4 (an eighth after the logo fold's paper flick, with the wordmark) · A4 · G4; pedal held to 4.0"
       },
       {
         "name": "#2 entry",
@@ -144,13 +454,13 @@
         "name": "A 研究白板",
         "start": 7.833,
         "end": 31.833,
-        "music": "broken-chord felt piano + sine bass on the 0.5 s-phase grid, paper ticks on beats 2/4 (pulled back while reading); chord changes on drop (7.83), ann-add (15.83), cards-new-claim (21.17), paint-apply (26.50)"
+        "music": "broken-chord felt piano + sine bass on the 0.5 s-phase grid, paper ticks on beats 2/4 (pulled back while reading); chord changes on drop (7.83), ann-add (15.83), cards-new-claim (21.17), paint-apply (26.50); piano attacks kept off the click / toggle / pop / drop / snap frames (moved to the next eighth or tied over, see sfxFramesKeptClear)"
       },
       {
         "name": "motif 思路",
-        "start": 20.5,
-        "end": 24.133,
-        "music": "upward pentatonic line C5 (cards-context) → D5 on cards-new-claim → F5 → G5 → A5 held"
+        "start": 20.833,
+        "end": 24.733,
+        "music": "upward pentatonic line C5 – D5 – F5 – G5 – A5 held, answering the right-click (cards-context) and rising over the typing; 20.833 · 21.833 · 22.167 · 22.500 · 22.833"
       },
       {
         "name": "stop-time",
@@ -168,58 +478,54 @@
         "name": "B Markdown 笔记",
         "start": 32.833,
         "end": 46.0,
-        "music": "steady eighth-note felt-piano arpeggio (like writing), LH dyads + sine bass; chord changes 34.50, 37.17, links-insert 39.83, backlinks 42.50, 45.17; paper ticks only in #9 links"
+        "music": "steady eighth-note felt-piano arpeggio (like writing), LH dyads + sine bass; chord changes 34.50, 37.17, links-insert 39.83, backlinks 42.50, 45.17; paper ticks only in #9 links; the arpeggio rests (ties over) on the first key, the pop and the two clicks"
       },
       {
         "name": "#11 dark",
         "start": 46.0,
         "end": 49.5,
-        "music": "Bbmaj7 pad darkens (900 Hz); at dark-switch a low Dm9 (D2 A2 F3 C4 E4) on piano + D2 sine bass + dark pad (700 Hz)"
+        "music": "Bbmaj7 pad darkens (900 Hz); at dark-switch a low Dm9 (D2 A2 F3 C4 E4) on piano, high-passed at 90 Hz and 2 dB down (no sine-bass doubling: the D3–F3–C4–E4 upper voicing carries the darkening on small speakers), + dark pad (700 Hz)"
       },
       {
         "name": "#12 files",
         "start": 49.5,
         "end": 53.5,
-        "music": "only long felt-piano notes: Bb2+F3 & D5 on files-lift (50.50), C5 51.83, C3+G3 52.50, G4 53.17 (common tone into Fadd9)"
+        "music": "only long felt-piano notes: Bb2+F3 & D5 an eighth after the files-lift pop (50.83), C5 51.83, C3+G3 52.50, G4 53.17 (common tone into Fadd9)"
       },
       {
         "name": "#13 end",
         "start": 53.5,
         "end": 58.5,
-        "music": "final Fadd9 (F2 C3 A3 F4 G4 C5) rolled on end-chord 54.167; pedal up 57.15; silent from ~58.2"
+        "music": "final Fadd9 (F2 C3 A3 F4 G4 C5) rolled on end-chord 54.167, piano + bass 3 dB under the first draft (it was the loudest moment, right after the quietest bar); pedal up 57.15; silent from ~58.2"
       }
     ],
-    "mastering": "high-pass 38 Hz, low shelf −3 dB @ 140 Hz, normalised to −17.5 LUFS, look-ahead limiter at −4.5 dBFS (peak-to-loudness 13 dB so mix_audio.py can normalise the film mix linearly)",
+    "mastering": "high-pass 38 Hz (60 Hz on the piano bus, 90 Hz on the #11 dark chord), low shelf −3 dB @ 140 Hz, normalised to −17.5 LUFS, look-ahead limiter at −4.5 dBFS (peak-to-loudness 13 dB so mix_audio.py can normalise the film mix linearly)",
     "analysis": {
-      "integratedLufs": -17.56,
+      "integratedLufs": -17.53,
       "samplePeakDbfs": -4.5,
       "bandEnergyPercent": {
         "20-60": 0.0,
-        "60-120": 8.3,
-        "120-250": 24.9,
-        "250-500": 40.9,
-        "500-1000": 19.7,
-        "1000-2000": 5.5,
+        "60-120": 7.3,
+        "120-250": 26.7,
+        "250-500": 40.4,
+        "500-1000": 19.2,
+        "1000-2000": 5.8,
         "2000-4000": 0.6,
         "4000-8000": 0.0,
         "8000-20000": 0.0
       },
-      "lowEndBelow120HzPercent": 8.3,
+      "lowEndBelow120HzPercent": 7.3,
       "topPeaks": [
         {
-          "t": 23.875,
+          "t": 16.251,
           "dbfs": -4.5
         },
         {
-          "t": 15.927,
+          "t": 23.916,
           "dbfs": -4.5
         },
         {
-          "t": 26.638,
-          "dbfs": -4.5
-        },
-        {
-          "t": 54.329,
+          "t": 26.596,
           "dbfs": -4.5
         },
         {
@@ -227,315 +533,355 @@
           "dbfs": -4.5
         },
         {
-          "t": 54.592,
-          "dbfs": -4.5
-        },
-        {
           "t": 10.525,
           "dbfs": -4.5
         },
         {
-          "t": 47.253,
+          "t": 25.548,
           "dbfs": -4.5
+        },
+        {
+          "t": 5.243,
+          "dbfs": -4.5
+        },
+        {
+          "t": 19.874,
+          "dbfs": -4.7
         }
       ],
       "perSecond": [
         {
           "sec": 0,
-          "lufs1s": -19.1,
-          "peakDbfs": -8.9
+          "lufs1s": -18.6,
+          "peakDbfs": -8.4
         },
         {
           "sec": 1,
-          "lufs1s": -19.6,
-          "peakDbfs": -9.2
+          "lufs1s": -20.9,
+          "peakDbfs": -8.1
         },
         {
           "sec": 2,
-          "lufs1s": -21.5,
-          "peakDbfs": -12.3
+          "lufs1s": -20.5,
+          "peakDbfs": -11.9
         },
         {
           "sec": 3,
-          "lufs1s": -22.6,
-          "peakDbfs": -14.1
+          "lufs1s": -22.2,
+          "peakDbfs": -13.2
         },
         {
           "sec": 4,
-          "lufs1s": -17.7,
-          "peakDbfs": -7.6
+          "lufs1s": -17.2,
+          "peakDbfs": -6.7
         },
         {
           "sec": 5,
-          "lufs1s": -17.6,
-          "peakDbfs": -4.8
+          "lufs1s": -17.1,
+          "peakDbfs": -4.5
         },
         {
           "sec": 6,
-          "lufs1s": -20.2,
-          "peakDbfs": -9.1
-        },
-        {
-          "sec": 7,
-          "lufs1s": -17.6,
-          "peakDbfs": -6.3
-        },
-        {
-          "sec": 8,
-          "lufs1s": -18.0,
-          "peakDbfs": -10.1
-        },
-        {
-          "sec": 9,
-          "lufs1s": -17.7,
+          "lufs1s": -19.6,
           "peakDbfs": -8.6
         },
         {
+          "sec": 7,
+          "lufs1s": -17.0,
+          "peakDbfs": -5.7
+        },
+        {
+          "sec": 8,
+          "lufs1s": -17.5,
+          "peakDbfs": -9.6
+        },
+        {
+          "sec": 9,
+          "lufs1s": -17.3,
+          "peakDbfs": -8.1
+        },
+        {
           "sec": 10,
-          "lufs1s": -16.8,
+          "lufs1s": -16.5,
           "peakDbfs": -4.5
         },
         {
           "sec": 11,
-          "lufs1s": -16.4,
-          "peakDbfs": -6.3
+          "lufs1s": -16.1,
+          "peakDbfs": -5.8
         },
         {
           "sec": 12,
-          "lufs1s": -17.1,
-          "peakDbfs": -8.1
+          "lufs1s": -17.0,
+          "peakDbfs": -7.8
         },
         {
           "sec": 13,
-          "lufs1s": -14.4,
+          "lufs1s": -13.8,
           "peakDbfs": -4.5
         },
         {
           "sec": 14,
-          "lufs1s": -15.8,
-          "peakDbfs": -6.6
+          "lufs1s": -15.9,
+          "peakDbfs": -6.0
         },
         {
           "sec": 15,
-          "lufs1s": -16.3,
-          "peakDbfs": -4.5
+          "lufs1s": -18.9,
+          "peakDbfs": -7.6
         },
         {
           "sec": 16,
+          "lufs1s": -14.6,
+          "peakDbfs": -4.5
+        },
+        {
+          "sec": 17,
+          "lufs1s": -16.8,
+          "peakDbfs": -7.7
+        },
+        {
+          "sec": 18,
+          "lufs1s": -15.0,
+          "peakDbfs": -5.2
+        },
+        {
+          "sec": 19,
           "lufs1s": -15.0,
           "peakDbfs": -4.7
         },
         {
-          "sec": 17,
-          "lufs1s": -18.5,
-          "peakDbfs": -8.4
-        },
-        {
-          "sec": 18,
-          "lufs1s": -15.7,
-          "peakDbfs": -5.0
-        },
-        {
-          "sec": 19,
-          "lufs1s": -15.5,
-          "peakDbfs": -5.2
-        },
-        {
           "sec": 20,
-          "lufs1s": -17.1,
-          "peakDbfs": -8.0
+          "lufs1s": -16.9,
+          "peakDbfs": -7.5
         },
         {
           "sec": 21,
-          "lufs1s": -14.4,
-          "peakDbfs": -5.2
+          "lufs1s": -17.9,
+          "peakDbfs": -5.8
         },
         {
           "sec": 22,
-          "lufs1s": -16.5,
-          "peakDbfs": -5.6
+          "lufs1s": -15.9,
+          "peakDbfs": -6.6
         },
         {
           "sec": 23,
-          "lufs1s": -17.2,
+          "lufs1s": -16.7,
           "peakDbfs": -4.5
         },
         {
           "sec": 24,
-          "lufs1s": -16.0,
-          "peakDbfs": -7.5
+          "lufs1s": -15.6,
+          "peakDbfs": -7.3
         },
         {
           "sec": 25,
-          "lufs1s": -16.7,
-          "peakDbfs": -5.6
+          "lufs1s": -17.0,
+          "peakDbfs": -4.5
         },
         {
           "sec": 26,
-          "lufs1s": -14.7,
+          "lufs1s": -14.3,
           "peakDbfs": -4.5
         },
         {
           "sec": 27,
-          "lufs1s": -16.3,
-          "peakDbfs": -5.5
+          "lufs1s": -15.8,
+          "peakDbfs": -5.0
         },
         {
           "sec": 28,
-          "lufs1s": -18.6,
-          "peakDbfs": -8.9
+          "lufs1s": -18.1,
+          "peakDbfs": -8.3
         },
         {
           "sec": 29,
-          "lufs1s": -17.8,
-          "peakDbfs": -8.9
+          "lufs1s": -17.0,
+          "peakDbfs": -7.9
         },
         {
           "sec": 30,
-          "lufs1s": -17.0,
-          "peakDbfs": -6.6
-        },
-        {
-          "sec": 31,
-          "lufs1s": -17.8,
-          "peakDbfs": -6.3
-        },
-        {
-          "sec": 32,
-          "lufs1s": -21.0,
-          "peakDbfs": -9.6
-        },
-        {
-          "sec": 33,
-          "lufs1s": -17.6,
-          "peakDbfs": -6.6
-        },
-        {
-          "sec": 34,
-          "lufs1s": -19.0,
-          "peakDbfs": -9.0
-        },
-        {
-          "sec": 35,
-          "lufs1s": -21.6,
-          "peakDbfs": -11.0
-        },
-        {
-          "sec": 36,
-          "lufs1s": -20.3,
-          "peakDbfs": -11.1
-        },
-        {
-          "sec": 37,
-          "lufs1s": -15.6,
+          "lufs1s": -16.3,
           "peakDbfs": -6.0
         },
         {
-          "sec": 38,
-          "lufs1s": -19.2,
+          "sec": 31,
+          "lufs1s": -17.2,
+          "peakDbfs": -5.7
+        },
+        {
+          "sec": 32,
+          "lufs1s": -20.4,
+          "peakDbfs": -9.1
+        },
+        {
+          "sec": 33,
+          "lufs1s": -17.2,
+          "peakDbfs": -6.0
+        },
+        {
+          "sec": 34,
+          "lufs1s": -19.9,
+          "peakDbfs": -10.5
+        },
+        {
+          "sec": 35,
+          "lufs1s": -21.2,
           "peakDbfs": -10.6
         },
         {
+          "sec": 36,
+          "lufs1s": -19.8,
+          "peakDbfs": -10.5
+        },
+        {
+          "sec": 37,
+          "lufs1s": -20.5,
+          "peakDbfs": -11.3
+        },
+        {
+          "sec": 38,
+          "lufs1s": -20.1,
+          "peakDbfs": -10.5
+        },
+        {
           "sec": 39,
-          "lufs1s": -19.7,
-          "peakDbfs": -8.2
+          "lufs1s": -21.4,
+          "peakDbfs": -12.5
         },
         {
           "sec": 40,
-          "lufs1s": -18.6,
-          "peakDbfs": -9.6
+          "lufs1s": -17.8,
+          "peakDbfs": -8.2
         },
         {
           "sec": 41,
-          "lufs1s": -19.9,
-          "peakDbfs": -10.2
+          "lufs1s": -20.1,
+          "peakDbfs": -10.5
         },
         {
           "sec": 42,
-          "lufs1s": -15.8,
+          "lufs1s": -15.4,
           "peakDbfs": -6.4
         },
         {
           "sec": 43,
-          "lufs1s": -17.4,
-          "peakDbfs": -8.6
-        },
-        {
-          "sec": 44,
-          "lufs1s": -20.8,
-          "peakDbfs": -10.2
-        },
-        {
-          "sec": 45,
-          "lufs1s": -17.6,
-          "peakDbfs": -8.9
-        },
-        {
-          "sec": 46,
-          "lufs1s": -21.2,
-          "peakDbfs": -11.8
-        },
-        {
-          "sec": 47,
-          "lufs1s": -15.7,
-          "peakDbfs": -4.5
-        },
-        {
-          "sec": 48,
-          "lufs1s": -18.2,
+          "lufs1s": -16.9,
           "peakDbfs": -8.0
         },
         {
+          "sec": 44,
+          "lufs1s": -20.3,
+          "peakDbfs": -9.7
+        },
+        {
+          "sec": 45,
+          "lufs1s": -17.1,
+          "peakDbfs": -8.4
+        },
+        {
+          "sec": 46,
+          "lufs1s": -20.7,
+          "peakDbfs": -11.2
+        },
+        {
+          "sec": 47,
+          "lufs1s": -17.1,
+          "peakDbfs": -6.3
+        },
+        {
+          "sec": 48,
+          "lufs1s": -19.0,
+          "peakDbfs": -9.1
+        },
+        {
           "sec": 49,
-          "lufs1s": -18.5,
-          "peakDbfs": -8.6
+          "lufs1s": -18.9,
+          "peakDbfs": -8.8
         },
         {
           "sec": 50,
-          "lufs1s": -20.5,
-          "peakDbfs": -7.9
+          "lufs1s": -21.4,
+          "peakDbfs": -7.6
         },
         {
           "sec": 51,
-          "lufs1s": -23.0,
-          "peakDbfs": -12.5
+          "lufs1s": -18.3,
+          "peakDbfs": -8.9
         },
         {
           "sec": 52,
-          "lufs1s": -21.0,
-          "peakDbfs": -10.2
+          "lufs1s": -20.3,
+          "peakDbfs": -10.6
         },
         {
           "sec": 53,
-          "lufs1s": -23.7,
-          "peakDbfs": -14.1
+          "lufs1s": -23.4,
+          "peakDbfs": -13.7
         },
         {
           "sec": 54,
-          "lufs1s": -14.5,
-          "peakDbfs": -4.5
+          "lufs1s": -16.5,
+          "peakDbfs": -5.4
         },
         {
           "sec": 55,
-          "lufs1s": -17.2,
-          "peakDbfs": -8.1
+          "lufs1s": -18.5,
+          "peakDbfs": -9.2
         },
         {
           "sec": 56,
-          "lufs1s": -18.3,
-          "peakDbfs": -7.2
+          "lufs1s": -19.2,
+          "peakDbfs": -7.6
         },
         {
           "sec": 57,
-          "lufs1s": -25.8,
-          "peakDbfs": -11.4
+          "lufs1s": -26.2,
+          "peakDbfs": -12.2
         },
         {
           "sec": 58,
-          "lufs1s": -63.2,
-          "peakDbfs": -46.6
+          "lufs1s": -63.1,
+          "peakDbfs": -47.1
         }
       ],
+      "chords": {
+        "file": "assets/music.wav",
+        "loudestMomentary": {
+          "lufsM": -11.4,
+          "t": 26.95
+        },
+        "darkChordPeak": {
+          "lufsM": -15.5,
+          "t": 47.6
+        },
+        "darkLowBelow120HzPercentPer0.25s": [
+          17.0,
+          23.9,
+          15.3,
+          12.2,
+          21.0,
+          11.8
+        ],
+        "endChordQuietBefore": {
+          "lufsM": -26.1,
+          "t": 54.15
+        },
+        "endChordPeak": {
+          "lufsM": -14.6,
+          "t": 54.6
+        },
+        "endStepLU": 11.5,
+        "endLowBelow120HzPercentPer0.25s": [
+          11.4,
+          12.1,
+          10.9,
+          9.8,
+          8.9,
+          4.5
+        ]
+      },
       "charts": [
         "evidence/audio/music-spectrum.png",
         "evidence/audio/music-loudness.png",
@@ -569,39 +915,25 @@
         "paint-arm",
         "links-insert"
       ],
-      "sha256": "7700032cc4caa89af1b41e407bf60e48f07e4d4f69e372ef78df0632666fb527",
+      "sha256": "c8bf0412a4580a6d8d2f5d9328c49636d78518c8dfa3d2d72099ec24d6a15952",
       "durationSec": 0.12,
       "onsetSec": 0.001,
-      "peakSec": 0.007,
-      "peakDbfs": -21.4,
-      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
-      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
-    },
-    {
-      "file": "click-drop-pair.wav",
-      "path": "assets/sfx/click-drop-pair.wav",
-      "role": "click + two quote cards land (one event)",
-      "usedBy": [
-        "ann-add"
-      ],
-      "sha256": "6dc2598945afdda5a10e2a045db0d35e7f0115fced389ef4e09130cfc4a6442e",
-      "durationSec": 0.24,
-      "onsetSec": 0.002,
-      "peakSec": 0.02,
-      "peakDbfs": -13.2,
-      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
-      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
+      "peakSec": 0.006,
+      "peakDbfs": -20.7,
+      "source": "generated in this project: tools/audio/make_film_sfx.py re-synthesizes the skill's scripts/make_sfx.py \"click-alt\" recipe (checked sample-exact against the skill's assets/audio/sfx/click-alt.wav) and adds a 10–14 ms 2–4 kHz band-passed noise contact at the onset",
+      "license": "derived from the skill's original procedural audio: GNU AGPL-3.0, © 2026 op7418 (skill README)"
     },
     {
       "file": "click-drop.wav",
       "path": "assets/sfx/click-drop.wav",
-      "role": "click + one card lands (one event)",
+      "role": "click + the card(s) land, one event (ann-add, cards-new-claim)",
       "usedBy": [
+        "ann-add",
         "cards-new-claim"
       ],
-      "sha256": "8f45d564457704ed1e062cd99d48aed37ff693849421e67b71fab0e86ba0355f",
+      "sha256": "f1b0864b4dbd61441c7749c63c869c92519ebf96aa5af2bc40644852d49a59e7",
       "durationSec": 0.16,
-      "onsetSec": 0.002,
+      "onsetSec": 0.0,
       "peakSec": 0.02,
       "peakDbfs": -13.2,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
@@ -619,25 +951,25 @@
         "paint-select",
         "links-filter"
       ],
-      "sha256": "8cb3444a4ab4640a7417dcb539a556bd10c697b19869c17c3d4289a4c1eebc13",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0",
       "durationSec": 0.16,
-      "onsetSec": 0.001,
-      "peakSec": 0.008,
-      "peakDbfs": -19.9,
-      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
-      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+      "onsetSec": 0.0,
+      "peakSec": 0.004,
+      "peakDbfs": -19.1,
+      "source": "generated in this project: tools/audio/make_film_sfx.py re-synthesizes the skill's scripts/make_sfx.py \"click\" recipe (checked sample-exact against the skill's assets/audio/sfx/click.wav) and adds a 10–14 ms 2–4 kHz band-passed noise contact at the onset",
+      "license": "derived from the skill's original procedural audio: GNU AGPL-3.0, © 2026 op7418 (skill README)"
     },
     {
       "file": "logo-fold.wav",
       "path": "assets/sfx/logo-fold.wav",
-      "role": "the logo corner folds in",
+      "role": "the logo corner folds in: 75 ms paper flick",
       "usedBy": [
         "brand-fold"
       ],
-      "sha256": "3c61c99e984b5107cc21d402fe1b0d458c1307afb85512cd2354691fa51166a1",
-      "durationSec": 0.14,
-      "onsetSec": 0.001,
-      "peakSec": 0.021,
+      "sha256": "a453af91552afc66dde9506bf48def1c84e6feb325b219defec5f992303fbe0f",
+      "durationSec": 0.075,
+      "onsetSec": 0.0,
+      "peakSec": 0.003,
       "peakDbfs": -14.0,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
       "license": "this video project's own asset"
@@ -659,12 +991,26 @@
       "license": "this video project's own asset"
     },
     {
+      "file": "paper-drag.wav",
+      "path": "assets/sfx/paper-drag.wav",
+      "role": "the reading-note card follows the pointer from align-grab until it snaps (align-grab)",
+      "usedBy": [
+        "align-grab"
+      ],
+      "sha256": "7f2c06b82946a529a52e02044cf621f23966f076662cb7a8b518b3b6c8a80a47",
+      "durationSec": 0.547,
+      "onsetSec": 0.001,
+      "peakSec": 0.001,
+      "peakDbfs": -12.4,
+      "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
+      "license": "this video project's own asset"
+    },
+    {
       "file": "paper-slide.wav",
       "path": "assets/sfx/paper-slide.wav",
-      "role": "drag start: a paper or card is picked up and slides",
+      "role": "drag start: a paper row is picked up and slides (drop-grab)",
       "usedBy": [
-        "drop-grab",
-        "align-grab"
+        "drop-grab"
       ],
       "sha256": "0e1ed6af3cd8f3eb18bb97efbb96acaa88ff08f16034643176abdbfaee700ba1",
       "durationSec": 0.62,
@@ -681,55 +1027,55 @@
       "usedBy": [
         "entry-items"
       ],
-      "sha256": "c2e53aec51ec07c288c59a0f4df8fe88a85ed784a717a75520835197cca2da53",
+      "sha256": "491968961cba91af2e2fc5192e9c15215518a2ff24328f7ea27ac86b2af0b0b0",
       "durationSec": 0.45,
       "onsetSec": 0.001,
-      "peakSec": 0.006,
-      "peakDbfs": -17.8,
+      "peakSec": 0.005,
+      "peakDbfs": -17.4,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
       "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
     },
     {
       "file": "pop.wav",
       "path": "assets/sfx/pop.wav",
-      "role": "popup appears / attachment rows lift (very light)",
+      "role": "popup appears / attachment rows lift (very light, 0.13 s)",
       "usedBy": [
         "links-popup",
         "files-lift"
       ],
-      "sha256": "ea11b896eb402c995a63f01ff298f0def88deed0ce96d37eb5f52d266b654dc9",
-      "durationSec": 0.22,
-      "onsetSec": 0.001,
+      "sha256": "2c65509ef61daa12cc2c7671e205cec910bbf3063e8428ce3447e0d91deb1be9",
+      "durationSec": 0.13,
+      "onsetSec": 0.0,
       "peakSec": 0.006,
-      "peakDbfs": -15.1,
-      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
-      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+      "peakDbfs": -15.0,
+      "source": "generated in this project: tools/audio/make_film_sfx.py re-synthesizes the skill's scripts/make_sfx.py \"pop\" recipe (checked sample-exact against the skill's assets/audio/sfx/pop.wav) and adds a 10–14 ms 2–4 kHz band-passed noise contact at the onset (pop: trimmed to 0.13 s)",
+      "license": "derived from the skill's original procedural audio: GNU AGPL-3.0, © 2026 op7418 (skill README)"
     },
     {
       "file": "snap-tick.wav",
       "path": "assets/sfx/snap-tick.wav",
-      "role": "alignment guides snap",
+      "role": "alignment snap",
       "usedBy": [
         "align-snap"
       ],
-      "sha256": "9d58b22827a867317f271f7139320b056f754018aa72d5cb3e3d0f7f9e5a6249",
-      "durationSec": 0.04,
+      "sha256": "e08701aa257610f45592302fe5e1d0c7051b7ab65cd7884e6aa8d900cd9f964d",
+      "durationSec": 0.045,
       "onsetSec": 0.0,
       "peakSec": 0.001,
-      "peakDbfs": -18.4,
+      "peakDbfs": -14.0,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
       "license": "this video project's own asset"
     },
     {
       "file": "soft-drop.wav",
       "path": "assets/sfx/soft-drop.wav",
-      "role": "a card lands",
+      "role": "a card lands (knock + 2–5 kHz contact)",
       "usedBy": [
         "drop-release"
       ],
-      "sha256": "583d54efe319ca61bd98d330128fecc23a1b2c442688bbf291b8e2dc23169bd8",
+      "sha256": "81887b7f8462d80c3443e97c4df3ae97719d85daa68b0a56c2c2c0cfffc799af",
       "durationSec": 0.1,
-      "onsetSec": 0.002,
+      "onsetSec": 0.001,
       "peakSec": 0.002,
       "peakDbfs": -13.2,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
@@ -743,18 +1089,18 @@
         "ann-tick-1",
         "ann-tick-2"
       ],
-      "sha256": "509be1af88150e4acf3c273ae29ab404027876fb61d705de5f21d7a62b99d6b6",
+      "sha256": "317813eaf6717cb808ec55e20c44baa878b1168e6d963c2fadb4e37c4369c326",
       "durationSec": 0.25,
       "onsetSec": 0.001,
       "peakSec": 0.08,
       "peakDbfs": -18.9,
-      "source": "guizang-product-video-skill assets/audio/sfx (original procedural, scripts/make_sfx.py); copied unchanged, hash matches the skill manifest",
-      "license": "GNU AGPL-3.0, © 2026 op7418 (skill README: original audio assets are AGPL-3.0)"
+      "source": "generated in this project: tools/audio/make_film_sfx.py re-synthesizes the skill's scripts/make_sfx.py \"toggle\" recipe (checked sample-exact against the skill's assets/audio/sfx/toggle.wav) and adds a 10–14 ms 2–4 kHz band-passed noise contact at the onset",
+      "license": "derived from the skill's original procedural audio: GNU AGPL-3.0, © 2026 op7418 (skill README)"
     },
     {
       "file": "typing-claim.wav",
       "path": "assets/sfx/typing-claim.wav",
-      "role": "",
+      "role": "product typing in the claim card (13 keys at 12/s)",
       "usedBy": [
         "cards-type"
       ],
@@ -764,45 +1110,835 @@
       "peakSec": 0.09,
       "peakDbfs": -19.5,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
-      "license": "this video project's own asset"
+      "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
     },
     {
       "file": "typing-long.wav",
       "path": "assets/sfx/typing-long.wav",
-      "role": "product typing, two bursts",
+      "role": "product typing of the to-do line, on src/notes/time.js TODO_UNITS",
       "usedBy": [
         "write-type"
       ],
-      "sha256": "0e224323e2d9fbaeb47b5d9b54bf526b749f4b332d48ddfd855a30b87123446c",
-      "durationSec": 1.45,
+      "sha256": "f471357c4d61a045b019874faa4fde78064852e629d0a7ac9350952404e012e5",
+      "durationSec": 1.52,
       "onsetSec": 0.001,
-      "peakSec": 0.396,
-      "peakDbfs": -21.8,
+      "peakSec": 1.406,
+      "peakDbfs": -17.6,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
       "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
     },
     {
       "file": "typing-short.wav",
       "path": "assets/sfx/typing-short.wav",
-      "role": "product typing, one burst",
+      "role": "product typing of the [[ query, on src/notes/time.js LINK_UNITS",
       "usedBy": [
         "links-type"
       ],
-      "sha256": "10d3c3b09f889c32864df20903e239afe1fd160fe3e7b78387ff7fb7a8dc0bf4",
-      "durationSec": 0.65,
+      "sha256": "5f9f175015a22015e8f50912a54891cb1db50927fa1ad6d0d11a8f3891e51931",
+      "durationSec": 0.72,
       "onsetSec": 0.001,
-      "peakSec": 0.251,
+      "peakSec": 0.405,
       "peakDbfs": -19.4,
       "source": "generated in this project: tools/audio/make_film_sfx.py (procedural, fixed seed, no samples)",
       "license": "this video project's own asset; re-synthesizes the skill's make_sfx.py click/typing/pop recipe (AGPL-3.0), treat as AGPL-3.0 derived"
     }
   ],
+  "sfxCharts": {
+    "evidence/audio/sfx-changed.png": "changed SFX before (review draft) / after: spectrograms and spectra with the piano and contact bands",
+    "evidence/audio/sfx-changed-2.png": "paper-drag (new), paper-slide (unchanged), typing-long / typing-short on the picture's schedules, pop-pair",
+    "evidence/audio/cue-spectra.png": "raw stems around brand-fold, drop-release, cards 20.5–21.5, align 29.17–29.83 and write-type: draft vs this fix"
+  },
   "bundledNotUsed": [
     {
       "file": "typing.wav",
-      "reason": "bundled typing.wav peaks at −26.4 dBFS (−29.4 after mix_audio.py's mono→stereo); at the mixer's max gain 4 it stayed 2.4 dB under the ducked music at links-type (37.3 s). Replaced by typing-short.wav (same make_sfx.py keystroke recipe and key times, +7 dB)."
+      "reason": "bundled typing.wav peaks at −26.4 dBFS (−29.4 after mix_audio.py's mono→stereo) and its six key times are not the picture's; the typing files are generated on the picture's own input schedules."
+    },
+    {
+      "file": "click.wav, click-alt.wav, toggle.wav, pop.wav",
+      "reason": "used in the first draft as unchanged copies; replaced by the same recipes + a 2–4 kHz contact layer, because 90–99 % of their energy sat in the felt piano's 250–1000 Hz band (review 2026-10-19)."
     }
   ],
-  "sfxSearch": "No recorded SFX library was searched or downloaded for this part; every sound is procedural (bundled skill WAVs or generated here). BRIEF.md asked to look for fitting material first: not done — the paper/desk sounds this film needs were synthesized instead.",
-  "listening": "Not auditioned: this environment cannot play audio. Checked only by measurement (landmarks, per-cue peak vs ducked music, loudness, spectra)."
+  "cueSpec": [
+    {
+      "actionId": "brand-fold",
+      "actionTime": 1.2,
+      "file": "assets/sfx/logo-fold.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 0.25,
+      "duckDb": 3,
+      "why": "logo corner folds in: 75 ms paper flick, 2–6 kHz, above the score's F4 (DIRECTION #1 1.20 轻纸声)"
+    },
+    {
+      "actionId": "entry-click",
+      "actionTime": 4.2,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 2.06,
+      "duckDb": 3,
+      "why": "cursor clicks the toolbar button"
+    },
+    {
+      "actionId": "entry-items",
+      "actionTime": 4.4,
+      "file": "assets/sfx/pop-pair.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.06,
+      "duckDb": 3.5,
+      "why": "optional, not soundRequired: the two menu rows appear 4.40 / 4.60 (DIRECTION #2 两声极轻 pop)"
+    },
+    {
+      "actionId": "drop-grab",
+      "actionTime": 8.5,
+      "file": "assets/sfx/paper-slide.wav",
+      "landmark": "peak",
+      "syncOffset": 0.103,
+      "gain": 0.53,
+      "duckDb": 4,
+      "why": "drag start: the paper row is picked up and slides"
+    },
+    {
+      "actionId": "drop-release",
+      "actionTime": 9.833,
+      "file": "assets/sfx/soft-drop.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.39,
+      "duckDb": 6,
+      "why": "release: the literature card lands (轻落声; the first product result, so a confirmation-depth duck): knock + 2–5 kHz contact, no piano attack under it"
+    },
+    {
+      "actionId": "drop-select",
+      "actionTime": 11.9,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 1.57,
+      "duckDb": 3,
+      "why": "select the literature card"
+    },
+    {
+      "actionId": "ann-details",
+      "actionTime": 12.8,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 1.49,
+      "duckDb": 3,
+      "why": "click 详细属性"
+    },
+    {
+      "actionId": "ann-open",
+      "actionTime": 13.4,
+      "file": "assets/sfx/click-alt.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 3.25,
+      "duckDb": 3,
+      "why": "click 查看批注 (the annotation dialog opens)"
+    },
+    {
+      "actionId": "ann-tick-1",
+      "actionTime": 14.5,
+      "file": "assets/sfx/toggle.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.68,
+      "duckDb": 3,
+      "why": "tick the first highlight"
+    },
+    {
+      "actionId": "ann-tick-2",
+      "actionTime": 15.167,
+      "file": "assets/sfx/toggle.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.46,
+      "duckDb": 3,
+      "why": "tick the second highlight"
+    },
+    {
+      "actionId": "ann-add",
+      "actionTime": 15.833,
+      "file": "assets/sfx/click-drop.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 0.51,
+      "duckDb": 3,
+      "why": "click 添加所选批注 + the quote cards land: both appear on the same frame, so one landing"
+    },
+    {
+      "actionId": "cards-context",
+      "actionTime": 20.5,
+      "file": "assets/sfx/click-alt.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 2.38,
+      "duckDb": 3,
+      "why": "right-click the quote card (context menu)"
+    },
+    {
+      "actionId": "cards-new-claim",
+      "actionTime": 21.167,
+      "file": "assets/sfx/click-drop.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 0.75,
+      "duckDb": 3,
+      "why": "click 从这条批注新建观点 + the new claim card lands (DIRECTION #5 click + 轻落)"
+    },
+    {
+      "actionId": "cards-type",
+      "actionTime": 21.5,
+      "file": "assets/sfx/typing-claim.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 2.12,
+      "duckDb": 3.5,
+      "why": "real typing in the new claim card (13 characters, 21.50–22.50)"
+    },
+    {
+      "actionId": "cards-commit",
+      "actionTime": 22.95,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 2.05,
+      "duckDb": 3,
+      "why": "click empty canvas: the claim is committed and its source footer shows"
+    },
+    {
+      "actionId": "paint-select",
+      "actionTime": 24.5,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 1.89,
+      "duckDb": 3,
+      "why": "select the green source card"
+    },
+    {
+      "actionId": "paint-arm",
+      "actionTime": 25.167,
+      "file": "assets/sfx/click-alt.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.52,
+      "duckDb": 3,
+      "why": "click 格式刷"
+    },
+    {
+      "actionId": "paint-apply",
+      "actionTime": 26.5,
+      "file": "assets/sfx/brush.wav",
+      "landmark": "peak",
+      "syncOffset": 0.107,
+      "gain": 1.15,
+      "duckDb": 4,
+      "why": "brush lands on the target card (short brush, after the music's stop beat)"
+    },
+    {
+      "actionId": "align-grab",
+      "actionTime": 29.167,
+      "file": "assets/sfx/paper-drag.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 0.69,
+      "duckDb": 3,
+      "why": "grab the reading-note card: friction while it follows the pointer, ends at the snap"
+    },
+    {
+      "actionId": "align-snap",
+      "actionTime": 29.733,
+      "file": "assets/sfx/snap-tick.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 1.53,
+      "duckDb": 4.5,
+      "why": "the card jumps into alignment and the guide appears: light high tick, clearly over the music"
+    },
+    {
+      "actionId": "write-turn",
+      "actionTime": 32.0,
+      "file": "assets/sfx/page-turn.wav",
+      "landmark": "peak",
+      "syncOffset": 0.358,
+      "gain": 0.45,
+      "duckDb": 3,
+      "why": "page turn 1: crest at the turn start, fold rustle, settle at 32.70"
+    },
+    {
+      "actionId": "write-type",
+      "actionTime": 33.5,
+      "file": "assets/sfx/typing-long.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.96,
+      "duckDb": 3.5,
+      "why": "real typing of the to-do line on its input schedule (src/notes/time.js TODO_UNITS): keys 33.50–33.87, pinyin bursts ending on each commit 34.00–34.80, Enter 34.90"
+    },
+    {
+      "actionId": "links-type",
+      "actionTime": 37.3,
+      "file": "assets/sfx/typing-short.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.56,
+      "duckDb": 3.5,
+      "why": "typing the [[ query on its input schedule (src/notes/time.js LINK_UNITS)"
+    },
+    {
+      "actionId": "links-popup",
+      "actionTime": 37.9,
+      "file": "assets/sfx/pop.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 0.49,
+      "duckDb": 3.5,
+      "why": "the [[ picker pops up (short pop, 0.13 s)"
+    },
+    {
+      "actionId": "links-filter",
+      "actionTime": 39.167,
+      "file": "assets/sfx/click.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 1.02,
+      "duckDb": 3,
+      "why": "click 常规条目"
+    },
+    {
+      "actionId": "links-insert",
+      "actionTime": 39.833,
+      "file": "assets/sfx/click-alt.wav",
+      "landmark": "onset",
+      "syncOffset": 0.001,
+      "gain": 1.33,
+      "duckDb": 3,
+      "why": "click the paper, link inserted"
+    },
+    {
+      "actionId": "files-turn",
+      "actionTime": 49.5,
+      "file": "assets/sfx/page-turn.wav",
+      "landmark": "peak",
+      "syncOffset": 0.358,
+      "gain": 0.64,
+      "duckDb": 3,
+      "why": "page turn 2 (dark → light): crest at the turn start, settle at 50.20"
+    },
+    {
+      "actionId": "files-lift",
+      "actionTime": 50.5,
+      "file": "assets/sfx/pop.wav",
+      "landmark": "onset",
+      "syncOffset": 0.0,
+      "gain": 0.25,
+      "duckDb": 3.5,
+      "why": "the two attachment rows lift (极轻 pop)"
+    }
+  ],
+  "sfxSearch": "No recorded SFX library was searched or downloaded for this part; every sound is procedural (generated here, partly from the skill's make_sfx.py recipes). BRIEF.md asked to look for fitting material first: not done — the paper/desk sounds this film needs were synthesized instead.",
+  "listening": "Not auditioned: this environment cannot play audio. Checked only by measurement (landmarks, per-cue peak and in-band margins vs the ducked music, loudness, spectra).",
+  "mix": {
+    "report": "evidence/audio-mix.json",
+    "planSha256": "2172d489b8dd65a1e12651721d899b6272c3a6d93e76f0b0ac06af13c0f4dfb0",
+    "masterSha256": "ecc652a69b965ba21c02c82042c3331898d1f3b4e50877a3c8c44269614b675a",
+    "normalization": {
+      "type": "linear",
+      "requested": "linear",
+      "rawMix": {
+        "input_i": "-21.54",
+        "input_tp": "-7.69",
+        "input_lra": "4.80"
+      },
+      "master": {
+        "output_i": "-15.91",
+        "output_tp": "-2.15",
+        "output_lra": "4.50"
+      },
+      "target": "-16 LUFS integrated, true peak <= -1 dBTP (mix_audio.py loudnorm TP -1.5)"
+    },
+    "sync": {
+      "maxAbsErrorFrames": 0.009,
+      "cuesBelowDuckedMusic": [
+        "align-grab"
+      ]
+    },
+    "inBand": {
+      "method": "tools/audio/cue_margins.py on assets/sfx-stem.wav vs assets/music-ducked.wav (raw mix, before loudnorm); see the script docstring for the windows and bands. Measurement only, not listened to.",
+      "targetDb": 10.0,
+      "target": "domBandDb (the review's in-band margin) >= targetDb for every cue",
+      "cuesBelowTarget": [],
+      "cuesBestBandBelowTarget": [],
+      "cuesWithPianoOnsetWithin13ms": [
+        "drop-grab",
+        "paint-apply",
+        "align-grab"
+      ],
+      "cues": [
+        {
+          "actionId": "brand-fold",
+          "file": "logo-fold",
+          "landmark": 1.2,
+          "gain": 0.25,
+          "domHz": 3360,
+          "domBandDb": 10.7,
+          "bestBandHz": 8000,
+          "bestBandDb": 26.6,
+          "contactDb": 14.2,
+          "peakDb": 3.5,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 15.3,
+            "domHz": 280
+          }
+        },
+        {
+          "actionId": "entry-click",
+          "file": "click",
+          "landmark": 4.2,
+          "gain": 2.06,
+          "domHz": 740,
+          "domBandDb": 25.3,
+          "bestBandHz": 794,
+          "bestBandDb": 32.5,
+          "contactDb": 23.4,
+          "peakDb": 1.8,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "entry-items",
+          "file": "pop-pair",
+          "landmark": 4.4,
+          "gain": 1.06,
+          "domHz": 400,
+          "domBandDb": 15.1,
+          "bestBandHz": 397,
+          "bestBandDb": 16.3,
+          "contactDb": 20.6,
+          "peakDb": 1.4,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "drop-grab",
+          "file": "paper-slide",
+          "landmark": 8.5,
+          "gain": 0.53,
+          "domHz": 2612,
+          "domBandDb": 18.2,
+          "bestBandHz": 8000,
+          "bestBandDb": 55.1,
+          "contactDb": 24.6,
+          "peakDb": -2.9,
+          "pianoOnsetsMs": [
+            0
+          ]
+        },
+        {
+          "actionId": "drop-release",
+          "file": "soft-drop",
+          "landmark": 9.833,
+          "gain": 1.39,
+          "domHz": 340,
+          "domBandDb": 10.6,
+          "bestBandHz": 315,
+          "bestBandDb": 21.1,
+          "contactDb": 21.0,
+          "peakDb": 10.2,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 3.5,
+            "gain": 0.69
+          }
+        },
+        {
+          "actionId": "drop-select",
+          "file": "click",
+          "landmark": 11.9,
+          "gain": 1.57,
+          "domHz": 740,
+          "domBandDb": 15.3,
+          "bestBandHz": 794,
+          "bestBandDb": 17.8,
+          "contactDb": 13.6,
+          "peakDb": 2.5,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "ann-details",
+          "file": "click",
+          "landmark": 12.8,
+          "gain": 1.49,
+          "domHz": 740,
+          "domBandDb": 15.1,
+          "bestBandHz": 794,
+          "bestBandDb": 18.9,
+          "contactDb": 13.4,
+          "peakDb": 1.9,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "ann-open",
+          "file": "click-alt",
+          "landmark": 13.4,
+          "gain": 3.25,
+          "domHz": 580,
+          "domBandDb": 14.6,
+          "bestBandHz": 630,
+          "bestBandDb": 15.2,
+          "contactDb": 23.8,
+          "peakDb": 1.8,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "ann-tick-1",
+          "file": "toggle",
+          "landmark": 14.5,
+          "gain": 1.68,
+          "domHz": 600,
+          "domBandDb": 13.5,
+          "bestBandHz": 630,
+          "bestBandDb": 16.1,
+          "contactDb": 17.7,
+          "peakDb": -0.9,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 6.8
+          }
+        },
+        {
+          "actionId": "ann-tick-2",
+          "file": "toggle",
+          "landmark": 15.167,
+          "gain": 1.46,
+          "domHz": 600,
+          "domBandDb": 15.5,
+          "bestBandHz": 630,
+          "bestBandDb": 17.2,
+          "contactDb": 15.4,
+          "peakDb": -0.9,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "ann-add",
+          "file": "click-drop",
+          "landmark": 15.833,
+          "gain": 0.51,
+          "domHz": 740,
+          "domBandDb": 10.5,
+          "bestBandHz": 794,
+          "bestBandDb": 14.1,
+          "contactDb": 15.4,
+          "peakDb": 2.6,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "cards-context",
+          "file": "click-alt",
+          "landmark": 20.5,
+          "gain": 2.38,
+          "domHz": 580,
+          "domBandDb": 10.5,
+          "bestBandHz": 630,
+          "bestBandDb": 10.8,
+          "contactDb": 18.8,
+          "peakDb": 5.6,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 7.5
+          }
+        },
+        {
+          "actionId": "cards-new-claim",
+          "file": "click-drop",
+          "landmark": 21.167,
+          "gain": 0.75,
+          "domHz": 740,
+          "domBandDb": 19.8,
+          "bestBandHz": 794,
+          "bestBandDb": 24.8,
+          "contactDb": 13.0,
+          "peakDb": 2.7,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 7.2
+          }
+        },
+        {
+          "actionId": "cards-type",
+          "file": "typing-claim",
+          "landmark": 21.5,
+          "gain": 2.12,
+          "domHz": 640,
+          "domBandDb": 13.5,
+          "bestBandHz": 630,
+          "bestBandDb": 16.3,
+          "contactDb": 13.6,
+          "peakDb": 7.8,
+          "pianoOnsetsMs": [],
+          "keysMinDomBandDb": 1.2,
+          "keysMedianDomBandDb": 9.6,
+          "reviewBefore": {
+            "domBandDb": -1.8
+          }
+        },
+        {
+          "actionId": "cards-commit",
+          "file": "click",
+          "landmark": 22.95,
+          "gain": 2.05,
+          "domHz": 740,
+          "domBandDb": 10.5,
+          "bestBandHz": 794,
+          "bestBandDb": 11.4,
+          "contactDb": 15.9,
+          "peakDb": 2.9,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 10.6
+          }
+        },
+        {
+          "actionId": "paint-select",
+          "file": "click",
+          "landmark": 24.5,
+          "gain": 1.89,
+          "domHz": 740,
+          "domBandDb": 16.2,
+          "bestBandHz": 794,
+          "bestBandDb": 19.1,
+          "contactDb": 21.0,
+          "peakDb": 1.9,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "paint-arm",
+          "file": "click-alt",
+          "landmark": 25.167,
+          "gain": 1.52,
+          "domHz": 580,
+          "domBandDb": 11.5,
+          "bestBandHz": 630,
+          "bestBandDb": 11.9,
+          "contactDb": 21.6,
+          "peakDb": 3.8,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "paint-apply",
+          "file": "brush",
+          "landmark": 26.5,
+          "gain": 1.15,
+          "domHz": 3012,
+          "domBandDb": 26.9,
+          "bestBandHz": 8000,
+          "bestBandDb": 54.2,
+          "contactDb": 26.2,
+          "peakDb": 1.5,
+          "pianoOnsetsMs": [
+            0,
+            16,
+            32,
+            48
+          ]
+        },
+        {
+          "actionId": "align-grab",
+          "file": "paper-drag",
+          "landmark": 29.167,
+          "gain": 0.69,
+          "domHz": 2533,
+          "domBandDb": 17.1,
+          "bestBandHz": 8000,
+          "bestBandDb": 63.0,
+          "contactDb": 20.6,
+          "peakDb": 0.6,
+          "pianoOnsetsMs": [
+            0
+          ]
+        },
+        {
+          "actionId": "align-snap",
+          "file": "snap-tick",
+          "landmark": 29.733,
+          "gain": 1.53,
+          "domHz": 2340,
+          "domBandDb": 10.5,
+          "bestBandHz": 4000,
+          "bestBandDb": 23.9,
+          "contactDb": 30.4,
+          "peakDb": 10.1,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 1.9,
+            "sfxPeakVsDuckedMusicDb": -3.2
+          }
+        },
+        {
+          "actionId": "write-turn",
+          "file": "page-turn",
+          "landmark": 32.0,
+          "gain": 0.45,
+          "domHz": 2312,
+          "domBandDb": 12.2,
+          "bestBandHz": 6350,
+          "bestBandDb": 46.1,
+          "contactDb": 18.5,
+          "peakDb": 1.7,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "write-type",
+          "file": "typing-long",
+          "landmark": 33.5,
+          "gain": 1.96,
+          "domHz": 640,
+          "domBandDb": 10.5,
+          "bestBandHz": 630,
+          "bestBandDb": 13.8,
+          "contactDb": 10.6,
+          "peakDb": 4.9,
+          "pianoOnsetsMs": [],
+          "keysMinDomBandDb": 1.2,
+          "keysMedianDomBandDb": 11.3,
+          "reviewBefore": {
+            "domBandDb": 8.8
+          }
+        },
+        {
+          "actionId": "links-type",
+          "file": "typing-short",
+          "landmark": 37.3,
+          "gain": 1.56,
+          "domHz": 640,
+          "domBandDb": 10.5,
+          "bestBandHz": 630,
+          "bestBandDb": 13.9,
+          "contactDb": 14.1,
+          "peakDb": 7.3,
+          "pianoOnsetsMs": [],
+          "keysMinDomBandDb": 6.4,
+          "keysMedianDomBandDb": 11.899999999999999,
+          "reviewBefore": {
+            "domBandDb": 4.1
+          }
+        },
+        {
+          "actionId": "links-popup",
+          "file": "pop",
+          "landmark": 37.9,
+          "gain": 0.49,
+          "domHz": 820,
+          "domBandDb": 12.7,
+          "bestBandHz": 500,
+          "bestBandDb": 19.3,
+          "contactDb": 12.6,
+          "peakDb": 10.9,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 8.5
+          }
+        },
+        {
+          "actionId": "links-filter",
+          "file": "click",
+          "landmark": 39.167,
+          "gain": 1.02,
+          "domHz": 740,
+          "domBandDb": 13.4,
+          "bestBandHz": 794,
+          "bestBandDb": 17.9,
+          "contactDb": 18.1,
+          "peakDb": 3.6,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "links-insert",
+          "file": "click-alt",
+          "landmark": 39.833,
+          "gain": 1.33,
+          "domHz": 580,
+          "domBandDb": 13.2,
+          "bestBandHz": 630,
+          "bestBandDb": 18.0,
+          "contactDb": 20.2,
+          "peakDb": 2.1,
+          "pianoOnsetsMs": [],
+          "reviewBefore": {
+            "domBandDb": 10.7
+          }
+        },
+        {
+          "actionId": "files-turn",
+          "file": "page-turn",
+          "landmark": 49.5,
+          "gain": 0.64,
+          "domHz": 2312,
+          "domBandDb": 27.5,
+          "bestBandHz": 8000,
+          "bestBandDb": 46.8,
+          "contactDb": 34.9,
+          "peakDb": 3.1,
+          "pianoOnsetsMs": []
+        },
+        {
+          "actionId": "files-lift",
+          "file": "pop",
+          "landmark": 50.5,
+          "gain": 0.25,
+          "domHz": 420,
+          "domBandDb": 18.7,
+          "bestBandHz": 397,
+          "bestBandDb": 25.7,
+          "contactDb": 34.8,
+          "peakDb": 8.1,
+          "pianoOnsetsMs": []
+        }
+      ]
+    },
+    "chords": {
+      "file": "assets/master.wav",
+      "loudestMomentary": {
+        "lufsM": -10.8,
+        "t": 42.9
+      },
+      "darkChordPeak": {
+        "lufsM": -13.7,
+        "t": 47.6
+      },
+      "darkLowBelow120HzPercentPer0.25s": [
+        17.0,
+        23.9,
+        15.3,
+        12.2,
+        21.0,
+        11.8
+      ],
+      "endChordQuietBefore": {
+        "lufsM": -24.3,
+        "t": 54.15
+      },
+      "endChordPeak": {
+        "lufsM": -12.8,
+        "t": 54.6
+      },
+      "endStepLU": 11.5,
+      "endLowBelow120HzPercentPer0.25s": [
+        11.4,
+        12.1,
+        10.9,
+        9.8,
+        8.9,
+        4.5
+      ]
+    },
+    "charts": [
+      "evidence/audio/mix-timeline.png",
+      "evidence/audio/master-spectrum.png",
+      "evidence/audio/master-loudness.png"
+    ]
+  }
 }

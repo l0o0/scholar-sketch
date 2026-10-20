@@ -12,12 +12,23 @@ Beat grid: the director's on-beat actions (DIRECTION.md §6 "落拍": 9.83, 15.8
 bar lines at 2.5 + m·(8/3) s put ann-add, cards-new-claim, paint-apply, links-insert and files-lift on
 downbeats. The pulsed sections (A 研究白板, B Markdown) run on that grid; #1, the page turns, #11–#13 are
 in free time anchored to their action times (brand-fold 1.2, write-turn 32.0, files-turn 49.5,
-end-chord 54.167). The script asserts the anchors are on the grid.
+end-chord 54.167). The script asserts the anchors are on the grid, except align-grab / align-snap: the
+whiteboard drag is retimed to the frame where the card visibly moves / jumps into alignment, so those two are
+only reported (--describe "nearGrid").
+
+SFX frames stay clear (review 2026-10-19, rhythm lens): the UI clicks, toggles, pops, the card drop, the snap
+and the first key of each typing burst sit in the felt piano's band, so no piano attack may land on them.
+Piano strikes are collected first and rendered last; clear_sfx_frames() moves every strike that starts within
+−70…+50 ms of such a cue (−150 ms before a typing burst) to the next free eighth (the music answers the click instead of covering it), or ties
+it over (drops the attack, the previous note rings on) when the same voice already strikes on that eighth. The
+"思路" motif keeps its order and moves as a line. Sweeps / paper sounds (page turns, paper slide / drag, brush)
+live above 1.5 kHz and keep their designed downbeats. The logo's paper flick is cleared too: F4 follows it.
 
 Usage (venv with numpy/scipy/soundfile; ffmpeg on PATH for the loudness pass):
   python3 -m venv .venv-audio && .venv-audio/bin/pip install numpy scipy soundfile
-  .venv-audio/bin/python assets/audio/score.py                    # → assets/music.wav (-17 LUFS)
-  .venv-audio/bin/python assets/audio/score.py --describe         # section map + grid as JSON
+  .venv-audio/bin/python assets/audio/score.py                    # → assets/music.wav (-17.5 LUFS)
+  .venv-audio/bin/python assets/audio/score.py --describe         # section map + grid + cleared SFX frames as JSON
+  .venv-audio/bin/python assets/audio/score.py --onsets           # every piano note attack (s) as JSON
 Deterministic: fixed SEED; every note draws its random phases from (SEED, kind, time, pitch).
 """
 import argparse
@@ -64,11 +75,23 @@ def bar(m, beat=1.0):
 
 ON_GRID = {'drop-grab': (2, 2), 'drop-release': (2, 4), 'ann-tick-1': (4, 3), 'ann-tick-2': (4, 4), 'ann-add': (5, 1),
            'cards-context': (6, 4), 'cards-new-claim': (7, 1), 'paint-select': (8, 2), 'paint-arm': (8, 3),
-           'paint-apply': (9, 1), 'align-grab': (10, 1), 'align-snap': (10, 2), 'links-filter': (13, 4),
+           'paint-apply': (9, 1), 'links-filter': (13, 4),
            'links-insert': (14, 1), 'back-click': (15, 3), 'dark-switch': (16, 4), 'files-lift': (18, 1)}
 for _aid, (_m, _b) in ON_GRID.items():
     if abs(bar(_m, _b) - at(_aid)) > 0.002:
         sys.exit(f'score.py: {_aid} at {at(_aid):.3f} s is no longer on bar {_m} beat {_b} ({bar(_m, _b):.3f} s); re-arrange.')
+# not asserted: the drag is retimed to the visible motion (a few frames either way); nothing in the arrangement
+# depends on these two, and clear_sfx_frames() follows wherever they land
+NEAR_GRID = {'align-grab': (10, 1), 'align-snap': (10, 2)}
+
+# Cues whose sound lives in the piano band (clicks, toggles, pops, the card drop, the snap, first key of a typing
+# burst): no piano attack on them. The rest are sweeps / paper sounds above 1.5 kHz (tools/audio/plan_cues.py SPEC).
+ABOVE_PIANO = {'drop-grab', 'align-grab', 'paint-apply', 'write-turn', 'files-turn'}
+TYPING_CUES = {'cards-type', 'write-type', 'links-type'}   # first key of a burst: a quieter, longer sound
+CLEAR = sorted((ACT[a['id']], 0.15 if a['id'] in TYPING_CUES else 0.07) for s in plan['shots'] for a in s.get('actions', [])
+               if (a.get('soundRequired') or a['id'] == 'entry-items') and a['id'] not in ABOVE_PIANO)
+CLEAR_AT = [c for c, _ in CLEAR]
+CLEAR_AFTER = 0.05      # a strike 70 ms (150 ms before a typing burst) before the cue still rings at full attack under it
 
 # Reading moments (DIRECTION.md §6): ticks and broken chords pull back here.
 READING = [(16.9, SHOT['annotations'][1]), (21.7, SHOT['cards'][1]), (26.9, SHOT['painter'][1]),
@@ -79,7 +102,8 @@ def reading(t):
     return any(a <= t < b for a, b in READING)
 
 
-# The product types twice (write-type 33.5–34.9, links-type 37.3–37.9): the arpeggio steps back for the keys.
+# The product types twice (write-type 33.5–34.9, links-type 37.3–37.9): the arpeggio steps back for the keys
+# (to half its velocity: the keys sit in the arpeggio's band and land on most of its eighths).
 TYPING = [(at('write-type') - 0.1, at('write-type') + 1.45), (at('links-type') - 0.15, at('links-type') + 0.7)]
 
 
@@ -88,7 +112,7 @@ def typing(t):
 
 
 # ── utilities ────────────────────────────────────────────────────────────────────────────────────
-buses = {k: np.zeros((N, 2)) for k in ['piano', 'pad', 'bass', 'tick']}
+buses = {k: np.zeros((N, 2)) for k in ['piano', 'piano_dark', 'pad', 'bass', 'tick']}
 
 
 def hz(n):
@@ -172,12 +196,77 @@ def felt_piano(note, vel, hold, t0):
     return out * damp * (vel ** 1.5) * 0.55
 
 
-def piano(t0, notes, vel, hold, roll=0.0):
-    """Strike one or more notes; `roll` staggers a chord bottom-up (seconds between notes)."""
-    for i, n in enumerate(sorted(notes)):
-        t = t0 + i * roll
-        pan = float(np.clip((n - 62) / 30, -0.45, 0.45))
-        put('piano', t, felt_piano(n, vel, hold - i * roll, t), pan)
+STRIKES = []        # piano strikes, rendered after clear_sfx_frames()
+MOVES = []          # what clear_sfx_frames() did (reported by --describe)
+
+
+def piano(t0, notes, vel, hold, roll=0.0, voice='free', gain=1.0, bus='piano'):
+    """Strike one or more notes; `roll` staggers a chord bottom-up (seconds between notes). Deferred: see
+    clear_sfx_frames() and render_piano()."""
+    STRIKES.append({'t': t0, 't0': t0, 'notes': tuple(sorted(notes)), 'vel': vel, 'hold': hold, 'roll': roll, 'voice': voice,
+                    'gain': gain, 'bus': bus})
+
+
+def sfx_cue_near(t):
+    return next((c for c, before in CLEAR if -before <= t - c <= CLEAR_AFTER), None)
+
+
+def next_eighth(t):
+    e = BEAT / 2
+    return BAR_ORIGIN + (math.floor((t - BAR_ORIGIN) / e + 1e-6) + 1) * e
+
+
+def free_eighth(t):
+    """The first eighth after t that no piano-band cue occupies."""
+    t = next_eighth(t)
+    while sfx_cue_near(t) is not None:
+        t = next_eighth(t)
+    return t
+
+
+def avoid_line(times):
+    """A melodic line keeps its order: a note on a cue moves to the next free eighth, later notes keep at least
+    an eighth after it."""
+    out = []
+    for t in times:
+        if out and t < next_eighth(out[-1]) - 1e-6:
+            t = next_eighth(out[-1])
+        if sfx_cue_near(t) is not None:
+            t = free_eighth(t)
+        out.append(t)
+    return out
+
+
+def clear_sfx_frames():
+    for s in sorted(STRIKES, key=lambda s: s['t']):
+        cue = sfx_cue_near(s['t'])
+        if cue is None:
+            continue
+        t1 = free_eighth(s['t'])
+        # the same voice already speaks on that eighth in the arrangement (strikes moved together stay together)
+        clash = any(o is not s and o['voice'] == s['voice'] and abs(o['t0'] - t1) < 0.005 for o in STRIKES)
+        row = {'cue': round(cue, 3), 'from': round(s['t'], 3), 'notes': list(s['notes']), 'voice': s['voice']}
+        if clash:                                   # tie over: the same voice already speaks on that eighth
+            STRIKES.remove(s)
+            MOVES.append({**row, 'to': 'tied'})
+            continue
+        s['hold'] = max(0.3, s['hold'] - (t1 - s['t']))   # keep where the note is damped
+        s['t'] = t1
+        MOVES.append({**row, 'to': round(t1, 3)})
+    for s in STRIKES:
+        assert sfx_cue_near(s['t']) is None, s
+
+
+def note_onsets():
+    return sorted({round(s['t'] + i * s['roll'], 4) for s in STRIKES for i in range(len(s['notes']))})
+
+
+def render_piano():
+    for s in STRIKES:
+        for i, n in enumerate(s['notes']):
+            t = s['t'] + i * s['roll']
+            pan = float(np.clip((n - 62) / 30, -0.45, 0.45))
+            put(s['bus'], t, felt_piano(n, s['vel'], s['hold'] - i * s['roll'], t), pan, s['gain'])
 
 
 def bowed(note, dur, level, t0, attack=0.9, release=1.2, cutoff=1500):
@@ -225,8 +314,8 @@ def near_sfx(t, tol=0.05):
 
 def paper_tick(t0, level):
     """Very light paper tick: band-passed noise grain (2.4–7 kHz) with a faint 0.6–1.5 kHz body."""
-    if level <= 0 or any(abs(t0 - s) < 0.07 for s in SFX_TIMES):
-        return                                   # leave the slot to the action's own SFX
+    if level <= 0 or any(abs(t0 - s) < 0.12 for s in SFX_TIMES):
+        return                                   # leave the slot to the action's own SFX (and no tick right after it)
     r = rng_for('tick', t0)
     t = tt(0.06)
     x = bp(r.standard_normal(len(t)), 2400, 7000) * np.exp(-t / 0.0045)
@@ -261,9 +350,10 @@ def section(name, t0, t1, what):
 
 # ── #1 brand: sparse single piano notes (free time, anchored on brand-fold) ─────────────────────
 t_entry = SHOT['entry'][0]
-section('#1 brand', 0.0, t_entry, 'sparse single felt-piano notes C5 · F4 (lands with the logo fold at brand-fold) · A4 · G4; pedal held to 4.0')
+section('#1 brand', 0.0, t_entry, 'sparse single felt-piano notes C5 · F4 (an eighth after the logo fold\'s paper flick, with the '
+        'wordmark) · A4 · G4; pedal held to 4.0')
 for t, n, v in [(0.20, 72, 0.44), (at('brand-fold'), 65, 0.46), (1.85, 69, 0.36), (2.85, 67, 0.32)]:
-    piano(t, [n], v, t_entry - t - 0.04)
+    piano(t, [n], v, t_entry - t - 0.04, voice='brand')
 
 # ── #2 entry: open fifths + soft pad ───────────────────────────────────────────────────────────
 a_start = SHOT['drop'][0]
@@ -271,18 +361,19 @@ section('#2 entry', t_entry, a_start, 'open fifths F–C (4.0), D–A (5.17), Bb
 fifths = [(t_entry, (41, 48, 53, 60), (53, 60)), (bar(1), (38, 45, 50, 57), (50, 57)), (bar(1, 3), (46, 53), (58, 65))]
 for i, (t, pn, pd) in enumerate(fifths):
     t_next = fifths[i + 1][0] if i + 1 < len(fifths) else bar(2)
-    piano(t, pn, 0.25 if i == 0 else 0.27, t_next - t + 0.05)
+    piano(t, pn, 0.25 if i == 0 else 0.27, t_next - t + 0.05, voice='entry')
     pad(t, t_next if i + 1 < len(fifths) else bar(2) - 0.3, pd, level=0.045, attack=1.2 if i == 0 else 0.7,
         release=0.7 if i + 1 < len(fifths) else 0.9, cutoff=1200)
-piano(bar(1, 3) - BEAT, [69], 0.24, BEAT * 2)          # 5.83 A4
-piano(bar(1, 4), [67], 0.22, BEAT)                     # 7.17 G4
-piano(bar(2) - BEAT / 2, [72], 0.30, BEAT / 2 + 0.05)  # 7.50 C5 pickup with the board window
+piano(bar(1, 3) - BEAT, [69], 0.24, BEAT * 2, voice='entry-rh')          # 5.83 A4
+piano(bar(1, 4), [67], 0.22, BEAT, voice='entry-rh')                     # 7.17 G4
+piano(bar(2) - BEAT / 2, [72], 0.30, BEAT / 2 + 0.05, voice='entry-rh')  # 7.50 C5 pickup with the board window
 
 # ── A 研究白板 (#3–#7): broken-chord piano + sine bass + paper ticks on 2 and 4 ─────────────────
 A_END = bar(11)                                        # 31.833: last bar line before the page turn
 section('A 研究白板', bar(2), A_END,
         'broken-chord felt piano + sine bass on the 0.5 s-phase grid, paper ticks on beats 2/4 (pulled back while reading); '
-        'chord changes on drop (7.83), ann-add (15.83), cards-new-claim (21.17), paint-apply (26.50)')
+        'chord changes on drop (7.83), ann-add (15.83), cards-new-claim (21.17), paint-apply (26.50); piano attacks kept off '
+        'the click / toggle / pop / drop / snap frames (moved to the next eighth or tied over, see sfxFramesKeptClear)')
 PAT1 = [(1.0, 'L', 0.38), (2.0, 0, 0.33), (2.5, 1, 0.27), (3.0, 2, 0.37), (4.0, 1, 0.27), (4.5, 0, 0.24)]
 PAT2 = [(1.0, 'L', 0.38), (2.0, 1, 0.31), (2.5, 2, 0.28), (3.0, 0, 0.34), (3.5, 1, 0.25), (4.0, 2, 0.30)]
 
@@ -296,9 +387,9 @@ def broken(m, name, beats=(1, 5), dyn=1.0, pat=PAT1, until=None):
         t = bar(m, b)
         v *= dyn * (0.72 if reading(t) else 1.0) * (0.75 if near_sfx(t) else 1.0)   # make room for the click
         if idx == 'L':
-            piano(t, c['lh'], v, end - t)
+            piano(t, c['lh'], v, end - t, voice='lh')
         else:
-            piano(t, [c['rh'][idx]], v, min(end - t, 1.6))
+            piano(t, [c['rh'][idx]], v, min(end - t, 1.6), voice='rh')
 
 
 def bass_bar(m, name, beats=(1, 5), until=None, vel=0.5):
@@ -329,7 +420,7 @@ bass_bar(4, 'Csus4', beats=(3, 5))
 pad_span(bar(4) - 0.2, bar(4, 3) - 0.1, 'Bbmaj7', 0.036)
 pad_span(bar(4, 3) - 0.1, bar(5) - 0.15, 'Csus4', 0.036)
 # bar 5 (15.83) ann-add: F/A arrival, chord struck together, then pulled back for reading
-piano(bar(5), CH['F/A']['lh'] + CH['F/A']['rh'], 0.36, BAR, roll=0.016)
+piano(bar(5), CH['F/A']['lh'] + CH['F/A']['rh'], 0.36, BAR, roll=0.016, voice='chord')   # → the eighth after the click
 broken(5, 'F/A', beats=(2, 5), dyn=0.85, pat=PAT2)
 bass_bar(5, 'F/A', vel=0.45)
 pad_span(bar(5) - 0.15, bar(6) - 0.2, 'F/A', 0.04)
@@ -338,11 +429,14 @@ broken(6, 'Gm9', beats=(1, 4), pat=PAT1)
 bass_bar(6, 'Gm9')
 pad_span(bar(6) - 0.2, bar(7) - 0.15, 'Gm9', 0.038)
 # bar 7 (21.17) cards-new-claim · Bbmaj9 + the rising "line of thought" motif C5–D5–F5–G5–A5
-section('motif 思路', at('cards-context'), bar(7, 3.5) + 1.3, 'upward pentatonic line C5 (cards-context) → D5 on cards-new-claim → F5 → G5 → A5 held')
 motif = [(at('cards-context'), 72, 0.31), (bar(7), 74, 0.36), (bar(7, 1.5), 77, 0.33), (bar(7, 2), 79, 0.34), (bar(7, 2.5), 81, 0.36)]
+motif = [(t, n, v) for t, (_, n, v) in zip(avoid_line([t for t, _, _ in motif]), motif)]   # off the click / drop / first key
+section('motif 思路', motif[0][0], motif[-1][0] + 1.9,
+        'upward pentatonic line C5 – D5 – F5 – G5 – A5 held, answering the right-click (cards-context) and rising over the '
+        'typing; ' + ' · '.join(f'{t:.3f}' for t, _, _ in motif))
 for i, (t, n, v) in enumerate(motif):
-    piano(t, [n], v, (motif[i + 1][0] - t + 0.25) if i + 1 < len(motif) else 1.9)
-piano(bar(7), CH['Bbmaj9']['lh'], 0.30, BAR)
+    piano(t, [n], v, (motif[i + 1][0] - t + 0.25) if i + 1 < len(motif) else 1.9, voice='motif')
+piano(bar(7), CH['Bbmaj9']['lh'], 0.30, BAR, voice='lh')
 broken(7, 'Bbmaj9', beats=(3.5, 5), dyn=0.8, pat=[(4.0, 0, 0.26), (4.5, 1, 0.22)])
 bass_bar(7, 'Bbmaj9', vel=0.42)
 pad_span(bar(7) - 0.15, bar(8) - 0.2, 'Bbmaj9', 0.042)
@@ -350,20 +444,20 @@ pad_span(bar(7) - 0.15, bar(8) - 0.2, 'Bbmaj9', 0.042)
 STOP = bar(8, 4)                                         # 25.833
 section('stop-time', STOP, at('paint-apply'), 'one beat: piano and bass damped, only the bowed pad (C7sus4) holds')
 broken(8, 'Gm7', beats=(1, 3), pat=PAT1, until=bar(8, 3), dyn=0.85)
-piano(bar(8, 3), CH['C7sus4']['lh'] + CH['C7sus4']['rh'][1:], 0.30, STOP - bar(8, 3) - 0.03, roll=0.012)
+piano(bar(8, 3), CH['C7sus4']['lh'] + CH['C7sus4']['rh'][1:], 0.30, STOP - bar(8, 3) - 0.03, roll=0.012, voice='chord')
 bass_bar(8, 'Gm7', beats=(1, 3), vel=0.42)
 sine_bass(bar(8, 3), CH['C7sus4']['bass'], STOP - bar(8, 3) - 0.08, 0.45)
 pad_span(bar(8) - 0.2, bar(8, 3) - 0.1, 'Gm7', 0.038)
 pad_span(bar(8, 3) - 0.1, at('paint-apply') - 0.05, 'C7sus4', 0.042)
 # bar 9 (26.50) paint-apply: the chord returns on the click · Fmaj7, then reading
-piano(bar(9), CH['Fmaj7']['lh'] + CH['Fmaj7']['rh'], 0.36, BAR, roll=0.016)
+piano(bar(9), CH['Fmaj7']['lh'] + CH['Fmaj7']['rh'], 0.36, BAR, roll=0.016, voice='chord')
 broken(9, 'Fmaj7', beats=(3, 5), dyn=0.8, pat=[(3.0, 2, 0.30), (4.0, 1, 0.26), (4.5, 0, 0.22)])
 bass_bar(9, 'Fmaj7', vel=0.48)
 pad_span(bar(9) - 0.05, bar(10) - 0.2, 'Fmaj7', 0.04)
 # bar 10 (29.17) align · Bbmaj9 → Csus4 on beat 3; piano stops at the bar line before the turn
 broken(10, 'Bbmaj9', beats=(1, 3), dyn=0.9, pat=PAT2, until=bar(10, 3))
-piano(bar(10, 3), CH['Csus4']['lh'] + CH['Csus4']['rh'][1:], 0.30, A_END - bar(10, 3) - 0.04, roll=0.012)
-piano(bar(10, 4), [CH['Csus4']['rh'][0]], 0.22, A_END - bar(10, 4) - 0.04)
+piano(bar(10, 3), CH['Csus4']['lh'] + CH['Csus4']['rh'][1:], 0.30, A_END - bar(10, 3) - 0.04, roll=0.012, voice='chord')
+piano(bar(10, 4), [CH['Csus4']['rh'][0]], 0.22, A_END - bar(10, 4) - 0.04, voice='rh')
 bass_bar(10, 'Bbmaj9', beats=(1, 3), vel=0.44)
 sine_bass(bar(10, 3), CH['Csus4']['bass'], A_END - bar(10, 3) - 0.06, 0.40)
 pad_span(bar(10) - 0.2, bar(10, 3) - 0.1, 'Bbmaj9', 0.038)
@@ -384,7 +478,8 @@ pad_span(bar(10, 3) - 0.1, B_START - 0.1, 'Csus4', 0.044, release=0.8)
 B_END = bar(16, 2) + BEAT / 2                             # 46.0 (dark shot) — last note on 45.833
 section('B Markdown 笔记', B_START, SHOT['dark'][0],
         'steady eighth-note felt-piano arpeggio (like writing), LH dyads + sine bass; chord changes 34.50, 37.17, '
-        'links-insert 39.83, backlinks 42.50, 45.17; paper ticks only in #9 links')
+        'links-insert 39.83, backlinks 42.50, 45.17; paper ticks only in #9 links; the arpeggio rests (ties over) on the '
+        'first key, the pop and the two clicks')
 ARP1 = [0, 2, 1, 3, 2, 1, 3, 2]
 ARP2 = [0, 2, 1, 3, 0, 2, 1, 3]
 B_BARS = [(11, 'Fadd9'), (12, 'Am7'), (13, 'Bbmaj9'), (14, 'C/E'), (15, 'Gm9'), (16, 'Bbmaj7')]
@@ -399,17 +494,18 @@ for m, name in B_BARS:
         if reading(t):
             v *= 0.74
         if typing(t):
-            v *= 0.7
+            v *= 0.5
         if near_sfx(t):
             v *= 0.75
         if m == 16:
             v *= [0.85, 0.65, 0.45][e] if e < 3 else 0
-        piano(t, [c['arp'][pat[e]]], v, 0.62)
+        piano(t, [c['arp'][pat[e]]], v, 0.62, voice='arp')
     lh_t = max(bar(m), bar(11, 3))
     end = min(bar(m + 1), bar(16, 2) + 0.6)
-    piano(lh_t, c['lh'], 0.24 if m == 16 or typing(lh_t + 0.2) else 0.30, end - lh_t)
+    piano(lh_t, c['lh'], 0.2 if typing(lh_t + 0.2) else 0.24 if m == 16 else 0.30, end - lh_t, voice='lh')
     if m != 16:
-        piano(bar(m, 3) if m != 11 else bar(11, 4), [c['lh'][0] + 12], 0.18, BEAT * 1.5)
+        t_oct = bar(m, 3) if m != 11 else bar(11, 4)
+        piano(t_oct, [c['lh'][0] + 12], 0.18 * (0.7 if typing(t_oct) else 1.0), BEAT * 1.5, voice='oct')
     sine_bass(lh_t, c['bass'], (end - lh_t) - 0.05 if m != 16 else 1.1, 0.40 if m != 16 else 0.30)
     pad(max(bar(m) - 0.2, B_START - 0.1), bar(m + 1) - 0.2 if m != 16 else at('dark-switch') - 0.25,
         c['pad'], level=0.03 if m != 16 else 0.034, attack=0.8, release=0.8 if m != 16 else 0.6,
@@ -423,25 +519,32 @@ for m in (12, 13, 14):                                     # ticks in #9 links o
 # ── #11 dark: low-register chord at dark-switch, darker voicing ─────────────────────────────────
 t_dark = at('dark-switch')
 t_files = at('files-turn')
-section('#11 dark', SHOT['dark'][0], t_files, 'Bbmaj7 pad darkens (900 Hz); at dark-switch a low Dm9 (D2 A2 F3 C4 E4) on piano + D2 sine bass + dark pad (700 Hz)')
-piano(t_dark, (38, 45, 53, 60, 64), 0.32, t_files - t_dark + 0.3, roll=0.022)
-sine_bass(t_dark, 38, 2.4, 0.42)
+section('#11 dark', SHOT['dark'][0], t_files, 'Bbmaj7 pad darkens (900 Hz); at dark-switch a low Dm9 (D2 A2 F3 C4 E4) on piano, '
+        'high-passed at 90 Hz and 2 dB down (no sine-bass doubling: the D3–F3–C4–E4 upper voicing carries the darkening on '
+        'small speakers), + dark pad (700 Hz)')
+DARK_GAIN = 10 ** (-2 / 20)
+piano(t_dark, (38, 45, 53, 60, 64), 0.32, t_files - t_dark + 0.3, roll=0.022, voice='dark', gain=DARK_GAIN, bus='piano_dark')
 pad(t_dark - 0.25, t_files + 0.3, (50, 53, 57, 60), level=0.04, attack=0.6, release=1.1, cutoff=700)
-piano(bar(17, 2), [69], 0.20, 1.3)                         # 48.50 A4, a single soft answer
+piano(bar(17, 2), [69], 0.20, 1.3, voice='dark-answer')    # 48.50 A4, a single soft answer
 
 # ── #12 files: only long piano notes ────────────────────────────────────────────────────────────
 t_end = at('end-chord')
-section('#12 files', t_files, SHOT['end'][0], 'only long felt-piano notes: Bb2+F3 & D5 on files-lift (50.50), C5 51.83, C3+G3 52.50, G4 53.17 (common tone into Fadd9)')
+section('#12 files', t_files, SHOT['end'][0], 'only long felt-piano notes: Bb2+F3 & D5 an eighth after the files-lift pop (50.83), C5 51.83, '
+        'C3+G3 52.50, G4 53.17 (common tone into Fadd9)')
 for t, ns, v, off in [(at('files-lift'), (46, 53), 0.28, bar(18, 4)), (at('files-lift'), (74,), 0.33, t_end),
                       (bar(18, 3), (72,), 0.28, t_end), (bar(18, 4), (48, 55), 0.25, t_end), (bar(19), (67,), 0.25, t_end)]:
-    piano(t, ns, v, off - t - 0.02)                       # the Bb2+F3 dyad is pedalled off when C3+G3 enters
+    piano(t, ns, v, off - t - 0.02, voice='files')        # the Bb2+F3 dyad is pedalled off when C3+G3 enters
 
 # ── #13 end: final Fadd9 at end-chord, natural decay complete before 58.4 ──────────────────────
 PEDAL_UP = DUR - 1.35                                      # 57.15: pedal released, the chord dies away
-section('#13 end', SHOT['end'][0], DUR, f'final Fadd9 (F2 C3 A3 F4 G4 C5) rolled on end-chord {t_end:.3f}; pedal up {PEDAL_UP:.2f}; silent from ~58.2')
-piano(t_end, (41, 48, 57, 65, 67, 72), 0.38, PEDAL_UP - t_end, roll=0.02)
-sine_bass(t_end, 41, PEDAL_UP - t_end - 0.4, 0.40)
+section('#13 end', SHOT['end'][0], DUR, f'final Fadd9 (F2 C3 A3 F4 G4 C5) rolled on end-chord {t_end:.3f}, piano + bass 3 dB under '
+        f'the first draft (it was the loudest moment, right after the quietest bar); pedal up {PEDAL_UP:.2f}; silent from ~58.2')
+END_GAIN = 10 ** (-3 / 20)          # −3 dB on the chord ≈ −2 dB momentary loudness (the pad and room stay)
+piano(t_end, (41, 48, 57, 65, 67, 72), 0.38, PEDAL_UP - t_end, roll=0.02, voice='end', gain=END_GAIN)
+sine_bass(t_end, 41, PEDAL_UP - t_end - 0.4, 0.40 * END_GAIN)
 pad(t_end + 0.05, PEDAL_UP - 0.4, (53, 57, 60, 67), level=0.036, attack=0.5, release=1.2, cutoff=1300)
+
+clear_sfx_frames()
 
 
 # ── mix ──────────────────────────────────────────────────────────────────────────────────────────
@@ -452,8 +555,10 @@ def render():
     ir[:int(0.012 * SR)] = 0                                 # 12 ms pre-delay
     ir = lp(ir, 4500)
     ir /= np.sqrt((ir ** 2).sum(0))
+    render_piano()
     gains = {'piano': 1.0, 'pad': 1.0, 'bass': 0.13, 'tick': 1.0}
-    buses['piano'] = hp(buses['piano'], 60)                 # keep F2/D2 fundamentals, drop rumble below them
+    # keep F2 fundamentals, drop rumble below them; the dark chord's D2/A2 thinned below 90 Hz (it boomed: review)
+    buses['piano'] = hp(buses['piano'], 60) + hp(buses['piano_dark'], 90)
     dry = sum(buses[k] * g for k, g in gains.items())
     send = buses['piano'] * 0.30 + buses['pad'] * 0.40 + buses['tick'] * 0.12
     wet = np.stack([fftconvolve(send[:, c], ir[:, c])[:N] for c in range(2)], 1) * 0.55
@@ -506,6 +611,7 @@ def main():
     p.add_argument('--out', type=Path, default=PROJECT / 'assets' / 'music.wav')
     p.add_argument('--target-lufs', type=float, default=-17.5)
     p.add_argument('--describe', action='store_true', help='print grid + section map as JSON and exit')
+    p.add_argument('--onsets', action='store_true', help='print every piano note attack time as JSON and exit')
     p.add_argument('--stems', type=Path, help='also write the unnormalized dry buses (piano/pad/bass/tick) here')
     a = p.parse_args()
     if a.describe:
@@ -513,7 +619,14 @@ def main():
                           'grid': {'beat': round(BEAT, 6), 'phase': round(BAR_ORIGIN % BEAT, 6), 'barOrigin': round(BAR_ORIGIN, 6),
                                    'note': 'beats at 0.5 + k*2/3 s; bars at 2.5 + m*8/3 s'},
                           'onGridActions': {k: {'time': round(at(k), 3), 'bar': m, 'beat': b} for k, (m, b) in ON_GRID.items()},
+                          'nearGrid': {k: {'time': round(at(k), 3), 'bar': m, 'beat': b, 'offFrames': round((at(k) - bar(m, b)) * plan['fps'], 2),
+                                           'asserted': False} for k, (m, b) in NEAR_GRID.items()},
+                          'sfxFramesKeptClear': {'cues': [[round(c, 3), -before, CLEAR_AFTER] for c, before in CLEAR],
+                                                 'moves': MOVES},
                           'sections': sorted(SECTIONS, key=lambda s: s['start'])}, ensure_ascii=False, indent=2))
+        return
+    if a.onsets:
+        print(json.dumps({'piano': note_onsets()}))
         return
     mix = render()
     if a.stems:

@@ -74,6 +74,28 @@ def analyze(path, marks=None):
             'topPeaks': top, 'perSecond': rows}
 
 
+def momentary(path):
+    """EBU momentary loudness (400 ms K-weighted, ungated) every 50 ms: [(t_end, LUFS), ...]."""
+    x, sr = sf.read(path, always_2d=True)
+    k = lfilter(KH_B, KH_A, lfilter(KS_B, KS_A, x, axis=0), axis=0)
+    blk, hop = int(0.4 * sr), int(0.05 * sr)
+    p = (k ** 2).sum(1)
+    c = np.concatenate([[0.0], np.cumsum(p)])
+    return [((i + blk) / sr, -0.691 + 10 * math.log10((c[i + blk] - c[i]) / blk + 1e-20)) for i in range(0, len(k) - blk, hop)]
+
+
+def low_share(path, t0, t1, step=0.25, below=120):
+    """Share (%) of energy below `below` Hz in consecutive `step` s windows from t0 to t1."""
+    x, sr = sf.read(path, always_2d=True)
+    out = []
+    for t in np.arange(t0, t1 - 1e-9, step):
+        seg = x[int(t * sr):int((t + step) * sr)].mean(1)
+        X = np.abs(np.fft.rfft(seg * np.hanning(len(seg)))) ** 2
+        f = np.fft.rfftfreq(len(seg), 1 / sr)
+        out.append(round(100 * float(X[f < below].sum() / (X.sum() + 1e-20)), 1))
+    return out
+
+
 def spectrum_png(path, out):
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(path), '-lavfi',
                     'showspectrumpic=s=1600x500:scale=log:fscale=log:legend=1', str(out)], check=True)

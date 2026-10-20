@@ -49,7 +49,9 @@ function FlowBridge() {   // xyflow public instance API (setViewport / getViewpo
 // The host sets WhiteboardApp's `theme` from prefers-color-scheme (src/modules/whiteboard/tab.ts:118-140);
 // in the film the "system" turns dark at the dark-switch action. The board driver owns this value (it replays
 // earlier steps in their own light context when seeking), so it is a store the driver sets, not the film clock.
-export const themeAt = t => (t >= DARK_AT - 0.002 ? 'dark' : 'light');   // lands on frame 1415 (47.1667)
+// DARK_AT is actionTime('dark-switch'), snapped to the frame grid (frame 1415 = 47.1667); every layer compares
+// t >= action time - 1e-6, so the board, the note, the desk and the copy all flip on that same frame.
+export const themeAt = t => (t >= DARK_AT - 1e-6 ? 'dark' : 'light');
 let themeValue = 'light';
 const themeListeners = new Set();
 export const systemTheme = {
@@ -92,7 +94,7 @@ export function BoardLayerView() {
         </div>
       </div>
       <div className="cv-strip">
-        <div className="cv-strip-head"><span>示例文库</span><span className="recon-mark cv-recon">示意</span></div>
+        <div className="cv-strip-head"><span className="cv-strip-title">示例文库</span><span className="recon-mark cv-recon">示意</span></div>
         {STRIP_ROWS.map((r, i) => <div key={r.key} className={'cv-row' + (i === 0 ? ' is-first' : '')}>
           <div className="cv-row-title">{r.title}</div><div className="cv-row-meta">{r.meta}</div>
         </div>)}

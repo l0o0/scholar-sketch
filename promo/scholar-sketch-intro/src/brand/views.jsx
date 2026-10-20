@@ -117,13 +117,22 @@ export function FilesView() {
   </div>;
 }
 
+/** plan.json end.platformLine verbatim; each Latin run (version, "Zotero 9 / 10 / 11") in one Inter span,
+ *  the Chinese and the separators around it in Film Sans SC. */
+const LATIN_RUN = /([A-Za-z0-9](?:[A-Za-z0-9.\/ ]*[A-Za-z0-9])?)/;
+function Platform({text}) {
+  return <>{String(text).split(LATIN_RUN).map((p, i) => (i % 2
+    ? <span key={i} className="en" lang="en">{p}</span>
+    : p ? <span key={i} lang="zh-CN">{p}</span> : null))}</>;
+}
+
 /** #13: the same PNG at the same place as #1, the Chinese tagline and the platform line. */
 export function EndView() {
   return <div className="ed-stage">
     <div className="ed-push">
       <img className="ed-logo" src={LOGO.src} alt="" width={LOGO.w} height={LOGO.h} style={{left: LOGO.x, top: LOGO.y}} />
       <p className="ed-tag" lang="zh-CN">{shot('end').description}</p>
-      <p className="ed-platform"><span className="en" lang="en">v0.2.9</span><span lang="zh-CN"> · 支持 </span><span className="en" lang="en">Zotero 9 / 10 / 11</span><span lang="zh-CN"> 桌面版</span></p>
+      <p className="ed-platform"><Platform text={shot('end').platformLine} /></p>
     </div>
   </div>;
 }

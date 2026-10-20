@@ -1,0 +1,729 @@
+{
+ "method": "tools/audio/cue_margins.py on assets/sfx-stem.wav vs assets/music-ducked.wav (raw mix, before loudnorm); see the script docstring for the windows and bands. Measurement only, not listened to.",
+ "targetDb": 10.0,
+ "target": "domBandDb (the review's in-band margin) >= targetDb for every cue",
+ "cuesBelowTarget": [],
+ "cuesBestBandBelowTarget": [],
+ "cuesWithPianoOnsetWithin13ms": [
+  "drop-grab",
+  "paint-apply",
+  "align-grab"
+ ],
+ "cues": [
+  {
+   "actionId": "brand-fold",
+   "file": "logo-fold",
+   "landmark": 1.2,
+   "errorFrames": 0.0,
+   "gain": 0.25,
+   "domHz": 3360,
+   "domBandDb": 10.7,
+   "bestBandHz": 8000,
+   "bestBandDb": 26.6,
+   "broadDb": -10.9,
+   "peakDb": 3.5,
+   "contactDb": 14.2,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "entry-click",
+   "file": "click",
+   "landmark": 4.2,
+   "errorFrames": 0.0,
+   "gain": 2.06,
+   "domHz": 740,
+   "domBandDb": 25.3,
+   "bestBandHz": 794,
+   "bestBandDb": 32.5,
+   "broadDb": 5.3,
+   "peakDb": 1.8,
+   "contactDb": 23.4,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "entry-items",
+   "file": "pop-pair",
+   "landmark": 4.4,
+   "errorFrames": 0.0,
+   "gain": 1.06,
+   "domHz": 400,
+   "domBandDb": 15.1,
+   "bestBandHz": 397,
+   "bestBandDb": 16.3,
+   "broadDb": 2.9,
+   "peakDb": 1.4,
+   "contactDb": 20.6,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "drop-grab",
+   "file": "paper-slide",
+   "landmark": 8.5,
+   "errorFrames": 0.0,
+   "gain": 0.53,
+   "domHz": 2612,
+   "domBandDb": 18.2,
+   "bestBandHz": 8000,
+   "bestBandDb": 55.1,
+   "broadDb": 0.1,
+   "peakDb": -2.9,
+   "contactDb": 24.6,
+   "pianoOnsetsMs": [
+    0
+   ],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "drop-release",
+   "file": "soft-drop",
+   "landmark": 9.833,
+   "errorFrames": 0.0,
+   "gain": 1.39,
+   "domHz": 340,
+   "domBandDb": 10.6,
+   "bestBandHz": 315,
+   "bestBandDb": 21.1,
+   "broadDb": 4.8,
+   "peakDb": 10.2,
+   "contactDb": 21.0,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "drop-select",
+   "file": "click",
+   "landmark": 11.9,
+   "errorFrames": 0.0,
+   "gain": 1.57,
+   "domHz": 740,
+   "domBandDb": 15.3,
+   "bestBandHz": 794,
+   "bestBandDb": 17.8,
+   "broadDb": 4.6,
+   "peakDb": 2.5,
+   "contactDb": 13.6,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "ann-details",
+   "file": "click",
+   "landmark": 12.8,
+   "errorFrames": 0.0,
+   "gain": 1.49,
+   "domHz": 740,
+   "domBandDb": 15.1,
+   "bestBandHz": 794,
+   "bestBandDb": 18.9,
+   "broadDb": 5.6,
+   "peakDb": 1.9,
+   "contactDb": 13.4,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "ann-open",
+   "file": "click-alt",
+   "landmark": 13.4,
+   "errorFrames": -0.0,
+   "gain": 3.25,
+   "domHz": 580,
+   "domBandDb": 14.6,
+   "bestBandHz": 630,
+   "bestBandDb": 15.2,
+   "broadDb": 2.2,
+   "peakDb": 1.8,
+   "contactDb": 23.8,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "ann-tick-1",
+   "file": "toggle",
+   "landmark": 14.5,
+   "errorFrames": 0.0,
+   "gain": 1.68,
+   "domHz": 600,
+   "domBandDb": 13.5,
+   "bestBandHz": 630,
+   "bestBandDb": 16.1,
+   "broadDb": 0.0,
+   "peakDb": -0.9,
+   "contactDb": 17.7,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "ann-tick-2",
+   "file": "toggle",
+   "landmark": 15.167,
+   "errorFrames": 0.0,
+   "gain": 1.46,
+   "domHz": 600,
+   "domBandDb": 15.5,
+   "bestBandHz": 630,
+   "bestBandDb": 17.2,
+   "broadDb": 1.5,
+   "peakDb": -0.9,
+   "contactDb": 15.4,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "ann-add",
+   "file": "click-drop",
+   "landmark": 15.833,
+   "errorFrames": 0.0,
+   "gain": 0.51,
+   "domHz": 740,
+   "domBandDb": 10.5,
+   "bestBandHz": 794,
+   "bestBandDb": 14.1,
+   "broadDb": 4.8,
+   "peakDb": 2.6,
+   "contactDb": 15.4,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "cards-context",
+   "file": "click-alt",
+   "landmark": 20.5,
+   "errorFrames": 0.0,
+   "gain": 2.38,
+   "domHz": 580,
+   "domBandDb": 10.5,
+   "bestBandHz": 630,
+   "bestBandDb": 10.8,
+   "broadDb": 5.1,
+   "peakDb": 5.6,
+   "contactDb": 18.8,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "cards-new-claim",
+   "file": "click-drop",
+   "landmark": 21.167,
+   "errorFrames": 0.0,
+   "gain": 0.75,
+   "domHz": 740,
+   "domBandDb": 19.8,
+   "bestBandHz": 794,
+   "bestBandDb": 24.8,
+   "broadDb": 4.7,
+   "peakDb": 2.7,
+   "contactDb": 13.0,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "cards-type",
+   "file": "typing-claim",
+   "landmark": 21.5,
+   "errorFrames": 0.0,
+   "gain": 2.12,
+   "domHz": 640,
+   "domBandDb": 13.5,
+   "bestBandHz": 630,
+   "bestBandDb": 16.3,
+   "broadDb": 2.1,
+   "peakDb": 7.8,
+   "contactDb": 13.6,
+   "pianoOnsetsMs": [],
+   "keys": [
+    {
+     "t": 21.499,
+     "domBandDb": 14.0,
+     "bestBandDb": 16.8,
+     "broadDb": 2.8
+    },
+    {
+     "t": 21.582,
+     "domBandDb": 16.2,
+     "bestBandDb": 19.8,
+     "broadDb": 4.9
+    },
+    {
+     "t": 21.666,
+     "domBandDb": 14.7,
+     "bestBandDb": 17.4,
+     "broadDb": 3.3
+    },
+    {
+     "t": 21.749,
+     "domBandDb": 13.7,
+     "bestBandDb": 16.7,
+     "broadDb": 2.4
+    },
+    {
+     "t": 21.832,
+     "domBandDb": 3.1,
+     "bestBandDb": 10.3,
+     "broadDb": -3.7
+    },
+    {
+     "t": 21.916,
+     "domBandDb": 9.6,
+     "bestBandDb": 13.2,
+     "broadDb": -3.0
+    },
+    {
+     "t": 21.999,
+     "domBandDb": 3.8,
+     "bestBandDb": 4.2,
+     "broadDb": -1.7
+    },
+    {
+     "t": 22.082,
+     "domBandDb": 7.0,
+     "bestBandDb": 12.9,
+     "broadDb": -1.4
+    },
+    {
+     "t": 22.166,
+     "domBandDb": 6.3,
+     "bestBandDb": 12.0,
+     "broadDb": -1.4
+    },
+    {
+     "t": 22.249,
+     "domBandDb": 7.0,
+     "bestBandDb": 7.8,
+     "broadDb": -0.7
+    },
+    {
+     "t": 22.332,
+     "domBandDb": 10.3,
+     "bestBandDb": 18.7,
+     "broadDb": -0.3
+    },
+    {
+     "t": 22.416,
+     "domBandDb": 16.3,
+     "bestBandDb": 18.0,
+     "broadDb": 2.3
+    },
+    {
+     "t": 22.499,
+     "domBandDb": 1.2,
+     "bestBandDb": 17.0,
+     "broadDb": -1.7
+    }
+   ],
+   "keysMinDomBandDb": 1.2,
+   "keysMedianDomBandDb": 9.6,
+   "meetsTarget": true
+  },
+  {
+   "actionId": "cards-commit",
+   "file": "click",
+   "landmark": 22.95,
+   "errorFrames": 0.0,
+   "gain": 2.05,
+   "domHz": 740,
+   "domBandDb": 10.5,
+   "bestBandHz": 794,
+   "bestBandDb": 11.4,
+   "broadDb": 5.7,
+   "peakDb": 2.9,
+   "contactDb": 15.9,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "paint-select",
+   "file": "click",
+   "landmark": 24.5,
+   "errorFrames": 0.0,
+   "gain": 1.89,
+   "domHz": 740,
+   "domBandDb": 16.2,
+   "bestBandHz": 794,
+   "bestBandDb": 19.1,
+   "broadDb": 3.2,
+   "peakDb": 1.9,
+   "contactDb": 21.0,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "paint-arm",
+   "file": "click-alt",
+   "landmark": 25.167,
+   "errorFrames": 0.0,
+   "gain": 1.52,
+   "domHz": 580,
+   "domBandDb": 11.5,
+   "bestBandHz": 630,
+   "bestBandDb": 11.9,
+   "broadDb": 3.8,
+   "peakDb": 3.8,
+   "contactDb": 21.6,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "paint-apply",
+   "file": "brush",
+   "landmark": 26.5,
+   "errorFrames": 0.0,
+   "gain": 1.15,
+   "domHz": 3012,
+   "domBandDb": 26.9,
+   "bestBandHz": 8000,
+   "bestBandDb": 54.2,
+   "broadDb": 4.8,
+   "peakDb": 1.5,
+   "contactDb": 26.2,
+   "pianoOnsetsMs": [
+    0,
+    16,
+    32,
+    48
+   ],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "align-grab",
+   "file": "paper-drag",
+   "landmark": 29.167,
+   "errorFrames": 0.0,
+   "gain": 0.69,
+   "domHz": 2533,
+   "domBandDb": 17.1,
+   "bestBandHz": 8000,
+   "bestBandDb": 63.0,
+   "broadDb": -3.4,
+   "peakDb": 0.6,
+   "contactDb": 20.6,
+   "pianoOnsetsMs": [
+    0
+   ],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "align-snap",
+   "file": "snap-tick",
+   "landmark": 29.733,
+   "errorFrames": -0.009,
+   "gain": 1.53,
+   "domHz": 2340,
+   "domBandDb": 10.5,
+   "bestBandHz": 4000,
+   "bestBandDb": 23.9,
+   "broadDb": -9.4,
+   "peakDb": 10.1,
+   "contactDb": 30.4,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "write-turn",
+   "file": "page-turn",
+   "landmark": 32.0,
+   "errorFrames": 0.0,
+   "gain": 0.45,
+   "domHz": 2312,
+   "domBandDb": 12.2,
+   "bestBandHz": 6350,
+   "bestBandDb": 46.1,
+   "broadDb": -3.6,
+   "peakDb": 1.7,
+   "contactDb": 18.5,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "write-type",
+   "file": "typing-long",
+   "landmark": 33.5,
+   "errorFrames": 0.0,
+   "gain": 1.96,
+   "domHz": 640,
+   "domBandDb": 10.5,
+   "bestBandHz": 630,
+   "bestBandDb": 13.8,
+   "broadDb": -0.3,
+   "peakDb": 4.9,
+   "contactDb": 10.6,
+   "pianoOnsetsMs": [],
+   "keys": [
+    {
+     "t": 33.499,
+     "domBandDb": 11.1,
+     "bestBandDb": 14.4,
+     "broadDb": 0.3
+    },
+    {
+     "t": 33.599,
+     "domBandDb": 12.9,
+     "bestBandDb": 16.3,
+     "broadDb": 1.3
+    },
+    {
+     "t": 33.666,
+     "domBandDb": 10.8,
+     "bestBandDb": 12.4,
+     "broadDb": 1.4
+    },
+    {
+     "t": 33.732,
+     "domBandDb": 10.2,
+     "bestBandDb": 15.5,
+     "broadDb": 0.8
+    },
+    {
+     "t": 33.799,
+     "domBandDb": 10.9,
+     "bestBandDb": 12.0,
+     "broadDb": 1.6
+    },
+    {
+     "t": 33.866,
+     "domBandDb": 8.6,
+     "bestBandDb": 9.0,
+     "broadDb": 0.6
+    },
+    {
+     "t": 33.939,
+     "domBandDb": 9.9,
+     "bestBandDb": 17.1,
+     "broadDb": -1.7
+    },
+    {
+     "t": 33.999,
+     "domBandDb": 17.7,
+     "bestBandDb": 21.1,
+     "broadDb": 3.2
+    },
+    {
+     "t": 34.046,
+     "domBandDb": 12.7,
+     "bestBandDb": 16.0,
+     "broadDb": -0.2
+    },
+    {
+     "t": 34.106,
+     "domBandDb": 11.5,
+     "bestBandDb": 18.6,
+     "broadDb": -1.2
+    },
+    {
+     "t": 34.166,
+     "domBandDb": 12.8,
+     "bestBandDb": 13.9,
+     "broadDb": 1.2
+    },
+    {
+     "t": 34.246,
+     "domBandDb": 8.4,
+     "bestBandDb": 9.2,
+     "broadDb": -1.9
+    },
+    {
+     "t": 34.306,
+     "domBandDb": 10.0,
+     "bestBandDb": 20.4,
+     "broadDb": -1.6
+    },
+    {
+     "t": 34.366,
+     "domBandDb": 17.0,
+     "bestBandDb": 19.3,
+     "broadDb": 3.4
+    },
+    {
+     "t": 34.439,
+     "domBandDb": 13.3,
+     "bestBandDb": 17.1,
+     "broadDb": 0.9
+    },
+    {
+     "t": 34.499,
+     "domBandDb": 5.2,
+     "bestBandDb": 5.4,
+     "broadDb": 0.3
+    },
+    {
+     "t": 34.546,
+     "domBandDb": 1.2,
+     "bestBandDb": 8.1,
+     "broadDb": -3.7
+    },
+    {
+     "t": 34.606,
+     "domBandDb": 4.9,
+     "bestBandDb": 11.6,
+     "broadDb": -1.4
+    },
+    {
+     "t": 34.666,
+     "domBandDb": 13.4,
+     "bestBandDb": 14.3,
+     "broadDb": 2.4
+    },
+    {
+     "t": 34.739,
+     "domBandDb": 13.3,
+     "bestBandDb": 17.9,
+     "broadDb": -0.4
+    },
+    {
+     "t": 34.799,
+     "domBandDb": 15.4,
+     "bestBandDb": 25.5,
+     "broadDb": 5.1
+    },
+    {
+     "t": 34.899,
+     "domBandDb": 19.1,
+     "bestBandDb": 28.0,
+     "broadDb": 10.2
+    }
+   ],
+   "keysMinDomBandDb": 1.2,
+   "keysMedianDomBandDb": 11.3,
+   "meetsTarget": true
+  },
+  {
+   "actionId": "links-type",
+   "file": "typing-short",
+   "landmark": 37.3,
+   "errorFrames": 0.0,
+   "gain": 1.56,
+   "domHz": 640,
+   "domBandDb": 10.5,
+   "bestBandHz": 630,
+   "bestBandDb": 13.9,
+   "broadDb": 1.0,
+   "peakDb": 7.3,
+   "contactDb": 14.1,
+   "pianoOnsetsMs": [],
+   "keys": [
+    {
+     "t": 37.299,
+     "domBandDb": 11.1,
+     "bestBandDb": 14.4,
+     "broadDb": 1.7
+    },
+    {
+     "t": 37.466,
+     "domBandDb": 16.1,
+     "bestBandDb": 17.6,
+     "broadDb": 2.2
+    },
+    {
+     "t": 37.699,
+     "domBandDb": 13.1,
+     "bestBandDb": 14.3,
+     "broadDb": -0.1
+    },
+    {
+     "t": 37.779,
+     "domBandDb": 8.3,
+     "bestBandDb": 9.9,
+     "broadDb": -1.5
+    },
+    {
+     "t": 37.839,
+     "domBandDb": 6.4,
+     "bestBandDb": 7.9,
+     "broadDb": -1.4
+    },
+    {
+     "t": 37.899,
+     "domBandDb": 12.7,
+     "bestBandDb": 19.7,
+     "broadDb": 6.3
+    }
+   ],
+   "keysMinDomBandDb": 6.4,
+   "keysMedianDomBandDb": 11.899999999999999,
+   "meetsTarget": true
+  },
+  {
+   "actionId": "links-popup",
+   "file": "pop",
+   "landmark": 37.9,
+   "errorFrames": 0.0,
+   "gain": 0.49,
+   "domHz": 820,
+   "domBandDb": 12.7,
+   "bestBandHz": 500,
+   "bestBandDb": 19.3,
+   "broadDb": 5.9,
+   "peakDb": 10.9,
+   "contactDb": 12.6,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "links-filter",
+   "file": "click",
+   "landmark": 39.167,
+   "errorFrames": 0.0,
+   "gain": 1.02,
+   "domHz": 740,
+   "domBandDb": 13.4,
+   "bestBandHz": 794,
+   "bestBandDb": 17.9,
+   "broadDb": 7.2,
+   "peakDb": 3.6,
+   "contactDb": 18.1,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "links-insert",
+   "file": "click-alt",
+   "landmark": 39.833,
+   "errorFrames": 0.0,
+   "gain": 1.33,
+   "domHz": 580,
+   "domBandDb": 13.2,
+   "bestBandHz": 630,
+   "bestBandDb": 18.0,
+   "broadDb": 3.0,
+   "peakDb": 2.1,
+   "contactDb": 20.2,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "files-turn",
+   "file": "page-turn",
+   "landmark": 49.5,
+   "errorFrames": 0.0,
+   "gain": 0.64,
+   "domHz": 2312,
+   "domBandDb": 27.5,
+   "bestBandHz": 8000,
+   "bestBandDb": 46.8,
+   "broadDb": -4.2,
+   "peakDb": 3.1,
+   "contactDb": 34.9,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  },
+  {
+   "actionId": "files-lift",
+   "file": "pop",
+   "landmark": 50.5,
+   "errorFrames": 0.0,
+   "gain": 0.25,
+   "domHz": 420,
+   "domBandDb": 18.7,
+   "bestBandHz": 397,
+   "bestBandDb": 25.7,
+   "broadDb": 10.5,
+   "peakDb": 8.1,
+   "contactDb": 34.8,
+   "pianoOnsetsMs": [],
+   "meetsTarget": true
+  }
+ ]
+}

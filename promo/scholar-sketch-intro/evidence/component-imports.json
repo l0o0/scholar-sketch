@@ -87,7 +87,7 @@
       "format": "esm"
     },
     "src/library/fixture.js": {
-      "bytes": 5831,
+      "bytes": 6367,
       "imports": [
         {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
@@ -386,7 +386,7 @@
       "format": "esm"
     },
     "plan.json": {
-      "bytes": 23622,
+      "bytes": 23808,
       "imports": []
     },
     "src/engine.js": {
@@ -426,7 +426,7 @@
       "format": "esm"
     },
     "src/brand/brand.css": {
-      "bytes": 4232,
+      "bytes": 4438,
       "imports": []
     },
     "node_modules/react/cjs/react-jsx-runtime.production.js": {
@@ -524,7 +524,7 @@
       "format": "esm"
     },
     "src/brand/geometry.js": {
-      "bytes": 2782,
+      "bytes": 3025,
       "imports": [
         {
           "path": "../../addon/locale/zh-CN/addon.ftl",
@@ -545,7 +545,7 @@
       "format": "esm"
     },
     "src/brand/views.jsx": {
-      "bytes": 7801,
+      "bytes": 8123,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -601,7 +601,7 @@
       "format": "esm"
     },
     "src/stage/layout.js": {
-      "bytes": 1986,
+      "bytes": 2286,
       "imports": [
         {
           "path": "plan.json",
@@ -622,7 +622,7 @@
       "format": "esm"
     },
     "src/brand/build.js": {
-      "bytes": 12289,
+      "bytes": 14209,
       "imports": [
         {
           "path": "node_modules/gsap/index.js",
@@ -8288,7 +8288,7 @@
       "format": "esm"
     },
     "src/board/fixture.js": {
-      "bytes": 5330,
+      "bytes": 6233,
       "imports": [
         {
           "path": "../../packages/whiteboard/src/model/index.ts",
@@ -8329,11 +8329,11 @@
       "imports": []
     },
     "src/canvas/canvas.css": {
-      "bytes": 2853,
+      "bytes": 3402,
       "imports": []
     },
     "src/canvas/board-layer.jsx": {
-      "bytes": 5777,
+      "bytes": 5983,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -8445,7 +8445,7 @@
       "format": "esm"
     },
     "src/canvas/board-build.js": {
-      "bytes": 23131,
+      "bytes": 29759,
       "imports": [
         {
           "path": "src/engine.js",
@@ -8463,9 +8463,9 @@
           "original": "../board/drive.js"
         },
         {
-          "path": "src/kit/cursor.jsx",
+          "path": "src/board/local-space.js",
           "kind": "import-statement",
-          "original": "../kit/cursor.jsx"
+          "original": "../board/local-space.js"
         },
         {
           "path": "src/board/fixture.js",
@@ -11266,8 +11266,13 @@
       "format": "esm"
     },
     "src/notes/time.js": {
-      "bytes": 4092,
+      "bytes": 4952,
       "imports": [
+        {
+          "path": "plan.json",
+          "kind": "import-statement",
+          "original": "../../plan.json"
+        },
         {
           "path": "src/stage/layout.js",
           "kind": "import-statement",
@@ -11287,7 +11292,7 @@
       "format": "esm"
     },
     "src/notes/note-editor.js": {
-      "bytes": 13741,
+      "bytes": 16906,
       "imports": [
         {
           "path": "src/engine.js",
@@ -11348,11 +11353,11 @@
       "format": "esm"
     },
     "src/notes/notes.css": {
-      "bytes": 1055,
+      "bytes": 1686,
       "imports": []
     },
     "src/notes/note-layer.jsx": {
-      "bytes": 9447,
+      "bytes": 12142,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -11572,34 +11577,8 @@
       ],
       "format": "esm"
     },
-    "src/stage/placeholder.jsx": {
-      "bytes": 291,
-      "imports": [
-        {
-          "path": "node_modules/react/index.js",
-          "kind": "import-statement",
-          "original": "react"
-        },
-        {
-          "path": "<define:__ZOTERO_SKIN_FILES__>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "<define:process.env>",
-          "kind": "import-statement",
-          "external": true
-        },
-        {
-          "path": "node_modules/react/jsx-runtime.js",
-          "kind": "import-statement",
-          "original": "react/jsx-runtime"
-        }
-      ],
-      "format": "esm"
-    },
     "src/film.jsx": {
-      "bytes": 1208,
+      "bytes": 1226,
       "imports": [
         {
           "path": "node_modules/react/index.js",
@@ -11620,11 +11599,6 @@
           "path": "src/shots/index.js",
           "kind": "import-statement",
           "original": "./shots/index.js"
-        },
-        {
-          "path": "src/stage/placeholder.jsx",
-          "kind": "import-statement",
-          "original": "./stage/placeholder.jsx"
         },
         {
           "path": "<define:__ZOTERO_SKIN_FILES__>",
@@ -11676,7 +11650,7 @@
       "format": "esm"
     },
     "src/client.jsx": {
-      "bytes": 1817,
+      "bytes": 2081,
       "imports": [
         {
           "path": "src/fake-api.js",
@@ -11965,7 +11939,7 @@
           "bytesInOutput": 35455
         },
         "../../src/modules/markdown/note-links.ts": {
-          "bytesInOutput": 7816
+          "bytesInOutput": 7820
         },
         "../../src/modules/markdown/images/html.ts": {
           "bytesInOutput": 1256
@@ -11977,7 +11951,7 @@
           "bytesInOutput": 3766
         },
         "../../packages/whiteboard/src/whiteboard/sourceState.ts": {
-          "bytesInOutput": 5289
+          "bytesInOutput": 5294
         },
         "node_modules/react-dom/cjs/react-dom-server-legacy.browser.production.js": {
           "bytesInOutput": 100111
@@ -12154,7 +12128,7 @@
           "bytesInOutput": 3238
         },
         "../../src/modules/markdown/export-notes.ts": {
-          "bytesInOutput": 11171
+          "bytesInOutput": 11172
         },
         "../../src/modules/whiteboard/snapshot.ts": {
           "bytesInOutput": 45
@@ -12247,7 +12221,7 @@
           "bytesInOutput": 14868
         },
         "src/client.jsx": {
-          "bytesInOutput": 737
+          "bytesInOutput": 765
         },
         "src/fake-api.js": {
           "bytesInOutput": 881
@@ -12268,10 +12242,10 @@
           "bytesInOutput": 46374
         },
         "src/library/fixture.js": {
-          "bytesInOutput": 5421
+          "bytesInOutput": 5444
         },
         "src/film.jsx": {
-          "bytesInOutput": 810
+          "bytesInOutput": 879
         },
         "src/film-store.js": {
           "bytesInOutput": 179
@@ -12289,7 +12263,7 @@
           "bytesInOutput": 18877
         },
         "plan.json": {
-          "bytesInOutput": 18745
+          "bytesInOutput": 18865
         },
         "src/shots/index.js": {
           "bytesInOutput": 208
@@ -12298,7 +12272,7 @@
           "bytesInOutput": 179
         },
         "src/brand/views.jsx": {
-          "bytesInOutput": 6709
+          "bytesInOutput": 6752
         },
         "src/brand/brand.css": {
           "bytesInOutput": 0
@@ -12310,19 +12284,19 @@
           "bytesInOutput": 1079
         },
         "src/brand/geometry.js": {
-          "bytesInOutput": 732
+          "bytesInOutput": 738
         },
         "src/brand/build.js": {
-          "bytesInOutput": 5965
+          "bytesInOutput": 5516
         },
         "src/stage/layout.js": {
-          "bytesInOutput": 663
+          "bytesInOutput": 662
         },
         "src/shots/canvas.js": {
           "bytesInOutput": 229
         },
         "src/canvas/board-layer.jsx": {
-          "bytesInOutput": 2624
+          "bytesInOutput": 2651
         },
         "../../node_modules/.pnpm/@xyflow+react@12.11.6_@types+react-dom@19.3.0_@types+react@19.3.0__@types+react@19.3.0_react-_lnwf3cs6qybk6ttznf4z5cmbdy/node_modules/@xyflow/react/dist/esm/index.js": {
           "bytesInOutput": 82335
@@ -12691,7 +12665,7 @@
           "bytesInOutput": 532
         },
         "../../packages/whiteboard/src/whiteboard/app.tsx": {
-          "bytesInOutput": 74302
+          "bytesInOutput": 74307
         },
         "../../packages/whiteboard/src/whiteboard/selection.ts": {
           "bytesInOutput": 1791
@@ -12727,7 +12701,7 @@
           "bytesInOutput": 10482
         },
         "../../packages/whiteboard/src/chrome/labels.tsx": {
-          "bytesInOutput": 958
+          "bytesInOutput": 965
         },
         "../../packages/whiteboard/src/whiteboard/document.ts": {
           "bytesInOutput": 7023
@@ -12751,7 +12725,7 @@
           "bytesInOutput": 4364
         },
         "../../packages/whiteboard/src/chrome/PropertiesPanel.tsx": {
-          "bytesInOutput": 9356
+          "bytesInOutput": 9357
         },
         "../../packages/whiteboard/src/chrome/NoteTemplateControls.tsx": {
           "bytesInOutput": 2639
@@ -12820,7 +12794,7 @@
           "bytesInOutput": 2608
         },
         "../../packages/whiteboard/src/whiteboard/export.ts": {
-          "bytesInOutput": 12312
+          "bytesInOutput": 12310
         },
         "../../packages/whiteboard/src/whiteboard/png.ts": {
           "bytesInOutput": 1379
@@ -12868,7 +12842,7 @@
           "bytesInOutput": 1475
         },
         "../../packages/whiteboard/src/whiteboard/runtime.ts": {
-          "bytesInOutput": 4620
+          "bytesInOutput": 4621
         },
         "../../packages/whiteboard/src/whiteboard/noteRefresh.ts": {
           "bytesInOutput": 1371
@@ -12880,7 +12854,7 @@
           "bytesInOutput": 723
         },
         "src/board/fixture.js": {
-          "bytesInOutput": 2129
+          "bytesInOutput": 2155
         },
         "../../packages/whiteboard/src/model/index.ts": {
           "bytesInOutput": 53
@@ -12889,7 +12863,7 @@
           "bytesInOutput": 8
         },
         "src/board/local-space.js": {
-          "bytesInOutput": 1337
+          "bytesInOutput": 1352
         },
         "src/board/board-shot.css": {
           "bytesInOutput": 0
@@ -12898,7 +12872,7 @@
           "bytesInOutput": 0
         },
         "src/canvas/board-build.js": {
-          "bytesInOutput": 12423
+          "bytesInOutput": 13627
         },
         "src/board/drive.js": {
           "bytesInOutput": 1720
@@ -12910,10 +12884,10 @@
           "bytesInOutput": 240
         },
         "src/notes/note-layer.jsx": {
-          "bytesInOutput": 5231
+          "bytesInOutput": 5785
         },
         "src/notes/note-editor.js": {
-          "bytesInOutput": 6610
+          "bytesInOutput": 7867
         },
         "src/md/zotero-host.js": {
           "bytesInOutput": 285
@@ -12922,7 +12896,7 @@
           "bytesInOutput": 2247
         },
         "src/notes/time.js": {
-          "bytesInOutput": 1167
+          "bytesInOutput": 1281
         },
         "src/notes/notes.css": {
           "bytesInOutput": 0
@@ -12936,14 +12910,11 @@
         "src/stage/fold.js": {
           "bytesInOutput": 1597
         },
-        "src/stage/placeholder.jsx": {
-          "bytesInOutput": 231
-        },
         "src/stage/glyphs.js": {
           "bytesInOutput": 568
         }
       },
-      "bytes": 2031273
+      "bytes": 2034100
     },
     ".build/client.css": {
       "imports": [
@@ -12955,7 +12926,7 @@
       ],
       "inputs": {
         "src/brand/brand.css": {
-          "bytesInOutput": 3344
+          "bytesInOutput": 3426
         },
         "../../node_modules/.pnpm/@xyflow+react@12.11.6_@types+react-dom@19.3.0_@types+react@19.3.0__@types+react@19.3.0_react-_lnwf3cs6qybk6ttznf4z5cmbdy/node_modules/@xyflow/react/dist/style.css": {
           "bytesInOutput": 15868
@@ -12967,13 +12938,13 @@
           "bytesInOutput": 747
         },
         "src/canvas/canvas.css": {
-          "bytesInOutput": 1607
+          "bytesInOutput": 1816
         },
         "src/notes/notes.css": {
-          "bytesInOutput": 494
+          "bytesInOutput": 825
         }
       },
-      "bytes": 76891
+      "bytes": 77513
     }
   }
 }

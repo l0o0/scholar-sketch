@@ -15,13 +15,20 @@
 .cv-win #whiteboard-root.wb-root { border-radius:8.65px; }
 .cv-win .wb-scale { position:absolute; left:0; top:0; transform-origin:0 0; }
 .cv-overlay { position:absolute; left:0; top:0; transform-origin:0 0; pointer-events:none; z-index:40; }
-.cv-overlay .film-cursor img { position:relative; z-index:2; display:block; width:28px; height:28px; }
+/* board cursor: the element sits on the pointer tip and is counter-scaled to a constant 30 frame px (board-build.js);
+   arrow tip at (6, 3) of its svg, the product's painter cursor hotspot at (4, 4) of its 28 px image */
+.cv-overlay .film-cursor { transform-origin:0 0; }
+.cv-overlay .film-cursor svg { left:-6px; top:-3px; }
+.cv-overlay .film-cursor .film-ripple { left:-18px; top:-18px; }
+.cv-overlay .film-cursor img { position:absolute; left:-4px; top:-4px; z-index:2; display:block; width:28px; height:28px; }
 
 /* "示例文库 · 示意": a neutral reconstruction of a library list (no Zotero chrome, no item icons) */
 .cv-strip { position:absolute; left:24px; top:236px; width:396px; z-index:30; padding:16px 14px 14px; border-radius:14px;
   background:#f3f3f0; border:1px solid #dcdcd5; box-shadow:0 1px 2px rgba(16,24,40,.06), 0 10px 28px rgba(16,24,40,.10);
   font-family:var(--film-font-zh); opacity:0; }
-.cv-strip-head { display:flex; align-items:baseline; justify-content:space-between; padding:0 6px 12px; font-size:22px; font-weight:500; color:#596066; }
+/* title row: a list heading (darker, 600) with the shared 22 px 示意 mark on the right */
+.cv-strip-head { display:flex; align-items:baseline; justify-content:space-between; padding:0 6px 12px; }
+.cv-strip-title { font-size:24px; font-weight:600; color:#2b3134; letter-spacing:.02em; }
 .cv-strip .cv-recon { position:static; }
 .cv-row { padding:12px 14px 13px; border-radius:10px; background:#e9e9e5; margin-top:8px; }
 .cv-row-title { font-size:24px; font-weight:500; line-height:1.3; color:#2b3134; white-space:nowrap; }

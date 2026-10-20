@@ -26,6 +26,8 @@
 .en-fly { position:absolute; left:0; top:0; width:48px; height:48px; display:block; }
 .en-cursor { position:absolute; inset:0; opacity:0; pointer-events:none; }
 .en-cursor .film-cursor { z-index:auto; }
+/* 35 px box → ≈ 30 px tall arrow incl. white stroke (DIRECTION §5.6); tip at (5, 2.5)×35/24 = (7.29, 3.65) */
+.en-cursor .film-cursor svg { width:35px; height:35px; transform-origin:7.29px 3.65px; }
 
 /* centred card caption (#2, #12): same type scale as the margin notes, centred in the safe area */
 .caption-card { position:absolute; left:96px; top:0; width:1728px; height:1080px; opacity:0; text-align:center; }
