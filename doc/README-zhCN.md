@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.9-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.10-blue?style=flat-square" alt="version" /></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -20,7 +20,7 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 
 ## 功能
 
-- **Markdown 编辑**：Live 即时预览、源码编辑与阅读预览，支持表格、图片、公式和脚注。
+- **Markdown 编辑**：Live 即时预览、源码编辑与阅读预览，支持表格、图片、公式、Mermaid 图表和脚注。
 - **双链笔记**：`[[笔记]]` 链接、目录、反向链接侧栏与文库全文搜索。
 - **研究白板**：组织文献、注释、笔记和附件，通过分组与连线梳理想法，支持批量样式和自动布局。
 - **Zotero 联动**：将文献拖入白板，浏览 PDF 注释，或从文字批注生成 Markdown 笔记。
@@ -61,6 +61,17 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 - **试用示例**：选择 **帮助 → Scholar Sketch：创建示例白板**。
 
 存储附件可随 Zotero 文件同步；链接附件需自行同步。本地历史仅保存在当前设备。
+
+使用 `mermaid` 代码块插入流程图、时序图或思维导图：
+
+````markdown
+```mermaid
+flowchart LR
+  A[阅读文献] --> B[整理笔记] --> C[连接想法]
+```
+````
+
+实时预览中，将光标移出代码块即可显示图形，点击图形可重新编辑源码。渲染器离线打包、按需加载，HTML/PDF 导出会嵌入图形。语法错误或图表过于复杂时，会保留源码并提示原因。
 
 ## 文档
 

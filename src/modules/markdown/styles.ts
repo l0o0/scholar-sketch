@@ -178,16 +178,22 @@ item-pane-custom-section[data-pane="zmd-markdown"] > collapsible-section[data-pa
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--zmd-text-muted);
+  color: var(--fill-secondary, var(--zmd-text-muted));
   cursor: pointer;
 }
 
-.zmd-sidebar-toolbar-button:hover {
-  background: var(--zmd-surface-2);
-  color: var(--zmd-text);
+.zmd-sidebar-toolbar-button:hover:not(:disabled) {
+  background: var(--fill-quinary, var(--zmd-toolbar-hover-bg));
+}
+
+.zmd-sidebar-toolbar-button:active:not(:disabled),
+.zmd-sidebar-toolbar-button[aria-expanded="true"]:not(:disabled),
+.zmd-sidebar-toolbar-button[aria-pressed="true"]:not(:disabled) {
+  background: var(--fill-quarternary, var(--zmd-toolbar-active-bg));
 }
 
 .zmd-sidebar-toolbar-button:disabled {
+  background: transparent;
   opacity: 0.45;
   cursor: default;
 }
@@ -229,7 +235,7 @@ item-pane-custom-section[data-pane="zmd-markdown"] > collapsible-section[data-pa
 }
 
 .zmd-sidebar-more-menu-item:hover {
-  background: var(--zmd-surface-2);
+  background: var(--fill-quinary, var(--zmd-toolbar-hover-bg));
 }
 
 .zmd-sidebar-more-menu-item .zmd-btn-inner {
@@ -1112,10 +1118,14 @@ ${themeTokenCss(".zotero-markdown-root.theme-dark", THEME_TOKENS.dark)}
 .zotero-markdown-root {
   --zmd-toolbar-bg: #fcfcfd;
   --zmd-selected-bg: #e9ebef;
+  --zmd-toolbar-hover-bg: #0000000d;
+  --zmd-toolbar-active-bg: #0000001a;
 }
 .zotero-markdown-root.theme-dark {
   --zmd-toolbar-bg: var(--zmd-surface);
   --zmd-selected-bg: #303640;
+  --zmd-toolbar-hover-bg: #ffffff0f;
+  --zmd-toolbar-active-bg: #ffffff1f;
 }
 
 
@@ -1448,7 +1458,7 @@ ${toolbarWidthAlignmentCSS()}
 .zotero-markdown-btn:hover,
 .zotero-markdown-btn-save:hover,
 .zotero-markdown-more:hover {
-  background: var(--zmd-surface-2);
+  background: var(--zmd-toolbar-hover-bg);
   color: var(--zmd-text);
   box-shadow: none;
 }
@@ -1456,6 +1466,7 @@ ${toolbarWidthAlignmentCSS()}
 .zotero-markdown-btn:active,
 .zotero-markdown-btn-save:active,
 .zotero-markdown-more:active {
+  background: var(--zmd-toolbar-active-bg);
   transform: translateY(0.5px);
   box-shadow: none;
 }
@@ -1464,7 +1475,7 @@ ${toolbarWidthAlignmentCSS()}
 .zotero-markdown-toolbar button[aria-pressed="true"],
 .zotero-markdown-toolbar button[aria-expanded="true"] {
   color: var(--zmd-text);
-  background: var(--zmd-selected-bg);
+  background: var(--zmd-toolbar-active-bg);
 }
 .zotero-markdown-toolbar button:focus-visible,
 .zmd-sidebar-toolbar-button:focus-visible,
@@ -1775,9 +1786,32 @@ ${previewDocumentCss()}
 
 /* ========== sidebar (item pane Markdown section) ========== */
 ${themeTokenCss(".zmd-sidebar", THEME_TOKENS.light)}
-html[data-theme="dark"] .zmd-sidebar,
-html.theme-dark .zmd-sidebar {
+.zmd-sidebar {
+  --zmd-toolbar-hover-bg: #0000000d;
+  --zmd-toolbar-active-bg: #0000001a;
+}
+@media (prefers-color-scheme: dark) {
   ${themeTokenCss(".zmd-sidebar", THEME_TOKENS.dark)}
+  .zmd-sidebar {
+    --zmd-toolbar-hover-bg: #ffffff0f;
+    --zmd-toolbar-active-bg: #ffffff1f;
+  }
+}
+${themeTokenCss(
+  ':root:is([data-theme="light"], [theme="light"], .theme-light) .zmd-sidebar',
+  THEME_TOKENS.light,
+)}
+:root:is([data-theme="light"], [theme="light"], .theme-light) .zmd-sidebar {
+  --zmd-toolbar-hover-bg: #0000000d;
+  --zmd-toolbar-active-bg: #0000001a;
+}
+${themeTokenCss(
+  ':root:is([data-theme="dark"], [theme="dark"], .theme-dark) .zmd-sidebar',
+  THEME_TOKENS.dark,
+)}
+:root:is([data-theme="dark"], [theme="dark"], .theme-dark) .zmd-sidebar {
+  --zmd-toolbar-hover-bg: #ffffff0f;
+  --zmd-toolbar-active-bg: #ffffff1f;
 }
 
 ${sidebarEditorGeometryCSS()}

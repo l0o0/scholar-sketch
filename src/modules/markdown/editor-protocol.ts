@@ -87,7 +87,14 @@ export interface EditorInitPayload {
   imageLabels?: EditorImageLabels;
   tableLabels?: EditorTableLabels;
   linkLabels?: EditorLinkLabels;
+  mermaidLabels?: EditorMermaidLabels;
   viewState?: DocumentViewState;
+}
+
+export interface EditorMermaidLabels {
+  loading: string;
+  error: string;
+  edit: string;
 }
 
 export interface EditorImageLabels {

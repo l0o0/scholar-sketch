@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.9-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.10-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -18,7 +18,7 @@ Scholar Sketch extends Zotero with Markdown notes and visual whiteboards, connec
 
 ## Features
 
-- **Markdown editing**: Live preview, source editing, and reading preview, with tables, images, math, and footnotes.
+- **Markdown editing**: Live preview, source editing, and reading preview, with tables, images, math, Mermaid diagrams, and footnotes.
 - **Linked notes**: `[[Note]]` links, an outline, backlinks, and library-wide full-text search.
 - **Research whiteboards**: organize papers, annotations, notes, and attachments with groups, connections, batch styling, and auto layout.
 - **Zotero integration**: drag papers onto a board, browse PDF annotations, or turn text annotations into Markdown notes.
@@ -59,6 +59,17 @@ Requires **Zotero 9 / 10 / 11 for desktop**.
 - **Explore an example**: choose **Help → Scholar Sketch: Create Example Whiteboard**.
 
 Stored attachments follow Zotero file sync; linked attachments need separate syncing. Local history stays on the current device.
+
+Write a fenced `mermaid` block to add a flowchart, sequence diagram, or mind map:
+
+````markdown
+```mermaid
+flowchart LR
+  A[Read papers] --> B[Take notes] --> C[Connect ideas]
+```
+````
+
+In live preview, move the cursor outside the block to see the diagram; click it to edit its source. Mermaid is bundled for offline use and loaded when needed. HTML/PDF exports embed the rendered diagram. Invalid or overly complex diagrams retain their source with an explanation.
 
 ## Documentation
 

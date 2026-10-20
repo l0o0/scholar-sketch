@@ -408,6 +408,10 @@ sidebar-more = 更多
 sidebar-more-planned = 更多侧栏功能规划中
 
 preview-title = 只读预览
+mermaid-loading = 正在绘制图表…
+mermaid-error = 无法绘制 Mermaid 图表，请检查语法或简化下方源码
+mermaid-edit = 编辑 Mermaid 源码
+mermaid-diagram = Mermaid 图表
 preview-hint = 此页用于阅读，并作为 HTML / PDF 导出原稿
 preview-back = 返回编辑
 preview-image-missing = 图片缺失或尚未同步

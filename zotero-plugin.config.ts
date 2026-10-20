@@ -1,5 +1,6 @@
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const scriptBuildTime = new Date().toISOString();
 
@@ -72,6 +73,47 @@ export default defineConfig({
         minify: true,
         target: "firefox115",
         outfile: `.scaffold/build/addon/content/workers/preview-worker.js`,
+      },
+      // Loaded only when a Mermaid block is visible or exported.
+      {
+        entryPoints: ["src/mermaid/bootstrap.ts"],
+        bundle: true,
+        minify: true,
+        target: "firefox115",
+        write: false,
+        outfile: `.scaffold/build/addon/content/mermaid/mermaid.js`,
+        plugins: [
+          {
+            name: "isolated-mermaid-document",
+            setup(build) {
+              build.onEnd(async (result) => {
+                if (result.errors.length) return;
+                const script = result.outputFiles?.find((file) =>
+                  file.path.endsWith(".js"),
+                )?.text;
+                if (!script) throw new Error("Missing Mermaid renderer bundle");
+                const template = await readFile(
+                  "addon/content/mermaid/index.html",
+                  "utf8",
+                );
+                // A sandboxed chrome document has an opaque origin. Inline
+                // the packaged code so it needs no access to privileged URLs.
+                const html = template.replace("/*__MERMAID_BUNDLE__*/", () =>
+                  script.replace(/<\/script/gi, (match) =>
+                    match.replace("/", "\\/"),
+                  ),
+                );
+                await mkdir(".scaffold/build/addon/content/mermaid", {
+                  recursive: true,
+                });
+                await writeFile(
+                  ".scaffold/build/addon/content/mermaid/index.html",
+                  html,
+                );
+              });
+            },
+          },
+        ],
       },
     ],
   },

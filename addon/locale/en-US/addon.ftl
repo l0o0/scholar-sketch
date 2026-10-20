@@ -408,6 +408,10 @@ sidebar-more = More
 sidebar-more-planned = More sidebar features are planned
 
 preview-title = Read-only preview
+mermaid-loading = Rendering diagram…
+mermaid-error = Unable to render Mermaid diagram. Check the syntax or simplify the source below.
+mermaid-edit = Edit Mermaid source
+mermaid-diagram = Mermaid diagram
 preview-hint = This page is for reading and is also used as the HTML/PDF export source
 preview-back = Back to editor
 preview-image-missing = Image missing or not yet synchronized

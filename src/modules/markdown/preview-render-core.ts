@@ -49,6 +49,18 @@ const md = new MarkdownItCtor({
 md.use(footnote);
 configureMath(md);
 
+// Keep the worker renderer DOM-free. The host upgrades these inert, escaped
+// sources to diagrams; failed/unsupported renders still show the original code.
+const defaultFence = md.renderer.rules.fence!;
+md.renderer.rules.fence = (tokens, index, options, env, self) => {
+  const token = tokens[index];
+  const language = token.info.trim().toLowerCase();
+  if (language !== "mermaid") {
+    return defaultFence(tokens, index, options, env, self);
+  }
+  return `<div class="zmd-mermaid-block" data-zmd-mermaid=""><pre class="zmd-mermaid-source"><code class="language-mermaid">${escapeHtml(token.content)}</code></pre></div>\n`;
+};
+
 // Sized images have one small HTML vocabulary. Keep general HTML disabled.
 md.inline.ruler.before("html_inline", "zmd_sized_image", (state, silent) => {
   if (state.src[state.pos] !== "<") return false;

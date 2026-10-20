@@ -429,6 +429,11 @@ export function createMarkdownEditor(
             theme: currentTheme,
             mode: currentMode,
             surface,
+            mermaidLabels: {
+              loading: getString("mermaid-loading"),
+              error: getString("mermaid-error"),
+              edit: getString("mermaid-edit"),
+            },
             linkLabels: {
               all: getString("document-link-filter-all"),
               regular: getString("document-link-filter-regular"),

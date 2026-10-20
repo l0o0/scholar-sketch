@@ -5,6 +5,7 @@ import {
   type LinkCompletionPopup,
 } from "./link-completion";
 import { editorTableLabels } from "./table-config";
+import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
 import {
   normalizeFontFamily,
@@ -1177,6 +1178,7 @@ function buildExtensions(
     history(),
     imageControls(init.imageLabels),
     editorTableLabels.of(init.tableLabels ?? {}),
+    init.mermaidLabels ? editorMermaidLabels.of(init.mermaidLabels) : [],
     bracketMatching(),
     highlightSelectionMatches(),
     EditorView.lineWrapping,

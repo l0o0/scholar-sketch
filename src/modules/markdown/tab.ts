@@ -47,6 +47,7 @@ import {
   activePreviewOutlineID,
   hydratePreviewImages,
   mountPreviewHtml,
+  disposePreviewMermaid,
   scrollPreviewToOutline,
   scrollPreviewToFragment,
 } from "./preview";
@@ -1319,6 +1320,7 @@ function applyModeVisibility(
   if (mode !== "preview") {
     session.unbindPreviewOutline?.();
     session.unbindPreviewOutline = undefined;
+    if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
   }
   const root = session.view?.root;
   const editorHost = session.view?.editorHost;
@@ -2130,6 +2132,7 @@ function setMode(session: OpenSession, mode: "live" | "source" | "preview") {
 async function showReadOnlyPreview(session: OpenSession) {
   session.unbindPreviewOutline?.();
   session.unbindPreviewOutline = undefined;
+  if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
   const generation = (session.previewRenderGeneration ?? 0) + 1;
   session.previewRenderGeneration = generation;
   session.mode = "preview";
@@ -2211,6 +2214,7 @@ async function renderedExportHtml(session: OpenSession) {
       source,
       assets,
       theme: resolveEditorTheme(session.win),
+      document: session.win.document,
     }),
   };
 }
@@ -2719,6 +2723,7 @@ export async function closeMarkdownSession(
     session.outlineSidebar?.destroy();
     session.unbindBacklinks?.();
     session.unbindPreviewOutline?.();
+    if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
     session.editor?.destroy();
     sessionRegistry.unregister(tabID);
     if (!sessionRegistry.all().some((other) => other.itemID === session.itemID))
