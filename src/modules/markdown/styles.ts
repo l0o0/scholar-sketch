@@ -1776,6 +1776,59 @@ ${previewDocumentCss()}
   content: "!";
 }
 
+.zotero-markdown-save-status.has-feedback {
+  --zmd-warn: #b45309;
+  --zmd-danger: #b91c1c;
+  max-width: min(70%, 36rem);
+}
+
+.theme-dark .zotero-markdown-save-status.has-feedback {
+  --zmd-warn: #f0b86c;
+  --zmd-danger: #f28b82;
+}
+
+.zotero-markdown-save-status.has-feedback::before {
+  content: none;
+}
+
+.zmd-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zmd-status-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.zotero-markdown-save-status.is-saved .zmd-status-icon,
+.zotero-markdown-save-status.is-success .zmd-status-icon {
+  color: var(--zmd-success);
+}
+
+.zotero-markdown-save-status.is-warning {
+  color: var(--zmd-warn);
+}
+
+.zotero-markdown-save-status.is-busy .zmd-status-icon,
+.zotero-markdown-save-status.is-saving .zmd-status-icon {
+  color: var(--zmd-accent);
+  animation: zmd-status-spin 1s linear infinite;
+}
+
+@keyframes zmd-status-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zotero-markdown-save-status.is-busy .zmd-status-icon,
+  .zotero-markdown-save-status.is-saving .zmd-status-icon {
+    animation: none;
+  }
+}
+
 .zotero-markdown-chip {
   display: inline-flex;
   align-items: center;

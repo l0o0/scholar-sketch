@@ -15,6 +15,23 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.12",
+    features: [
+      {
+        title: "feature-updates-shortcuts-title",
+        body: "feature-updates-shortcuts-body",
+      },
+      {
+        title: "feature-updates-status-title",
+        body: "feature-updates-status-body",
+      },
+      {
+        title: "feature-updates-image-download-title",
+        body: "feature-updates-image-download-body",
+      },
+    ],
+  },
+  {
     version: "0.2.11",
     overview: true,
     features: [

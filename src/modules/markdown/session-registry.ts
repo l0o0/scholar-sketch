@@ -3,6 +3,7 @@ import type { EditorOutlineItem } from "./editor-protocol";
 import type { OutlineSidebarHandle } from "./outline-sidebar";
 import type { SaveCoordinator } from "./save-coordinator";
 import type { MarkdownModalController } from "./modal";
+import type { StatusFeedback } from "./status-feedback";
 
 export type SessionMode = "live" | "source" | "preview";
 export type SessionSurface = "tab" | "window";
@@ -64,6 +65,7 @@ export interface OpenSession {
   unbindPreviewOutline?: () => void;
   unbindBacklinks?: () => void;
   modal?: MarkdownModalController;
+  statusFeedback?: StatusFeedback;
 }
 
 export class SessionRegistry {
@@ -104,6 +106,8 @@ export class SessionRegistry {
     session.unbindFeatureUpdates = undefined;
     session.closeImageRepair?.();
     session.closeImageRepair = undefined;
+    session.statusFeedback?.destroy();
+    session.statusFeedback = undefined;
     this.byTab.delete(tabID);
     this.byWindow
       .get(session.win)

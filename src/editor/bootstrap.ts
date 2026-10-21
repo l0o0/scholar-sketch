@@ -12,6 +12,7 @@ import {
   normalizeBackgroundColor,
 } from "../modules/markdown/preferences";
 import { validViewState } from "../modules/markdown/editor-view-state";
+import { MARKDOWN_HEADING_SHORTCUTS } from "../modules/markdown/shortcut";
 /**
  * iframe-side entry: runs CodeMirror 6 inside a clean Web document.
  * Communicates with the parent Zotero tab via postMessage.
@@ -1059,6 +1060,7 @@ function postToParent(message: {
     | "outline"
     | "outlineActive"
     | "change"
+    | "applyResult"
     | "composition"
     | "viewState"
     | "snapshot"
@@ -1207,11 +1209,6 @@ function buildExtensions(
     ),
     keymap.of([
       ...tableKeymap,
-      ...defaultKeymap,
-      ...searchKeymap,
-      ...historyKeymap,
-      ...foldKeymap,
-      indentWithTab,
       {
         key: "Mod-s",
         run: () => {
@@ -1222,6 +1219,7 @@ function buildExtensions(
       {
         key: "Mod-b",
         run: (v) => {
+          if (v.state.readOnly) return false;
           wrapSelectionInView(v, "**", "**");
           return true;
         },
@@ -1229,6 +1227,7 @@ function buildExtensions(
       {
         key: "Mod-i",
         run: (v) => {
+          if (v.state.readOnly) return false;
           wrapSelectionInView(v, "*", "*");
           return true;
         },
@@ -1236,31 +1235,25 @@ function buildExtensions(
       {
         key: "Mod-k",
         run: (v) => {
+          if (v.state.readOnly) return false;
           wrapSelectionInView(v, "[", "](url)");
           return true;
         },
       },
-      {
-        key: "Mod-1",
-        run: (v) => {
-          prefixLineInView(v, "# ");
+      ...MARKDOWN_HEADING_SHORTCUTS.map(({ key, level }) => ({
+        key,
+        run: (v: EditorView) => {
+          if (v.state.readOnly) return false;
+          prefixLineInView(v, `${"#".repeat(level)} `);
           return true;
         },
-      },
-      {
-        key: "Mod-2",
-        run: (v) => {
-          prefixLineInView(v, "## ");
-          return true;
-        },
-      },
-      {
-        key: "Mod-3",
-        run: (v) => {
-          prefixLineInView(v, "### ");
-          return true;
-        },
-      },
+      })),
+      // Local formatting must precede CodeMirror defaults (notably Mod-i).
+      ...defaultKeymap,
+      ...searchKeymap,
+      ...historyKeymap,
+      ...foldKeymap,
+      indentWithTab,
     ]),
     themeCompartment.of([
       editorThemeExtension(
@@ -1694,6 +1687,35 @@ function handleParentMessage(data: ParentToEditorMessage) {
       });
       break;
     }
+    case "applyIfUnchanged": {
+      const view = runtime.view;
+      const { requestId, expected, value, expiresAt } = data.payload;
+      let applied = false;
+      if (
+        view &&
+        !runtime.composing &&
+        !view.compositionStarted &&
+        !view.state.readOnly &&
+        Date.now() < expiresAt &&
+        view.state.doc.toString() === expected
+      ) {
+        try {
+          if (value !== expected) {
+            // Deliberately use the normal change channel so saving and undo
+            // see the edit only after the iframe has accepted the comparison.
+            view.dispatch({
+              changes: { from: 0, to: view.state.doc.length, insert: value },
+              userEvent: "input.replace",
+            });
+          }
+          applied = true;
+        } catch {
+          applied = false;
+        }
+      }
+      postToParent({ type: "applyResult", payload: { requestId, applied } });
+      break;
+    }
     case "replaceRange": {
       if (!runtime.view) return;
       // Clamp against the current document: the parent computes these
@@ -1956,6 +1978,7 @@ function handleParentMessage(data: ParentToEditorMessage) {
 const PARENT_TO_EDITOR_TYPES = new Set([
   "init",
   "setValue",
+  "applyIfUnchanged",
   "replaceRange",
   "insertText",
   "command",

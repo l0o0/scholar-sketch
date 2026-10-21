@@ -74,7 +74,11 @@ import {
   writeImageAsset,
 } from "./images/service";
 import { parseMarkdownImages } from "./images/model";
-import { inspectImageAssets, repairImageAssets } from "./images/repair";
+import {
+  inspectImageAssets,
+  repairImageAssets,
+  type ImageAssetRepairReport,
+} from "./images/repair";
 import { openImageRepairDialog } from "./images/repair-dialog";
 import {
   createMarkdownModalController,
@@ -84,6 +88,7 @@ import {
 import { renameMarkdownAttachment } from "./rename";
 import { markdownSettingsAbout, saveMarkdownSettings } from "./settings";
 import { formatSavedStatus, formatStats } from "./status";
+import { createStatusFeedback, type StatusTask } from "./status-feedback";
 import { MARKDOWN_TAB_TYPE, resolveMarkdownTabTitle } from "./tabHooks";
 import { SaveCoordinator } from "./save-coordinator";
 import { persistMarkdownContent } from "./persist";
@@ -113,6 +118,8 @@ const AUTOSAVE_MS = 800;
 const TITLE_SYNC_MS = 1000;
 const metaUpdateTimers = new WeakMap<OpenSession, number>();
 const titleSaveOwners = new WeakMap<OpenSession, object>();
+// Downloads must finish before an explicit cleanup can remove unused assets.
+const imageOperations = new Map<number, { session: OpenSession }>();
 
 export function modeToggleState(mode: "live" | "source" | "preview") {
   if (mode === "source" || mode === "preview") {
@@ -1094,6 +1101,7 @@ function mountEditorUI(
     ) as HTMLElement,
   };
   session.view = view;
+  session.statusFeedback = createStatusFeedback(view.saveStatusEl);
   session.outlineSidebar = mountOutlineSidebar({
     root,
     sidebar: view.outlineSidebarEl,
@@ -1726,9 +1734,14 @@ export function mountMoreMenu(session: OpenSession) {
       close();
       return;
     }
-    if (action === "settings") {
-      session.modal?.open("settings");
+    if (action === "settings" || action === "shortcuts") {
       close();
+      root.querySelector<HTMLButtonElement>('[data-action="more"]')?.focus();
+      session.modal?.open(
+        "settings",
+        undefined,
+        action === "shortcuts" ? "shortcuts" : undefined,
+      );
       return;
     }
     showUnavailableAction(action);
@@ -2080,41 +2093,163 @@ function showModalError(error: unknown) {
     .show();
 }
 
+function beginSessionImageOperation(session: OpenSession, text: string) {
+  if (session.closing) return;
+  const previous = imageOperations.get(session.itemID);
+  if (previous) {
+    if (previous.session !== session) {
+      const message = getString("status-image-operation-busy");
+      session.statusFeedback?.begin(message).warn(message);
+    }
+    return;
+  }
+  if (session.editor?.isComposing()) {
+    const message = getString("status-image-operation-composing");
+    session.statusFeedback?.begin(message).warn(message);
+    return;
+  }
+  const owner = { session };
+  imageOperations.set(session.itemID, owner);
+  return {
+    feedback: session.statusFeedback?.begin(text),
+    isCurrent: () =>
+      !session.closing &&
+      sessionRegistry.get(session.tabID) === session &&
+      imageOperations.get(session.itemID) === owner,
+    release: () => {
+      if (imageOperations.get(session.itemID) === owner)
+        imageOperations.delete(session.itemID);
+    },
+  };
+}
+
 async function importExternalImagesInSession(session: OpenSession) {
+  const task = beginSessionImageOperation(
+    session,
+    getString("status-images-downloading"),
+  );
+  if (!task) return;
   try {
     const item = Zotero.Items.get(session.itemID);
-    const source = session.editor?.getValue() || "";
-    if (!item) throw new Error(getString("error-attachment-gone"));
-    const result = await importExternalImages(item, source);
-    if (!result.imported) {
-      showImageError(new Error("没有可导入的外链图片，或下载失败"));
+    const editor = session.editor;
+    if (!item || !editor) throw new Error(getString("error-attachment-gone"));
+    if (!item.isEditable()) throw new Error(getString("error-read-only-image"));
+    await flushMarkdownItems([session.itemID]);
+    if (!task.isCurrent()) return;
+    const source = await editor.requestSnapshot();
+    const unchanged = () =>
+      task.isCurrent() && !editor.isComposing() && editor.getValue() === source;
+    const result = await importExternalImages(item, source, {
+      shouldContinue: unchanged,
+      onProgress: ({ completed, total }) => {
+        if (total)
+          task.feedback?.update(
+            getString("status-images-download-progress", {
+              args: { completed, total },
+            }),
+          );
+      },
+    });
+    if (!task.isCurrent()) return;
+    if (result.cancelled || !unchanged()) {
+      task.feedback?.warn(getString("status-images-document-changed"));
       return;
     }
-    session.editor?.setValue(result.markdown);
-    // setValue does not emit a change message, so mark the revision dirty
-    // explicitly; otherwise SaveCoordinator skips this write.
-    session.save.markChanged();
+    if (!result.total) {
+      task.feedback?.succeed(getString("status-no-external-images"));
+      return;
+    }
+    const incomplete = result.failed + result.skipped;
+    if (!result.imported) {
+      task.feedback?.fail(getString("status-images-download-failed"));
+      return;
+    }
+    // The iframe checks again in the same transaction that replaces links,
+    // so typing after the snapshot cannot be overwritten by an old download.
+    if (!(await editor.applyIfUnchanged(source, result.markdown))) {
+      task.feedback?.warn(getString("status-images-links-unconfirmed"));
+      return;
+    }
     session.pendingImageSave = false;
-    scheduleAutosave(session);
-    await requestSave(session);
-    setStatus(
-      session,
-      "saved",
-      getString("status-imported-images", { args: { count: result.imported } }),
-    );
+    // Do not use requestSave here: it catches write errors for toolbar saves.
+    // A failed write must never become a successful download notification.
+    await session.save.request();
+    await refreshImageAssets(session);
+    if (session.save.dirty) {
+      task.feedback?.warn(getString("status-images-downloaded-unsaved"));
+    } else if (incomplete) {
+      task.feedback?.warn(
+        getString("status-images-download-partial", {
+          args: { count: result.imported, failed: incomplete },
+        }),
+      );
+    } else {
+      task.feedback?.succeed(
+        getString("status-imported-images", {
+          args: { count: result.imported },
+        }),
+      );
+    }
   } catch (error) {
-    showImageError(error);
+    ztoolkit.log("Markdown image download failed", error);
+    task.feedback?.fail(getString("status-images-download-failed"));
+  } finally {
+    task.release();
   }
 }
 
 async function cleanupImagesInSession(session: OpenSession) {
+  const task = beginSessionImageOperation(
+    session,
+    getString("status-images-cleaning"),
+  );
+  if (!task) return;
   try {
-    // Check the on-disk revision before deleting anything. A remote edit may
-    // reference images that are absent from this editor's older buffer.
+    // Flush all views before checking the on-disk revision and deleting files.
+    // A different editor may still have a draft referencing one of the images.
+    await flushMarkdownItems([session.itemID]);
+    if (!task.isCurrent()) return;
+    const item = Zotero.Items.get(session.itemID);
+    if (!item || !item.isEditable())
+      throw new Error(getString("error-read-only-image"));
     await session.save.request({ force: true, cleanupImages: true });
-    setStatus(session, "saved", getString("status-image-cleanup-complete"));
+    task.feedback?.succeed(getString("status-image-cleanup-complete"));
   } catch (error) {
-    showImageError(error);
+    ztoolkit.log("Markdown image cleanup failed", error);
+    if ((error as { code?: string })?.code === "IMAGE_CLEANUP_STALE") {
+      if (session.save.lastError === error) session.save.lastError = null;
+      updateSaveStatus(session);
+      task.feedback?.warn(getString("status-images-cleanup-changed"));
+    } else {
+      task.feedback?.fail(getString("status-images-cleanup-failed"));
+    }
+  } finally {
+    task.release();
+  }
+}
+
+function showImageRepairStatus(
+  feedback: StatusTask | undefined,
+  report: ImageAssetRepairReport,
+) {
+  const unresolved =
+    report.missing + report.conflicts + report.failed + report.repairable;
+  if (unresolved || report.retainedOriginals) {
+    feedback?.warn(
+      report.repaired
+        ? getString("status-images-repair-incomplete", {
+            args: { count: report.repaired },
+          })
+        : getString("status-images-need-attention"),
+    );
+  } else if (report.repaired) {
+    feedback?.succeed(
+      getString("status-images-repaired", { args: { count: report.repaired } }),
+    );
+  } else {
+    feedback?.succeed(
+      getString("status-images-checked", { args: { count: report.checked } }),
+    );
   }
 }
 
@@ -2123,6 +2258,7 @@ function openSessionImageRepair(session: OpenSession) {
   if (!root || session.closing) return;
   session.closeImageRepair?.();
   let active = true;
+  let activeTask: ReturnType<typeof beginSessionImageOperation>;
   const assertOpen = () => {
     if (
       !active ||
@@ -2140,6 +2276,46 @@ function openSessionImageRepair(session: OpenSession) {
     const markdown = String(await Zotero.File.getContentsAsync(path));
     assertOpen();
     return { item, markdown };
+  };
+  const run = async (repair: boolean) => {
+    assertOpen();
+    const task = beginSessionImageOperation(
+      session,
+      getString(repair ? "status-images-repairing" : "status-images-checking"),
+    );
+    if (!task)
+      throw new Error(
+        getString(
+          session.editor?.isComposing()
+            ? "status-image-operation-composing"
+            : "status-image-operation-busy",
+        ),
+      );
+    activeTask = task;
+    try {
+      // Checking remains read-only. Repair first coordinates every open draft.
+      if (repair) await flushMarkdownItems([session.itemID]);
+      const { item, markdown } = await savedDocument();
+      const report = repair
+        ? await repairImageAssets(item, markdown)
+        : await inspectImageAssets(item, markdown);
+      if (repair) await refreshRepairedImageAssets(item);
+      if (active) showImageRepairStatus(task.feedback, report);
+      return report;
+    } catch (error) {
+      if (active)
+        task.feedback?.fail(
+          getString(
+            repair
+              ? "status-images-repair-failed"
+              : "status-images-check-failed",
+          ),
+        );
+      throw error;
+    } finally {
+      task.release();
+      if (activeTask === task) activeTask = undefined;
+    }
   };
   const dialog = openImageRepairDialog({
     document: root.ownerDocument,
@@ -2184,23 +2360,11 @@ function openSessionImageRepair(session: OpenSession) {
       skipped: (count) =>
         getString("image-repair-skipped", { args: { count } }),
     },
-    inspect: async () => {
-      // Checking is read-only. The dialog explicitly identifies saved content.
-      const { item, markdown } = await savedDocument();
-      return inspectImageAssets(item, markdown);
-    },
-    repair: async () => {
-      assertOpen();
-      // Save pending table/IME-aware snapshots across every view before the
-      // service rechecks references and obtains the attachment write gate.
-      await flushMarkdownItems([session.itemID]);
-      const { item, markdown } = await savedDocument();
-      const report = await repairImageAssets(item, markdown);
-      await refreshRepairedImageAssets(item);
-      return report;
-    },
+    inspect: () => run(false),
+    repair: () => run(true),
     onClose: () => {
       active = false;
+      activeTask?.feedback?.cancel();
       if (session.closeImageRepair === dialog.destroy)
         session.closeImageRepair = undefined;
     },
@@ -2366,7 +2530,7 @@ async function exportSessionHtml(session: OpenSession) {
   try {
     const { source, html } = await renderedExportHtml(session);
     const path = await saveHtmlFile(session.win, html, exportBasename(source));
-    if (path) setStatus(session, "saved", getString("status-exported-html"));
+    if (path) setStatus(session, "info", getString("status-exported-html"));
   } catch (error) {
     showImageError(error);
   }
@@ -2720,12 +2884,6 @@ function requestSave(
     .catch((error) => {
       ztoolkit.log("Failed to save markdown", error);
       setStatus(session, "error", getString("status-save-failed"));
-      new ztoolkit.ProgressWindow(addon.data.config.addonName)
-        .createLine({
-          text: `Save failed: ${error instanceof Error ? error.message : String(error)}`,
-          type: "fail",
-        })
-        .show();
     })
     .finally(() => releaseTitleSaveOwner(session, owner));
 }
@@ -2739,6 +2897,14 @@ async function persistSession(
   if (!item) throw new Error("Item gone");
   const { path, titleChanged } = await persistMarkdownContent(item, value, {
     cleanupImages: opts.cleanupImages,
+    canCleanupImages: () =>
+      !session.closing &&
+      !session.editor?.isComposing() &&
+      session.editor?.getValue() === value &&
+      !documentSyncRegistry.hasLocalWork(
+        session.itemID,
+        session.documentSyncSourceID,
+      ),
     revision: session.fileRevision,
     syncFile: true,
     syncTitle: true,
@@ -2761,7 +2927,7 @@ async function persistSession(
   updateMeta(session);
 }
 
-export type SaveStatusKind = "saved" | "dirty" | "error" | "info";
+export type SaveStatusKind = "saved" | "dirty" | "saving" | "error" | "info";
 
 /**
  * Set the status-bar text with an explicit state kind. The kind drives the
@@ -2769,17 +2935,8 @@ export type SaveStatusKind = "saved" | "dirty" | "error" | "info";
  * which would break as soon as translations are wired in.
  */
 function setStatus(session: OpenSession, kind: SaveStatusKind, text: string) {
-  const statusEl = session.view?.saveStatusEl;
-  if (!statusEl) return;
-  statusEl.textContent = text;
-  statusEl.classList.remove("is-dirty", "is-saved", "is-error");
-  if (kind === "error") {
-    statusEl.classList.add("is-error");
-  } else if (kind === "dirty") {
-    statusEl.classList.add("is-dirty");
-  } else {
-    statusEl.classList.add("is-saved");
-  }
+  if (kind === "info") session.statusFeedback?.begin(text).succeed(text);
+  else session.statusFeedback?.setSave(kind, text);
 }
 
 function updateMeta(session: OpenSession) {
@@ -2815,25 +2972,16 @@ function scheduleMetaUpdate(session: OpenSession) {
 }
 
 function updateSaveStatus(session: OpenSession) {
-  const statusEl = session.view?.saveStatusEl;
-  if (!statusEl) return;
-
-  statusEl.classList.remove("is-dirty", "is-saved", "is-error");
-  if (session.save.writing) {
-    statusEl.textContent = getString("status-saving");
-    statusEl.classList.add("is-dirty");
-  } else if (session.save.lastError) {
-    statusEl.textContent = getString("status-save-failed");
-    statusEl.classList.add("is-error");
+  if (session.save.lastError) {
+    setStatus(session, "error", getString("status-save-failed"));
+  } else if (session.save.writing) {
+    setStatus(session, "saving", getString("status-saving"));
   } else if (session.save.dirty) {
-    statusEl.textContent = getString("status-unsaved-changes");
-    statusEl.classList.add("is-dirty");
+    setStatus(session, "dirty", getString("status-unsaved-changes"));
   } else if (session.savedAt) {
-    statusEl.textContent = formatSavedStatus(session.savedAt);
-    statusEl.classList.add("is-saved");
+    setStatus(session, "saved", formatSavedStatus(session.savedAt));
   } else {
-    statusEl.textContent = getString("status-autosave-on");
-    statusEl.classList.add("is-saved");
+    setStatus(session, "saved", getString("status-autosave-on"));
   }
 }
 

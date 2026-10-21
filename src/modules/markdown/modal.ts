@@ -2,6 +2,8 @@ import { getPref, setPref } from "../../utils/prefs";
 import { openUserGuide } from "../help";
 import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
+  MARKDOWN_HEADING_SHORTCUTS,
+  markdownHeadingShortcutLabel,
   shortcutFromKeyboardEvent,
   shortcutKeycaps,
 } from "./shortcut";
@@ -85,6 +87,7 @@ export interface MarkdownModalController {
   open: (
     kind: ModalKind,
     payload?: DocumentModalData | Partial<SettingsModalData>,
+    initialSettingsPage?: SettingsPageID,
   ) => void;
   close: () => void;
   destroy: () => void;
@@ -276,7 +279,10 @@ export function createMarkdownModalController(
     input.select();
   };
 
-  const renderSettings = (payload: Partial<SettingsModalData> = {}) => {
+  const renderSettings = (
+    payload: Partial<SettingsModalData> = {},
+    initialSettingsPage = options.initialSettingsPage,
+  ) => {
     pendingSettings = settingsFromPrefs({
       enable: payload.enable ?? Boolean(getPref("enable")),
       frontmatter: payload.frontmatter ?? Boolean(getPref("frontmatter")),
@@ -530,9 +536,15 @@ export function createMarkdownModalController(
                 ["Ctrl/Meta + B", "sidebar-bold"],
                 ["Ctrl/Meta + I", "sidebar-italic"],
                 ["Ctrl/Meta + K", "sidebar-link"],
-                ["Ctrl/Meta + 1", "tab-h1"],
-                ["Ctrl/Meta + 2", "tab-h2"],
-                ["Ctrl/Meta + 3", "tab-h3"],
+                ...MARKDOWN_HEADING_SHORTCUTS.map(
+                  ({ level }): [string, FluentMessageId] => [
+                    markdownHeadingShortcutLabel(
+                      level,
+                      doc.defaultView?.navigator.platform,
+                    ),
+                    `tab-h${level}`,
+                  ],
+                ),
                 ["Ctrl/Meta + Z", "whiteboard-undo"],
                 ["Ctrl/Meta + Shift + Z", "whiteboard-redo"],
                 ["Tab", "settings-shortcut-indent"],
@@ -968,9 +980,9 @@ export function createMarkdownModalController(
 
     body.appendChild(workspace);
     const initialPage = SETTINGS_PAGES.some(
-      ({ id }) => id === options.initialSettingsPage,
+      ({ id }) => id === initialSettingsPage,
     )
-      ? options.initialSettingsPage!
+      ? initialSettingsPage!
       : "general";
     selectPage(initialPage);
   };
@@ -1121,7 +1133,7 @@ export function createMarkdownModalController(
   doc.addEventListener("keydown", onKeyDown);
 
   return {
-    open(kind, payload) {
+    open(kind, payload, initialSettingsPage) {
       activeKind = kind;
       dialog.classList.toggle("is-settings", kind === "settings");
       body.classList.toggle(
@@ -1134,7 +1146,11 @@ export function createMarkdownModalController(
       if (kind === "document-info")
         renderDocumentInfo(payload as DocumentModalData);
       else if (kind === "rename") renderRename(payload as DocumentModalData);
-      else renderSettings(payload as Partial<SettingsModalData>);
+      else
+        renderSettings(
+          payload as Partial<SettingsModalData>,
+          initialSettingsPage,
+        );
       backdrop.hidden = false;
       backdrop.setAttribute("aria-hidden", "false");
       if (kind !== "rename") dialog.focus();

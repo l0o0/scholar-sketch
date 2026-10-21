@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.12 - 2026-10-21
+
+### Features
+
+- Use the Markdown bottom-right status area for image download, cleanup and manual repair progress and results, with state icons and automatic return to save status
+- Rename the external-image action to Download external images locally and report empty, complete, partial and failed downloads
+- Improve status readability in dark mode and narrow windows, with reduced-motion support
+
+### Fixes
+
+- Open the shortcuts settings page directly from the More menu
+- Move heading shortcuts to Ctrl+Alt+1/2/3 (Cmd+Option+1/2/3 on macOS) to avoid Zotero tab-switching shortcuts, and restore the italic shortcut
+- Apply downloaded image links only when the editor still contains the expected text; preserve newer input and support undo
+- Coordinate explicit image operations and recheck drafts after asynchronous waits before deleting unused images
+- Keep save failures visible above operation notices and prevent stale asynchronous results from replacing newer notifications
+
 ## 0.2.11 - 2026-10-21
 
 ### Fixes

@@ -56,10 +56,11 @@ export class DocumentSyncRegistry {
     return this.sources.has(sourceID);
   }
 
-  hasLocalWork(itemID: number): boolean {
+  hasLocalWork(itemID: number, exceptSourceID?: string): boolean {
     return [...this.sources.values()].some(
       ({ source }) =>
         source.itemID === itemID &&
+        source.sourceID !== exceptSourceID &&
         (source.hasLocalWork() || source.isComposing?.()),
     );
   }

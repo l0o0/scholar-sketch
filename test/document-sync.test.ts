@@ -29,6 +29,42 @@ function source(
 }
 
 describe("DocumentSyncRegistry", () => {
+  it("can exclude the saving view while still detecting another view's draft or IME", () => {
+    const registry = new DocumentSyncRegistry();
+    let peerDirty = false;
+    let peerComposing = false;
+    registry.register(
+      source({
+        sourceID: "tab:saving",
+        hasLocalWork: () => true,
+        isComposing: () => true,
+      }),
+    );
+    registry.register(
+      source({
+        sourceID: "sidebar:peer",
+        hasLocalWork: () => peerDirty,
+        isComposing: () => peerComposing,
+      }),
+    );
+    registry.register(
+      source({
+        sourceID: "tab:other-note",
+        itemID: 8,
+        hasLocalWork: () => true,
+      }),
+    );
+    assert.equal(registry.hasLocalWork(7), true);
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), false);
+    peerDirty = true;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), true);
+    peerDirty = false;
+    peerComposing = true;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), true);
+    peerComposing = false;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), false);
+    assert.equal(registry.hasLocalWork(7, "unknown-source"), true);
+  });
   it("treats a peer's uncommitted IME composition as local work for image recovery", () => {
     const registry = new DocumentSyncRegistry();
     let composing = true;

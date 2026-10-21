@@ -21,12 +21,18 @@ const source = createSourceFile(
   ScriptTarget.ES2022,
   true,
 );
-const fn = source.statements.find(
-  (node) =>
-    isFunctionDeclaration(node) && node.name?.text === "openSessionImageRepair",
-);
-assert.ok(fn);
-const { outputText } = transpileModule(fn.getText(source), {
+const functions = [
+  "beginSessionImageOperation",
+  "showImageRepairStatus",
+  "openSessionImageRepair",
+].map((name) => {
+  const fn = source.statements.find(
+    (node) => isFunctionDeclaration(node) && node.name?.text === name,
+  );
+  assert.ok(fn, name);
+  return fn.getText(source);
+});
+const { outputText } = transpileModule(functions.join("\n"), {
   compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.ESNext },
 });
 
@@ -49,6 +55,7 @@ function setup() {
   };
   const report = { checked: 1, repaired: 1 };
   const open = runInNewContext(`${outputText}\nopenSessionImageRepair;`, {
+    imageOperations: new Map(),
     sessionRegistry: { get: () => session },
     getString: (key: string) => key,
     Zotero: {

@@ -9,7 +9,10 @@ import {
 } from "../attachment-sync";
 import { extractFirstHeadingTitle } from "./frontmatter";
 import { markdownAttachmentTitle } from "./detect";
-import { cleanupUnusedImageAssets } from "./images/service";
+import {
+  assertImageCleanupCurrent,
+  cleanupUnusedImageAssets,
+} from "./images/service";
 import { updateIndexedNote } from "./note-library";
 
 /**
@@ -30,6 +33,8 @@ export async function persistMarkdownContent(
     revision?: FileRevision;
     /** Remove embedded image assets that are no longer referenced. */
     cleanupImages?: boolean;
+    /** Recheck live editors after waits and before each image deletion. */
+    canCleanupImages?: () => boolean;
     /** Sync the Zotero item title from the first H1 (editor behavior). */
     syncTitle?: boolean;
     /**
@@ -58,14 +63,21 @@ async function persistMarkdownContentNow(
   value: string,
   opts: NonNullable<Parameters<typeof persistMarkdownContent>[2]>,
 ): Promise<{ path: string; titleChanged: boolean }> {
+  const checkCleanup = () => {
+    if (opts.cleanupImages) assertImageCleanupCurrent(opts.canCleanupImages);
+  };
+  checkCleanup();
   const path = opts.path ?? ((await item.getFilePathAsync()) || null);
   if (!path) {
     throw new Error("Attachment has no file path");
   }
 
+  checkCleanup();
   if (opts.revision) {
-    await writeProtectedFile(path, value, opts.revision, item, (content) =>
-      IOUtils.writeUTF8(path, content, {
+    await writeProtectedFile(path, value, opts.revision, item, (content) => {
+      // History I/O and queued writes may have allowed another editor to change.
+      checkCleanup();
+      return IOUtils.writeUTF8(path, content, {
         // Zotero's ZIP writer skips dotfiles. A failed atomic write must not
         // leave a second visible document inside the synced attachment.
         tmpPath: PathUtils.join(
@@ -73,8 +85,8 @@ async function persistMarkdownContentNow(
           `.${path.split(/[\\/]/).pop()}.scholar-sketch.tmp`,
         ),
         flush: true,
-      }),
-    );
+      });
+    });
   } else {
     await Zotero.File.putContentsAsync(path, value);
   }
@@ -87,7 +99,7 @@ async function persistMarkdownContentNow(
     });
   }
   if (opts.cleanupImages) {
-    await cleanupUnusedImageAssets(item, value);
+    await cleanupUnusedImageAssets(item, value, opts.canCleanupImages);
   }
 
   let titleChanged = false;
