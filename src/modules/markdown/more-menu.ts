@@ -21,6 +21,7 @@ export type MoreMenuAction =
   | "shortcuts"
   | "settings"
   | "import-external-images"
+  | "repair-images"
   | "cleanup-images";
 
 export interface MoreMenuItem {
@@ -57,6 +58,7 @@ export const MORE_MENU_SECTIONS: readonly (readonly MoreMenuItem[])[] = [
   [{ action: "export", submenu: true }],
   [
     { action: "import-external-images" },
+    { action: "repair-images" },
     { action: "cleanup-images" },
     { action: "shortcuts" },
     { action: "settings" },

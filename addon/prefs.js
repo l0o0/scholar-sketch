@@ -8,5 +8,6 @@ pref("whiteboardColorScheme", "traditional");
 pref("whiteboardFontFamily", "system");
 pref("whiteboardBackgroundColor", "");
 pref("whiteboardTutorialCreated", false);
+pref("featureUpdatesSeenVersion", "");
 // KeyModifier raw string: modifiers + key, e.g. "accel,shift,M"
 pref("shortcutNewStandaloneMd", "accel,shift,M");

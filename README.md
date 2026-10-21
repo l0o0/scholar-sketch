@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.9-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.12-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -19,6 +19,7 @@ Scholar Sketch extends Zotero with Markdown notes and visual whiteboards, connec
 ## Features
 
 - **Markdown editing**: Live preview, source editing, and reading preview, with tables, images, math, and footnotes.
+- **Flowcharts in Markdown**: write Mermaid flowcharts, sequence diagrams, and mind maps directly in `.md` notes, preview them as you write, and include them in HTML/PDF exports.
 - **Linked notes**: `[[Note]]` links, an outline, backlinks, and library-wide full-text search.
 - **Research whiteboards**: organize papers, annotations, notes, and attachments with groups, connections, batch styling, and auto layout.
 - **Zotero integration**: drag papers onto a board, browse PDF annotations, or turn text annotations into Markdown notes.
@@ -60,8 +61,24 @@ Requires **Zotero 9 / 10 / 11 for desktop**.
 
 Stored attachments follow Zotero file sync; linked attachments need separate syncing. Local history stays on the current device.
 
+### Flowcharts in Markdown
+
+Write flowcharts, sequence diagrams, and mind maps directly in your `.md` notes using Mermaid—no need to draw and import a separate image. Add a fenced `mermaid` block:
+
+````markdown
+```mermaid
+flowchart LR
+  A[Read papers] --> B[Take notes] --> C[Connect ideas]
+```
+````
+
+Diagrams render in both live preview and reading preview. In live preview, move the cursor outside the block to see the diagram; click it to edit its source. HTML/PDF exports embed the rendered diagram, while the `.md` file keeps the editable Mermaid source.
+
+Mermaid is bundled for offline use and loaded when needed. Invalid or overly complex diagrams retain their source with an explanation.
+
 ## Documentation
 
+- [User guide: Markdown, literature links, whiteboards, and shortcuts](docs/user-guide.md) (Chinese)
 - [Links and export](docs/obsidian-links.md)
 - [Saving and recovery](docs/file-safety.md) (Chinese)
 - [Feature guide](docs/markdown-canvas-release-features.md) (Chinese)
@@ -77,6 +94,8 @@ pnpm run build       # Build the XPI
 ```
 
 [Browser testing](docs/fake-zotero.md) · [Markdown API](docs/markdown-api.md) · [Canvas API](docs/canvas-api.md)
+
+See [release preparation](docs/releasing.md) for maintaining the in-app update highlights.
 
 </details>
 

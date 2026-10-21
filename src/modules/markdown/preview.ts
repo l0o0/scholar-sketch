@@ -9,6 +9,7 @@ import type { EditorOutlineItem, ImageAssetMap } from "./editor-protocol";
 import { THEME_TOKENS, themeTokenCss } from "./theme-tokens";
 import { documentTitleCore, renderMarkdownCore } from "./preview-render-core";
 import { showImageViewer } from "./image-viewer";
+import { mermaidStyles, mountMermaidBlock } from "./mermaid-view";
 
 export interface ReadOnlyDocument {
   title: string;
@@ -67,6 +68,7 @@ export function applyAssetsToHtml(html: string, assets: ImageAssetMap): string {
 /** Printable / exportable prose styles shared by the in-app preview. */
 export function previewDocumentCss(): string {
   return `
+${mermaidStyles()}
 .katex-display { display:block; text-align:center; overflow-x:auto; margin:1em 0; }
 .katex math { font-size:1.15em; }
 .footnotes { font-size:.9em; }
@@ -285,8 +287,12 @@ export function mountPreviewHtml(
   host: HTMLElement,
   rendered: { title: string; bodyHtml: string },
   outlineItems: readonly EditorOutlineItem[] = [],
+  {
+    mountDiagram = mountMermaidBlock,
+  }: { mountDiagram?: typeof mountMermaidBlock } = {},
 ): void {
   const doc = host.ownerDocument || (globalThis as any).document;
+  disposePreviewMermaid(host);
   host.replaceChildren();
   host.setAttribute("aria-readonly", "true");
   host.setAttribute("role", "document");
@@ -345,6 +351,7 @@ export function mountPreviewHtml(
 
   page.append(bar, article);
   host.appendChild(page);
+  mountPreviewMermaid(host, article, mountDiagram);
   for (const image of article.querySelectorAll("img")) {
     image.tabIndex = 0;
     image.title = getString("image-view-original");
@@ -370,6 +377,61 @@ export function mountPreviewHtml(
   }
 }
 
+const previewMermaidDisposers = new WeakMap<HTMLElement, () => void>();
+
+/** Release pending diagrams and theme observers when leaving/replacing preview. */
+export function disposePreviewMermaid(host: HTMLElement): void {
+  previewMermaidDisposers.get(host)?.();
+  previewMermaidDisposers.delete(host);
+}
+
+function mountPreviewMermaid(
+  host: HTMLElement,
+  article: HTMLElement,
+  mountDiagram: typeof mountMermaidBlock,
+): void {
+  const blocks = [
+    ...article.querySelectorAll<HTMLElement>("[data-zmd-mermaid]"),
+  ];
+  if (!blocks.length) return;
+  const sources = blocks.map(
+    (block) => block.querySelector("code")?.textContent ?? "",
+  );
+  const root = host.closest(".zotero-markdown-root") ?? host;
+  const resolveTheme = (): "light" | "dark" =>
+    root.classList.contains("theme-dark") ? "dark" : "light";
+  let theme = resolveTheme();
+  let disposeBlocks: Array<() => void> = [];
+  const render = () => {
+    disposeBlocks.forEach((dispose) => dispose());
+    disposeBlocks = blocks.map((block, index) =>
+      mountDiagram(block, sources[index], {
+        theme,
+        labels: {
+          loading: getString("mermaid-loading"),
+          error: getString("mermaid-error"),
+          edit: getString("mermaid-edit"),
+        },
+      }),
+    );
+  };
+  render();
+  const Observer = host.ownerDocument.defaultView?.MutationObserver;
+  const observer = Observer
+    ? new Observer(() => {
+        const next = resolveTheme();
+        if (next === theme) return;
+        theme = next;
+        render();
+      })
+    : undefined;
+  observer?.observe(root, { attributes: true, attributeFilter: ["class"] });
+  previewMermaidDisposers.set(host, () => {
+    observer?.disconnect();
+    disposeBlocks.forEach((dispose) => dispose());
+  });
+}
+
 export function scrollPreviewToOutline(
   host: HTMLElement,
   outlineID: string,
@@ -387,6 +449,8 @@ export function hydratePreviewImages(
   assets: ImageAssetMap,
 ): void {
   for (const image of host.querySelectorAll("img")) {
+    // Diagrams are generated SVG data URLs, not attachment references.
+    if (image.closest("[data-zmd-mermaid]")) continue;
     const source = image.getAttribute("src") || "";
     if (!assetReferenceCandidates(source).length) continue;
     const resolved = imageAssetFromMap(source, assets);

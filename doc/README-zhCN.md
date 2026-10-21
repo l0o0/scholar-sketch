@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.9-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.12-blue?style=flat-square" alt="version" /></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -21,6 +21,7 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 ## 功能
 
 - **Markdown 编辑**：Live 即时预览、源码编辑与阅读预览，支持表格、图片、公式和脚注。
+- **MD 流程图**：使用 Mermaid 在笔记中编写流程图、时序图和思维导图，支持实时预览、深浅主题及 HTML/PDF 导出。
 - **双链笔记**：`[[笔记]]` 链接、目录、反向链接侧栏与文库全文搜索。
 - **研究白板**：组织文献、注释、笔记和附件，通过分组与连线梳理想法，支持批量样式和自动布局。
 - **Zotero 联动**：将文献拖入白板，浏览 PDF 注释，或从文字批注生成 Markdown 笔记。
@@ -61,6 +62,23 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 - **试用示例**：选择 **帮助 → Scholar Sketch：创建示例白板**。
 
 存储附件可随 Zotero 文件同步；链接附件需自行同步。本地历史仅保存在当前设备。
+
+### 在 MD 笔记中绘制流程图
+
+直接在 `.md` 笔记中用 Mermaid 描述节点和连接，即可生成流程图、时序图或思维导图，适合记录研究步骤、实验流程和知识结构。图表源码保存在笔记中，可随时修改，无需先绘图再插入图片。
+
+将下面的代码块粘贴到笔记中，即可创建一个从阅读文献到连接想法的流程图：
+
+````markdown
+```mermaid
+flowchart LR
+  A[阅读文献] --> B[整理笔记] --> C[连接想法]
+```
+````
+
+- **查看与编辑**：在实时预览中将光标移出代码块即可显示图形，点击图形可重新编辑源码；阅读预览也会显示图形，源码模式则保留代码。
+- **主题与导出**：图表适配浅色和深色主题，导出 HTML/PDF 时会嵌入图形。
+- **离线使用**：渲染器随插件提供，按需加载，无需联网。语法错误或图表过于复杂时，会保留源码并显示提示。
 
 ## 文档
 

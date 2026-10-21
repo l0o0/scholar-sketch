@@ -20,6 +20,7 @@ function source(
     sourceID: overrides.sourceID,
     itemID: overrides.itemID ?? 7,
     hasLocalWork: overrides.hasLocalWork ?? (() => false),
+    isComposing: overrides.isComposing,
     flush: overrides.flush ?? (async () => undefined),
     getCurrentValue: overrides.getCurrentValue ?? (() => "initial"),
     readPersisted: overrides.readPersisted ?? (async () => "initial"),
@@ -28,6 +29,73 @@ function source(
 }
 
 describe("DocumentSyncRegistry", () => {
+  it("can exclude the saving view while still detecting another view's draft or IME", () => {
+    const registry = new DocumentSyncRegistry();
+    let peerDirty = false;
+    let peerComposing = false;
+    registry.register(
+      source({
+        sourceID: "tab:saving",
+        hasLocalWork: () => true,
+        isComposing: () => true,
+      }),
+    );
+    registry.register(
+      source({
+        sourceID: "sidebar:peer",
+        hasLocalWork: () => peerDirty,
+        isComposing: () => peerComposing,
+      }),
+    );
+    registry.register(
+      source({
+        sourceID: "tab:other-note",
+        itemID: 8,
+        hasLocalWork: () => true,
+      }),
+    );
+    assert.equal(registry.hasLocalWork(7), true);
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), false);
+    peerDirty = true;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), true);
+    peerDirty = false;
+    peerComposing = true;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), true);
+    peerComposing = false;
+    assert.equal(registry.hasLocalWork(7, "tab:saving"), false);
+    assert.equal(registry.hasLocalWork(7, "unknown-source"), true);
+  });
+  it("treats a peer's uncommitted IME composition as local work for image recovery", () => {
+    const registry = new DocumentSyncRegistry();
+    let composing = true;
+    registry.register(
+      source({ sourceID: "tab:ime", isComposing: () => composing }),
+    );
+    assert.equal(registry.hasLocalWork(7), true);
+    composing = false;
+    assert.equal(registry.hasLocalWork(7), false);
+  });
+  it("detects unsaved work in any view of the same note without saving it", () => {
+    const registry = new DocumentSyncRegistry();
+    let dirty = true;
+    const release = registry.register(
+      source({
+        sourceID: "sidebar:dirty",
+        hasLocalWork: () => dirty,
+        flush: async () => {
+          throw new Error("must not save");
+        },
+      }),
+    );
+    registry.register(source({ sourceID: "tab:clean" }));
+    assert.equal(registry.hasLocalWork(7), true);
+    assert.equal(registry.hasLocalWork(8), false);
+    dirty = false;
+    assert.equal(registry.hasLocalWork(7), false);
+    dirty = true;
+    release();
+    assert.equal(registry.hasLocalWork(7), false);
+  });
   it("refreshes a clean source after another source saves", async () => {
     const registry = new DocumentSyncRegistry();
     let sidebarValue = "initial";

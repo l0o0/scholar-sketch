@@ -384,6 +384,74 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
   );
 });
 
+test("an existing modal opens shortcut help directly and keeps regular settings on its own page", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const window = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: { Prefs: { get: () => undefined } },
+  });
+  const controller = createMarkdownModalController(
+    window.document as unknown as Document,
+  );
+  t.after(() => {
+    controller.destroy();
+    window.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const trigger = window.document.createElement("button");
+  window.document.body.appendChild(trigger);
+  for (const [platform, modifier] of [
+    ["Win32", "Ctrl + Alt"],
+    ["MacIntel", "Cmd + Option"],
+  ]) {
+    Object.defineProperty(window.navigator, "platform", {
+      configurable: true,
+      value: platform,
+    });
+    trigger.focus();
+    controller.open("settings", undefined, "shortcuts");
+    const backdrop = window.document.querySelector<HTMLElement>(
+      ".zotero-markdown-modal-backdrop",
+    )!;
+    assert.equal(backdrop.hidden, false);
+    assert.equal(backdrop.getAttribute("aria-hidden"), "false");
+    assert.equal(
+      window.document
+        .querySelector('[aria-selected="true"]')
+        ?.getAttribute("data-settings-page"),
+      "shortcuts",
+    );
+    const keys = [
+      ...window.document.querySelectorAll(
+        ".zotero-markdown-settings-shortcut-keys",
+      ),
+    ].map((element) => element.textContent);
+    for (let level = 1; level <= 3; level++) {
+      assert.ok(keys.includes(`${modifier} + ${level}`));
+      assert.ok(!keys.includes(`Ctrl/Meta + ${level}`));
+    }
+    window.document.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    assert.equal(backdrop.hidden, true);
+    assert.equal(window.document.activeElement, trigger);
+  }
+  controller.open("settings");
+  assert.equal(
+    window.document
+      .querySelector('[aria-selected="true"]')
+      ?.getAttribute("data-settings-page"),
+    "general",
+  );
+  assert.ok(window.document.querySelector('select[name="theme"]'));
+});
+
 test("settings retain focus and remain open during a failed save", async (t) => {
   const { Window } = await import("happy-dom");
   const { createMarkdownModalController } =

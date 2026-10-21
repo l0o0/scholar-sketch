@@ -46,11 +46,24 @@ function preferencePaneFixture() {
     .replaceAll("html:", "")
     .replace(/\s+onload="[^"]*"/, "");
   let opens = 0;
+  let guideOpens = 0;
+  let updateOpens = 0;
   const launched: string[] = [];
   const exports: {
     bindMarkdownSettingsPreferencePane(doc: unknown): () => void;
   } = {} as any;
   const mocks: Record<string, unknown> = {
+    "../help": {
+      openUserGuide: () => {
+        guideOpens++;
+      },
+    },
+    "../feature-updates": {
+      showFeatureUpdates: (target: unknown) => {
+        assert.equal(target, win);
+        updateOpens++;
+      },
+    },
     "./editor": { resolveEditorTheme: () => "light" },
     "./modal": {
       createMarkdownModalController: () => ({
@@ -88,9 +101,13 @@ function preferencePaneFixture() {
     win,
     launched,
     opens: () => opens,
+    guideOpens: () => guideOpens,
+    updateOpens: () => updateOpens,
     bind: () => exports.bindMarkdownSettingsPreferencePane(win.document),
     button: win.document.getElementById("zotero-markdown-open-settings")!,
     github: win.document.getElementById("zotero-markdown-github")!,
+    guide: win.document.getElementById("zotero-markdown-user-guide")!,
+    updates: win.document.getElementById("zotero-markdown-feature-updates")!,
     pane: win.document.getElementById("zotero-markdown-preferences")!,
   };
 }
@@ -101,7 +118,11 @@ test("preference actions fire once after rebind and old cleanup is harmless", ()
   const cleanup = fixture.bind();
   oldCleanup();
   fixture.button.click();
+  fixture.guide.click();
+  fixture.updates.click();
   assert.equal(fixture.opens(), 1);
+  assert.equal(fixture.guideOpens(), 1);
+  assert.equal(fixture.updateOpens(), 1);
 
   const click = new fixture.win.MouseEvent("click", {
     bubbles: true,
@@ -117,7 +138,11 @@ test("preference actions fire once after rebind and old cleanup is harmless", ()
   cleanup();
   fixture.button.click();
   fixture.github.click();
+  fixture.guide.click();
+  fixture.updates.click();
   assert.equal(fixture.opens(), 1);
+  assert.equal(fixture.guideOpens(), 1);
+  assert.equal(fixture.updateOpens(), 1);
   assert.equal(fixture.launched.length, 1);
 });
 

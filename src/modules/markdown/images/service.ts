@@ -15,6 +15,15 @@ import type { ImageAssetMap } from "../editor-protocol";
 import { getString } from "../../../utils/locale";
 import { withAttachmentWrite } from "../../attachment-sync";
 import { ImageAssetCache } from "./asset-cache";
+import { autoRepairImageAssets } from "./auto-repair";
+
+class ImageImportCancelledError extends Error {}
+
+function assertImageImportCurrent(shouldContinue?: () => boolean): void {
+  if (shouldContinue && !shouldContinue()) {
+    throw new ImageImportCancelledError("Image download is no longer current");
+  }
+}
 
 function assertImageCapableItem(
   item: Zotero.Item,
@@ -40,15 +49,19 @@ export async function writeImageAsset(
   item: Zotero.Item,
   bytes: Uint8Array,
   mimeType: string,
+  shouldContinue?: () => boolean,
 ): Promise<string> {
+  assertImageImportCurrent(shouldContinue);
   const extension = validateImageInput(mimeType, bytes.byteLength);
   return withAttachmentWrite(item, async () => {
+    assertImageImportCurrent(shouldContinue);
     const root = storageRoot(item, true);
     const assetsDirectory = PathUtils.join(root, "assets");
     await IOUtils.makeDirectory(assetsDirectory, { ignoreExisting: true });
 
     const filename = buildAssetFilename(extension);
     const relativePath = `assets/${filename}`;
+    assertImageImportCurrent(shouldContinue);
     await IOUtils.write(PathUtils.join(assetsDirectory, filename), bytes);
     return relativePath;
   });
@@ -85,10 +98,16 @@ export async function resolveImageAsset(
 export async function resolveImageAssetEntry(
   item: Zotero.Item,
   reference: string,
+  repair?: { markdown: string; shouldProceed: () => boolean },
 ): Promise<{ dataUrl?: string; error?: string }> {
   try {
     return { dataUrl: await resolveImageAsset(item, reference) };
   } catch (error) {
+    if (
+      repair &&
+      (await autoRepairImageAssets(item, repair.markdown, repair.shouldProceed))
+    )
+      return resolveImageAssetEntry(item, reference);
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -96,7 +115,11 @@ export async function resolveImageAssetEntry(
 export async function resolveImageAssets(
   item: Zotero.Item,
   markdown: string,
+  shouldRepair?: () => boolean,
 ): Promise<ImageAssetMap> {
+  // Only editor callers opt in. Export and other read-only consumers keep
+  // loading without changing files or forcing a draft to save.
+  if (shouldRepair) await autoRepairImageAssets(item, markdown, shouldRepair);
   const result: ImageAssetMap = {};
   const references = referencedAssets(markdown);
   let next = 0;
@@ -111,11 +134,25 @@ export async function resolveImageAssets(
   return result;
 }
 
+export function assertImageCleanupCurrent(
+  canCleanupImages?: () => boolean,
+): void {
+  if (canCleanupImages && !canCleanupImages()) {
+    const error = new Error(
+      "Image cleanup cancelled because an editor changed",
+    );
+    Object.assign(error, { code: "IMAGE_CLEANUP_STALE" });
+    throw error;
+  }
+}
+
 /** Internal to persistence: caller must hold the write gate and check the text revision. */
 export async function cleanupUnusedImageAssets(
   item: Zotero.Item,
   markdown: string,
+  canCleanupImages?: () => boolean,
 ): Promise<number> {
+  assertImageCleanupCurrent(canCleanupImages);
   const root = storageRoot(item, true);
   const directory = PathUtils.join(root, "assets");
   if (!(await IOUtils.exists(directory))) return 0;
@@ -133,11 +170,13 @@ export async function cleanupUnusedImageAssets(
   const removeSet = new Set(plan.remove);
   for (let index = 0; index < children.length; index++) {
     if (removeSet.has(references[index])) {
+      assertImageCleanupCurrent(canCleanupImages);
       await IOUtils.remove(children[index]);
       assetCache.delete(children[index]);
     }
   }
   if (plan.removeDirectory) {
+    assertImageCleanupCurrent(canCleanupImages);
     await IOUtils.remove(directory);
   }
   return plan.remove.length;
@@ -225,17 +264,58 @@ export function isSafeExternalImageUrl(raw: string): boolean {
   return true;
 }
 
+export interface ExternalImageImportProgress {
+  /** Counts image occurrences, including repeated references to one URL. */
+  total: number;
+  completed: number;
+  imported: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface ExternalImageImportResult extends ExternalImageImportProgress {
+  markdown: string;
+  cancelled: boolean;
+}
+
 export async function importExternalImages(
   item: Zotero.Item,
   markdown: string,
-): Promise<{ markdown: string; imported: number }> {
+  options: {
+    onProgress?: (progress: ExternalImageImportProgress) => void;
+    shouldContinue?: () => boolean;
+  } = {},
+): Promise<ExternalImageImportResult> {
   let next = markdown;
-  let imported = 0;
-  for (const image of externalImageReferences(markdown).sort(
+  const images = externalImageReferences(markdown).sort(
     (a, b) => b.from - a.from,
-  )) {
+  );
+  const progress: ExternalImageImportProgress = {
+    total: images.length,
+    completed: 0,
+    imported: 0,
+    failed: 0,
+    skipped: 0,
+  };
+  let cancelled = false;
+  const notifyProgress = () => {
+    try {
+      options.onProgress?.({ ...progress });
+    } catch (error) {
+      // A view disappearing must not turn a successful write into a failure.
+      ztoolkit.log("Failed to report external image download progress", error);
+    }
+  };
+  notifyProgress();
+  for (const image of images) {
+    if (options.shouldContinue && !options.shouldContinue()) {
+      cancelled = true;
+      break;
+    }
+    let outcome: "imported" | "failed" | "skipped" | undefined = "failed";
     try {
       if (!isSafeExternalImageUrl(image.source)) {
+        outcome = "skipped";
         ztoolkit.log("Skipped external markdown image (URL blocked)", {
           source: image.source,
         });
@@ -260,25 +340,39 @@ export async function importExternalImages(
           .split(";", 1)[0]
           .trim()
           .toLowerCase();
-        const reference = await writeImageAsset(item, bytes, mimeType);
-        next = replaceMarkdownRange(
-          next,
-          image.from,
-          image.to,
+        const reference = await writeImageAsset(
+          item,
+          bytes,
+          mimeType,
+          options.shouldContinue,
+        );
+        const insert =
           image.syntax === "html"
             ? serializeImageReference(
                 { ...image, source: reference },
                 image.width,
               )
-            : `![${image.alt}](${reference}${image.title ? ` "${image.title}"` : ""})`,
-        );
-        imported++;
+            : `![${image.alt}](${reference}${image.title ? ` "${image.title}"` : ""})`;
+        next = replaceMarkdownRange(next, image.from, image.to, insert);
+        outcome = "imported";
       } finally {
         clearTimeout(timeout);
       }
     } catch (error) {
-      ztoolkit.log("Failed to import external markdown image", error);
+      if (error instanceof ImageImportCancelledError) {
+        cancelled = true;
+        outcome = undefined;
+      } else {
+        ztoolkit.log("Failed to import external markdown image", error);
+      }
+    } finally {
+      if (outcome) {
+        progress[outcome]++;
+        progress.completed++;
+        notifyProgress();
+      }
     }
+    if (cancelled) break;
   }
-  return { markdown: next, imported };
+  return { markdown: next, ...progress, cancelled };
 }

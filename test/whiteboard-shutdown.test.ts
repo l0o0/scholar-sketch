@@ -30,6 +30,8 @@ const { outputText: shutdownCode } = transpileModule(shutdown.getText(source), {
 
 const operations = [
   "retainWorkspaceOnShutdown",
+  "disposeFeatureUpdates",
+  "unregisterAttachmentZipCompatibility",
   "unregisterAttachmentIcons",
   "unregisterAllCreationToolbars",
   "closeAllMarkdownWindows",

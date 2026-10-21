@@ -6,6 +6,8 @@ import {
 } from "./modal";
 import { injectMarkdownStyles } from "./styles";
 import type { SettingsPageID } from "./settings-pages";
+import { openUserGuide } from "../help";
+import { showFeatureUpdates } from "../feature-updates";
 
 let activeSettingsDestroy: (() => void) | null = null;
 const preferencePaneBindings = new WeakMap<Document, () => void>();
@@ -77,7 +79,16 @@ export function bindMarkdownSettingsPreferencePane(doc: Document): () => void {
   if (!entry) return () => {};
   const pane = doc.getElementById("zotero-markdown-preferences");
   const github = doc.getElementById("zotero-markdown-github");
+  const guide = doc.getElementById("zotero-markdown-user-guide");
+  const updates = doc.getElementById("zotero-markdown-feature-updates");
   const onOpen = () => openMarkdownSettings();
+  const onGuide = (event: Event) => {
+    event.preventDefault();
+    void openUserGuide();
+  };
+  const onUpdates = () => {
+    if (doc.defaultView) showFeatureUpdates(doc.defaultView);
+  };
   const onGitHub = (event: Event) => {
     event.preventDefault();
     const url = github?.getAttribute("href");
@@ -85,12 +96,16 @@ export function bindMarkdownSettingsPreferencePane(doc: Document): () => void {
   };
   entry.addEventListener("click", onOpen);
   github?.addEventListener("click", onGitHub);
+  guide?.addEventListener("click", onGuide);
+  updates?.addEventListener("click", onUpdates);
   let destroyed = false;
   const destroy = () => {
     if (destroyed) return;
     destroyed = true;
     entry.removeEventListener("click", onOpen);
     github?.removeEventListener("click", onGitHub);
+    guide?.removeEventListener("click", onGuide);
+    updates?.removeEventListener("click", onUpdates);
     pane?.removeEventListener("unload", destroy);
     doc.defaultView?.removeEventListener("unload", destroy);
     preferencePaneBindings.delete(doc);

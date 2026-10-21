@@ -33,6 +33,12 @@ import { requestLiveAsset } from "./assets";
 import { cachedLineParse } from "./line-cache";
 import { parseMathRanges, type MathRange } from "./math-syntax";
 import { MathWidget } from "./math";
+import {
+  editorMermaidLabels,
+  mermaidBlockFromNode,
+  MermaidWidget,
+  type MermaidBlockRange,
+} from "./mermaid";
 import { renderMath } from "../../modules/markdown/math";
 import type { DocLines, LineInfo } from "./types";
 import {
@@ -834,9 +840,21 @@ function buildStructure(state: EditorState) {
   const lines = state.doc.toJSON();
   const fm = frontmatterLineNumbersFromLines(lines);
   const fencedCode = fencedCodeLineKindsFromLines(lines);
+  const mermaidBlocks: MermaidBlockRange[] = [];
+  const mermaidLines = new Map<number, MermaidBlockRange>();
   const excludedMath: Array<{ from: number; to: number }> = [];
   syntaxTree(state).iterate({
     enter({ node }) {
+      const mermaid = mermaidBlockFromNode(state, node);
+      if (mermaid && !fm.has(state.doc.lineAt(mermaid.from).number)) {
+        mermaidBlocks.push(mermaid);
+        for (
+          let number = state.doc.lineAt(mermaid.from).number;
+          number <= state.doc.lineAt(mermaid.to).number;
+          number++
+        )
+          mermaidLines.set(number, mermaid);
+      }
       if (
         !/^(?:FencedCode|CodeBlock|InlineCode|HTMLBlock|CommentBlock|ProcessingInstructionBlock|URL|Image|LinkReference)$/.test(
           node.name,
@@ -927,12 +945,15 @@ function buildStructure(state: EditorState) {
     ...tableRows.keys(),
     ...allImageLines,
     ...mathLines.keys(),
+    ...mermaidLines.keys(),
   ]);
   for (const entries of imageLines.values())
     for (const number of entries) widgetLines.add(number);
   return {
     fm,
     fencedCode,
+    mermaidBlocks,
+    mermaidLines,
     formulas,
     mathLines,
     tableRows,
@@ -1025,6 +1046,71 @@ export const livePreviewMathDecorations = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+/** A direct field owns multiline replacement; viewport plugins cannot do so. */
+export function buildMermaidDecorations(state: EditorState): DecorationSet {
+  const structure = state.field(liveStructure);
+  const theme = state.facet(EditorView.darkTheme) ? "dark" : "light";
+  const labels = state.facet(editorMermaidLabels);
+  const editable = !state.readOnly && state.facet(EditorView.editable);
+  const decorations: ReturnType<Decoration["range"]>[] = [];
+  for (const original of structure.mermaidBlocks) {
+    const from = structure.mapping.mapPos(original.from, 1);
+    const to = structure.mapping.mapPos(original.to, -1);
+    const first = state.doc.lineAt(from);
+    const last = state.doc.lineAt(to);
+    // Keep the whole block editable when any selection intersects its lines.
+    // This also preserves native IME DOM without composition-time dispatches.
+    const editing =
+      editable &&
+      state.selection.ranges.some(
+        (selection) =>
+          state.doc.lineAt(selection.from).number <= last.number &&
+          state.doc.lineAt(selection.to).number >= first.number,
+      );
+    if (editing) continue;
+    const sourceFrom = first.to + 1;
+    const source = state.doc.sliceString(
+      sourceFrom,
+      Math.max(sourceFrom, last.from - 1),
+    );
+    decorations.push(
+      Decoration.replace({
+        widget: new MermaidWidget(
+          { from, to },
+          source,
+          sourceFrom,
+          theme,
+          labels,
+          editable,
+        ),
+        block: true,
+        inclusive: false,
+      }).range(from, to),
+    );
+  }
+  return Decoration.set(decorations, true);
+}
+
+export const livePreviewMermaidDecorations = StateField.define<DecorationSet>({
+  create: buildMermaidDecorations,
+  update(decorations, transaction) {
+    return transaction.docChanged ||
+      transaction.selection ||
+      transaction.state.field(liveStructure) !==
+        transaction.startState.field(liveStructure, false) ||
+      transaction.state.facet(EditorView.darkTheme) !==
+        transaction.startState.facet(EditorView.darkTheme) ||
+      transaction.state.facet(editorMermaidLabels) !==
+        transaction.startState.facet(editorMermaidLabels) ||
+      transaction.state.readOnly !== transaction.startState.readOnly ||
+      transaction.state.facet(EditorView.editable) !==
+        transaction.startState.facet(EditorView.editable)
+      ? buildMermaidDecorations(transaction.state)
+      : decorations;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
 function canUpdateLocally(transaction: Transaction): boolean {
   // Switching from Source to Live adds the live fields in this transaction,
   // so the start state has no structure to update from.
@@ -1047,6 +1133,16 @@ function canUpdateLocally(transaction: Transaction): boolean {
   transaction.changes.iterChanges((fromA, toA, fromB, toB) => {
     const before = transaction.startState.doc.lineAt(fromA);
     const after = transaction.state.doc.lineAt(fromB);
+    const mermaid = structure.mermaidLines.get(before.number);
+    if (
+      mermaid &&
+      structure.fencedCode[before.number - 1] === "content" &&
+      before.number === transaction.startState.doc.lineAt(toA).number &&
+      after.number === transaction.state.doc.lineAt(toB).number &&
+      !/^[ ]{0,3}(?:`{3,}|~{3,})/.test(before.text) &&
+      !/^[ ]{0,3}(?:`{3,}|~{3,})/.test(after.text)
+    )
+      return;
     if (
       before.number !== transaction.startState.doc.lineAt(toA).number ||
       after.number !== transaction.state.doc.lineAt(toB).number ||
@@ -1361,6 +1457,7 @@ export function buildLivePreviewDecorations(
     }
 
     if (codeLineKind) {
+      if (structure.mermaidLines.has(n)) continue;
       if (codeLineKind !== "content") {
         if (text.length) {
           ranges.push(
@@ -1857,6 +1954,7 @@ export function livePreviewPlugin(): Extension {
   return [
     liveStructure,
     livePreviewMathDecorations,
+    livePreviewMermaidDecorations,
     livePreviewBlockDecorations,
     livePreviewViewPlugin,
     livePreviewVisibleLinks,

@@ -9,6 +9,11 @@ import {
   resumeWorkspaceTracking,
 } from "./modules/workspace-state";
 import { closeNoteIndex } from "./modules/markdown/note-index";
+import { disposeFeatureUpdates } from "./modules/feature-updates";
+import {
+  registerAttachmentZipCompatibility,
+  unregisterAttachmentZipCompatibility,
+} from "./modules/attachment-zip-compat";
 import {
   createMarkdownAttachment,
   flushAllSessions,
@@ -74,6 +79,7 @@ async function onStartup() {
 
   initLocale();
   registerPrefs();
+  registerAttachmentZipCompatibility();
   await registerAttachmentIcons();
   registerFileOpenInterceptor();
   registerWhiteboardFileOpenInterceptor();
@@ -164,6 +170,8 @@ async function onShutdown(): Promise<void> {
   await runShutdownSteps(
     [
       ["retainWorkspace", retainWorkspaceOnShutdown],
+      ["featureUpdates", disposeFeatureUpdates],
+      ["attachmentZipCompatibility", unregisterAttachmentZipCompatibility],
       ["attachmentIcons", unregisterAttachmentIcons],
       ["creationToolbar", unregisterAllCreationToolbars],
       [

@@ -17,7 +17,13 @@ describe("more menu", () => {
         ["document-info", "history", "rename", "show-in-folder", "open-window"],
         ["search-library", "find", "source", "mode"],
         ["export"],
-        ["import-external-images", "cleanup-images", "shortcuts", "settings"],
+        [
+          "import-external-images",
+          "repair-images",
+          "cleanup-images",
+          "shortcuts",
+          "settings",
+        ],
       ],
     );
   });

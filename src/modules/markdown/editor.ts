@@ -55,6 +55,8 @@ export interface MarkdownEditorHandle {
   isComposing: () => boolean;
   requestSnapshot: () => Promise<string>;
   setValue: (value: string) => void;
+  /** Apply an asynchronous result only if the live editable buffer still matches. */
+  applyIfUnchanged: (expected: string, value: string) => Promise<boolean>;
   replaceRange: (from: number, to: number, insert: string) => void;
   focus: () => void;
   destroy: () => void;
@@ -292,6 +294,11 @@ export function createMarkdownEditor(
     number,
     { resolve: (value: string) => void; timer: number }
   >();
+  let applySeq = 0;
+  const pendingApplies = new Map<
+    number,
+    { resolve: (applied: boolean) => void; timer: number }
+  >();
   const pending: PendingCommand[] = [];
 
   let resolveReady!: () => void;
@@ -429,6 +436,11 @@ export function createMarkdownEditor(
             theme: currentTheme,
             mode: currentMode,
             surface,
+            mermaidLabels: {
+              loading: getString("mermaid-loading"),
+              error: getString("mermaid-error"),
+              edit: getString("mermaid-edit"),
+            },
             linkLabels: {
               all: getString("document-link-filter-all"),
               regular: getString("document-link-filter-regular"),
@@ -467,6 +479,15 @@ export function createMarkdownEditor(
         lastValue = applyDocChanges(lastValue, data.payload.changes);
         lastStats = undefined;
         onChange?.(lastValue);
+        break;
+      }
+      case "applyResult": {
+        const pendingApply = pendingApplies.get(data.payload.requestId);
+        if (pendingApply) {
+          pendingApplies.delete(data.payload.requestId);
+          ownerWin?.clearTimeout?.(pendingApply.timer);
+          pendingApply.resolve(data.payload.applied);
+        }
         break;
       }
       case "outline": {
@@ -713,6 +734,49 @@ export function createMarkdownEditor(
         payload: { value },
       });
     },
+    applyIfUnchanged: (expected: string, value: string) => {
+      if (
+        destroyed ||
+        !iframeReady ||
+        !ownerWin ||
+        currentReadOnly ||
+        composing ||
+        lastValue !== expected
+      ) {
+        return Promise.resolve(false);
+      }
+      const requestId = ++applySeq;
+      const timeout = 1500;
+      const expiresAt = Date.now() + timeout;
+      return new Promise<boolean>((resolve) => {
+        const finish = (applied: boolean) => {
+          const pendingApply = pendingApplies.get(requestId);
+          if (!pendingApply) return;
+          pendingApplies.delete(requestId);
+          ownerWin.clearTimeout(pendingApply.timer);
+          resolve(applied);
+        };
+        const timer = ownerWin.setTimeout(() => finish(false), timeout);
+        pendingApplies.set(requestId, { resolve, timer });
+        try {
+          if (
+            !post({
+              source: EDITOR_MESSAGE_SOURCE,
+              type: "applyIfUnchanged",
+              payload: {
+                requestId,
+                expected,
+                value,
+                expiresAt,
+              },
+            })
+          )
+            finish(false);
+        } catch {
+          finish(false);
+        }
+      });
+    },
     replaceRange: (from, to, insert) => {
       sendOrQueue({
         source: EDITOR_MESSAGE_SOURCE,
@@ -807,6 +871,11 @@ export function createMarkdownEditor(
         pendingSnapshot.resolve(lastValue);
         pendingSnapshots.delete(id);
       }
+      for (const pendingApply of pendingApplies.values()) {
+        ownerWin?.clearTimeout?.(pendingApply.timer);
+        pendingApply.resolve(false);
+      }
+      pendingApplies.clear();
       try {
         colorSchemeMql?.removeEventListener?.("change", onColorSchemeChange);
       } catch {

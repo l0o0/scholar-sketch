@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.2.12 - 2026-10-21
+
+### Features
+
+- Use the Markdown bottom-right status area for image download, cleanup and manual repair progress and results, with state icons and automatic return to save status
+- Rename the external-image action to Download external images locally and report empty, complete, partial and failed downloads
+- Improve status readability in dark mode and narrow windows, with reduced-motion support
+
+### Fixes
+
+- Open the shortcuts settings page directly from the More menu
+- Move heading shortcuts to Ctrl+Alt+1/2/3 (Cmd+Option+1/2/3 on macOS) to avoid Zotero tab-switching shortcuts, and restore the italic shortcut
+- Apply downloaded image links only when the editor still contains the expected text; preserve newer input and support undo
+- Coordinate explicit image operations and recheck drafts after asynchronous waits before deleting unused images
+- Keep save failures visible above operation notices and prevent stale asynchronous results from replacing newer notifications
+
+## 0.2.11 - 2026-10-21
+
+### Fixes
+
+- Normalize legacy Windows path separators in Markdown and Canvas upload archives so nested assets keep their directories after Zotero file sync
+- Silently restore misplaced local Markdown images to their referenced assets paths when opening or revisiting a note, without rewriting the note body
+- Verify image contents and preserve originals when recovery encounters conflicting files, active edits, IME composition, or file synchronization
+
+### Features and documentation
+
+- Add a Check and repair images action to the Markdown More menu for diagnosis and manual recovery
+- Add a user guide entry in settings, with a published documentation fallback while the Zotero Chinese Wiki contribution awaits publication
+- Show concise update highlights when opening a visible Markdown note or whiteboard after upgrading, with an option to revisit them in settings
+
 ## 0.2.9 - 2026-10-19
 
 ### Features

@@ -45,6 +45,9 @@ function createLivePreviewStyles(
   liveGeometry: ReturnType<typeof createLiveEditorGeometry>,
 ) {
   return {
+    ".zmd-lp-mermaid": {
+      margin: liveGeometry.tableMargin,
+    },
     // Visible MD markers on the active (source) line — muted, keep line metrics
     ".zmd-lp-syntax": {
       opacity: "0.45",

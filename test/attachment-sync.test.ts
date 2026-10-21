@@ -202,6 +202,35 @@ test("an active sync finishes before a write acquires its delay", async (context
   assert.equal(mock.releases, 1);
 });
 
+test("background repair can skip a sync that starts before acquiring its write gate", async (context) => {
+  const mock = fixture(context);
+  let writes = 0;
+  // The gate is asynchronous; sync may start after the caller's preflight.
+  const operation = withAttachmentWrite(
+    mock.item,
+    async () => {
+      writes++;
+    },
+    undefined,
+    { waitForSync: false },
+  );
+  mock.setBusy(true);
+  await assert.rejects(
+    operation,
+    (error: unknown) =>
+      (error as { code?: string }).code === "ATTACHMENT_SYNC_BUSY",
+  );
+  assert.equal(writes, 0);
+  assert.deepEqual(mock.waits, []);
+  assert.equal(mock.pauses, 0);
+  // The rejected background operation must not poison later user saves.
+  mock.setBusy(false);
+  await withAttachmentWrite(mock.item, async () => {
+    writes++;
+  });
+  assert.equal(writes, 1);
+});
+
 test("waiting preserves a draft once before waiting through several sync polls", async (context) => {
   const mock = fixture(context);
   mock.setBusy(true);

@@ -87,7 +87,14 @@ export interface EditorInitPayload {
   imageLabels?: EditorImageLabels;
   tableLabels?: EditorTableLabels;
   linkLabels?: EditorLinkLabels;
+  mermaidLabels?: EditorMermaidLabels;
   viewState?: DocumentViewState;
+}
+
+export interface EditorMermaidLabels {
+  loading: string;
+  error: string;
+  edit: string;
 }
 
 export interface EditorImageLabels {
@@ -125,6 +132,16 @@ export type ParentToEditorMessage = (
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setValue";
       payload: { value: string };
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "applyIfUnchanged";
+      payload: {
+        requestId: number;
+        expected: string;
+        value: string;
+        expiresAt: number;
+      };
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -230,6 +247,11 @@ export type ParentToEditorMessage = (
 export type EditorToParentMessage = (
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "applyResult";
+      payload: { requestId: number; applied: boolean };
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
       type: "composition";
       payload: { active: boolean };
     }
@@ -321,6 +343,27 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "applyIfUnchanged") {
+    const payload = data.payload as Record<string, unknown> | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      validRequestID(payload.requestId) &&
+      typeof payload.expected === "string" &&
+      typeof payload.value === "string" &&
+      typeof payload.expiresAt === "number" &&
+      Number.isFinite(payload.expiresAt)
+    );
+  }
+  if (data.type === "applyResult") {
+    const payload = data.payload as Record<string, unknown> | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      validRequestID(payload.requestId) &&
+      typeof payload.applied === "boolean"
+    );
+  }
   if (data.type === "composition") {
     const payload = data.payload as { active?: unknown } | null;
     return (

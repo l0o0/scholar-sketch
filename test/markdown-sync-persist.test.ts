@@ -555,3 +555,127 @@ test("partially failed explicit cleanup rejects the save while retaining its pac
     true,
   );
 });
+
+test("cleanup becoming stale during sync cancels before writing the note or deleting images", async (context) => {
+  const mock = await setup(context);
+  const before = await directorySnapshot(mock.storage);
+  const sync = await holdSync(mock);
+  let current = true;
+  const save = persistMarkdownContent(mock.item, "# Earlier snapshot\n", {
+    revision: mock.revision,
+    syncFile: true,
+    cleanupImages: true,
+    canCleanupImages: () => current,
+  });
+  await sync.waiting;
+  current = false;
+  sync.finish();
+  await assert.rejects(save, { code: "IMAGE_CLEANUP_STALE" });
+  assert.deepEqual(await directorySnapshot(mock.storage), before);
+  assert.deepEqual(mock.removed, []);
+  assert.deepEqual(mock.touched, []);
+  assert.equal(mock.item.attachmentSyncState, IN_SYNC);
+  assert.equal(mock.heldDelays, 0);
+});
+
+test("cleanup rechecks its editor guard after history I/O before replacing the note", async (context) => {
+  const mock = await setup(context);
+  const before = await directorySnapshot(mock.storage);
+  let current = true;
+  const original = mock.io.writeUTF8;
+  mock.io.writeUTF8 = async (...args) => {
+    await original(...args);
+    if (!args[0].startsWith(mock.storage + path.sep)) current = false;
+  };
+  await assert.rejects(
+    persistMarkdownContent(mock.item, "# Earlier snapshot\n", {
+      revision: mock.revision,
+      syncFile: true,
+      cleanupImages: true,
+      canCleanupImages: () => current,
+    }),
+    { code: "IMAGE_CLEANUP_STALE" },
+  );
+  assert.deepEqual(await directorySnapshot(mock.storage), before);
+  assert.deepEqual(mock.removed, []);
+  assert.equal(
+    mock.utf8Writes.filter((write) => write.target === mock.target).length,
+    0,
+  );
+});
+
+test("cleanup cancels before deleting images if a draft changes during the directory scan", async (context) => {
+  const mock = await setup(context);
+  const before = await directorySnapshot(mock.assets);
+  let current = true;
+  const original = mock.io.getChildren;
+  mock.io.getChildren = async (target) => {
+    const children = await original(target);
+    if (target === mock.assets) current = false;
+    return children;
+  };
+  await assert.rejects(
+    persistMarkdownContent(mock.item, mock.initial, {
+      revision: mock.revision,
+      syncFile: true,
+      cleanupImages: true,
+      canCleanupImages: () => current,
+    }),
+    { code: "IMAGE_CLEANUP_STALE" },
+  );
+  assert.deepEqual(await directorySnapshot(mock.assets), before);
+  assert.deepEqual(mock.removed, []);
+});
+
+test("cleanup retains remaining files if another view changes between image deletions", async (context) => {
+  const mock = await setup(context);
+  const secondOrphan = path.join(mock.assets, "1700000000000-ccccccc.png");
+  await fs.writeFile(secondOrphan, imageBytes);
+  let current = true;
+  const original = mock.io.remove;
+  mock.io.remove = async (target) => {
+    await original(target);
+    current = false;
+  };
+  await assert.rejects(
+    persistMarkdownContent(mock.item, mock.initial, {
+      revision: mock.revision,
+      syncFile: true,
+      cleanupImages: true,
+      canCleanupImages: () => current,
+    }),
+    { code: "IMAGE_CLEANUP_STALE" },
+  );
+  assert.deepEqual(mock.removed, [path.join(mock.assets, orphanFilename)]);
+  assert.equal(await mock.io.exists(secondOrphan), true);
+  assert.equal(
+    await mock.io.exists(path.join(mock.assets, usedFilename)),
+    true,
+  );
+  assert.equal(mock.item.attachmentSyncState, TO_UPLOAD);
+  assert.equal(mock.heldDelays, 0);
+});
+
+test("cleanup rechecks before removing an empty assets directory", async (context) => {
+  const mock = await setup(context);
+  await fs.unlink(path.join(mock.assets, usedFilename));
+  await fs.unlink(path.join(mock.assets, orphanFilename));
+  let current = true;
+  const original = mock.io.getChildren;
+  mock.io.getChildren = async (target) => {
+    const children = await original(target);
+    if (target === mock.assets) current = false;
+    return children;
+  };
+  await assert.rejects(
+    persistMarkdownContent(mock.item, mock.initial, {
+      revision: mock.revision,
+      syncFile: true,
+      cleanupImages: true,
+      canCleanupImages: () => current,
+    }),
+    { code: "IMAGE_CLEANUP_STALE" },
+  );
+  assert.equal(await mock.io.exists(mock.assets), true);
+  assert.deepEqual(mock.removed, []);
+});

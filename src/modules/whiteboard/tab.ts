@@ -55,6 +55,7 @@ import {
 } from "./embedded-file";
 
 import { injectWhiteboardStyles } from "./styles";
+import { bindFeatureUpdates } from "../feature-updates";
 
 const AUTOSAVE_MS = 800;
 
@@ -1642,6 +1643,17 @@ async function mountWhiteboardSurface(
     session.view!.root.inert = false;
     refreshTabTitle(session);
     if (surface !== "sidebar") focusWhiteboard(session);
+    const openedSession = session;
+    openedSession.unbindFeatureUpdates = bindFeatureUpdates({
+      win,
+      root: openedSession.view!.root,
+      ready: openedSession.editor!.ready,
+      isActive: () =>
+        !openedSession.closing &&
+        !openedSession.transitioning &&
+        (surface !== "tab" ||
+          (win as _ZoteroTypes.MainWindow).Zotero_Tabs.selectedID === tabID),
+    });
     return tabID;
   } catch (error) {
     if (session) disposeWhiteboardSession(session);
@@ -1666,6 +1678,7 @@ function disposeWhiteboardSession(session: WhiteboardSession) {
     unbindVisibility?.();
     if (session.autosaveTimer) session.win.clearTimeout(session.autosaveTimer);
     session.unbindTheme?.();
+    session.unbindFeatureUpdates?.();
     session.unsubscribeTemplates?.();
     session.unsubscribeTemplates = undefined;
     session.sourceScheduler?.dispose();

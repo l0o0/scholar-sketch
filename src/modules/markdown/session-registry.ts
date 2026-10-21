@@ -3,6 +3,7 @@ import type { EditorOutlineItem } from "./editor-protocol";
 import type { OutlineSidebarHandle } from "./outline-sidebar";
 import type { SaveCoordinator } from "./save-coordinator";
 import type { MarkdownModalController } from "./modal";
+import type { StatusFeedback } from "./status-feedback";
 
 export type SessionMode = "live" | "source" | "preview";
 export type SessionSurface = "tab" | "window";
@@ -53,15 +54,18 @@ export interface OpenSession {
   closing?: boolean;
   closePromise?: Promise<void>;
   closeMoreMenu?: () => void;
+  closeImageRepair?: () => void;
   closeTablePicker?: () => void;
   unbindTablePicker?: () => void;
   unbindTheme?: () => void;
+  unbindFeatureUpdates?: () => void;
   documentSyncSourceID?: string;
   documentSyncRefresh?: Promise<void>;
   unbindDocumentSync?: () => void;
   unbindPreviewOutline?: () => void;
   unbindBacklinks?: () => void;
   modal?: MarkdownModalController;
+  statusFeedback?: StatusFeedback;
 }
 
 export class SessionRegistry {
@@ -98,6 +102,12 @@ export class SessionRegistry {
   unregister(tabID: string) {
     const session = this.byTab.get(tabID);
     if (!session) return;
+    session.unbindFeatureUpdates?.();
+    session.unbindFeatureUpdates = undefined;
+    session.closeImageRepair?.();
+    session.closeImageRepair = undefined;
+    session.statusFeedback?.destroy();
+    session.statusFeedback = undefined;
     this.byTab.delete(tabID);
     this.byWindow
       .get(session.win)

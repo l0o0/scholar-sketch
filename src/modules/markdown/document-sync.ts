@@ -2,6 +2,7 @@ export interface DocumentSyncSource {
   sourceID: string;
   itemID: number;
   hasLocalWork(): boolean;
+  isComposing?(): boolean;
   flush(): Promise<void>;
   getCurrentValue(): string;
   readPersisted(): Promise<string>;
@@ -53,6 +54,15 @@ export class DocumentSyncRegistry {
 
   has(sourceID: string): boolean {
     return this.sources.has(sourceID);
+  }
+
+  hasLocalWork(itemID: number, exceptSourceID?: string): boolean {
+    return [...this.sources.values()].some(
+      ({ source }) =>
+        source.itemID === itemID &&
+        source.sourceID !== exceptSourceID &&
+        (source.hasLocalWork() || source.isComposing?.()),
+    );
   }
 
   markEdited(sourceID: string): void {
