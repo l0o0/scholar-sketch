@@ -15,6 +15,7 @@ import {
   type NoteAttachment,
   type CanvasNode,
 } from "../model/academic";
+import { nodeFillInk } from "../model/colorSchemes";
 import type { CanvasNodeStyle } from "../model/core";
 import type { CanvasDocument } from "../model/document";
 import { isConnectionSide } from "../model/connection";
@@ -271,14 +272,18 @@ export function buildCanvasSvg(
   if (appearance) {
     doc = {
       ...doc,
-      nodes: doc.nodes.map((node) => ({
-        ...node,
-        style: {
-          ...node.style,
-          textColor: node.style?.textColor ?? palette.text,
-          fontFamily: node.style?.fontFamily || appearance.fontFamily,
-        },
-      })),
+      nodes: doc.nodes.map((node) => {
+        const style = node.style ?? {};
+        return {
+          ...node,
+          style: {
+            ...style,
+            textColor:
+              style.textColor ?? nodeFillInk(style)?.text ?? palette.text,
+            fontFamily: style.fontFamily || appearance.fontFamily,
+          },
+        };
+      }),
       connections: doc.connections.map((edge) => ({
         ...edge,
         textStyle: {

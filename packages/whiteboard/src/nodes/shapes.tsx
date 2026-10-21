@@ -11,6 +11,7 @@ import {
   CardShell,
   NodeHandles,
   nodeSurfaceFill,
+  nodeSurfaceInk,
   nodeSurfaceStroke,
 } from "./CardShell";
 import type { CanvasFlowNode } from "./types";
@@ -82,6 +83,7 @@ function shapeStyle(
           ? 0
           : (value.radius ?? defaults.radius),
     ...verticalAlignmentStyle(value),
+    ...nodeSurfaceInk(value),
   } as const;
 }
 

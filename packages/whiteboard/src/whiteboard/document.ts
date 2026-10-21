@@ -64,7 +64,8 @@ export function labelTextStyle(style: Partial<CanvasNodeStyle>): CSSProperties {
     fontStyle: style.fontStyle || "normal",
     textDecoration: style.textDecoration || "none",
     textAlign: style.textAlign || "center",
-    color: style.textColor ?? "var(--zmd-board-text, #111827)",
+    color:
+      style.textColor ?? "var(--zmd-node-ink, var(--zmd-board-text, #111827))",
     opacity: style.textOpacity ?? 1,
     lineHeight: 1.25,
     width: "100%",

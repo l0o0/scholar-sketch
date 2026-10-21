@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CanvasNode } from "../packages/whiteboard/src/model/academic.ts";
+import { colorPalette } from "../packages/whiteboard/src/model/colorSchemes.ts";
+import type { CanvasNodeStyle } from "../packages/whiteboard/src/model/core.ts";
 import { createBasicNode } from "../packages/whiteboard/src/model/basic.ts";
 import {
   canvasDocumentToFile,
@@ -892,4 +894,81 @@ test("dark SVG defaults remain visible against the configured background", () =>
   assert.match(svg, /fill="#12141a"/);
   assert.match(svg, /stroke="#6b7280"/);
   assert.doesNotMatch(svg, /stroke="#1f2937"/);
+});
+
+test("SVG preserves every palette fill in either theme without mutating the document", () => {
+  for (const scheme of ["traditional", "classic"] as const) {
+    for (const theme of ["light", "dark"] as const) {
+      for (const fill of colorPalette(true, scheme)) {
+        const rect = createBasicNode("rect", { x: 0, y: 0 }, "rect");
+        rect.style = { ...rect.style, fill };
+        const document: CanvasDocument = {
+          version: 2,
+          nodes: [rect],
+          connections: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        };
+        const before = structuredClone(document);
+        const svg = buildCanvasSvg(document, undefined, {
+          fontFamily: "Georgia",
+          backgroundColor: "#12141a",
+          theme,
+        });
+        assert.match(
+          svg,
+          new RegExp(`<rect x="0" y="0"[^>]*fill="${fill}"`),
+          `${theme} ${fill}`,
+        );
+        assert.deepEqual(document, before);
+      }
+    }
+  }
+});
+
+test("SVG matches fill-based ink, explicit text colors and transparent surfaces", () => {
+  const cases: { style: CanvasNodeStyle; fill: string; text?: string }[] = [
+    { style: { fill: "#dcece3" }, fill: "#dcece3", text: "#111827" },
+    { style: { fill: "#2b5c43" }, fill: "#2b5c43", text: "#e8eaed" },
+    { style: { fill: "#123456" }, fill: "#123456", text: "#e8eaed" },
+    { style: { fill: "#fdfefd" }, fill: "#fdfefd", text: "#111827" },
+    {
+      style: { fill: "#2b5c43", textColor: "#fedcba" },
+      fill: "#2b5c43",
+      text: "#fedcba",
+    },
+    {
+      style: { fill: "#dcece3", textColor: "#543210" },
+      fill: "#dcece3",
+      text: "#543210",
+    },
+    { style: { fill: "#2b5c43", fillStyle: "none" }, fill: "none" },
+    { style: { fill: "transparent" }, fill: "none" },
+  ];
+  for (const theme of ["light", "dark"] as const) {
+    for (const entry of cases) {
+      const rect = createBasicNode("rect", { x: 0, y: 0 }, "rect");
+      rect.style = entry.style;
+      if (rect.kind === "rect") rect.data.title = "Readable label";
+      const svg = buildCanvasSvg(
+        {
+          version: 2,
+          nodes: [rect],
+          connections: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        },
+        undefined,
+        {
+          fontFamily: "Georgia",
+          backgroundColor: "#12141a",
+          theme,
+        },
+      );
+      assert.match(
+        svg,
+        new RegExp(`<rect x="0" y="0"[^>]*fill="${entry.fill}"`),
+      );
+      const text = entry.text ?? (theme === "dark" ? "#e8eaed" : "#111827");
+      assert.match(svg, new RegExp(`<text[^>]*fill="${text}"`));
+    }
+  }
 });

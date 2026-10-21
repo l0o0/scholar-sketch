@@ -146,6 +146,56 @@ test("card shells keep React Flow handles visible beyond their border", () => {
   assert.match(cardRule, /overflow:\s*visible/);
 });
 
+test("a palette-filled card preserves its fill and keeps readable text", () => {
+  const card = (fill: string, textColor?: string) => ({
+    ...createAcademicNode("literature", { x: 0, y: 0 }, "literature-fill", {
+      source: { library: { type: "user" }, itemKey: "ITEM1234" },
+      snapshot: { title: "A careful paper", creators: "Chen", year: "2026" },
+    }),
+    style: { fill, stroke: "#519a73", ...(textColor ? { textColor } : {}) },
+  });
+  for (const [fill, ink] of [
+    ["#dcece3", "#111827"],
+    ["#2b5c43", "#e8eaed"],
+    ["#123456", "#e8eaed"],
+  ]) {
+    const markup = renderNode(card(fill));
+    assert.match(markup, new RegExp(`--zmd-board-node-fill:${fill}`));
+    assert.match(markup, new RegExp(`--zmd-node-ink:${ink}`));
+    assert.match(markup, /--zmd-node-ink-muted:#[\da-f]{6}/);
+    assert.match(markup, /--zmd-board-node-stroke:#519a73/);
+  }
+  const explicit = renderNode(card("#dcece3", "#1f2937"));
+  assert.match(explicit, /--zmd-board-node-fill:#dcece3/);
+  assert.match(explicit, /color:#1f2937/);
+  assert.doesNotMatch(renderNode(card("transparent")), /--zmd-node-ink/);
+  const unfilled = card("#2b5c43");
+  const transparent = renderNode({
+    ...unfilled,
+    style: { ...unfilled.style, fillStyle: "none" },
+  });
+  assert.match(transparent, /--zmd-board-node-fill:transparent/);
+  assert.doesNotMatch(transparent, /--zmd-node-ink/);
+
+  for (const selector of [
+    /\n\n\.zmd-board-card-meta,\s*\.zmd-board-card-preview\s*\{([^}]*)\}/,
+    /\n\n\.zmd-board-card-comment,\s*\.zmd-board-card-count\s*\{([^}]*)\}/,
+    /\n\n\.zmd-board-card-tags\s*\{([^}]*)\}/,
+  ]) {
+    assert.match(
+      canvasCss.match(selector)?.[1] ?? "",
+      /color:\s*var\(--zmd-node-ink-muted,/,
+    );
+  }
+  const cardRule = canvasCss.match(/\.zmd-board-card\s*\{([^}]*)\}/)?.[1];
+  assert.match(cardRule ?? "", /\scolor:\s*var\(--zmd-node-ink,/);
+  // The selection outline sits on the board, so it keeps the theme colour.
+  assert.match(
+    cardRule ?? "",
+    /--zmd-card-selected:\s*var\(--zmd-board-text, #111827\)/,
+  );
+});
+
 test("renders concise literature and quote snapshots with localized kinds", () => {
   const literature = renderNode(
     createAcademicNode("literature", { x: 0, y: 0 }, "literature-1", {
@@ -695,7 +745,8 @@ test("Basic shape labels use theme text independently from an explicit stroke", 
         data: { ...created.data, title: `${kind} label` },
         style: { ...(created.style ?? {}), stroke: "#dc2626" },
       };
-      const displayColor = "var(--zmd-board-text, #111827)";
+      const displayColor =
+        "var(--zmd-node-ink, var(--zmd-board-text, #111827))";
       assert.equal(labelTextStyle(model.style).color, displayColor);
       assert.equal(
         labelTextStyle(effectiveCanvasNodeUiTextStyle(kind, model.style)).color,
@@ -708,7 +759,7 @@ test("Basic shape labels use theme text independently from an explicit stroke", 
       assert.match(
         markup,
         new RegExp(
-          `style="[^"]*color:var\\(--zmd-board-text, #111827\\)[^"]*"[^>]*>(?:<span class="zmd-board-stroke-label-text"[^>]*>)?${kind} label<\\/span>`,
+          `style="[^"]*color:var\\(--zmd-node-ink, var\\(--zmd-board-text, #111827\\)\\)[^"]*"[^>]*>(?:<span class="zmd-board-stroke-label-text"[^>]*>)?${kind} label<\\/span>`,
         ),
       );
       if (kind === "line" || kind === "arrow") {

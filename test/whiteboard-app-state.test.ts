@@ -2445,7 +2445,10 @@ test("in-shape editing exposes localized focus and hides underlying copy", () =>
     /\.zmd-board-editor\.is-in-shape \.zmd-board-in-shape-edit,[\s\S]*?\.zmd-board-in-shape-edit\s*\{([^}]*)\}/,
   )?.[1];
   assert.ok(editorRule, "missing in-shape textarea rule");
-  assert.match(editorRule, /caret-color:\s*var\(--zmd-board-text,\s*#111827\)/);
+  assert.match(
+    editorRule,
+    /caret-color:\s*var\(--zmd-node-ink,\s*var\(--zmd-board-text,\s*#111827\)\)/,
+  );
   assert.match(
     canvasCss,
     /\.react-flow__node\.is-editing-label \.zmd-board-card-body/,
@@ -3297,6 +3300,9 @@ test("shape and editor layout map every vertical alignment with middle default",
   });
   const defaultLabel = labelTextStyle({});
   assert.equal(defaultLabel.lineHeight, 1.25);
-  assert.equal(defaultLabel.color, "var(--zmd-board-text, #111827)");
+  assert.equal(
+    defaultLabel.color,
+    "var(--zmd-node-ink, var(--zmd-board-text, #111827))",
+  );
   assert.equal(labelTextStyle({ textColor: "#abcdef" }).color, "#abcdef");
 });

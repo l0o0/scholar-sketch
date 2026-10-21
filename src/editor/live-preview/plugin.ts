@@ -1112,6 +1112,8 @@ export const livePreviewMermaidDecorations = StateField.define<DecorationSet>({
 });
 
 function canUpdateLocally(transaction: Transaction): boolean {
+  // Switching from Source to Live adds the live fields in this transaction,
+  // so the start state has no structure to update from.
   const structure = transaction.startState.field(liveStructure, false);
   if (!structure) return false;
   if (structure.syntaxPending) {
@@ -1653,7 +1655,7 @@ class LivePreviewPlugin {
         update.startState.facet(EditorView.editable) ||
       (!update.docChanged &&
         update.state.field(liveStructure) !==
-          update.startState.field(liveStructure)) ||
+          update.startState.field(liveStructure, false)) ||
       update.transactions.some(
         (transaction) =>
           transaction.docChanged && !canUpdateLocally(transaction),
@@ -1932,7 +1934,7 @@ class VisibleLinksPlugin {
       update.viewportChanged ||
       syntaxTree(update.state) !== syntaxTree(update.startState) ||
       update.state.field(liveStructure) !==
-        update.startState.field(liveStructure) ||
+        update.startState.field(liveStructure, false) ||
       this.composing !==
         (update.view.plugin(livePreviewViewPlugin)?.composing ?? false)
     )

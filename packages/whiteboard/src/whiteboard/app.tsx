@@ -120,6 +120,7 @@ import {
   type ColorSchemeID,
 } from "../model/colorSchemes";
 import { canvasNodeTypes, type CanvasFlowNode } from "../nodes";
+import { nodeSurfaceInk } from "../nodes/CardShell";
 import { PropertiesPanel } from "../chrome/PropertiesPanel";
 import { GroupPicker } from "../chrome/GroupPicker";
 import { joinFrame } from "./groupMembership";
@@ -5122,6 +5123,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                         editingSurfaceDefaults?.radius ??
                         8),
                   ...verticalAlignmentStyle(editingTextStyle),
+                  ...(editingStroke
+                    ? {}
+                    : nodeSurfaceInk(editingNode.data.model.style ?? {})),
                   ...(editingStrokeCenter
                     ? {
                         left: editingNode.position.x + editingStrokeCenter.x,

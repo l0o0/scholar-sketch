@@ -6,6 +6,7 @@ import {
   type NoteType,
   type CanvasNodeKind,
 } from "../model/academic";
+import { nodeFillInk } from "../model/colorSchemes";
 import type { CanvasNodeStyle } from "../model/core";
 import { IconItem, NoteTypeIcon, IconQuote } from "../whiteboard/icons";
 
@@ -37,6 +38,17 @@ export function nodeSurfaceFill(
     return `repeating-linear-gradient(135deg, ${fill} 0, ${fill} 6px, rgba(148, 163, 184, 0.25) 6px, rgba(148, 163, 184, 0.25) 8px)`;
   }
   return style.fill;
+}
+
+// Text on a manual solid fill takes its colours from that fill, not the theme.
+export function nodeSurfaceInk(style: Partial<CanvasNodeStyle>): CSSProperties {
+  const ink = nodeFillInk(style);
+  return ink
+    ? ({
+        "--zmd-node-ink": ink.text,
+        "--zmd-node-ink-muted": ink.muted,
+      } as CSSProperties)
+    : {};
 }
 
 export function nodeSurfaceStroke(
@@ -80,6 +92,7 @@ export function nodeSurfaceStyle(
     ...(style.radius !== undefined
       ? { "--zmd-board-node-radius": `${style.radius}px` }
       : {}),
+    ...nodeSurfaceInk(style),
   } as CSSProperties;
 }
 
