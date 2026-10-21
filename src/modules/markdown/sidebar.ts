@@ -867,8 +867,13 @@ class SidebarController {
       onSave: () => this.requestSave(true),
       onResolveAsset: (reference) => {
         const current = Zotero.Items.get(this.itemID ?? -1);
+        const markdown = this.editor?.getValue() ?? content;
         return current
-          ? resolveImageAssetEntry(current, reference)
+          ? resolveImageAssetEntry(current, reference, {
+              markdown,
+              shouldProceed: () =>
+                this.canAutomaticallyRepairImages(current, markdown),
+            })
           : Promise.resolve({ error: getString("sidebar-attachment-gone") });
       },
       onLinkSearch: async (query, filter) => {
@@ -948,6 +953,7 @@ class SidebarController {
       sourceID,
       itemID: item.id,
       hasLocalWork: () => save.dirty || save.writing,
+      isComposing: () => editor.isComposing(),
       flush: async () => {
         await save.request({ force: true });
       },
@@ -1015,6 +1021,13 @@ class SidebarController {
             sourceID,
           });
         }
+        if (
+          result === "unchanged" &&
+          this.item &&
+          this.editor &&
+          this.canAutomaticallyRepairImages(this.item, this.editor.getValue())
+        )
+          void this.refreshImages(this.item, this.editor.getValue());
       })
       .catch((error) => {
         ztoolkit.log("Sidebar focus refresh failed", error);
@@ -1078,12 +1091,38 @@ class SidebarController {
     source: string,
   ): Promise<void> {
     try {
-      const assets = await resolveImageAssets(item, source);
-      if (this.destroyed || this.itemID !== item.id) return;
+      const editor = this.editor;
+      const assets = await resolveImageAssets(item, source, () =>
+        this.canAutomaticallyRepairImages(item, source),
+      );
+      if (
+        this.destroyed ||
+        this.itemID !== item.id ||
+        this.editor !== editor ||
+        this.editor?.getValue() !== source
+      )
+        return;
       this.editor?.setImageAssets(assets);
     } catch (error) {
       ztoolkit.log("Sidebar image refresh failed", error);
     }
+  }
+
+  private canAutomaticallyRepairImages(
+    item: Zotero.Item,
+    source: string,
+  ): boolean {
+    return (
+      !this.destroyed &&
+      this.itemID === item.id &&
+      !!this.editor &&
+      this.editor.getValue() === source &&
+      !this.editor.isComposing() &&
+      !!this.save &&
+      !this.save.dirty &&
+      !this.save.writing &&
+      !documentSyncRegistry.hasLocalWork(item.id)
+    );
   }
 
   private async insertImage(

@@ -15,6 +15,7 @@ import type { ImageAssetMap } from "../editor-protocol";
 import { getString } from "../../../utils/locale";
 import { withAttachmentWrite } from "../../attachment-sync";
 import { ImageAssetCache } from "./asset-cache";
+import { autoRepairImageAssets } from "./auto-repair";
 
 function assertImageCapableItem(
   item: Zotero.Item,
@@ -85,10 +86,16 @@ export async function resolveImageAsset(
 export async function resolveImageAssetEntry(
   item: Zotero.Item,
   reference: string,
+  repair?: { markdown: string; shouldProceed: () => boolean },
 ): Promise<{ dataUrl?: string; error?: string }> {
   try {
     return { dataUrl: await resolveImageAsset(item, reference) };
   } catch (error) {
+    if (
+      repair &&
+      (await autoRepairImageAssets(item, repair.markdown, repair.shouldProceed))
+    )
+      return resolveImageAssetEntry(item, reference);
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -96,7 +103,11 @@ export async function resolveImageAssetEntry(
 export async function resolveImageAssets(
   item: Zotero.Item,
   markdown: string,
+  shouldRepair?: () => boolean,
 ): Promise<ImageAssetMap> {
+  // Only editor callers opt in. Export and other read-only consumers keep
+  // loading without changing files or forcing a draft to save.
+  if (shouldRepair) await autoRepairImageAssets(item, markdown, shouldRepair);
   const result: ImageAssetMap = {};
   const references = referencedAssets(markdown);
   let next = 0;

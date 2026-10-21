@@ -53,9 +53,11 @@ export interface OpenSession {
   closing?: boolean;
   closePromise?: Promise<void>;
   closeMoreMenu?: () => void;
+  closeImageRepair?: () => void;
   closeTablePicker?: () => void;
   unbindTablePicker?: () => void;
   unbindTheme?: () => void;
+  unbindFeatureUpdates?: () => void;
   documentSyncSourceID?: string;
   documentSyncRefresh?: Promise<void>;
   unbindDocumentSync?: () => void;
@@ -98,6 +100,10 @@ export class SessionRegistry {
   unregister(tabID: string) {
     const session = this.byTab.get(tabID);
     if (!session) return;
+    session.unbindFeatureUpdates?.();
+    session.unbindFeatureUpdates = undefined;
+    session.closeImageRepair?.();
+    session.closeImageRepair = undefined;
     this.byTab.delete(tabID);
     this.byWindow
       .get(session.win)

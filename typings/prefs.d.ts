@@ -17,6 +17,7 @@ declare namespace _ZoteroTypes {
       "whiteboardFontFamily": string;
       "whiteboardBackgroundColor": string;
       "whiteboardTutorialCreated": boolean;
+      "featureUpdatesSeenVersion": string;
       "shortcutNewStandaloneMd": string;
     };
   }

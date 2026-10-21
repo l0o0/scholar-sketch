@@ -74,6 +74,8 @@ import {
   writeImageAsset,
 } from "./images/service";
 import { parseMarkdownImages } from "./images/model";
+import { inspectImageAssets, repairImageAssets } from "./images/repair";
+import { openImageRepairDialog } from "./images/repair-dialog";
 import {
   createMarkdownModalController,
   type DocumentModalData,
@@ -102,6 +104,7 @@ import { mountBacklinksSidebar, mountNoteBacklinks } from "./backlinks";
 import { noteHeadingPosition, type PortableNote } from "./note-links";
 import { invalidateNoteLibrary, updateIndexedNote } from "./note-library";
 import { exportNoteLibrary } from "./export-notes";
+import { bindFeatureUpdates } from "../feature-updates";
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const tablePickerAnchors = new WeakMap<OpenSession, HTMLElement>();
@@ -189,6 +192,14 @@ export function mountMarkdownEditorSurface(
       } else if (restored?.mode === "source") setMode(session, "source");
     });
     options.updateTitle();
+    if (session.view && session.editor) {
+      session.unbindFeatureUpdates = bindFeatureUpdates({
+        win: session.win,
+        root: session.view.root,
+        isActive: () => !session.closing && session.isActive(),
+        ready: session.editor.ready,
+      });
+    }
     return session;
   } catch (error) {
     sessionRegistry.unregister(options.sessionID);
@@ -426,6 +437,7 @@ function bindSessionDocumentSync(session: OpenSession) {
     sourceID,
     itemID: session.itemID,
     hasLocalWork: () => session.save.dirty || session.save.writing,
+    isComposing: () => editor.isComposing(),
     flush: async () => {
       await requestSave(session, { force: true });
     },
@@ -482,6 +494,14 @@ export function refreshMarkdownSessionOnFocus(
           sourceID: session.documentSyncSourceID,
         });
       }
+      // Sync can download only image sidecars while the Markdown stays the
+      // same. Retry deferred image recovery when this editor regains focus.
+      if (
+        result === "unchanged" &&
+        session.editor &&
+        canAutomaticallyRepairImages(session, session.editor.getValue())
+      )
+        void refreshImageAssets(session);
     })
     .catch((error) => {
       ztoolkit.log("Markdown focus refresh failed", error);
@@ -1246,7 +1266,11 @@ function mountEditorUI(
       const item = Zotero.Items.get(session.itemID);
       if (!item)
         return Promise.resolve({ error: getString("error-attachment-gone") });
-      return resolveImageAssetEntry(item, reference);
+      const markdown = session.editor?.getValue() ?? content;
+      return resolveImageAssetEntry(item, reference, {
+        markdown,
+        shouldProceed: () => canAutomaticallyRepairImages(session, markdown),
+      });
     },
     onLinkSearch: (query, filter) =>
       searchDocumentLinks(item, query, false, {
@@ -1679,6 +1703,11 @@ export function mountMoreMenu(session: OpenSession) {
       close();
       return;
     }
+    if (action === "repair-images") {
+      close();
+      openSessionImageRepair(session);
+      return;
+    }
     if (action === "export-html") {
       void exportSessionHtml(session);
       close();
@@ -2089,6 +2118,120 @@ async function cleanupImagesInSession(session: OpenSession) {
   }
 }
 
+function openSessionImageRepair(session: OpenSession) {
+  const root = session.view?.root;
+  if (!root || session.closing) return;
+  session.closeImageRepair?.();
+  let active = true;
+  const assertOpen = () => {
+    if (
+      !active ||
+      session.closing ||
+      sessionRegistry.get(session.tabID) !== session
+    )
+      throw new Error(getString("image-repair-session-closed"));
+  };
+  const savedDocument = async () => {
+    assertOpen();
+    const item = Zotero.Items.get(session.itemID);
+    if (!item) throw new Error(getString("error-attachment-gone"));
+    const path = await item.getFilePathAsync();
+    if (!path) throw new Error(getString("image-repair-file-missing"));
+    const markdown = String(await Zotero.File.getContentsAsync(path));
+    assertOpen();
+    return { item, markdown };
+  };
+  const dialog = openImageRepairDialog({
+    document: root.ownerDocument,
+    mount: root,
+    labels: {
+      title: getString("more-repair-images"),
+      description: getString("image-repair-description"),
+      inspecting: getString("image-repair-inspecting"),
+      repairing: getString("image-repair-repairing"),
+      inspect: getString("image-repair-inspect"),
+      repair: getString("image-repair-repair"),
+      close: getString("image-repair-close"),
+      readOnly: getString("image-repair-read-only"),
+      syncHint: getString("image-repair-sync-hint"),
+      noImages: getString("image-repair-no-images"),
+      candidates: getString("image-repair-candidates"),
+      unresolved: getString("image-repair-unresolved"),
+      source: getString("image-repair-source"),
+      target: getString("image-repair-target"),
+      statuses: {
+        healthy: getString("image-repair-healthy"),
+        repairable: getString("image-repair-repairable"),
+        repaired: getString("image-repair-repaired"),
+        missing: getString("image-repair-missing"),
+        conflict: getString("image-repair-conflict"),
+        failed: getString("image-repair-failed"),
+      },
+      summary: (report) =>
+        getString("image-repair-summary", {
+          args: {
+            checked: report.checked,
+            healthy: report.healthy,
+            repairable: report.repairable,
+            repaired: report.repaired,
+            missing: report.missing,
+            conflicts: report.conflicts,
+            failed: report.failed,
+          },
+        }),
+      retained: (count) =>
+        getString("image-repair-retained", { args: { count } }),
+      skipped: (count) =>
+        getString("image-repair-skipped", { args: { count } }),
+    },
+    inspect: async () => {
+      // Checking is read-only. The dialog explicitly identifies saved content.
+      const { item, markdown } = await savedDocument();
+      return inspectImageAssets(item, markdown);
+    },
+    repair: async () => {
+      assertOpen();
+      // Save pending table/IME-aware snapshots across every view before the
+      // service rechecks references and obtains the attachment write gate.
+      await flushMarkdownItems([session.itemID]);
+      const { item, markdown } = await savedDocument();
+      const report = await repairImageAssets(item, markdown);
+      await refreshRepairedImageAssets(item);
+      return report;
+    },
+    onClose: () => {
+      active = false;
+      if (session.closeImageRepair === dialog.destroy)
+        session.closeImageRepair = undefined;
+    },
+  });
+  session.closeImageRepair = dialog.destroy;
+}
+
+async function refreshRepairedImageAssets(item: Zotero.Item) {
+  const { findSidebarSessions } = await import("./sidebar");
+  await Promise.all([
+    ...sessionRegistry
+      .all()
+      .filter((peer) => peer.itemID === item.id && !peer.closing)
+      .map(refreshImageAssets),
+    ...findSidebarSessions(item.id).map(async ({ editor }) => {
+      if (!editor) return;
+      try {
+        const source = editor.getValue();
+        const assets = await resolveImageAssets(item, source);
+        if (
+          findSidebarSessions(item.id).some((peer) => peer.editor === editor) &&
+          editor.getValue() === source
+        )
+          editor.setImageAssets(assets);
+      } catch (error) {
+        ztoolkit.log("Failed to refresh repaired sidebar images", error);
+      }
+    }),
+  ]);
+}
+
 function updateModeToggle(session: OpenSession) {
   const button = session.view?.root?.querySelector<HTMLButtonElement>(
     ".zotero-markdown-mode-toggle",
@@ -2381,8 +2524,15 @@ async function refreshImageAssets(session: OpenSession) {
     })}`,
   );
   try {
-    const assets = await resolveImageAssets(item, session.editor.getValue());
-    if (sessionRegistry.get(session.tabID) !== session) {
+    const source = session.editor.getValue();
+    const assets = await resolveImageAssets(item, source, () =>
+      canAutomaticallyRepairImages(session, source),
+    );
+    if (
+      sessionRegistry.get(session.tabID) !== session ||
+      session.closing ||
+      session.editor.getValue() !== source
+    ) {
       Zotero.debug("[Bamboo][ImageDebug] asset-refresh-stale-session");
       return;
     }
@@ -2414,10 +2564,32 @@ async function hydrateSessionPreviewImages(
 ) {
   const item = Zotero.Items.get(session.itemID);
   if (!item || !session.view?.previewEl) return;
-  const assets = await resolveImageAssets(item, source);
-  if (session.mode !== "preview" || !session.view.previewEl) return;
+  const assets = await resolveImageAssets(item, source, () =>
+    canAutomaticallyRepairImages(session, source),
+  );
+  if (
+    session.mode !== "preview" ||
+    !session.view.previewEl ||
+    session.closing ||
+    sessionRegistry.get(session.tabID) !== session ||
+    session.editor?.getValue() !== source
+  )
+    return;
   hydratePreviewImages(session.view.previewEl, assets);
   session.editor?.setImageAssets(assets);
+}
+
+function canAutomaticallyRepairImages(session: OpenSession, source: string) {
+  return (
+    !session.closing &&
+    sessionRegistry.get(session.tabID) === session &&
+    !!session.editor &&
+    session.editor.getValue() === source &&
+    !session.editor.isComposing() &&
+    !session.save.dirty &&
+    !session.save.writing &&
+    !documentSyncRegistry.hasLocalWork(session.itemID)
+  );
 }
 
 function scheduleAutosave(session: OpenSession) {
@@ -2693,6 +2865,8 @@ export async function closeMarkdownSession(
     // Keep the complete editor surface alive until the final save succeeds.
     // A standalone window remains usable when a close save is rejected.
     session.closeMoreMenu?.();
+    session.closeImageRepair?.();
+    session.unbindFeatureUpdates?.();
     session.modal?.destroy();
     session.unbindTablePicker?.();
     responsiveToolbars.get(session)?.destroy();

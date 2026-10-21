@@ -13,18 +13,21 @@
     #zotero-markdown-preferences .zmd-pref-settings { display: flex;
     flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px;
     border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-    border-radius: 12px; } #zotero-markdown-open-settings { appearance: none;
-    box-sizing: border-box; flex: none; width: fit-content; max-width: 100%;
-    min-height: 34px; margin: 0; padding: 7px 18px; border: 1px solid
+    border-radius: 12px; } #zotero-markdown-preferences button { appearance:
+    none; box-sizing: border-box; flex: none; width: fit-content; max-width:
+    100%; min-height: 34px; margin: 0; padding: 7px 18px; border: 1px solid
     color-mix(in srgb, currentColor 18%, transparent); border-radius: 8px;
     background: color-mix(in srgb, currentColor 5%, transparent); color:
     inherit; font: inherit; line-height: 1.4; white-space: normal; cursor:
-    pointer; } #zotero-markdown-open-settings:hover { background: color-mix(in
-    srgb, currentColor 9%, transparent); } #zotero-markdown-open-settings:active
-    { background: color-mix(in srgb, currentColor 13%, transparent); }
-    #zotero-markdown-preferences :is(button, a):focus-visible { outline: 2px
-    solid var(--color-accent, #3a7360); outline-offset: 3px; }
-    #zotero-markdown-preferences .zmd-pref-support { margin-top: 24px; }
+    pointer; } #zotero-markdown-preferences button:hover { background:
+    color-mix(in srgb, currentColor 9%, transparent); }
+    #zotero-markdown-preferences button:active { background: color-mix(in srgb,
+    currentColor 13%, transparent); } #zotero-markdown-preferences :is(button,
+    a):focus-visible { outline: 2px solid var(--color-accent, #3a7360);
+    outline-offset: 3px; } #zotero-markdown-preferences .zmd-pref-support {
+    margin-top: 24px; } #zotero-markdown-preferences .zmd-pref-help {
+    margin-top: 24px; } #zotero-markdown-preferences .zmd-pref-actions {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
     #zotero-markdown-github { display: inline-block; max-width: 100%;
     margin-top: 12px; color: var(--color-accent, LinkText);
     text-underline-offset: 3px; overflow-wrap: anywhere; }
@@ -42,6 +45,22 @@
       type="button"
       data-l10n-id="pref-open-settings"
     ></html:button>
+  </html:div>
+  <html:div class="zmd-pref-help">
+    <html:h2 data-l10n-id="pref-guide-title"></html:h2>
+    <html:p data-l10n-id="pref-guide-description"></html:p>
+    <html:div class="zmd-pref-actions">
+      <html:button
+        id="zotero-markdown-user-guide"
+        type="button"
+        data-l10n-id="pref-user-guide"
+      ></html:button>
+      <html:button
+        id="zotero-markdown-feature-updates"
+        type="button"
+        data-l10n-id="pref-feature-updates"
+      ></html:button>
+    </html:div>
   </html:div>
   <html:div class="zmd-pref-support">
     <html:h2 data-l10n-id="pref-support-title"></html:h2>

@@ -3,6 +3,7 @@ import {
   type DocumentViewState,
 } from "./markdown/editor-view-state";
 import { config } from "../../package.json";
+import { suspendFeatureUpdates } from "./feature-updates";
 
 export interface WorkspaceDocument {
   itemID: number;
@@ -96,6 +97,15 @@ export function retainWorkspaceOnShutdown(): void {
 export async function restoreWorkspace(
   win: _ZoteroTypes.MainWindow,
 ): Promise<void> {
+  const resumeUpdates = suspendFeatureUpdates();
+  try {
+    await restoreDocuments(win);
+  } finally {
+    resumeUpdates();
+  }
+}
+
+async function restoreDocuments(win: _ZoteroTypes.MainWindow): Promise<void> {
   retaining = false;
   // Snapshot before opening: opening editors may update the preference itself.
   const records = readWorkspace().filter((entry) => entry.open);

@@ -861,6 +861,25 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   font-size: 13px;
 }
 
+.zotero-markdown-settings-help {
+  margin-block-start: 24px;
+  padding: 16px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 10px;
+  background: var(--zmd-surface);
+}
+
+.zotero-markdown-settings-help h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.zotero-markdown-settings-help p {
+  margin: 0 0 14px;
+  color: var(--zmd-text-muted);
+  line-height: 1.6;
+}
+
 .zotero-markdown-settings-about dt {
   color: var(--zmd-text-muted);
 }

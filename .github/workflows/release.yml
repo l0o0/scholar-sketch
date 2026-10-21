@@ -107,6 +107,9 @@ jobs:
       - name: Build XPI
         run: pnpm run build
 
+      - name: Check bundled update highlights
+        run: node --import tsx --test test/release-highlights.test.ts
+
       - name: Publish GitHub Release
         run: pnpm run release
 

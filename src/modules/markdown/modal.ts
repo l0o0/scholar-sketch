@@ -1,4 +1,5 @@
 import { getPref, setPref } from "../../utils/prefs";
+import { openUserGuide } from "../help";
 import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   shortcutFromKeyboardEvent,
@@ -367,6 +368,16 @@ export function createMarkdownModalController(
       });
       row.appendChild(select);
       pageContent.appendChild(row);
+      const help = doc.createElement("section");
+      help.className = "zotero-markdown-settings-help";
+      help.append(
+        textElement(doc, "h4", getString("settings-help-title")),
+        textElement(doc, "p", getString("settings-help-description")),
+      );
+      const guide = button(doc, getString("settings-user-guide"), "user-guide");
+      guide.addEventListener("click", () => void openUserGuide());
+      help.appendChild(guide);
+      pageContent.appendChild(help);
       return heading;
     };
 

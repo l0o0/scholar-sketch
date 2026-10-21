@@ -53,6 +53,7 @@ export async function withAttachmentWrite<T>(
   item: Zotero.Item,
   write: () => Promise<T>,
   onWait?: () => Promise<void>,
+  options: { waitForSync?: boolean } = {},
 ): Promise<T> {
   const key = `${item.libraryID}/${item.key ?? item.id}`;
   const previous = writers.get(key) ?? Promise.resolve();
@@ -62,6 +63,11 @@ export async function withAttachmentWrite<T>(
       const runner = isStored(item) ? Zotero.Sync?.Runner : undefined;
       let preserved = false;
       while (runner?.syncInProgress) {
+        if (options.waitForSync === false) {
+          const error = new Error("Attachment write deferred while syncing");
+          Object.assign(error, { code: "ATTACHMENT_SYNC_BUSY" });
+          throw error;
+        }
         if (!preserved && onWait) {
           await onWait();
           preserved = true;

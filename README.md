@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.10-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.11-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -78,6 +78,7 @@ Mermaid is bundled for offline use and loaded when needed. Invalid or overly com
 
 ## Documentation
 
+- [User guide: Markdown, literature links, whiteboards, and shortcuts](docs/user-guide.md) (Chinese)
 - [Links and export](docs/obsidian-links.md)
 - [Saving and recovery](docs/file-safety.md) (Chinese)
 - [Feature guide](docs/markdown-canvas-release-features.md) (Chinese)
@@ -93,6 +94,8 @@ pnpm run build       # Build the XPI
 ```
 
 [Browser testing](docs/fake-zotero.md) · [Markdown API](docs/markdown-api.md) · [Canvas API](docs/canvas-api.md)
+
+See [release preparation](docs/releasing.md) for maintaining the in-app update highlights.
 
 </details>
 

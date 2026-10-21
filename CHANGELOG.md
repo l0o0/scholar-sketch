@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.11 - 2026-10-21
+
+### Fixes
+
+- Normalize legacy Windows path separators in Markdown and Canvas upload archives so nested assets keep their directories after Zotero file sync
+- Silently restore misplaced local Markdown images to their referenced assets paths when opening or revisiting a note, without rewriting the note body
+- Verify image contents and preserve originals when recovery encounters conflicting files, active edits, IME composition, or file synchronization
+
+### Features and documentation
+
+- Add a Check and repair images action to the Markdown More menu for diagnosis and manual recovery
+- Add a user guide entry in settings, with a published documentation fallback while the Zotero Chinese Wiki contribution awaits publication
+- Show concise update highlights when opening a visible Markdown note or whiteboard after upgrading, with an option to revisit them in settings
+
 ## 0.2.9 - 2026-10-19
 
 ### Features
