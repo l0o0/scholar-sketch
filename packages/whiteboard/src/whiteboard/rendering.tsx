@@ -1,16 +1,12 @@
 import { createContext, useContext } from "react";
 import type { CanvasNode } from "../model/academic";
 import { getNoteTitle } from "../model/academic";
-import type { WhiteboardTheme } from "../model/protocol";
 import { Position } from "@xyflow/react";
 import type { CanvasFlowNode } from "../nodes/types";
 
 /** Exports must include offscreen cards and their full content. */
 export const FullCanvasRenderContext = createContext(false);
 export const useFullCanvasRender = () => useContext(FullCanvasRenderContext);
-/** Node surfaces resolve palette fills and their text colours per theme. */
-export const WhiteboardThemeContext = createContext<WhiteboardTheme>("light");
-export const useWhiteboardTheme = () => useContext(WhiteboardThemeContext);
 export const COMPACT_CARD_ZOOM = 0.35;
 export const CULLING_NODE_THRESHOLD = 80;
 

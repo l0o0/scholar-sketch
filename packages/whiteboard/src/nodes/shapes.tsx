@@ -5,11 +5,8 @@ import {
   effectiveCanvasNodeUiTextStyle,
   type CanvasNodeUiTextStyle,
 } from "../model/academic";
-import { themedNodeFill } from "../model/colorSchemes";
-import type { WhiteboardTheme } from "../model/protocol";
 import { labelTextStyle, verticalAlignmentStyle } from "../whiteboard/document";
 import { IconText } from "../whiteboard/icons";
-import { useWhiteboardTheme } from "../whiteboard/rendering";
 import {
   CardShell,
   NodeHandles,
@@ -61,7 +58,6 @@ export function TextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
 function shapeStyle(
   kind: "rect" | "ellipse",
   style: CanvasFlowNode["data"]["model"]["style"],
-  theme: WhiteboardTheme,
 ) {
   const value = style ?? {};
   const defaults = canvasNodeSurfaceDefaults(kind);
@@ -74,7 +70,7 @@ function shapeStyle(
     background:
       value.shape === "diamond"
         ? "transparent"
-        : (nodeSurfaceFill(kind, value, theme) ??
+        : (nodeSurfaceFill(kind, value) ??
           `var(--zmd-board-surface, ${defaults.fill})`),
     borderWidth: value.shape === "diamond" ? 0 : strokeWidth,
     // The shared text layout uses a total inset of 12px, including the border.
@@ -87,7 +83,7 @@ function shapeStyle(
           ? 0
           : (value.radius ?? defaults.radius),
     ...verticalAlignmentStyle(value),
-    ...nodeSurfaceInk(value, theme),
+    ...nodeSurfaceInk(value),
   } as const;
 }
 
@@ -98,7 +94,6 @@ function DiamondSurface({
   model: Extract<CanvasFlowNode["data"]["model"], { kind: "rect" }>;
   textStyle: CanvasNodeUiTextStyle;
 }) {
-  const theme = useWhiteboardTheme();
   const style = model.style ?? {};
   const defaults = canvasNodeSurfaceDefaults("rect");
   const stroke =
@@ -106,8 +101,8 @@ function DiamondSurface({
     `var(--zmd-board-text, ${defaults.stroke})`;
   const fill =
     style.fillStyle === "hatch"
-      ? (themedNodeFill(style, theme) ?? defaults.fill)
-      : (nodeSurfaceFill("rect", style, theme) ??
+      ? (style.fill ?? defaults.fill)
+      : (nodeSurfaceFill("rect", style) ??
         `var(--zmd-board-surface, ${defaults.fill})`);
   const patternId = `zmd-board-diamond-hatch-${model.id}`;
   return (
@@ -169,7 +164,6 @@ export function RectNode({
   width,
   height,
 }: NodeProps<CanvasFlowNode>) {
-  const theme = useWhiteboardTheme();
   const model = data.model;
   if (model.kind !== "rect") return null;
   const diamond = model.style?.shape === "diamond";
@@ -181,7 +175,7 @@ export function RectNode({
   return (
     <div
       className={`zmd-board-shape ${diamond ? "is-diamond" : "is-rect"}${selected ? " is-selected" : ""}`}
-      style={shapeStyle("rect", model.style, theme)}
+      style={shapeStyle("rect", model.style)}
     >
       <NodeHandles />
       {diamond ? <DiamondSurface model={model} textStyle={textStyle} /> : null}
@@ -203,7 +197,6 @@ export function EllipseNode({
   width,
   height,
 }: NodeProps<CanvasFlowNode>) {
-  const theme = useWhiteboardTheme();
   const model = data.model;
   if (model.kind !== "ellipse") return null;
   const textStyle = effectiveCanvasNodeUiTextStyle(model.kind, model.style, {
@@ -214,7 +207,7 @@ export function EllipseNode({
   return (
     <div
       className={`zmd-board-shape is-ellipse${selected ? " is-selected" : ""}`}
-      style={shapeStyle("ellipse", model.style, theme)}
+      style={shapeStyle("ellipse", model.style)}
     >
       <NodeHandles />
       {model.data.title ? (

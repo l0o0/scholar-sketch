@@ -1,5 +1,4 @@
 import type { CanvasNodeStyle } from "./core";
-import type { WhiteboardTheme } from "./protocol";
 
 export type ColorSchemeID = "traditional" | "classic";
 
@@ -40,32 +39,6 @@ export function colorPalette(
   );
 }
 
-const PALETTE_FAMILIES = [...TRADITIONAL_FAMILIES, ...CLASSIC_FAMILIES];
-
-// A light tint renders as its family's dark shade on a dark board, and a dark
-// shade as its light tint on a light board, so stored colours stay portable.
-export function themedPaletteColor(
-  color: string,
-  theme: WhiteboardTheme,
-): string {
-  const value = color.toLowerCase();
-  const [from, to] = theme === "dark" ? [0, 2] : [2, 0];
-  return (
-    PALETTE_FAMILIES.find((family) => family[from] === value)?.[to] ?? color
-  );
-}
-
-// Palette fills follow the theme unless an explicit text colour pins the
-// pairing the user chose.
-export function themedNodeFill(
-  style: Partial<CanvasNodeStyle>,
-  theme: WhiteboardTheme,
-): string | undefined {
-  return style.fill && !style.textColor
-    ? themedPaletteColor(style.fill, theme)
-    : style.fill;
-}
-
 export interface SurfaceInk {
   text: string;
   muted: string;
@@ -73,10 +46,8 @@ export interface SurfaceInk {
 
 export function nodeFillInk(
   style: Partial<CanvasNodeStyle>,
-  theme: WhiteboardTheme,
 ): SurfaceInk | undefined {
-  const fill =
-    style.fillStyle === "none" ? undefined : themedNodeFill(style, theme);
+  const fill = style.fillStyle === "none" ? undefined : style.fill;
   return fill ? surfaceInk(fill) : undefined;
 }
 

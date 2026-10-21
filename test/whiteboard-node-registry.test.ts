@@ -29,7 +29,6 @@ import {
   listNodeSpecs,
 } from "../packages/whiteboard/src/nodes/index.ts";
 import { labelTextStyle } from "../packages/whiteboard/src/whiteboard/document.ts";
-import { WhiteboardThemeContext } from "../packages/whiteboard/src/whiteboard/rendering.tsx";
 
 const labels = new Proxy(
   {
@@ -55,27 +54,23 @@ const canvasCss = readFileSync(
   "utf8",
 );
 
-function renderNode(model: CanvasNode, theme: WhiteboardTheme = "light") {
+function renderNode(model: CanvasNode) {
   const Component = getNodeSpec(model.kind).Component;
   return renderToStaticMarkup(
     createElement(
-      WhiteboardThemeContext.Provider,
-      { value: theme },
+      WhiteboardLabelsProvider,
+      { value: labels },
       createElement(
-        WhiteboardLabelsProvider,
-        { value: labels },
-        createElement(
-          ReactFlowProvider,
-          null,
-          createElement(Component, {
-            id: model.id,
-            type: model.kind,
-            data: { model },
-            selected: false,
-            width: model.width,
-            height: model.height,
-          } as never),
-        ),
+        ReactFlowProvider,
+        null,
+        createElement(Component, {
+          id: model.id,
+          type: model.kind,
+          data: { model },
+          selected: false,
+          width: model.width,
+          height: model.height,
+        } as never),
       ),
     ),
   );
@@ -151,7 +146,7 @@ test("card shells keep React Flow handles visible beyond their border", () => {
   assert.match(cardRule, /overflow:\s*visible/);
 });
 
-test("a palette-filled card follows the theme and keeps readable text", () => {
+test("a palette-filled card preserves its fill and keeps readable text", () => {
   const card = (fill: string, textColor?: string) => ({
     ...createAcademicNode("literature", { x: 0, y: 0 }, "literature-fill", {
       source: { library: { type: "user" }, itemKey: "ITEM1234" },
@@ -159,23 +154,28 @@ test("a palette-filled card follows the theme and keeps readable text", () => {
     }),
     style: { fill, stroke: "#519a73", ...(textColor ? { textColor } : {}) },
   });
-  for (const fill of ["#dcece3", "#2b5c43"]) {
-    const light = renderNode(card(fill), "light");
-    assert.match(light, /--zmd-board-node-fill:#dcece3/);
-    assert.match(light, /--zmd-node-ink:#111827/);
-    assert.match(light, /--zmd-node-ink-muted:#[\da-f]{6}/);
-    const dark = renderNode(card(fill), "dark");
-    assert.match(dark, /--zmd-board-node-fill:#2b5c43/);
-    assert.match(dark, /--zmd-node-ink:#e8eaed/);
-    assert.match(dark, /--zmd-board-node-stroke:#519a73/);
+  for (const [fill, ink] of [
+    ["#dcece3", "#111827"],
+    ["#2b5c43", "#e8eaed"],
+    ["#123456", "#e8eaed"],
+  ]) {
+    const markup = renderNode(card(fill));
+    assert.match(markup, new RegExp(`--zmd-board-node-fill:${fill}`));
+    assert.match(markup, new RegExp(`--zmd-node-ink:${ink}`));
+    assert.match(markup, /--zmd-node-ink-muted:#[\da-f]{6}/);
+    assert.match(markup, /--zmd-board-node-stroke:#519a73/);
   }
-  const pinned = renderNode(card("#dcece3", "#1f2937"), "dark");
-  assert.match(pinned, /--zmd-board-node-fill:#dcece3/);
-  assert.match(pinned, /--zmd-node-ink:#111827/);
-  assert.doesNotMatch(
-    renderNode(card("transparent"), "dark"),
-    /--zmd-node-ink/,
-  );
+  const explicit = renderNode(card("#dcece3", "#1f2937"));
+  assert.match(explicit, /--zmd-board-node-fill:#dcece3/);
+  assert.match(explicit, /color:#1f2937/);
+  assert.doesNotMatch(renderNode(card("transparent")), /--zmd-node-ink/);
+  const unfilled = card("#2b5c43");
+  const transparent = renderNode({
+    ...unfilled,
+    style: { ...unfilled.style, fillStyle: "none" },
+  });
+  assert.match(transparent, /--zmd-board-node-fill:transparent/);
+  assert.doesNotMatch(transparent, /--zmd-node-ink/);
 
   for (const selector of [
     /\n\n\.zmd-board-card-meta,\s*\.zmd-board-card-preview\s*\{([^}]*)\}/,

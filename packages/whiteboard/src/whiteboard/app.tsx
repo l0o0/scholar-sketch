@@ -10,7 +10,6 @@ import { THEME_TOKENS, UI_METRICS } from "../../../../src/ui/theme";
 import { flushSync } from "react-dom";
 import {
   FullCanvasRenderContext,
-  WhiteboardThemeContext,
   attachCanvasHandles,
   shouldCullCanvasNodes,
   waitForCanvasPaint,
@@ -5126,10 +5125,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                   ...verticalAlignmentStyle(editingTextStyle),
                   ...(editingStroke
                     ? {}
-                    : nodeSurfaceInk(
-                        editingNode.data.model.style ?? {},
-                        theme,
-                      )),
+                    : nodeSurfaceInk(editingNode.data.model.style ?? {})),
                   ...(editingStrokeCenter
                     ? {
                         left: editingNode.position.x + editingStrokeCenter.x,
@@ -5791,9 +5787,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   );
   return (
     <FullCanvasRenderContext.Provider value={exportStatus === "busy"}>
-      <WhiteboardThemeContext.Provider value={theme}>
-        {canvas}
-      </WhiteboardThemeContext.Provider>
+      {canvas}
     </FullCanvasRenderContext.Provider>
   );
 }

@@ -236,12 +236,22 @@ test("selection in any diagram line exposes source; source mode and removal disp
     assert.equal(view.dom.querySelector(".zmd-lp-mermaid"), null);
     view.dispatch({ selection: { anchor: view.state.doc.length } });
   }
-  view.dispatch({ effects: live.reconfigure([]) });
-  assert.equal(view.dom.querySelector(".zmd-lp-mermaid"), null);
-  assert.match(view.contentDOM.textContent || "", /```mermaid/);
-  assert.ok(observers.every((observer) => observer.disconnected));
-  view.dispatch({ effects: live.reconfigure(plugin.livePreviewPlugin()) });
-  assert.equal(view.dom.querySelectorAll(".zmd-lp-mermaid").length, 1);
+  for (const target of ["C", "D", "E"]) {
+    view.dispatch({ effects: live.reconfigure([]) });
+    assert.equal(view.dom.querySelector(".zmd-lp-mermaid"), null);
+    assert.match(view.contentDOM.textContent || "", /```mermaid/);
+    assert.ok(observers.every((observer) => observer.disconnected));
+    const at = view.state.doc.toString().indexOf("A --> ") + 6;
+    view.dispatch({
+      changes: { from: at, to: at + 1, insert: target },
+      effects: live.reconfigure(plugin.livePreviewPlugin()),
+    });
+    assert.equal(view.dom.querySelectorAll(".zmd-lp-mermaid").length, 1);
+    assert.equal(
+      diagrams(view.state)[0].source,
+      `flowchart LR\n A --> ${target}`,
+    );
+  }
   view.dispatch({
     changes: { from: 0, to: source.indexOf("\n\nEnd"), insert: "" },
   });

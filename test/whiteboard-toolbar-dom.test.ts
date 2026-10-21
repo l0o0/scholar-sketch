@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
-import { act, createElement } from "react";
+import { act, createElement, Fragment, useState } from "react";
+import { ReactFlowProvider } from "@xyflow/react";
+import { RectNode } from "../packages/whiteboard/src/nodes/shapes.tsx";
+import type { ColorSchemeID } from "../packages/whiteboard/src/model/colorSchemes.ts";
 import { createRoot } from "react-dom/client";
 import { TopIsland } from "../packages/whiteboard/src/chrome/TopIsland.tsx";
 import {
@@ -13,7 +16,10 @@ import { createAcademicNode } from "../packages/whiteboard/src/model/academic.ts
 import { createBasicNode } from "../packages/whiteboard/src/model/basic.ts";
 import type { CanvasNodeStyle } from "../packages/whiteboard/src/model/core.ts";
 import { createBuiltinNoteTemplates } from "../packages/whiteboard/src/model/note-template.ts";
-import type { WhiteboardLabels } from "../packages/whiteboard/src/model/protocol.ts";
+import type {
+  WhiteboardLabels,
+  WhiteboardTheme,
+} from "../packages/whiteboard/src/model/protocol.ts";
 
 const labels = new Proxy({} as WhiteboardLabels, {
   get: (_target, property) => String(property),
@@ -763,4 +769,221 @@ test("note floating toolbars do not duplicate the top attachment button", async 
     assert.equal(host.querySelector('[aria-label="attachFile"]'), null);
   }
   await act(async () => root.unmount());
+});
+
+test("fill picker preserves all eighteen swatches in both themes and color schemes", async (t) => {
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  let current = createBasicNode("rect", { x: 0, y: 0 }, "palette-rect");
+
+  function Harness(props: { theme: WhiteboardTheme; scheme: ColorSchemeID }) {
+    const [model, setModel] = useState(() => {
+      const node = createBasicNode("rect", { x: 0, y: 0 }, "palette-rect");
+      return node;
+    });
+    current = model;
+    return createElement(
+      Fragment,
+      null,
+      createElement(StyleBar, {
+        node: {
+          id: model.id,
+          type: model.kind,
+          position: model.position,
+          data: { model },
+        },
+        labels,
+        theme: props.theme,
+        colorScheme: props.scheme,
+        left: 0,
+        top: 0,
+        onChange: (patch) =>
+          setModel((node) => ({ ...node, style: { ...node.style, ...patch } })),
+      }),
+      createElement(
+        ReactFlowProvider,
+        null,
+        createElement(RectNode, {
+          id: model.id,
+          type: model.kind,
+          data: { model },
+          selected: false,
+          width: model.width,
+          height: model.height,
+        } as never),
+      ),
+    );
+  }
+
+  try {
+    for (const theme of ["light", "dark"] as const) {
+      for (const scheme of ["traditional", "classic"] as const) {
+        await act(async () =>
+          root.render(
+            createElement(Harness, {
+              key: `${theme}-${scheme}`,
+              theme,
+              scheme,
+            }),
+          ),
+        );
+        await act(async () =>
+          container
+            .querySelector<HTMLButtonElement>('[data-color-target="fill"]')!
+            .click(),
+        );
+        const swatches = Array.from(
+          container.querySelectorAll<HTMLButtonElement>(
+            ".zmd-board-swatches button",
+          ),
+        );
+        assert.equal(swatches.length, 18);
+        const rendered = new Set<string>();
+        for (const swatch of swatches) {
+          const fill = swatch.getAttribute("aria-label")!;
+          await act(async () => swatch.click());
+          assert.equal(
+            current.style?.fill,
+            fill,
+            `${theme} ${scheme}: saved fill`,
+          );
+          assert.equal(
+            swatch.getAttribute("aria-pressed"),
+            "true",
+            `${theme} ${scheme}: ${fill} remains selected`,
+          );
+          assert.equal(
+            container.querySelectorAll(".zmd-board-swatches .is-active").length,
+            1,
+          );
+          const shape =
+            container.querySelector<HTMLElement>(".zmd-board-shape")!;
+          assert.equal(
+            shape.style.background,
+            swatch.style.backgroundColor,
+            `${theme} ${scheme}: ${fill} matches the rendered node`,
+          );
+          rendered.add(shape.style.background);
+        }
+        assert.equal(
+          rendered.size,
+          18,
+          `${theme} ${scheme}: no shade may collapse into another`,
+        );
+      }
+    }
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+test("fill picker preserves custom colors and explicit ink through transparent and reset actions", async (t) => {
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  let current = createBasicNode("rect", { x: 0, y: 0 }, "custom-rect");
+
+  function Harness({ theme }: { theme: WhiteboardTheme }) {
+    const [model, setModel] = useState(() => {
+      const node = createBasicNode("rect", { x: 0, y: 0 }, "custom-rect");
+      node.style = { fill: "#123456", textColor: "#fedcba" };
+      if (node.kind === "rect") node.data.title = "Custom colors";
+      return node;
+    });
+    current = model;
+    return createElement(
+      Fragment,
+      null,
+      createElement(StyleBar, {
+        node: {
+          id: model.id,
+          type: model.kind,
+          position: model.position,
+          data: { model },
+        },
+        labels,
+        theme,
+        left: 0,
+        top: 0,
+        onChange: (patch) =>
+          setModel((node) => ({ ...node, style: { ...node.style, ...patch } })),
+      }),
+      createElement(
+        ReactFlowProvider,
+        null,
+        createElement(RectNode, {
+          id: model.id,
+          type: model.kind,
+          data: { model },
+          selected: false,
+          width: model.width,
+          height: model.height,
+        } as never),
+      ),
+    );
+  }
+
+  try {
+    for (const theme of ["light", "dark"] as const) {
+      await act(async () =>
+        root.render(createElement(Harness, { key: theme, theme })),
+      );
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>('[data-color-target="fill"]')!
+          .click(),
+      );
+      const shape = () =>
+        container.querySelector<HTMLElement>(".zmd-board-shape")!;
+      const text = () =>
+        container.querySelector<HTMLElement>(".zmd-board-shape-label")!;
+      assert.equal(shape().style.background, "#123456");
+      assert.equal(text().style.color, "#fedcba");
+      assert.equal(
+        container.querySelector<HTMLInputElement>(".zmd-board-color-hex input")
+          ?.value,
+        "#123456",
+      );
+      assert.equal(
+        container.querySelector(".zmd-board-swatches .is-active"),
+        null,
+      );
+
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>('[aria-label="#dcece3"]')!
+          .click(),
+      );
+      assert.equal(current.style?.fill, "#dcece3");
+      assert.equal(shape().style.background, "#dcece3");
+      assert.equal(text().style.color, "#fedcba");
+
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>('[aria-label="transparent"]')!
+          .click(),
+      );
+      assert.equal(current.style?.fillStyle, "none");
+      assert.equal(shape().style.background, "transparent");
+      assert.equal(shape().style.getPropertyValue("--zmd-node-ink"), "");
+      assert.equal(text().style.color, "#fedcba");
+
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>('[aria-label="resetColor"]')!
+          .click(),
+      );
+      assert.equal(current.style?.fill, undefined);
+      assert.equal(current.style?.fillStyle, undefined);
+      assert.equal(shape().style.getPropertyValue("--zmd-node-ink"), "");
+      assert.equal(text().style.color, "#fedcba");
+    }
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
 });

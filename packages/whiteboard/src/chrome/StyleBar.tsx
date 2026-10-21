@@ -1,7 +1,7 @@
 import { useState, type Ref } from "react";
 import { ColorPicker } from "./ColorPicker";
 import { colorPalette } from "./color";
-import { themedNodeFill, type ColorSchemeID } from "../model/colorSchemes";
+import type { ColorSchemeID } from "../model/colorSchemes";
 import { useFloatingStyleBar } from "./FloatingStyleBar";
 import { FormatPaintButton } from "./FormatPaintButton";
 import type { CanvasNodeStyle } from "../model/core";
@@ -71,9 +71,7 @@ export function StyleBar(props: {
   );
   const stroke = style.stroke || defaults.stroke;
   const fill =
-    style.fillStyle === "none"
-      ? "transparent"
-      : themedNodeFill(style, props.theme) || defaults.fill;
+    style.fillStyle === "none" ? "transparent" : style.fill || defaults.fill;
   const strokeWidth = style.strokeWidth ?? defaults.strokeWidth;
   const radius = style.radius ?? defaults.radius;
   const dashed =

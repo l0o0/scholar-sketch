@@ -8,8 +8,6 @@ import {
 import {
   nodeFillInk,
   surfaceInk,
-  themedNodeFill,
-  themedPaletteColor,
 } from "../packages/whiteboard/src/model/colorSchemes.ts";
 
 // WCAG 2 contrast, kept separate from the code under test.
@@ -59,36 +57,6 @@ test("color schemes normalize to traditional and preserve the classic palette", 
   assert.notDeepEqual(colorPalette(true), colorPalette(true, "classic"));
 });
 
-test("palette fills swap tint and shade of the same family for the theme", () => {
-  for (const scheme of ["traditional", "classic"] as const) {
-    const [tints, mids, shades] = [0, 6, 12].map((start) =>
-      colorPalette(true, scheme).slice(start, start + 6),
-    );
-    tints.forEach((tint, index) => {
-      const shade = shades[index];
-      assert.equal(themedPaletteColor(tint, "dark"), shade);
-      assert.equal(themedPaletteColor(shade, "light"), tint);
-      assert.equal(themedPaletteColor(tint, "light"), tint);
-      assert.equal(themedPaletteColor(shade, "dark"), shade);
-      assert.equal(themedPaletteColor(mids[index], "dark"), mids[index]);
-      assert.equal(themedPaletteColor(mids[index], "light"), mids[index]);
-    });
-  }
-  assert.equal(themedPaletteColor("#DCECE3", "dark"), "#2b5c43");
-  assert.equal(themedPaletteColor("#123456", "dark"), "#123456");
-  assert.equal(themedPaletteColor("transparent", "dark"), "transparent");
-});
-
-test("an explicit text colour keeps the stored fill in either theme", () => {
-  const fill = "#dcece3";
-  assert.equal(themedNodeFill({ fill }, "dark"), "#2b5c43");
-  assert.equal(
-    themedNodeFill({ fill, textColor: "#111827" }, "dark"),
-    "#dcece3",
-  );
-  assert.equal(themedNodeFill({}, "dark"), undefined);
-});
-
 test("text on every palette fill keeps at least 4.5:1 contrast", () => {
   for (const scheme of ["traditional", "classic"] as const) {
     for (const fill of colorPalette(true, scheme)) {
@@ -102,21 +70,29 @@ test("text on every palette fill keeps at least 4.5:1 contrast", () => {
   assert.equal(surfaceInk("transparent"), undefined);
 });
 
-test("a light-mode card fill stays readable after switching to dark and back", () => {
-  const lightCard = { fill: "#dcece3", stroke: "#519a73" };
-  const darkCard = { fill: "#2b5c43", stroke: "#519a73" };
-  for (const style of [lightCard, darkCard]) {
-    for (const theme of ["light", "dark"] as const) {
-      const fill = themedNodeFill(style, theme);
-      assert.equal(fill, theme === "dark" ? "#2b5c43" : "#dcece3");
-      const ink = nodeFillInk(style, theme);
+test("solid fills choose ink from the stored color without changing it", () => {
+  for (const fill of ["#dcece3", "#2b5c43", "#123456", "#fdfefd"]) {
+    for (const textColor of [undefined, "#fedcba"]) {
+      const style = { fill, textColor };
+      const before = { ...style };
+      const ink = nodeFillInk(style);
       assert.ok(ink);
-      assert.equal(ink.text, theme === "dark" ? "#e8eaed" : "#111827");
-      assert.ok(contrast(ink.muted, fill!) >= 4.5);
+      assert.ok(contrast(ink.text, fill) >= 4.5, `${fill} text ${ink.text}`);
+      assert.ok(contrast(ink.muted, fill) >= 4.5, `${fill} muted ${ink.muted}`);
+      assert.deepEqual(style, before);
     }
   }
-  assert.equal(
-    nodeFillInk({ fill: "#dcece3", fillStyle: "none" }, "dark"),
-    undefined,
-  );
+  assert.equal(surfaceInk("#fff")?.text, "#111827");
+  assert.equal(surfaceInk("#000")?.text, "#e8eaed");
+});
+
+test("transparent, absent and CSS-resolved fills leave ink to the board theme", () => {
+  for (const style of [
+    {},
+    { fill: "transparent" },
+    { fill: "#2b5c43", fillStyle: "none" as const },
+    { fill: "var(--zmd-note-type-fill)" },
+  ]) {
+    assert.equal(nodeFillInk(style), undefined);
+  }
 });

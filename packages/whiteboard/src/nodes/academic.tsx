@@ -11,7 +11,6 @@ import {
   noteTypePrompt,
 } from "../chrome/labels";
 import { nodeTextStyle } from "../whiteboard/document";
-import { useWhiteboardTheme } from "../whiteboard/rendering";
 import {
   CardShell,
   nodeContentAlignmentStyle,
@@ -224,7 +223,6 @@ export function NoteNode(props: NodeProps<CanvasFlowNode>) {
 
 export function FrameNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
-  const theme = useWhiteboardTheme();
   const model = data.model;
   if (model.kind !== "frame") return null;
   const style = model.style ?? {};
@@ -233,7 +231,7 @@ export function FrameNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       className={`zmd-board-frame${selected ? " is-selected" : ""}`}
       aria-label={`${labels.kindFrame}: ${model.title}`}
       style={{
-        ...nodeSurfaceStyle("frame", style, theme),
+        ...nodeSurfaceStyle("frame", style),
         ...nodeContentAlignmentStyle(style),
       }}
     >
