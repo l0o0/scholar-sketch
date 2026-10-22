@@ -78,8 +78,8 @@ Mermaid is bundled for offline use and loaded when needed. Invalid or overly com
 
 ## Documentation
 
-- [User guide: Markdown, literature links, whiteboards, and shortcuts](docs/user-guide.md) (Chinese)
-- [Links and export](docs/obsidian-links.md)
+- [Complete user guide: Markdown, literature links, whiteboards, and shortcuts](docs/user-guide.en.md) · [简体中文](docs/user-guide.md)
+- [Links and export](docs/obsidian-links.md) (Chinese)
 - [Saving and recovery](docs/file-safety.md) (Chinese)
 - [Feature guide](docs/markdown-canvas-release-features.md) (Chinese)
 

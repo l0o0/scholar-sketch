@@ -82,6 +82,7 @@ flowchart LR
 
 ## 文档
 
+- [完整使用指南：Markdown、文献链接、白板与快捷键](../docs/user-guide.md) · [English](../docs/user-guide.en.md)
 - [双链与导出](../docs/obsidian-links.md)
 - [保存与历史恢复](../docs/file-safety.md)
 - [功能使用说明](../docs/markdown-canvas-release-features.md)
