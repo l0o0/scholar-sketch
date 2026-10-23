@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.13 - 2026-10-24
+
+### Features
+
+- Browse annotations from literature cards and Zotero PDF, EPUB, and webpage snapshot attachments, including standalone attachments
+- Search annotation text, comments, pages, and tags; filter all six annotation types in a fixed-height dialog with source colors and type icons
+- Add selected annotations as cards with automatic connections and a single undo step; focus existing cards instead of adding duplicates
+- Import local Markdown images with Ctrl+Alt+I, or Cmd+Option+I on macOS, using the existing image storage flow
+- Replace the shortcut settings dropdown with an accessible Markdown / Whiteboard segmented control and correct platform-specific shortcut hints
+- Use restrained icons and colors for whiteboard information, success, warning, and error notices
+
+### Fixes and documentation
+
+- Reuse existing example Markdown notes and whiteboards after reinstalling; update only recognized, unmodified examples and preserve user edits
+- Reject late image and annotation responses after an editor is replaced or closed, and protect image shortcuts during IME composition
+- Update both complete user guides and the notification design documentation
+- Image and ink annotation cards retain comments and source links; they do not copy Zotero annotation image caches
+
 ## 0.2.12 - 2026-10-21
 
 ### Features

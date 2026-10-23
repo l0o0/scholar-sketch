@@ -30,6 +30,7 @@ ready Promises。还提供简单的 `Utilities.cleanTags/unescapeHTML`。
 - `Items.getAll(libraryID?)` 仅支持库参数；传入 Zotero 的其他筛选参数会抛错，避免误以为筛选已生效。
 - `new Search({ libraryID })` 支持 `title is/contains` 和 `itemType is` 条件，以 AND 组合；标题匹配忽略大小写。与宿主一致，`title` 字段索引不含原生笔记，需通过 `itemType is note` 列出后读取标题。其他条件会抛错，避免假成功。
 - 父条目必须先存在于同一个 fixture 中且属于同库。可用 `getAttachments/getNotes/getAnnotations` 遍历关系。
+- `isFileAttachment()` 遵循原生语义：是附件且 `attachmentLinkMode` 不为 `3`（网页链接）。`0`/`1` 为存储文件/快照，`2` 为链接文件，`4` 为嵌入图片；省略 link mode 时也符合原生的非 `3` 判断。此方法不检查文件是否存在或已下载，fake 不模拟文件系统。
 - `setField/setNote` 和 `saveTx` 仅修改当前实例的内存；`saveTx` 不模拟数据库事务。
 - `snapshot()` 是独立数据副本；`reset()` 重建条目对象，重置后需重新用 `Items.get` 获取引用。
 - `calls` 记录打开、选中、保存和日志等动作，不是每个只读 API 的调用跟踪。

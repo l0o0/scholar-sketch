@@ -253,6 +253,135 @@ test("Academic wire optionals allow own undefined but reject unknown or inherite
   );
 });
 
+test("annotation listing accepts item or attachment sources and rejects ambiguous keys", () => {
+  const attachmentSource = {
+    library: { type: "group", groupID: 7 },
+    attachmentKey: "WEB12345",
+  };
+  for (const source of [literatureSource, attachmentSource]) {
+    assert.equal(
+      isWhiteboardToParentMessageForChannel(
+        {
+          ...protocolBase,
+          type: "listLiteratureAnnotations",
+          payload: { requestId: "annotations", source },
+        },
+        protocolBase.channel,
+      ),
+      true,
+    );
+    for (const response of [
+      { type: "annotationsListed", result: { candidates: [], failures: [] } },
+      {
+        type: "annotationListFailed",
+        result: {
+          failure: { code: "attachment-unavailable", message: "Unavailable" },
+        },
+      },
+    ]) {
+      assert.equal(
+        isParentToWhiteboardMessageForChannel(
+          {
+            ...protocolBase,
+            type: response.type,
+            payload: { requestId: "annotations", source, ...response.result },
+          },
+          protocolBase.channel,
+        ),
+        true,
+      );
+    }
+  }
+  for (const source of [
+    { ...literatureSource, attachmentKey: "ATTACH12" },
+    { ...literatureSource, attachmentKey: undefined },
+    { ...attachmentSource, itemKey: undefined },
+    { ...attachmentSource, attachmentKey: "" },
+    { ...attachmentSource, itemID: 3 },
+    { library: { type: "user" } },
+    { ...attachmentSource, library: { type: "group", groupID: 0 } },
+  ]) {
+    const payload = { requestId: "annotations", source };
+    assert.equal(
+      isWhiteboardToParentMessageForChannel(
+        {
+          ...protocolBase,
+          type: "listLiteratureAnnotations",
+          payload,
+        },
+        protocolBase.channel,
+      ),
+      false,
+      JSON.stringify(source),
+    );
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        {
+          ...protocolBase,
+          type: "annotationsListed",
+          payload: { ...payload, candidates: [], failures: [] },
+        },
+        protocolBase.channel,
+      ),
+      false,
+      JSON.stringify(source),
+    );
+  }
+});
+
+test("annotation acquisitions retain type and tags without requiring a parent item", () => {
+  const source = {
+    library: { type: "user" },
+    attachmentKey: "EPUB1234",
+    annotationKey: "ANNOT123",
+  };
+  for (const annotationType of [
+    "highlight",
+    "underline",
+    "note",
+    "text",
+    "image",
+    "ink",
+  ]) {
+    assert.equal(
+      acceptsAcquisition({
+        kind: "quote",
+        source,
+        snapshot: {
+          text: "",
+          comment: "Comment",
+          annotationType,
+          tags: ["review"],
+        },
+      }),
+      true,
+      annotationType,
+    );
+  }
+  assert.equal(
+    acceptsAcquisition({
+      kind: "quote",
+      source: { ...source, itemKey: undefined },
+      snapshot: { text: "", annotationType: undefined, tags: undefined },
+    }),
+    true,
+  );
+  for (const snapshot of [
+    { text: "", annotationType: "shape" },
+    { text: "", annotationType: null },
+    { text: "", tags: [""] },
+    { text: "", tags: ["  "] },
+    { text: "", tags: [2] },
+    { text: "", tags: new Array(1) },
+    { text: "", annotationType: "note", extra: true },
+  ]) {
+    assert.equal(
+      acceptsAcquisition({ kind: "quote", source, snapshot }),
+      false,
+    );
+  }
+});
+
 test("shared Academic parsers cannot evaluate nested wire accessors or sparse tags", () => {
   let reads = 0;
   const library = Object.defineProperty({}, "type", {
@@ -281,6 +410,13 @@ test("shared Academic parsers cannot evaluate nested wire accessors or sparse ta
       acceptsAcquisition({
         ...literatureAcquisition,
         snapshot: { title: "Paper", tags: invalidTags },
+      }),
+      false,
+    );
+    assert.equal(
+      acceptsAcquisition({
+        ...quoteAcquisition,
+        snapshot: { text: "", annotationType: "image", tags: invalidTags },
       }),
       false,
     );
@@ -1174,6 +1310,11 @@ test("null-source init requires complete labels and a canonical canvas document"
     "sizeAuto",
     "shortcutNudge",
     "shortcutNudgeLarge",
+    "annotationTypeFilter",
+    "annotationTagFilter",
+    "annotationAllTypes",
+    "annotationAllTags",
+    "annotationNoText",
   ]) {
     const localizedShortcut = structuredClone(init);
     localizedShortcut.payload.labels[label] = "Localized movement help";
@@ -1193,6 +1334,58 @@ test("null-source init requires complete labels and a canonical canvas document"
       ),
       false,
       `${label} rejects invalid wire values`,
+    );
+  }
+
+  const annotationTypeLabels = {
+    highlight: "Highlight",
+    underline: "Underline",
+    note: "Note",
+    text: "Text",
+    image: "Image",
+    ink: "Ink",
+  };
+  for (const localizedTypes of [annotationTypeLabels, undefined]) {
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        {
+          ...init,
+          payload: {
+            ...init.payload,
+            labels: { ...labels, annotationTypeLabels: localizedTypes },
+          },
+        },
+        protocolBase.channel,
+      ),
+      true,
+    );
+  }
+  for (const malformedTypes of [
+    {},
+    { ...annotationTypeLabels, note: undefined },
+    { ...annotationTypeLabels, text: 2 },
+    { ...annotationTypeLabels, custom: "Custom" },
+    { ...annotationTypeLabels, ink: null },
+    Object.assign(Object.create({ ink: "Inherited" }), {
+      highlight: "Highlight",
+      underline: "Underline",
+      note: "Note",
+      text: "Text",
+      image: "Image",
+    }),
+  ]) {
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        {
+          ...init,
+          payload: {
+            ...init.payload,
+            labels: { ...labels, annotationTypeLabels: malformedTypes },
+          },
+        },
+        protocolBase.channel,
+      ),
+      false,
     );
   }
 

@@ -36,10 +36,12 @@ interface ItemFixture {
   getNoteTitle(): string;
   getAttachments(): number[];
   getAnnotations(): ItemFixture[];
+  getTags(): { tag: string }[];
   isRegularItem(): boolean;
   isNote(): boolean;
   isAnnotation(): boolean;
   isAttachment(): boolean;
+  isFileAttachment(): boolean;
 }
 
 function item(
@@ -52,10 +54,12 @@ function item(
       | "getNoteTitle"
       | "getAttachments"
       | "getAnnotations"
+      | "getTags"
       | "isRegularItem"
       | "isNote"
       | "isAnnotation"
       | "isAttachment"
+      | "isFileAttachment"
     >
   > & {
     fields?: Record<string, string>;
@@ -63,6 +67,8 @@ function item(
     title?: string;
     attachments?: number[];
     annotations?: ItemFixture[];
+    tags?: string[];
+    linkedURL?: boolean;
   } = {},
 ): ItemFixture {
   const {
@@ -71,6 +77,8 @@ function item(
     title = "",
     attachments = [],
     annotations = [],
+    tags = [],
+    linkedURL = false,
     ...rest
   } = values;
   return {
@@ -83,10 +91,12 @@ function item(
     getNoteTitle: () => title,
     getAttachments: () => attachments,
     getAnnotations: () => annotations,
+    getTags: () => tags.map((tag) => ({ tag })),
     isRegularItem: () => kind === "regular",
     isNote: () => kind === "note",
     isAnnotation: () => kind === "annotation",
     isAttachment: () => kind === "attachment",
+    isFileAttachment: () => kind === "attachment" && !linkedURL,
   };
 }
 
@@ -256,7 +266,7 @@ test("classifies notes, annotations, and file attachments while rejecting other 
       attachmentKey: "PDF",
       annotationKey: "ANNOTATION",
     },
-    snapshot: { text: "Evidence" },
+    snapshot: { text: "Evidence", annotationType: "highlight" },
   });
   assert.deepEqual(gateway.acquireItem(attachment as Zotero.Item), {
     kind: "attachment",
@@ -468,6 +478,7 @@ test("validates the complete quote parent chain before resolving current fields"
       },
       snapshot: {
         text: "Current evidence",
+        annotationType: "underline",
         comment: "Comment",
         pageLabel: "12",
         color: "#ffd400",
@@ -476,7 +487,7 @@ test("validates the complete quote parent chain before resolving current fields"
   });
 });
 
-test("rejects unsupported quote annotations during acquire, resolve, and open", async () => {
+test("rejects unknown annotation kinds and non-Reader attachment sources", async () => {
   const regular = item("regular", { key: "ITEM" });
   const pdf = item("attachment", {
     key: "PDF",
@@ -486,29 +497,29 @@ test("rejects unsupported quote annotations during acquire, resolve, and open", 
   const epub = item("attachment", {
     key: "EPUB",
     parentItem: regular,
-    attachmentContentType: "application/epub+zip",
+    attachmentContentType: "text/plain",
   });
   const webpage = item("attachment", {
     key: "WEB",
     parentItem: regular,
-    attachmentContentType: "text/html",
+    attachmentContentType: "image/png",
   });
   const image = item("annotation", {
     key: "IMAGE",
     parentItem: pdf,
-    annotationType: "image",
+    annotationType: "unknown",
     annotationText: "Image annotation",
   });
   const ink = item("annotation", {
     key: "INK",
     parentItem: pdf,
-    annotationType: "ink",
+    annotationType: "unsupported",
     annotationText: "Ink annotation",
   });
   const empty = item("annotation", {
     key: "EMPTY",
     parentItem: pdf,
-    annotationType: "highlight",
+    annotationType: "future-kind",
     annotationText: "  ",
   });
   const epubHighlight = item("annotation", {
@@ -581,7 +592,7 @@ test("rejects unsupported quote annotations during acquire, resolve, and open", 
   );
 });
 
-test("lists only non-empty PDF highlight and underline annotations in deterministic order", async () => {
+test("lists PDF annotations including empty highlights in deterministic order", async () => {
   const regular = item("regular", { key: "ITEM" });
   const second = item("attachment", {
     key: "B",
@@ -664,11 +675,11 @@ test("lists only non-empty PDF highlight and underline annotations in determinis
     result.candidates.map(
       (candidate) => candidate.acquisition.source.annotationKey,
     ),
-    ["EARLIER", "LATER", "SECOND"],
+    ["EARLIER", "LATER", "EMPTY", "SECOND"],
   );
   assert.deepEqual(
     result.candidates.map((candidate) => candidate.attachmentTitle),
-    ["First PDF", "First PDF", "Second PDF"],
+    ["First PDF", "First PDF", "Second PDF", "Second PDF"],
   );
   assert.equal(result.candidates[0].sortIndex, "");
   assert.equal(
@@ -767,7 +778,7 @@ test("returns valid annotation candidates together with typed partial failures",
   const excluded = item("annotation", {
     key: "ANN-IMAGE",
     parentItem: validAttachment,
-    annotationType: "image",
+    annotationType: "unsupported",
     annotationText: "Unsupported by design",
   });
   const invalid = item("regular", { key: "ANN-BROKEN" });
@@ -814,7 +825,7 @@ test("returns valid annotation candidates together with typed partial failures",
     },
     {
       code: "attachment-unavailable",
-      message: "Annotations from a PDF attachment could not be loaded.",
+      message: "Annotations from an attachment could not be loaded.",
       attachmentKey: "PDF-FAIL",
     },
   ]);
@@ -1224,4 +1235,307 @@ test("production exact Reader failures are not converted into page fallback", as
     /Reader rejected navigation/,
   );
   assert.deepEqual(calls, [[11, { annotationID: "ANNOTATION" }]]);
+});
+
+test("lists all six annotation types from standalone PDF, HTML, and EPUB attachments", async () => {
+  for (const contentType of [
+    "application/pdf",
+    "text/html",
+    "application/epub+zip",
+  ]) {
+    const attachment = item("attachment", {
+      key: "ATTACHMENT",
+      libraryID: 2,
+      attachmentContentType: contentType,
+      fields: { title: "Reading source" },
+    });
+    const annotations = [
+      "highlight",
+      "underline",
+      "note",
+      "text",
+      "image",
+      "ink",
+    ].map((annotationType, index) =>
+      item("annotation", {
+        key: `ANNOTATION${index}`,
+        libraryID: 2,
+        parentItem: attachment,
+        annotationType,
+        annotationText: index < 2 ? "  Evidence  " : "",
+        annotationComment: index < 4 ? "  A comment  " : "",
+        annotationColor: "#ffd400",
+        tags: ["method", " review "],
+        annotationSortIndex: String(index),
+      }),
+    );
+    attachment.getAnnotations = () => annotations;
+    const { deps } = dependencies([attachment, ...annotations]);
+    const gateway = createZoteroSourceGateway(deps);
+    const source = {
+      library: { type: "group" as const, groupID: 42 },
+      attachmentKey: attachment.key,
+    };
+    const result = await gateway.listAnnotations(source);
+    assert.equal(result.candidates.length, 6);
+    assert.deepEqual(result.failures, []);
+    for (const [index, candidate] of result.candidates.entries()) {
+      assert.deepEqual(candidate.acquisition.source, {
+        ...source,
+        annotationKey: `ANNOTATION${index}`,
+      });
+      assert.deepEqual(candidate.acquisition.snapshot, {
+        text: index < 2 ? "Evidence" : "",
+        ...(index < 4 ? { comment: "A comment" } : {}),
+        annotationType: annotations[index].annotationType,
+        color: "#ffd400",
+        tags: ["method", "review"],
+      });
+      assert.deepEqual(
+        gateway.acquireItem(annotations[index] as Zotero.Item),
+        candidate.acquisition,
+      );
+      const resolved = await gateway.resolve(`quote${index}`, 3, {
+        kind: "quote",
+        source: candidate.acquisition.source,
+      });
+      assert.equal(resolved.status, "resolved");
+    }
+  }
+});
+
+test("literature aggregates all Reader attachments while attachment listing stays scoped", async () => {
+  const regular = item("regular", { key: "PARENT" });
+  const attachments = [
+    "application/pdf",
+    "application/epub+zip",
+    "text/html",
+  ].map((attachmentContentType, index) =>
+    item("attachment", {
+      key: `ATT${index}`,
+      parentItem: regular,
+      attachmentContentType,
+    }),
+  );
+  const annotations = attachments.map((attachment, index) =>
+    item("annotation", {
+      key: `ANN${index}`,
+      parentItem: attachment,
+      annotationType: "note",
+      annotationComment: `Comment ${index}`,
+    }),
+  );
+  for (const [index, attachment] of attachments.entries())
+    attachment.getAnnotations = () => [annotations[index]];
+  const linkedURL = item("attachment", {
+    key: "URL",
+    parentItem: regular,
+    attachmentContentType: "text/html",
+    linkedURL: true,
+  });
+  linkedURL.getAnnotations = () => {
+    throw new Error(
+      "getAnnotations must not be called for a URL-only attachment",
+    );
+  };
+  regular.getAttachments = () =>
+    [...attachments, linkedURL] as unknown as number[];
+  const { deps } = dependencies([
+    regular,
+    ...attachments,
+    ...annotations,
+    linkedURL,
+  ]);
+  const gateway = createZoteroSourceGateway(deps);
+  const aggregate = await gateway.listAnnotations({
+    library: { type: "user" },
+    itemKey: regular.key,
+  });
+  assert.deepEqual(
+    aggregate.candidates.map(
+      (candidate) => candidate.acquisition.source.annotationKey,
+    ),
+    ["ANN0", "ANN1", "ANN2"],
+  );
+  assert.deepEqual(aggregate.failures, []);
+  const scoped = await gateway.listAnnotations({
+    library: { type: "user" },
+    attachmentKey: "ATT1",
+  });
+  assert.deepEqual(
+    scoped.candidates.map(
+      (candidate) => candidate.acquisition.source.annotationKey,
+    ),
+    ["ANN1"],
+  );
+  await assert.rejects(
+    gateway.listAnnotations({
+      library: { type: "user" },
+      attachmentKey: "URL",
+    }),
+    { code: "wrong-kind" },
+  );
+});
+
+test("standalone annotation source remains stable after attaching its file to a regular item", async () => {
+  const attachment = item("attachment", {
+    key: "FILE",
+    attachmentContentType: "text/html",
+  });
+  const annotation = item("annotation", {
+    key: "ANN",
+    parentItem: attachment,
+    annotationType: "note",
+    annotationComment: "Comment",
+  });
+  const parent = item("regular", { key: "PARENT" });
+  const { deps } = dependencies([attachment, annotation, parent]);
+  const gateway = createZoteroSourceGateway(deps);
+  const acquired = gateway.acquireItem(annotation as Zotero.Item);
+  assert.equal(acquired.kind, "quote");
+  if (acquired.kind !== "quote") assert.fail("expected quote");
+  attachment.parentItem = parent;
+  const resolved = await gateway.resolve("quote", 0, {
+    kind: "quote",
+    source: acquired.source,
+  });
+  assert.equal(resolved.status, "resolved");
+  if (resolved.status !== "resolved") assert.fail("expected resolution");
+  assert.deepEqual(resolved.acquisition.source, acquired.source);
+  await gateway.open({ kind: "quote", source: acquired.source });
+  await assert.rejects(
+    gateway.open({
+      kind: "quote",
+      source: { ...acquired.source, itemKey: "OLD-PARENT" },
+    }),
+    { code: "parent-mismatch" },
+  );
+});
+
+test("annotation listing and resolution reject cross-library or wrong-parent chains", async () => {
+  const regular = item("regular", { key: "PARENT" });
+  const attachment = item("attachment", {
+    key: "FILE",
+    parentItem: regular,
+    attachmentContentType: "application/pdf",
+  });
+  const annotation = item("annotation", {
+    key: "ANN",
+    parentItem: attachment,
+    annotationType: "note",
+    annotationComment: "Comment",
+  });
+  attachment.getAnnotations = () => [annotation];
+  regular.getAttachments = () => [attachment] as unknown as number[];
+  const { deps } = dependencies([regular, attachment, annotation]);
+  const gateway = createZoteroSourceGateway(deps);
+  const source = {
+    library: { type: "user" as const },
+    attachmentKey: "FILE",
+    annotationKey: "ANN",
+    itemKey: "PARENT",
+  };
+  for (const value of [regular, attachment, annotation]) {
+    value.libraryID = 2;
+    const resolved = await gateway.resolve("quote", 0, {
+      kind: "quote",
+      source,
+    });
+    assert.equal(resolved.status, "unavailable");
+    await assert.rejects(gateway.open({ kind: "quote", source }), {
+      code: "parent-mismatch",
+    });
+    const listing = gateway.listAnnotations({
+      library: { type: "user" },
+      attachmentKey: "FILE",
+    });
+    if (value === attachment) {
+      await assert.rejects(listing, { code: "parent-mismatch" });
+    } else {
+      const result = await listing;
+      assert.equal(result.candidates.length, 0);
+      assert.equal(result.failures.length, 1);
+    }
+    value.libraryID = 1;
+  }
+  const other = item("regular", { key: "OTHER" });
+  attachment.parentItem = other;
+  const aggregate = await gateway.listAnnotations({
+    library: { type: "user" },
+    itemKey: "PARENT",
+  });
+  assert.equal(aggregate.candidates.length, 0);
+  assert.equal(aggregate.failures[0].code, "attachment-unavailable");
+});
+
+test("attachment annotation loading preserves typed failure without pretending the list is empty", async () => {
+  const attachment = item("attachment", {
+    key: "FILE",
+    attachmentContentType: "text/html",
+  });
+  attachment.getAnnotations = () => {
+    throw new Error("child data unavailable");
+  };
+  const { deps } = dependencies([attachment]);
+  const gateway = createZoteroSourceGateway(deps);
+  assert.deepEqual(
+    await gateway.listAnnotations({
+      library: { type: "user" },
+      attachmentKey: "FILE",
+    }),
+    {
+      candidates: [],
+      failures: [
+        {
+          code: "attachment-unavailable",
+          message: "Annotations from an attachment could not be loaded.",
+          attachmentKey: "FILE",
+        },
+      ],
+    },
+  );
+  await assert.rejects(
+    gateway.listAnnotations({
+      library: { type: "user" },
+      attachmentKey: "MISSING",
+    }),
+    { code: "item-missing" },
+  );
+});
+
+test("HTML and EPUB annotations navigate exactly or open their file without a PDF page fallback", async () => {
+  for (const attachmentContentType of ["text/html", "application/epub+zip"]) {
+    const attachment = item("attachment", {
+      key: "FILE",
+      attachmentContentType,
+    });
+    const annotation = item("annotation", {
+      key: "ANN",
+      parentItem: attachment,
+      annotationType: "text",
+      annotationComment: "Text box",
+      annotationPosition: '{"pageIndex":7}',
+    });
+    const { deps, pages } = dependencies([attachment, annotation]);
+    const gateway = createZoteroSourceGateway(deps);
+    const descriptor = {
+      kind: "quote" as const,
+      source: {
+        library: { type: "user" as const },
+        attachmentKey: "FILE",
+        annotationKey: "ANN",
+      },
+    };
+    await gateway.open(descriptor);
+    assert.deepEqual(pages, [{ key: "FILE", pageIndex: undefined }]);
+    pages.length = 0;
+    const opened: string[] = [];
+    deps.openAnnotation = async (file, annotation) => {
+      opened.push(`${file.key}:${annotation.key}`);
+      return true;
+    };
+    await gateway.open(descriptor);
+    assert.deepEqual(opened, ["FILE:ANN"]);
+    assert.deepEqual(pages, []);
+  }
 });

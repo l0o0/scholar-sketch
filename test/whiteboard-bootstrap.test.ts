@@ -302,6 +302,55 @@ test("academic bridge dispatch invokes the correlated runtime methods", () => {
     JSON.stringify(annotationsListed).includes('"attachmentID"'),
     false,
   );
+
+  calls.length = 0;
+  const attachmentSource = {
+    library: { type: "group", groupID: 7 } as const,
+    attachmentKey: "WEB12345",
+  };
+  const attachmentAnnotation: AnnotationCandidate = {
+    attachmentTitle: "Webpage snapshot",
+    sortIndex: "00001",
+    acquisition: {
+      kind: "quote",
+      source: { ...attachmentSource, annotationKey: "ANN12345" },
+      snapshot: {
+        text: "",
+        comment: "Read again",
+        annotationType: "note",
+        tags: ["review"],
+      },
+    },
+  };
+  const attachmentListed: ParentToWhiteboardMessage = {
+    ...annotationsListed,
+    payload: {
+      ...annotationsListed.payload,
+      source: attachmentSource,
+      candidates: [attachmentAnnotation],
+    },
+  };
+  const attachmentFailed: ParentToWhiteboardMessage = {
+    ...annotationListFailed,
+    payload: { ...annotationListFailed.payload, source: attachmentSource },
+  };
+  assert.equal(forwardAcademicParentMessage(runtime, attachmentListed), true);
+  assert.equal(forwardAcademicParentMessage(runtime, attachmentFailed), true);
+  assert.deepEqual(calls, [
+    [
+      "annotations",
+      "annotations-1",
+      attachmentSource,
+      [attachmentAnnotation],
+      [],
+    ],
+    [
+      "annotation-failure",
+      "annotations-2",
+      attachmentSource,
+      attachmentFailed.payload.failure,
+    ],
+  ]);
 });
 
 test("both bridge listeners validate their envelope before allowing a null Zotero chrome source", () => {
@@ -1140,25 +1189,46 @@ test("outer-window drops reach the iframe once with local coordinates and detach
   assert.equal(resolutions, 1);
 });
 
-test("whiteboard page loads the bundle with the current editor mount cache key", () => {
+test("whiteboard page loads styles and bundle with the current editor mount cache key", () => {
   const html = readFileSync("addon/content/whiteboard/index.html", "utf8");
-  const loader = html.match(/<script>([\s\S]*?)<\/script>/)![1];
-  const urls: string[] = [];
-  for (const version of ["first-mount", "after-hot-reload"]) {
+  const loader = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1])
+    .join("\n");
+  const cases = [
+    ["?channel=test&v=first-mount", "first-mount"],
+    ["?channel=test&v=after-hot-reload", "after-hot-reload"],
+    ["?v=mount%20%26%3F", "mount%20%26%3F"],
+    ["?channel=test", "__buildTime__"],
+    ["?channel=test&v=", "__buildTime__"],
+  ];
+  for (const [search, encodedVersion] of cases) {
+    const stylesheet = { href: "" };
+    const expectedStyle = `chrome://bamboo/content/whiteboard/whiteboard.css?v=${encodedVersion}`;
+    const urls: string[] = [];
     runInNewContext(loader, {
       URLSearchParams,
       encodeURIComponent,
-      location: { search: `?channel=test&v=${version}` },
+      location: { search },
       document: {
+        getElementById: (id: string) => {
+          assert.equal(id, "whiteboard-stylesheet");
+          return stylesheet;
+        },
         createElement: () => ({}),
         body: {
-          appendChild: (script: { src: string }) => urls.push(script.src),
+          appendChild: (script: { src: string }) => {
+            assert.equal(
+              stylesheet.href,
+              expectedStyle,
+              "stylesheet URL must be ready before starting the bundle",
+            );
+            urls.push(script.src);
+          },
         },
       },
     });
+    assert.deepEqual(urls, [
+      `chrome://bamboo/content/whiteboard/whiteboard.js?v=${encodedVersion}`,
+    ]);
   }
-  assert.deepEqual(urls, [
-    "chrome://bamboo/content/whiteboard/whiteboard.js?v=first-mount",
-    "chrome://bamboo/content/whiteboard/whiteboard.js?v=after-hot-reload",
-  ]);
 });

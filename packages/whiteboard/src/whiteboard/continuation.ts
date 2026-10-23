@@ -1,4 +1,5 @@
 import {
+  attachmentSourceIdentity,
   createAcademicNode,
   isNoteType,
   literatureSourceIdentity,
@@ -90,7 +91,7 @@ export interface QuoteNoteOptions {
   noteType: "claim" | "evidence";
 }
 
-/** Keep the quote visible and link the new writing card to its Zotero item. */
+/** Keep the quote visible and link the new writing card to its Zotero source. */
 export function createNoteFromQuote(
   document: CanvasDocument,
   options: QuoteNoteOptions,
@@ -104,7 +105,7 @@ export function createNoteFromQuote(
   }
   const result = createConnectedNote(document, options);
   if (!result) return null;
-  const reference = quoteLiteratureReference(document, quote, options.nodeId);
+  const reference = quoteReference(document, quote, options.nodeId);
   return {
     ...result,
     document: {
@@ -140,12 +141,40 @@ function facingSide(from: CanvasNode, to: CanvasNode): ConnectionSide {
   return dy >= 0 ? "bottom" : "top";
 }
 
-function quoteLiteratureReference(
+function quoteReference(
   document: CanvasDocument,
   quote: QuoteNode,
   noteId: string,
 ): NoteReference {
-  const identity = literatureSourceIdentity(quote.source);
+  const itemKey = quote.source.itemKey;
+  if (itemKey === undefined) {
+    const source = {
+      library: { ...quote.source.library },
+      attachmentKey: quote.source.attachmentKey,
+    };
+    const identity = attachmentSourceIdentity(source);
+    const attachment = document.nodes.find(
+      (node) =>
+        (node.kind === "pdf" || node.kind === "attachment") &&
+        node.data.source &&
+        attachmentSourceIdentity(node.data.source) === identity,
+    );
+    const title =
+      attachment?.kind === "pdf" || attachment?.kind === "attachment"
+        ? attachment.data.title
+        : undefined;
+    return {
+      id: `reference-${noteId}`,
+      kind: "attachment",
+      source,
+      title: (title || quote.snapshot.citation || source.attachmentKey).slice(
+        0,
+        4096,
+      ),
+    };
+  }
+  const source = { library: { ...quote.source.library }, itemKey };
+  const identity = literatureSourceIdentity(source);
   const literature = document.nodes.find(
     (node) =>
       node.kind === "literature" &&
@@ -156,15 +185,11 @@ function quoteLiteratureReference(
   return {
     id: `reference-${noteId}`,
     kind: "literature",
-    source: {
-      library: { ...quote.source.library },
-      itemKey: quote.source.itemKey,
-    },
-    title: (
-      snapshot?.title ||
-      quote.snapshot.citation ||
-      quote.source.itemKey
-    ).slice(0, 4096),
+    source,
+    title: (snapshot?.title || quote.snapshot.citation || itemKey).slice(
+      0,
+      4096,
+    ),
     ...(snapshot?.creators ? { creators: snapshot.creators } : {}),
     ...(snapshot?.year ? { year: snapshot.year } : {}),
   };

@@ -67,9 +67,11 @@ The editor is document-first, not an IDE or a dashboard. Live Preview uses a cen
 - System typography with strong Chinese and Latin fallback coverage.
 - Light and dark themes use equivalent hierarchy, not merely inverted colors.
 
+Document-editor layout rules apply to Markdown. [Research Canvas Cards](#research-canvas-cards) and [Canvas Notifications](#canvas-notifications) define the whiteboard's own components and feedback surfaces.
+
 ## Colors
 
-The palette uses cool neutral surfaces and one blue accent reserved for links, focus, and primary context. Green, amber, and red communicate save success, pending changes, and errors only.
+The palette uses cool neutral surfaces and one blue accent reserved for links, focus, and primary context. Status colors communicate meaningful states and outcomes. Markdown save feedback uses the values below; whiteboard operation feedback uses the scoped [notification palette](#notification-states-and-icons).
 
 ### Primary
 
@@ -83,7 +85,7 @@ The palette uses cool neutral surfaces and one blue accent reserved for links, f
 - **Graphite Text** (`#111827`): primary light-mode text.
 - **Night Canvas** (`#12141a`) and **Night Surface** (`#1a1d24`): dark-mode background layers.
 
-### Status
+### Markdown Save Status
 
 - **Saved Green** (`#059669`, dark `#34d399`): only for successfully saved state.
 - **Pending Amber** (`#d97706`): only for unsaved or saving state.
@@ -133,6 +135,14 @@ The toolbar is a single, centered icon toolbelt. It follows the Live Preview tex
 - **Live Preview:** 48rem maximum width, centered, with 28px inline and 20px top padding.
 - **Source:** unconstrained document width and monospace text, while retaining the same surrounding shell.
 - **List markers:** use an explicit high-contrast marker treatment in dark mode; do not rely on muted syntax opacity for list labels.
+
+### Shortcut Settings
+
+Use a compact Markdown / Whiteboard segmented radio group to switch shortcut
+references. Both choices remain visible, use neutral theme surfaces, and provide
+one Tab stop with arrow-key and Home/End navigation. On narrow settings panels,
+move the group below the heading; stack its choices when the panel cannot fit
+both labels. Display platform-specific bindings and label table-only actions.
 
 ### Status Bar
 
@@ -191,6 +201,12 @@ keyboard focus, or while a connection is being drawn. Touch devices retain
 visible handles. The shared selection toolbar and existing editing flows remain
 the action surfaces.
 
+The **View annotations** action and annotation-list empty state share a transparent
+document icon with a flat yellow-green highlight band. The document outline follows
+`currentColor`; the band and its dark text mark retain their colors in both themes.
+The band identifies the annotation feature, not a selected annotation type or a
+successful operation. Keep the toolbar icon at 16px and the empty-state icon at 24px.
+
 Cards and shapes expose four independently named connection points. Every side can start or receive a connection, and the chosen sides persist when moving cards, undoing, or reloading. Connection previews and completed edges use the same Bezier curves. Handles have a larger invisible hit area and accent feedback when a target snaps. Hovering or selecting a line reveals draggable endpoints; a successful reconnection preserves its identity, label, relation, and styling in one undoable change. Dropping a reconnection on empty space retains the original line. JSON Canvas import/export carries the standard `fromSide` and `toSide` fields, and SVG export uses the same sides and curve style. PNG export omits the endpoint controls and selection emphasis.
 
 Color controls open compact popovers with six color families and three shades.
@@ -207,6 +223,72 @@ scaled with the canvas zoom. The input grows within the available body space
 and scrolls for longer content. Enter inserts a newline; Ctrl/Cmd+Enter commits,
 Escape cancels the current edit, and input-method composition never commits an
 edit. Basic shape labels retain their existing Enter-to-commit behavior.
+
+## Canvas Notifications
+
+The whiteboard uses lightweight floating notices, independent of the Markdown status bar. Keep the canvas as the primary surface: a notice explains an outcome or a missing prerequisite without opening an empty dialog, covering the canvas with a backdrop, or taking focus. Use a dialog when the user actually needs to choose or confirm something. For example, **Join group** shows an informational notice when there are no groups and opens the existing picker when groups are available.
+
+The following reference renders the production `Notice` component with illustrative messages, showing light and dark themes. It is a component comparison, not an example of five notifications that should always appear together.
+
+![Canvas notification states in light and dark themes](docs/screenshots/canvas-notifications.png)
+
+### Notification States and Icons
+
+| State      | Default icon             | Light accent   | Dark accent    | Meaning and current examples                                                                                          |
+| ---------- | ------------------------ | -------------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `info`     | Circled information mark | `#2563eb`      | `#79adff`      | Guidance or a prerequisite; no group available.                                                                       |
+| `success`  | Circled check            | `#198754`      | `#68c694`      | Confirmed success; sources added, group joined, style copied.                                                         |
+| `warning`  | Warning triangle         | `#a56a11`      | `#e5b65b`      | Partial success or unsupported input; some sources or annotations could not be loaded, unsupported or malformed drop. |
+| `error`    | Circled exclamation mark | `#c43d45`      | `#f08b8b`      | Failed operation; source unavailable, file operation or PNG rendering failure.                                        |
+| `progress` | Open circular spinner    | Same as `info` | Same as `info` | Work still running; PNG rendering. Never use a success icon before completion.                                        |
+
+A contextual icon may replace the default without changing the state's meaning: the missing-group notice uses the group icon, and active format painting uses the paint roller. Icons use `currentColor`; do not introduce emoji or multicolor illustrations.
+
+For an acquisition summary, zero failures with at least one success is `success`; mixed successes and failures is `warning`; failures without any success is `error`; zero results is `info`. The message must state the actual outcome. A request being sent is not proof that a file has been saved or exported.
+
+### Surface, Spacing, and Motion
+
+| Element           | Specification                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Surface           | Opaque theme surface with primary text color; no full-color fill, gradient, or backdrop blur.                                 |
+| Outline and shape | 1px border, mixing 16% state accent into the theme border; 12px radius.                                                       |
+| Content           | 9px vertical / 10px horizontal padding; 10px gaps; 12px system text with 1.5 line height.                                     |
+| Icon              | 16px line icon within an explicit 26 × 26px box; 8px radius, 12% accent background.                                           |
+| Close button      | 28 × 28px target, 16px cross, 8px radius; muted default color, theme hover surface, visible focus outline.                    |
+| Elevation         | Light: `0 2px 5px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.10)`; dark: equivalent offsets with black at `.10` and `.22`. |
+| Entry             | 160ms ease-out fade, settling from 4px above; no bounce or scale effect.                                                      |
+| Progress          | Only the progress icon rotates, once per second; the notice stays still.                                                      |
+
+`prefers-reduced-motion: reduce` disables both entry and spinner animation. There is currently no exit animation. Keep the icon box's explicit width as well as its non-shrinking flex behavior: relying only on `flex-basis` can underestimate intrinsic width and unnecessarily wrap short Chinese text.
+
+Normal notices sit below the top toolbar, 72px from the canvas top. The stack is centered, at most 520px wide, with at least 16px side clearance and 8px between notices. Each notice uses its content width up to that limit. Long messages wrap; the icon and close button remain visible. Stack gaps pass pointer input through to the canvas, while notices and their controls remain interactive.
+
+Format painter instructions and style-copy feedback stay centered 16px from the bottom, at most 520px wide with 48px side clearance. They use the same surface and state styling.
+
+### Lifecycle and Accessibility
+
+`Notice` is a presentation component. Its caller owns the operation, message, dismissal, and timer. Reuse it for new whiteboard feedback instead of creating a separate styled popup or notification store.
+
+| Current consumer                                                                   | Placement | Dismissal                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CanvasNoticeRegion`: source/import/annotation feedback and missing-group guidance | Top stack | Manual close or 8 seconds; replacing the notice restarts its timer and cleans up the previous one.                                                                                                                 |
+| Group-joined feedback                                                              | Top stack | 3 seconds; no close button.                                                                                                                                                                                        |
+| PNG rendering                                                                      | Top stack | Progress ends with rendering/dispatch to the host; no close button while busy. Rendering errors remain until dismissed or replaced by a later export state. This is not confirmation of host file-save completion. |
+| File-operation errors                                                              | Top stack | Manual close or replacement by another file error; no automatic expiry.                                                                                                                                            |
+| Active format painter / copied-style feedback                                      | Bottom    | Active instructions remain until painting ends or is cancelled; copied-style feedback lasts 2.2 seconds. Active painting takes precedence in this slot.                                                            |
+
+The top stack renders the existing export, canvas, file, and group feedback slots in that order. It is not a severity-sorted queue or notification history. A new `canvasNotice` replaces the previous one. Hovering or focusing a notice does not pause its timer.
+
+Messages default to `role="status"` with polite announcements. File errors and PNG rendering errors explicitly use `role="alert"` with assertive announcements; the other canvas errors retain polite announcements. Announce the whole message with `aria-atomic="true"`. Icons are decorative (`aria-hidden`); state and outcome must remain understandable from the text. Close controls have localized accessible names and support mouse, Enter, and Space. Showing a notification does not move keyboard focus; cancelling the format painter returns focus to the canvas.
+
+### Implementation and Review References
+
+- [Notice component](packages/whiteboard/src/chrome/Notice.tsx): shared presentation, icons, close control, and announcement semantics.
+- [Whiteboard application](packages/whiteboard/src/whiteboard/app.tsx): state mapping, localized messages, stacking, and operation lifecycles; [board CSS](packages/whiteboard/src/whiteboard/board.css): authoritative visual values and reduced-motion rules.
+- [Notice DOM tests](test/whiteboard-annotation-notice-dom.test.ts), [workflow tests](test/whiteboard-workflow-dom.test.ts), and [format painter tests](test/whiteboard-format-painter-dom.test.ts): state meaning, dismissal, timer cleanup, and canvas interaction.
+- [Whiteboard page](addon/content/whiteboard/index.html) and [bootstrap tests](test/whiteboard-bootstrap.test.ts): styles and scripts use the same editor-mount cache key so a reload does not combine new markup with old styles.
+
+When extending this component, check both themes, short Chinese text, long messages in a narrow container, simultaneous notices, keyboard dismissal, and reduced-motion behavior. Use production components for previews. Browser layout checks do not substitute for native Zotero validation of host-dependent operations.
 
 ## Table Editing
 

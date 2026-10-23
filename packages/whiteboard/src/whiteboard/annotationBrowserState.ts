@@ -1,7 +1,7 @@
 import type { AnnotationBrowserState } from "../chrome/AnnotationBrowser";
 import {
-  literatureSourceIdentity,
-  type LiteratureSource,
+  annotationListSourceIdentity,
+  type AnnotationListSource,
 } from "../model/academic";
 import type {
   AnnotationListFailure,
@@ -10,7 +10,7 @@ import type {
 
 export interface AnnotationBrowserSession {
   requestId: string;
-  source: LiteratureSource;
+  source: AnnotationListSource;
   state: AnnotationBrowserState;
   query: string;
   selectedKeys: Set<string>;
@@ -18,7 +18,7 @@ export interface AnnotationBrowserSession {
 
 export function openAnnotationBrowserSession(
   requestId: string,
-  source: LiteratureSource,
+  source: AnnotationListSource,
 ): AnnotationBrowserSession {
   return {
     requestId,
@@ -44,20 +44,20 @@ export function replaceDocumentAnnotationBrowserSession(
 function matchesReply(
   session: AnnotationBrowserSession | null,
   requestId: string,
-  source: LiteratureSource,
+  source: AnnotationListSource,
 ): session is AnnotationBrowserSession {
   return (
     session !== null &&
     session.requestId === requestId &&
-    literatureSourceIdentity(session.source) ===
-      literatureSourceIdentity(source)
+    annotationListSourceIdentity(session.source) ===
+      annotationListSourceIdentity(source)
   );
 }
 
 export function acceptAnnotationListResult(
   session: AnnotationBrowserSession | null,
   requestId: string,
-  source: LiteratureSource,
+  source: AnnotationListSource,
   result: AnnotationListResult,
 ): AnnotationBrowserSession | null {
   if (!matchesReply(session, requestId, source)) return session;
@@ -70,7 +70,7 @@ export function acceptAnnotationListResult(
 export function acceptAnnotationListFailure(
   session: AnnotationBrowserSession | null,
   requestId: string,
-  source: LiteratureSource,
+  source: AnnotationListSource,
   failure: AnnotationListFailure,
 ): AnnotationBrowserSession | null {
   if (!matchesReply(session, requestId, source)) return session;

@@ -304,7 +304,8 @@ export function flowNodeText(node: CanvasFlowNode): string {
   }
   if (model.kind === "frame") return model.title;
   if (model.kind === "literature") return model.snapshot.title;
-  if (model.kind === "quote") return model.snapshot.text;
+  if (model.kind === "quote")
+    return model.snapshot.text || model.snapshot.comment || "";
   return model.data.title;
 }
 
@@ -539,7 +540,15 @@ export function updateCanvasNodeText(
     case "literature":
       return { ...model, snapshot: { ...model.snapshot, title: text } };
     case "quote":
-      return { ...model, snapshot: { ...model.snapshot, text } };
+      return {
+        ...model,
+        snapshot: {
+          ...model.snapshot,
+          ...(model.snapshot.text === "" && model.snapshot.comment !== undefined
+            ? { comment: text }
+            : { text }),
+        },
+      };
     default:
       return { ...model, data: { ...model.data, title: text } };
   }

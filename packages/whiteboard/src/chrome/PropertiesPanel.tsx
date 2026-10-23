@@ -271,8 +271,6 @@ type PropertiesPanelProps = {
   onClose?: () => void;
   onOpen: (node: CanvasFlowNode) => void;
   onRefreshSource: (node: CanvasFlowNode) => void;
-  onViewAnnotations: (node: CanvasFlowNode) => void;
-  viewAnnotationsRef?: Ref<HTMLButtonElement>;
   onRemoveFromGroup?: (nodeId: string) => void;
   onCopy: (nodeId: string) => void;
   onJoinGroup?: (nodeId: string) => void;
@@ -394,16 +392,6 @@ function PropertiesPanelView(
                 ? fileLabel(labels, "fileOpen", "Open file")
                 : labels.openItem}
             </span>
-          </button>
-        ) : null}
-        {model.kind === "literature" ? (
-          <button
-            ref={props.viewAnnotationsRef}
-            type="button"
-            onClick={() => props.onViewAnnotations(node)}
-          >
-            <IconOpen />
-            <span>{labels.viewAnnotations}</span>
           </button>
         ) : null}
         {model.kind !== "frame" && props.onJoinGroup ? (

@@ -563,6 +563,76 @@ test("parses the four academic node payloads", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("round-trips legacy Quotes and all annotation types from standalone attachments", () => {
+  const legacy = quote("legacy", "ITEM1234", "ATTACH12", "ANNO1234");
+  const nodes: unknown[] = [legacy];
+  for (const annotationType of [
+    "highlight",
+    "underline",
+    "note",
+    "text",
+    "image",
+    "ink",
+  ]) {
+    nodes.push({
+      ...quote(annotationType, "ITEM1234", "ATTACH12", "ANNO1234"),
+      source: {
+        library: { type: "user" },
+        attachmentKey: "ATTACH12",
+        annotationKey: "ANNO1234",
+      },
+      snapshot: {
+        text: "",
+        comment: "My comment",
+        annotationType,
+        tags: ["review", "方法"],
+      },
+    });
+  }
+  const original = { version: 2, nodes, connections: [] };
+  const parsed = parseCanvasDocument(original);
+  assert.deepEqual(parsed.issues, []);
+  assert.deepEqual(parsed.document.nodes, nodes);
+  const reopened = parseCanvasDocument(
+    JSON.parse(JSON.stringify(parsed.document)),
+  );
+  assert.deepEqual(reopened.issues, []);
+  assert.deepEqual(reopened.document.nodes, nodes);
+});
+
+test("rejects invalid annotation metadata and invalid optional parent keys", () => {
+  const valid = quote("valid", "ITEM1234", "ATTACH12", "ANNO1234");
+  const invalidSnapshots = [
+    { text: "", annotationType: "shape" },
+    { text: "", annotationType: null },
+    { text: "", annotationType: 2 },
+    { text: "", tags: [""] },
+    { text: "", tags: ["  "] },
+    { text: "", tags: ["review", 1] },
+    { text: "", tags: "review" },
+  ];
+  const malformedNodes: unknown[] = invalidSnapshots.map((snapshot, index) => ({
+    ...valid,
+    id: `snapshot-${index}`,
+    snapshot,
+  }));
+  for (const [index, itemKey] of ["", null, 2].entries()) {
+    malformedNodes.push({
+      ...valid,
+      id: `source-${index}`,
+      source: { ...valid.source, itemKey },
+    });
+  }
+  const parsed = parseCanvasDocument({
+    version: 2,
+    nodes: [...malformedNodes, valid],
+    connections: [],
+  });
+  assert.deepEqual(parsed.document.nodes, [valid]);
+  assert.equal(parsed.issues.length, malformedNodes.length);
+  assert.ok(parsed.issues.every((issue) => issue.code === "malformed-node"));
+});
+
 test("persists a Note badge and rejects retired thought kinds", () => {
   const result = parseCanvasDocument({
     version: 2,

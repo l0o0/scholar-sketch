@@ -214,7 +214,7 @@ test("missing children and open failures stay typed at the gateway boundary", as
     assert.deepEqual(listed.failures, [
       {
         code: "attachment-unavailable",
-        message: "Annotations from a PDF attachment could not be loaded.",
+        message: "Annotations from an attachment could not be loaded.",
       },
     ]);
 
@@ -358,6 +358,106 @@ test("source and note refresh runtimes apply real fake acquisitions and preserve
     assert.deepEqual(
       saved.nodes[1].kind === "note" ? saved.nodes[1].source?.library : null,
       groupLibrary(),
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("production gateway reads standalone HTML and EPUB annotations but rejects linked URLs", async () => {
+  const fake = createFakeZotero({
+    items: [
+      {
+        id: 1,
+        key: "HTML0001",
+        itemType: "attachment",
+        attachmentLinkMode: 1,
+        attachmentContentType: "text/html",
+        fields: { title: "Saved webpage" },
+      },
+      {
+        id: 2,
+        key: "HTMLNOTE",
+        itemType: "annotation",
+        parentID: 1,
+        annotationType: "note",
+        annotationComment: "Check this claim",
+        tags: [{ tag: "review" }, { tag: "web" }],
+      },
+      {
+        id: 3,
+        key: "EPUB0001",
+        itemType: "attachment",
+        attachmentLinkMode: 2,
+        attachmentContentType: "application/epub+zip",
+        fields: { title: "A book" },
+      },
+      {
+        id: 4,
+        key: "EPUBLINE",
+        itemType: "annotation",
+        parentID: 3,
+        annotationType: "underline",
+        annotationText: "Book evidence",
+        annotationComment: "Compare with webpage",
+        tags: [{ tag: "review" }],
+      },
+      {
+        id: 5,
+        key: "URL00001",
+        itemType: "attachment",
+        attachmentLinkMode: 3,
+        attachmentContentType: "text/html",
+        fields: { title: "Website link" },
+      },
+    ],
+  });
+  const restore = fake.install();
+  try {
+    const gateway = createZoteroSourceGateway();
+    for (const [attachmentKey, annotationKey, text, comment, tags] of [
+      ["HTML0001", "HTMLNOTE", "", "Check this claim", ["review", "web"]],
+      [
+        "EPUB0001",
+        "EPUBLINE",
+        "Book evidence",
+        "Compare with webpage",
+        ["review"],
+      ],
+    ] as const) {
+      const result = await gateway.listAnnotations({
+        library: { type: "user" },
+        attachmentKey,
+      });
+      assert.deepEqual(result.failures, []);
+      assert.equal(result.candidates.length, 1);
+      const acquisition = result.candidates[0].acquisition;
+      assert.deepEqual(acquisition.source, {
+        library: { type: "user" },
+        attachmentKey,
+        annotationKey,
+      });
+      assert.equal(acquisition.snapshot.text, text);
+      assert.equal(acquisition.snapshot.comment, comment);
+      assert.deepEqual(acquisition.snapshot.tags, tags);
+      await gateway.open({ kind: "quote", source: acquisition.source });
+    }
+    assert.deepEqual(
+      fake.calls
+        .filter((call) => call.method === "Reader.open")
+        .map((call) => call.args),
+      [
+        [1, { annotationID: "HTMLNOTE" }],
+        [3, { annotationID: "EPUBLINE" }],
+      ],
+    );
+    await assert.rejects(
+      gateway.listAnnotations({
+        library: { type: "user" },
+        attachmentKey: "URL00001",
+      }),
+      (error: unknown) =>
+        error instanceof SourceGatewayError && error.code === "wrong-kind",
     );
   } finally {
     restore();

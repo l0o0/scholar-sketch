@@ -303,11 +303,9 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
   window.document
     .querySelector('[data-settings-page="shortcuts"]')!
     .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-  const shortcutSurface = window.document.querySelector(
-    'select[name="shortcutSurface"]',
-  ) as HTMLSelectElement;
-  shortcutSurface.value = "whiteboard";
-  shortcutSurface.dispatchEvent(new window.Event("change", { bubbles: true }));
+  window.document
+    .querySelector('[data-shortcut-surface="whiteboard"]')!
+    .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   const whiteboardKeys = [
     ...window.document.querySelectorAll(
       ".zotero-markdown-settings-shortcut-keys",
@@ -320,8 +318,9 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
     window.document.querySelector('input[name="shortcutNewStandaloneMd"]'),
     null,
   );
-  shortcutSurface.value = "markdown";
-  shortcutSurface.dispatchEvent(new window.Event("change", { bubbles: true }));
+  window.document
+    .querySelector('[data-shortcut-surface="markdown"]')!
+    .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert.ok(
     window.document.querySelector('[data-modal-action="shortcut-edit"]'),
   );
@@ -381,6 +380,125 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
       ".zotero-markdown-settings-palette {\n  position: absolute;",
     ),
     true,
+  );
+});
+
+test("shortcut categories expose one tab stop and switch the visible list with pointer and arrow keys", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const window = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: { Prefs: { get: () => undefined } },
+  });
+  const controller = createMarkdownModalController(
+    window.document as unknown as Document,
+  );
+  t.after(() => {
+    controller.destroy();
+    window.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  controller.open("settings", undefined, "shortcuts");
+  const group = window.document.querySelector('[role="radiogroup"]')!;
+  assert.equal(
+    group.getAttribute("aria-label"),
+    "bamboo-settings-shortcut-surface",
+  );
+  const radios = [
+    ...group.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+  ];
+  assert.deepEqual(
+    radios.map((radio) => radio.textContent),
+    [
+      "bamboo-settings-shortcut-surface-markdown",
+      "bamboo-settings-shortcut-surface-whiteboard",
+    ],
+  );
+  const assertSelection = (index: number) => {
+    assert.deepEqual(
+      radios.map((radio) => radio.getAttribute("aria-checked")),
+      radios.map((_, position) => String(position === index)),
+    );
+    assert.deepEqual(
+      radios.map((radio) => radio.tabIndex),
+      radios.map((_, position) => (position === index ? 0 : -1)),
+    );
+    assert.equal(
+      !!window.document.querySelector('[data-modal-action="shortcut-edit"]'),
+      index === 0,
+    );
+    assert.equal(
+      window.document
+        .querySelector(".zotero-markdown-settings-shortcut-list")!
+        .textContent.includes("bamboo-whiteboard-shortcut-hand"),
+      index === 1,
+    );
+  };
+  assertSelection(0);
+  const shortcutRows = [
+    ...window.document.querySelectorAll(
+      ".zotero-markdown-settings-shortcut-row",
+    ),
+  ];
+  const keysFor = (id: string) =>
+    shortcutRows
+      .find((row) => row.textContent.includes(`bamboo-${id}`))
+      ?.querySelector("kbd")?.textContent;
+  const isMac = /Mac|iPhone|iPad/.test(window.navigator.platform);
+  assert.equal(
+    keysFor("settings-shortcut-import-image"),
+    isMac ? "Cmd + Option + I" : "Ctrl + Alt + I",
+  );
+  assert.equal(
+    keysFor("whiteboard-redo"),
+    isMac ? "Cmd + Shift + Z" : "Ctrl + Y",
+  );
+  assert.equal(keysFor("settings-shortcut-unindent"), "Shift + Tab");
+  assert.equal(keysFor("settings-shortcut-table-next"), "Tab");
+  assert.equal(keysFor("settings-shortcut-table-previous"), "Shift + Tab");
+  radios[1].click();
+  assertSelection(1);
+  radios[0].click();
+  assertSelection(0);
+  radios[0].focus();
+  for (const [key, expected] of [
+    ["ArrowRight", 1],
+    ["ArrowRight", 0],
+    ["ArrowLeft", 1],
+    ["ArrowUp", 0],
+    ["ArrowDown", 1],
+    ["Home", 0],
+    ["End", 1],
+  ] as const) {
+    const event = new window.KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.document.activeElement!.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(window.document.activeElement, radios[expected]);
+    assertSelection(expected);
+  }
+  for (const key of ["Tab", "ArrowLeft"]) {
+    const event = new window.KeyboardEvent("keydown", {
+      key,
+      ctrlKey: key === "ArrowLeft",
+      bubbles: true,
+      cancelable: true,
+    });
+    radios[1].dispatchEvent(event);
+    assert.equal(event.defaultPrevented, false);
+    assertSelection(1);
+  }
+  assert.equal(
+    window.document.querySelector(".zotero-markdown-modal-backdrop")!.hidden,
+    false,
   );
 });
 

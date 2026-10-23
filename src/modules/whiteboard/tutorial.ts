@@ -5,10 +5,9 @@ import {
   type TutorialCanvasLabels,
   type TutorialCanvasSample,
 } from "../../../packages/whiteboard/src/model";
-import { createMarkdownAttachment } from "../markdown/create";
 import { getString } from "../../utils/locale";
 import { getPref, setPref } from "../../utils/prefs";
-import { createWhiteboardAttachment } from "./create";
+import { ensureTutorialAttachments } from "./tutorial-attachments";
 import { openWhiteboardAttachment } from "./open";
 import {
   createZoteroSourceGateway,
@@ -220,10 +219,16 @@ function productionDependencies(): TutorialSampleDependencies {
 
 let tutorialInFlight: Promise<void> | undefined;
 
-export async function createExampleWhiteboard(
+export function createExampleWhiteboard(
   deps: TutorialOnboardingDependencies = productionOnboardingDependencies(),
 ): Promise<void> {
-  await runTutorial({ ...deps, markCompleted: () => {} });
+  if (tutorialInFlight) return tutorialInFlight;
+  return (tutorialInFlight = runTutorial({
+    ...deps,
+    markCompleted: () => {},
+  }).finally(() => {
+    tutorialInFlight = undefined;
+  }));
 }
 
 export function ensureTutorialWhiteboard(
@@ -294,39 +299,7 @@ function productionOnboardingDependencies(): TutorialOnboardingDependencies {
     markCompleted: () => setPref("whiteboardTutorialCreated", true),
     labels: tutorialLabels,
     selectSample: selectTutorialSample,
-    create: async (document, filename) => {
-      const demo = document.nodes.find(
-        (node) => node.id === "tutorial-attachment",
-      );
-      if (!demo || demo.kind !== "attachment")
-        throw new Error("Missing tutorial attachment");
-      const markdown = await createMarkdownAttachment(null, {
-        open: false,
-        silent: true,
-        libraryID: Zotero.Libraries.userLibraryID,
-        collectionID: null,
-        initialContent: demo.data.preview,
-      });
-      if (!markdown) throw new Error("Could not create tutorial Markdown");
-      try {
-        markdown.setField("title", demo.data.title);
-        await markdown.saveTx({ skipSelect: true });
-        demo.data.attachmentID = markdown.id;
-        const canvas = await createWhiteboardAttachment(null, {
-          document,
-          libraryID: Zotero.Libraries.userLibraryID,
-          collections: [],
-          filename,
-          select: false,
-          reportError: false,
-        });
-        if (!canvas) throw new Error("Could not create tutorial whiteboard");
-        return canvas;
-      } catch (error) {
-        await Zotero.Items.trashTx(markdown.id);
-        throw error;
-      }
-    },
+    create: ensureTutorialAttachments,
     open: openWhiteboardAttachment,
     log: (message, error) => ztoolkit.log(message, error),
   };

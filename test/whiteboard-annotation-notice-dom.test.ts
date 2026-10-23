@@ -4,6 +4,7 @@ import { Window } from "happy-dom";
 import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createServer } from "../packages/whiteboard/node_modules/vite/dist/node/index.js";
+import type { CanvasNotice } from "../packages/whiteboard/src/model/protocol";
 
 const labels = {
   close: "Close notice",
@@ -11,6 +12,7 @@ const labels = {
   dropMalformed: "Malformed drop",
   dropUnsupported: "Unsupported drop",
   acquisitionFailed: "Could not add source",
+  noGroups: "Create a group first",
   sourceOpenFailed: "Could not open source",
   sourceRefreshFailed: "Could not refresh source",
   noteRefreshFailed: "Could not refresh Note",
@@ -59,7 +61,10 @@ function installDom(t: TestContext) {
   return window;
 }
 
-async function loadNoticeComponent(t: TestContext) {
+async function loadNoticeComponent(
+  t: TestContext,
+  name: "CanvasNoticeRegion" | "Notice" = "CanvasNoticeRegion",
+) {
   const server = await createServer({
     root: "packages/whiteboard",
     configFile: false,
@@ -69,11 +74,14 @@ async function loadNoticeComponent(t: TestContext) {
     server: { middlewareMode: true },
   });
   t.after(() => server.close());
-  const app = (await server.ssrLoadModule("/src/whiteboard/app.tsx")) as {
-    CanvasNoticeRegion?: (props: Record<string, unknown>) => unknown;
-  };
-  assert.equal(typeof app.CanvasNoticeRegion, "function");
-  return app.CanvasNoticeRegion!;
+  const path =
+    name === "Notice" ? "/src/chrome/Notice.tsx" : "/src/whiteboard/app.tsx";
+  const module = (await server.ssrLoadModule(path)) as Record<
+    string,
+    (props: Record<string, unknown>) => unknown
+  >;
+  assert.equal(typeof module[name], "function");
+  return module[name];
 }
 
 test("mounted canvas notice is dismissible by click and keyboard", async (t) => {
@@ -105,6 +113,16 @@ test("mounted canvas notice is dismissible by click and keyboard", async (t) => 
     status?.textContent ?? "",
     /Could not open source.*Item missing/,
   );
+  const notice = container.querySelector<HTMLElement>(".zmd-board-notice");
+  assert.equal(notice?.dataset.tone, "error");
+  const icon = notice?.querySelector(".zmd-board-notice-icon");
+  assert.equal(icon?.getAttribute("aria-hidden"), "true");
+  assert.ok(
+    icon?.querySelector("svg"),
+    "a visible state icon must be rendered",
+  );
+  assert.equal(status?.contains(icon ?? null), false);
+  assert.equal(status?.textContent, "Could not open source Item missing");
   const close =
     status?.parentElement?.querySelector<HTMLButtonElement>("button");
   assert.equal(close?.getAttribute("aria-label"), "Close notice");
@@ -125,6 +143,176 @@ test("mounted canvas notice is dismissible by click and keyboard", async (t) => 
   });
   assert.equal(window.document.querySelector('[role="status"]'), null);
   await act(async () => root.unmount());
+});
+
+test("canvas notice tone distinguishes success, partial failure, and guidance", async (t) => {
+  const window = installDom(t);
+  const CanvasNoticeRegion = await loadNoticeComponent(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+
+  const cases: {
+    notice: CanvasNotice;
+    tone: "info" | "success" | "warning" | "error";
+    message: string;
+  }[] = [
+    {
+      notice: { code: "group-required" },
+      tone: "info",
+      message: "Create a group first",
+    },
+    {
+      notice: {
+        code: "acquisition-summary",
+        context: { successCount: 0, failureCount: 0 },
+      },
+      tone: "info",
+      message: "Added 0; failed 0.",
+    },
+    {
+      notice: {
+        code: "acquisition-summary",
+        context: { successCount: 3, failureCount: 0 },
+      },
+      tone: "success",
+      message: "Added 3; failed 0.",
+    },
+    {
+      notice: {
+        code: "acquisition-summary",
+        context: { successCount: 2, failureCount: 1 },
+      },
+      tone: "warning",
+      message: "Added 2; failed 1.",
+    },
+    {
+      notice: {
+        code: "acquisition-summary",
+        context: { successCount: 0, failureCount: 3 },
+      },
+      tone: "error",
+      message: "Added 0; failed 3.",
+    },
+    {
+      notice: {
+        code: "annotations-partial-failure",
+        requestId: "request-1",
+        failureCodes: ["attachment-unavailable"],
+      },
+      tone: "warning",
+      message: "Some annotations failed Attachment missing",
+    },
+    {
+      notice: { code: "drop-malformed" },
+      tone: "warning",
+      message: "Malformed drop",
+    },
+    {
+      notice: { code: "drop-unsupported" },
+      tone: "warning",
+      message: "Unsupported drop",
+    },
+    {
+      notice: { code: "acquisition-failed" },
+      tone: "error",
+      message: "Could not add source",
+    },
+    {
+      notice: {
+        code: "note-refresh-failed",
+        nodeId: "node-1",
+        failureCode: "note-refresh-failed",
+      },
+      tone: "error",
+      message: "Could not refresh Note",
+    },
+  ];
+
+  try {
+    for (const { notice, tone, message } of cases) {
+      await act(async () =>
+        root.render(
+          createElement(CanvasNoticeRegion, {
+            labels,
+            notice,
+            onDismiss: () => undefined,
+            autoDismissMs: 1000,
+          }),
+        ),
+      );
+      const banner = container.querySelector<HTMLElement>(".zmd-board-notice");
+      assert.equal(banner?.dataset.tone, tone, `${notice.code}: ${message}`);
+      assert.equal(
+        banner?.querySelector('[role="status"]')?.textContent,
+        message,
+      );
+      assert.equal(
+        banner
+          ?.querySelector(".zmd-board-notice-icon")
+          ?.getAttribute("aria-hidden"),
+        "true",
+      );
+      assert.ok(banner?.querySelector(".zmd-board-notice-icon svg"));
+    }
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+test("shared notice keeps decorative icons out of status and alert messages", async (t) => {
+  const window = installDom(t);
+  const Notice = await loadNoticeComponent(t, "Notice");
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+
+  try {
+    await act(async () =>
+      root.render(
+        createElement(Notice, {
+          tone: "progress",
+          className: "export-progress",
+          children: "Exporting canvas",
+        }),
+      ),
+    );
+    const progress = container.querySelector<HTMLElement>(".zmd-board-notice");
+    assert.equal(progress?.dataset.tone, "progress");
+    assert.equal(progress?.classList.contains("export-progress"), true);
+    assert.equal(
+      progress?.querySelector('[role="status"]')?.textContent,
+      "Exporting canvas",
+    );
+    assert.equal(progress?.querySelector("button"), null);
+    assert.equal(
+      progress
+        ?.querySelector(".zmd-board-notice-icon")
+        ?.getAttribute("aria-hidden"),
+      "true",
+    );
+    assert.ok(progress?.querySelector(".zmd-board-notice-icon svg"));
+
+    await act(async () =>
+      root.render(
+        createElement(Notice, {
+          tone: "error",
+          role: "alert",
+          icon: createElement("svg", { "data-test-icon": "custom" }),
+          children: "Could not export canvas",
+        }),
+      ),
+    );
+    const alert = container.querySelector('[role="alert"]');
+    assert.equal(alert?.textContent, "Could not export canvas");
+    const icon = container.querySelector(".zmd-board-notice-icon");
+    assert.equal(icon?.getAttribute("aria-hidden"), "true");
+    assert.ok(icon?.querySelector('svg[data-test-icon="custom"]'));
+    assert.equal(icon?.querySelectorAll("svg").length, 1);
+    assert.equal(alert?.contains(icon ?? null), false);
+  } finally {
+    await act(async () => root.unmount());
+  }
 });
 
 test("mounted canvas notice auto-expires and replacement resets its timer", async (t) => {

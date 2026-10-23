@@ -112,3 +112,36 @@ test("metadata search scopes libraries and preserves native note title semantics
   fake.reset();
   assert.deepEqual(await partial.search(), [2]);
 });
+
+test("isFileAttachment follows native link modes without testing file availability", () => {
+  const modes = [undefined, 0, 1, 2, 3, 4];
+  const fake = createFakeZotero({
+    items: [
+      ...modes.map((attachmentLinkMode, index) => ({
+        id: index + 1,
+        key: `ATTACH${index}`,
+        itemType: "attachment",
+        attachmentContentType: "text/html",
+        ...(attachmentLinkMode !== undefined ? { attachmentLinkMode } : {}),
+      })),
+      { id: 10, key: "PAPER001", itemType: "journalArticle" },
+      { id: 11, key: "NOTE0001", itemType: "note" },
+    ],
+  });
+  modes.forEach((mode, index) => {
+    assert.equal(
+      fake.Zotero.Items.get(index + 1).isFileAttachment(),
+      mode !== 3,
+    );
+  });
+  assert.equal(fake.Zotero.Items.get(10).isFileAttachment(), false);
+  assert.equal(fake.Zotero.Items.get(11).isFileAttachment(), false);
+  const snapshot = fake.Zotero.Items.get(3);
+  assert.equal(snapshot.attachmentLinkMode, 1);
+  snapshot.attachmentLinkMode = 3;
+  assert.equal(snapshot.isFileAttachment(), false);
+  assert.equal(fake.snapshot().items[2].attachmentLinkMode, 3);
+  fake.reset();
+  assert.equal(fake.Zotero.Items.get(3).attachmentLinkMode, 1);
+  assert.equal(fake.Zotero.Items.get(3).isFileAttachment(), true);
+});

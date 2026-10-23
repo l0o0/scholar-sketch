@@ -67,6 +67,8 @@ export interface MarkdownEditorHandle {
     selectionFrom?: number,
     selectionTo?: number,
   ) => void;
+  /** Open a local image picker owned by this editor and reuse its image writer. */
+  importImage: () => void;
   wrapSelection: (before: string, after?: string) => void;
   prefixLine: (prefix: string) => void;
   revealPosition: (position: number) => void;
@@ -183,7 +185,7 @@ export function createMarkdownEditor(
       bytes: ArrayBuffer;
       mimeType: string;
       name: string;
-    }) => void;
+    }) => void | Promise<void>;
     onResolveAsset?: (
       reference: string,
     ) => Promise<{ dataUrl?: string; error?: string }>;
@@ -300,6 +302,73 @@ export function createMarkdownEditor(
     { resolve: (applied: boolean) => void; timer: number }
   >();
   const pending: PendingCommand[] = [];
+  let imageImport: { input: HTMLInputElement; detach: () => void } | null =
+    null;
+
+  const cancelImageImport = () => {
+    imageImport?.detach();
+    imageImport = null;
+  };
+  const importImage = () => {
+    if (
+      destroyed ||
+      currentReadOnly ||
+      composing ||
+      !onPasteImage ||
+      imageImport
+    )
+      return;
+    const input = documentRef.createElement("input") as HTMLInputElement;
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/gif,image/webp";
+    input.hidden = true;
+    const active = () =>
+      imageImport === operation && !destroyed && !currentReadOnly && !composing;
+    const finish = () => {
+      operation.detach();
+      if (imageImport === operation) imageImport = null;
+    };
+    const fail = (error: unknown) => {
+      if (!active()) return;
+      ztoolkit.log("Markdown image selection failed", error);
+      new ztoolkit.ProgressWindow(addon.data.config.addonName)
+        .createLine({
+          text: error instanceof Error ? error.message : String(error),
+          type: "fail",
+        })
+        .show();
+    };
+    const choose = () => {
+      const file = input.files?.[0];
+      operation.detach();
+      void (async () => {
+        if (!file || !active()) return;
+        const bytes = await file.arrayBuffer();
+        if (!active()) return;
+        await onPasteImage({ bytes, mimeType: file.type, name: file.name });
+      })()
+        .catch(fail)
+        .finally(finish);
+    };
+    const operation = {
+      input,
+      detach: () => {
+        input.removeEventListener("change", choose);
+        input.removeEventListener("cancel", finish);
+        input.remove();
+      },
+    };
+    imageImport = operation;
+    input.addEventListener("change", choose, { once: true });
+    input.addEventListener("cancel", finish, { once: true });
+    wrap.append(input);
+    try {
+      input.click();
+    } catch (error) {
+      fail(error);
+      finish();
+    }
+  };
 
   let resolveReady!: () => void;
   const ready = new Promise<void>((resolve) => {
@@ -588,7 +657,11 @@ export function createMarkdownEditor(
         break;
       }
       case "pasteImage": {
-        if (!currentReadOnly) onPasteImage?.(data.payload);
+        if (!currentReadOnly) void onPasteImage?.(data.payload);
+        break;
+      }
+      case "importImage": {
+        importImage();
         break;
       }
       case "imageDebug": {
@@ -807,6 +880,7 @@ export function createMarkdownEditor(
         payload: { text, selectionFrom, selectionTo },
       });
     },
+    importImage,
     wrapSelection: (before: string, after: string = before) => {
       sendOrQueue({
         source: EDITOR_MESSAGE_SOURCE,
@@ -843,6 +917,7 @@ export function createMarkdownEditor(
     },
     setReadOnly: (readOnly: boolean) => {
       currentReadOnly = readOnly;
+      if (readOnly) cancelImageImport();
       sendOrQueue({
         source: EDITOR_MESSAGE_SOURCE,
         type: "setReadOnly",
@@ -859,6 +934,7 @@ export function createMarkdownEditor(
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      cancelImageImport();
       composing = false;
       detachNativeDrop();
       preferenceRefreshers.delete(applyPreferences);

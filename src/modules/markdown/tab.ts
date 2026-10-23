@@ -110,6 +110,11 @@ import { noteHeadingPosition, type PortableNote } from "./note-links";
 import { invalidateNoteLibrary, updateIndexedNote } from "./note-library";
 import { exportNoteLibrary } from "./export-notes";
 import { bindFeatureUpdates } from "../feature-updates";
+import {
+  markdownHeadingShortcutLabel,
+  markdownImageShortcutLabel,
+  markdownRedoShortcutLabel,
+} from "./shortcut";
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const tablePickerAnchors = new WeakMap<OpenSession, HTMLElement>();
@@ -638,7 +643,13 @@ function mountEditorUI(
                   "redo",
                   iconRedo(),
                   getString("tab-redo"),
-                  getString("tab-redo-title"),
+                  getString("tab-redo-title", {
+                    args: {
+                      shortcut: markdownRedoShortcutLabel(
+                        win.navigator.platform,
+                      ),
+                    },
+                  }),
                 ],
               ].map(([action, icon, label, title]) => ({
                 tag: "button",
@@ -702,7 +713,14 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "h1",
-                      title: getString("tab-h1-title"),
+                      title: getString("tab-h1-title", {
+                        args: {
+                          shortcut: markdownHeadingShortcutLabel(
+                            1,
+                            win.navigator.platform,
+                          ),
+                        },
+                      }),
                       "aria-label": getString("tab-h1"),
                     },
                   },
@@ -716,7 +734,14 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "h2",
-                      title: getString("tab-h2-title"),
+                      title: getString("tab-h2-title", {
+                        args: {
+                          shortcut: markdownHeadingShortcutLabel(
+                            2,
+                            win.navigator.platform,
+                          ),
+                        },
+                      }),
                       "aria-label": getString("tab-h2"),
                     },
                   },
@@ -730,7 +755,14 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "h3",
-                      title: getString("tab-h3"),
+                      title: getString("tab-h3-title", {
+                        args: {
+                          shortcut: markdownHeadingShortcutLabel(
+                            3,
+                            win.navigator.platform,
+                          ),
+                        },
+                      }),
                       "aria-label": getString("tab-h3"),
                     },
                   },
@@ -772,7 +804,13 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "image",
-                      title: getString("tab-image"),
+                      title: getString("tab-image-title", {
+                        args: {
+                          shortcut: markdownImageShortcutLabel(
+                            win.navigator.platform,
+                          ),
+                        },
+                      }),
                       "aria-label": getString("tab-image"),
                     },
                   },
@@ -1267,9 +1305,8 @@ function mountEditorUI(
         void requestSave(session, { force: true });
       }
     },
-    onPasteImage: ({ bytes, mimeType }) => {
-      void insertImageBytes(session, new Uint8Array(bytes), mimeType);
-    },
+    onPasteImage: ({ bytes, mimeType }) =>
+      insertImageBytes(session, new Uint8Array(bytes), mimeType),
     onResolveAsset: (reference) => {
       const item = Zotero.Items.get(session.itemID);
       if (!item)
@@ -2608,36 +2645,13 @@ function showImageError(error: unknown) {
     .show();
 }
 
-async function chooseAndInsertImage(session: OpenSession) {
+function chooseAndInsertImage(session: OpenSession) {
   const item = Zotero.Items.get(session.itemID);
   if (!item || !item.isStoredFileAttachment?.()) {
     showImageError(new Error(getString("error-stored-image-only")));
     return;
   }
-  const doc = session.view?.root?.ownerDocument;
-  if (!doc) return;
-  const input = doc.createElement("input");
-  input.type = "file";
-  input.accept = "image/png,image/jpeg,image/gif,image/webp";
-  input.hidden = true;
-  session.view?.root?.appendChild(input);
-  input.addEventListener(
-    "change",
-    () => {
-      const file = input.files?.[0];
-      if (file) {
-        void file
-          .arrayBuffer()
-          .then((bytes) =>
-            insertImageBytes(session, new Uint8Array(bytes), file.type),
-          )
-          .catch(showImageError);
-      }
-      input.remove();
-    },
-    { once: true },
-  );
-  input.click();
+  session.editor?.importImage();
 }
 
 async function insertImageBytes(
@@ -2645,16 +2659,29 @@ async function insertImageBytes(
   bytes: Uint8Array,
   mimeType: string,
 ) {
+  const editor = session.editor;
+  if (!editor) return;
+  const isCurrent = () =>
+    session.editor === editor &&
+    sessionRegistry.get(session.tabID) === session &&
+    !session.closing &&
+    !readOnlySessions.has(session) &&
+    !editor.isComposing();
+  if (!isCurrent()) return;
   try {
     const item = Zotero.Items.get(session.itemID);
     if (!item) throw new Error(getString("error-attachment-gone"));
+    if (!item.isEditable()) return;
     const reference = await writeImageAsset(item, bytes, mimeType);
+    if (!isCurrent() || !item.isEditable()) return;
     session.pendingImageSave = true;
-    session.editor?.insertText(`![](${reference})`, 2, 2);
+    editor.insertText(`![](${reference})`, 2, 2);
     const asset = await resolveImageAssetEntry(item, reference);
+    if (!isCurrent()) return;
     // Single-asset push: merge so already-loaded images stay resolved.
-    session.editor?.setImageAssets({ [reference]: asset }, false);
+    editor.setImageAssets({ [reference]: asset }, false);
   } catch (error) {
+    if (!isCurrent()) return;
     session.pendingImageSave = false;
     showImageError(error);
   }

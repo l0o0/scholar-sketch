@@ -77,3 +77,28 @@ test("close, document replacement, and reopen make old replies inert", () => {
     reopened,
   );
 });
+
+test("attachment annotation replies require exact attachment and library identity", () => {
+  const source = { library: { type: "user" as const }, attachmentKey: "FILE" };
+  const loading = openAnnotationBrowserSession("file-request", source);
+  for (const mismatch of [
+    { ...source, attachmentKey: "OTHER" },
+    { ...source, library: { type: "group" as const, groupID: 42 } },
+    { library: source.library, itemKey: "FILE" },
+  ]) {
+    assert.equal(
+      acceptAnnotationListResult(loading, "file-request", mismatch, {
+        candidates: [],
+        failures: [],
+      }),
+      loading,
+    );
+  }
+  assert.equal(
+    acceptAnnotationListResult(loading, "file-request", source, {
+      candidates: [],
+      failures: [],
+    })?.state.status,
+    "ready",
+  );
+});

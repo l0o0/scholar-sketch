@@ -22,6 +22,7 @@ import { isConnectionSide } from "../model/connection";
 import { isSafeAttachmentDataUrl } from "../model/file-attachment";
 import { originalImagePreview } from "./file-import";
 import { glyphWidth, wrappedTextLines } from "../model/text-layout";
+import { quoteNodeStyle } from "../nodes/annotationStyle";
 
 export function connectionEndpoint(
   node: Pick<CanvasNode, "position" | "width" | "height">,
@@ -165,8 +166,9 @@ function textElement(
   clipId: string,
   lineHeightRatio = 1.25,
   paddingOverride?: { horizontal: number; vertical: number },
+  textOverride?: string,
 ): string {
-  const title = canvasNodeText(node);
+  const title = textOverride ?? canvasNodeText(node);
   if (!title) return "";
   const style = effectiveCanvasNodeTextStyle(node.kind, node.style, {
     width,
@@ -219,7 +221,13 @@ export function canvasNodeText(node: CanvasNode): string {
     case "literature":
       return node.snapshot.title;
     case "quote":
-      return node.snapshot.text;
+      return (
+        [node.snapshot.text, node.snapshot.comment]
+          .filter(Boolean)
+          .join("\n") ||
+        node.snapshot.annotationType ||
+        ""
+      );
     case "note":
       return node.content;
     case "frame":
@@ -269,6 +277,23 @@ export function buildCanvasSvg(
 ): string {
   const theme = appearance?.theme ?? "light";
   const palette = canvasThemePalette(theme);
+  doc = {
+    ...doc,
+    nodes: doc.nodes.map((node) => {
+      if (node.kind !== "quote") return node;
+      const style = quoteNodeStyle(node.snapshot, node.style);
+      const ink = nodeFillInk(style);
+      return {
+        ...node,
+        style: {
+          ...style,
+          ...(style.textColor === undefined && ink
+            ? { textColor: ink.text }
+            : {}),
+        },
+      };
+    }),
+  };
   if (appearance) {
     doc = {
       ...doc,
@@ -406,6 +431,47 @@ export function buildCanvasSvg(
           Math.max(0, height - 22),
           clipId,
           1.45,
+        );
+    }
+    if (node.kind === "quote") {
+      const { snapshot } = node;
+      const heading = snapshot.annotationType
+        ? (labels?.annotationTypeLabels?.[snapshot.annotationType] ??
+          snapshot.annotationType)
+        : (labels?.kindQuote ?? "Quote");
+      const body =
+        [snapshot.text, snapshot.comment].filter(Boolean).join("\n") ||
+        labels?.annotationNoText ||
+        "Open the source to view this annotation";
+      const metadata = [
+        [
+          snapshot.citation,
+          snapshot.pageLabel
+            ? `${labels?.annotationPage ?? "Page"} ${snapshot.pageLabel}`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        snapshot.tags?.map((tag) => `#${tag}`).join(" "),
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const headerColor =
+        style.textColor ?? nodeFillInk(style)?.muted ?? palette.text;
+      definitions.set(
+        clipId,
+        `<clipPath id="${clipId}"><rect x="${x + 12}" y="${y + 12}" width="${Math.max(0, width - 24)}" height="${Math.max(0, height - 24)}"/></clipPath>`,
+      );
+      text =
+        `<text x="${x + 12}" y="${y + 23}" font-family="${escapeXml(appearance?.fontFamily || "system-ui, sans-serif")}" font-size="11" font-weight="500" fill="${escapeXml(headerColor)}" clip-path="url(#${clipId})">${escapeXml(heading)}</text>` +
+        textElement(
+          { ...node, position: { x, y: y + 22 } },
+          width,
+          Math.max(0, height - 22),
+          clipId,
+          1.45,
+          undefined,
+          [body, metadata].filter(Boolean).join("\n\n"),
         );
     }
     if (node.kind === "line" || node.kind === "arrow") {
@@ -648,9 +714,30 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
         if (citation) lines.push(citation, "");
       } else if (node.kind === "quote") {
         lines.push(
-          ...node.snapshot.text.split(/\r?\n/).map((line) => `> ${line}`),
+          ...(
+            node.snapshot.text ||
+            node.snapshot.comment ||
+            "Open the source to view this annotation"
+          )
+            .split(/\r?\n/)
+            .map((line) => `> ${line}`),
           "",
         );
+        if (node.snapshot.text && node.snapshot.comment)
+          lines.push(node.snapshot.comment, "");
+        const metadata = [
+          node.snapshot.annotationType
+            ? `Type: ${node.snapshot.annotationType}`
+            : undefined,
+          node.snapshot.pageLabel
+            ? `Page: ${node.snapshot.pageLabel}`
+            : undefined,
+          node.snapshot.citation,
+          node.snapshot.tags?.length
+            ? `Tags: ${node.snapshot.tags.join(", ")}`
+            : undefined,
+        ].filter(Boolean);
+        if (metadata.length) lines.push(metadata.join(" · "), "");
       } else if (node.kind === "note" && /\r?\n/.test(node.content)) {
         lines.push(node.content, "");
       }

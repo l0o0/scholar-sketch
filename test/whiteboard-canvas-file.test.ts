@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { ANNOTATION_TYPES } from "../packages/whiteboard/src/model/academic.ts";
 import {
   canvasDocumentToFile,
   canvasFileToDocument,
@@ -157,6 +158,86 @@ const officialFormatFixture = readFileSync(
   new URL("./fixtures/json-canvas-1.0-all-node-types.canvas", import.meta.url),
   "utf8",
 );
+
+test("standalone annotation metadata round-trips without becoming extension data", () => {
+  const parsed = parseCanvasDocument({
+    version: 2,
+    nodes: ANNOTATION_TYPES.map((annotationType) => ({
+      id: annotationType,
+      kind: "quote",
+      position: { x: 0, y: 0 },
+      width: 280,
+      height: 192,
+      source: {
+        library: { type: "user" },
+        attachmentKey: "ATTACH12",
+        annotationKey: "ANNOT123",
+      },
+      snapshot: {
+        text: "",
+        comment: "Comment",
+        annotationType,
+        tags: ["review", "方法"],
+      },
+    })),
+    connections: [],
+  });
+  assert.deepEqual(parsed.issues, []);
+  const first = parseStoredCanvas(
+    serializeCanvasDocument(parsed.document, { now: NOW }),
+  );
+  assert.deepEqual(first.issues, []);
+  assert.deepEqual(first.document.nodes, parsed.document.nodes);
+  const second = parseStoredCanvas(
+    serializeCanvasDocument(first.document, { now: NOW }),
+  );
+  assert.deepEqual(second.issues, []);
+  assert.deepEqual(second.document, first.document);
+});
+
+test("standard JSON Canvas annotation text retains comments for external viewers", () => {
+  const parsed = parseCanvasDocument({
+    version: 2,
+    nodes: ["", "Quoted passage"].map((text, index) => ({
+      id: `annotation-${index}`,
+      kind: "quote",
+      position: { x: 0, y: 0 },
+      width: 280,
+      height: 192,
+      source: {
+        library: { type: "user" },
+        attachmentKey: "ATTACH12",
+        annotationKey: `ANNOT12${index}`,
+      },
+      snapshot: {
+        text,
+        comment: "Visible comment",
+        citation: "Citation",
+        pageLabel: "3",
+      },
+    })),
+    connections: [],
+  });
+  const file = canvasDocumentToFile(parsed.document);
+  assert.deepEqual(
+    file.nodes.map((node) => (node.type === "text" ? node.text : undefined)),
+    [
+      "Visible comment\n\nCitation\n\n3",
+      "Quoted passage\n\nVisible comment\n\nCitation\n\n3",
+    ],
+  );
+  const external = canvasFileToDocument({
+    nodes: file.nodes.map(({ bamboo: _bamboo, ...node }) => node),
+    edges: [],
+  });
+  assert.deepEqual(external.issues, []);
+  assert.ok(
+    external.document.nodes.every(
+      (node) =>
+        node.kind === "text" && node.data.title.includes("Visible comment"),
+    ),
+  );
+});
 
 test("encodes version-two academic documents as readable JSON Canvas", () => {
   const file = canvasDocumentToFile(document, { title: "Review", now: NOW });

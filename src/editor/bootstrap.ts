@@ -12,7 +12,10 @@ import {
   normalizeBackgroundColor,
 } from "../modules/markdown/preferences";
 import { validViewState } from "../modules/markdown/editor-view-state";
-import { MARKDOWN_HEADING_SHORTCUTS } from "../modules/markdown/shortcut";
+import {
+  MARKDOWN_HEADING_SHORTCUTS,
+  MARKDOWN_IMAGE_SHORTCUT,
+} from "../modules/markdown/shortcut";
 /**
  * iframe-side entry: runs CodeMirror 6 inside a clean Web document.
  * Communicates with the parent Zotero tab via postMessage.
@@ -38,6 +41,7 @@ import {
   highlightActiveLineGutter,
   drawSelection,
   dropCursor,
+  runScopeHandlers,
 } from "@codemirror/view";
 import {
   defaultKeymap,
@@ -1068,6 +1072,7 @@ function postToParent(message: {
     | "linkSearch"
     | "openLink"
     | "save"
+    | "importImage"
     | "error"
     | "pasteImage"
     | "imageDebug";
@@ -1210,6 +1215,14 @@ function buildExtensions(
     keymap.of([
       ...tableKeymap,
       {
+        key: MARKDOWN_IMAGE_SHORTCUT,
+        scope: "import-image",
+        run: () => {
+          postToParent({ type: "importImage" });
+          return true;
+        },
+      },
+      {
         key: "Mod-s",
         run: () => {
           postToParent({ type: "save" });
@@ -1341,6 +1354,22 @@ function buildExtensions(
       });
     }),
     EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (
+          view.state.readOnly ||
+          runtime.composing ||
+          view.compositionStarted ||
+          event.isComposing ||
+          event.keyCode === 229 ||
+          event.repeat
+        )
+          return false;
+        // Use CodeMirror's platform/layout matching, while keeping a picker
+        // shortcut away from repeated keys and native composition input.
+        // Firefox also reports AltGraph for ordinary Cmd+Option / Ctrl+Alt;
+        // CodeMirror preserves Windows AltGr characters without a keyCode fallback.
+        return runScopeHandlers(view, event, "import-image");
+      },
       contextmenu(event, editorView) {
         const target = event.target as Element | null;
         const liveCell = target?.closest?.(

@@ -120,6 +120,11 @@ export interface UpdateOptions {
   content?: string;
   frontmatter?: FrontmatterPatch;
   /**
+   * Exact content returned by a prior read. Reject if the current file or
+   * editor differs, including no-op updates; `force` does not bypass this.
+   */
+  expectedRevision?: string;
+  /**
    * Overwrite an already-dirty editor buffer. The API still rejects a buffer
    * that changes after this call snapshots it, because that would lose new
    * user input even with `force`.
@@ -530,6 +535,15 @@ async function update(
 ): Promise<WriteResult> {
   const item = requireMarkdownItem(itemID);
   const existing = await currentContent(item);
+  if (
+    options.expectedRevision !== undefined &&
+    options.expectedRevision !== existing
+  ) {
+    throw apiError(
+      "WRITE_CONFLICT",
+      `Markdown item ${item.id} changed since the expected revision`,
+    );
+  }
   let content = options.content ?? existing;
   if (options.frontmatter) {
     content = applyFrontmatterPatch(content, options.frontmatter);

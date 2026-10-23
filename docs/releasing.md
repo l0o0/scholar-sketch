@@ -9,7 +9,7 @@
 
 更新卡片随插件打包，不从服务器拉取推送内容。自动提示仅在 Markdown 或 Canvas 加载成功、窗口获得焦点且文档可见时展示；后台恢复标签页时暂停提示。`featureUpdatesSeenVersion` 记录当前 Zotero 配置中已经展示的版本，MD、Canvas 和独立窗口共用该记录。提示不自动移动编辑器焦点，用户可在 Zotero 设置的 Scholar Sketch 页面中点击「本次更新」重看。
 
-使用指南的目标地址为 Zotero 中文 Wiki 的 `/user-guide/plugins/scholar-sketch`。在用户点击指南时检查页面是否可用；尚未上线或暂时不可达时，打开 GitHub 中已发布的文档快照（Wiki PR #474 的提交）。检查不在编辑器启动时执行，也不发送笔记、文库或使用记录。Wiki 主线合并部署后，入口会使用正式页面。
+使用指南的目标地址为 Zotero 中文 Wiki 的 `/user-guide/plugins/scholar-sketch`。在用户点击指南时检查页面是否可用；尚未上线或暂时不可达时，打开 GitHub 中已发布的文档快照（Wiki PR #475 的提交）。检查不在编辑器启动时执行，也不发送笔记、文库或使用记录。Wiki 主线合并部署后，入口会使用正式页面。
 
 后续更新指南时，一并维护 `src/modules/help.ts` 中的备用快照地址，确保它指向已推送、可公开访问且内容对应的提交，不要指向尚未发布的本地文件。
 

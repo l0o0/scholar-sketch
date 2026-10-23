@@ -18,7 +18,7 @@ import { persistCanvasAttachment } from "./persist";
 import {
   parseCanvasDocument,
   type CanvasDocument,
-  type LiteratureSource,
+  type AnnotationListSource,
   type NoteSource,
 } from "./snapshot";
 import {
@@ -696,16 +696,22 @@ async function handleRefreshZoteroNote(
 export async function handleListLiteratureAnnotations(
   session: WhiteboardSession,
   requestId: string,
-  source: LiteratureSource,
+  source: AnnotationListSource,
   gateway: Pick<
     ZoteroSourceGateway,
     "listAnnotations"
   > = createZoteroSourceGateway(),
 ) {
   const editor = session.editor;
-  if (!editor) return;
+  if (!editor || session.closing) return;
+  const generation = session.sourceGeneration;
+  const isCurrent = () =>
+    session.editor === editor &&
+    !session.closing &&
+    session.sourceGeneration === generation;
   try {
     const { candidates, failures } = await gateway.listAnnotations(source);
+    if (!isCurrent()) return;
     for (const failure of failures) {
       logAcademicDiagnostic("Zotero annotation unavailable", {
         code: failure.code,
@@ -716,6 +722,7 @@ export async function handleListLiteratureAnnotations(
     }
     editor.applyAnnotationCandidates(requestId, source, candidates, failures);
   } catch (error) {
+    if (!isCurrent()) return;
     const failure: AnnotationListFailure =
       error instanceof SourceGatewayError &&
       error.code !== "open-failed" &&
@@ -1108,6 +1115,19 @@ function mountWhiteboardUI(
       ),
       addSelectedAnnotations: getString("whiteboard-add-selected-annotations"),
       annotationPage: getString("whiteboard-annotation-page"),
+      annotationTypeLabels: {
+        highlight: getString("whiteboard-annotation-type-highlight"),
+        underline: getString("whiteboard-annotation-type-underline"),
+        note: getString("whiteboard-annotation-type-note"),
+        text: getString("whiteboard-annotation-type-text"),
+        image: getString("whiteboard-annotation-type-image"),
+        ink: getString("whiteboard-annotation-type-ink"),
+      },
+      annotationTypeFilter: getString("whiteboard-annotation-type-filter"),
+      annotationTagFilter: getString("whiteboard-annotation-tag-filter"),
+      annotationAllTypes: getString("whiteboard-annotation-all-types"),
+      annotationAllTags: getString("whiteboard-annotation-all-tags"),
+      annotationNoText: getString("whiteboard-annotation-no-text"),
       noteOverwriteTitle: getString("whiteboard-note-overwrite-title"),
       noteOverwriteBody: getString("whiteboard-note-overwrite-body"),
       confirm: getString("whiteboard-confirm"),

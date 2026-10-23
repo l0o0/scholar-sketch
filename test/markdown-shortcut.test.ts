@@ -3,10 +3,20 @@ import test from "node:test";
 import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   isShortcutModifierKey,
+  markdownImageShortcutLabel,
+  markdownRedoShortcutLabel,
   resolveConfiguredShortcut,
   shortcutFromKeyboardEvent,
   shortcutKeycaps,
 } from "../src/modules/markdown/shortcut.ts";
+
+test("describes image import and native redo keys for each platform", () => {
+  assert.equal(markdownImageShortcutLabel("MacIntel"), "Cmd + Option + I");
+  assert.equal(markdownImageShortcutLabel("Win32"), "Ctrl + Alt + I");
+  assert.equal(markdownRedoShortcutLabel("MacIntel"), "Cmd + Shift + Z");
+  assert.equal(markdownRedoShortcutLabel("Win32"), "Ctrl + Y");
+  assert.equal(markdownRedoShortcutLabel("Linux x86_64"), "Ctrl + Y");
+});
 
 test("formats the default shortcut as native macOS keycaps", () => {
   assert.equal(DEFAULT_NEW_MARKDOWN_SHORTCUT, "accel,shift,M");

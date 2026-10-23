@@ -23,6 +23,7 @@ export interface FakeItemData {
   tags?: FakeTag[];
   note?: string;
   attachmentContentType?: string;
+  attachmentLinkMode?: 0 | 1 | 2 | 3 | 4;
   annotationType?: string;
   annotationText?: string;
   annotationComment?: string;
@@ -65,6 +66,7 @@ export interface FakeItem {
   readonly parentItem: FakeItem | null;
   note?: string;
   attachmentContentType?: string;
+  attachmentLinkMode?: 0 | 1 | 2 | 3 | 4;
   annotationType?: string;
   annotationText?: string;
   annotationComment?: string;
@@ -86,6 +88,7 @@ export interface FakeItem {
   isRegularItem(): boolean;
   isNote(): boolean;
   isAttachment(): boolean;
+  isFileAttachment(): boolean;
   isAnnotation(): boolean;
 }
 
@@ -299,6 +302,12 @@ export function createFakeZotero(
       set attachmentContentType(value: string | undefined) {
         data.attachmentContentType = value;
       },
+      get attachmentLinkMode() {
+        return data.attachmentLinkMode;
+      },
+      set attachmentLinkMode(value: FakeItemData["attachmentLinkMode"]) {
+        data.attachmentLinkMode = value;
+      },
       get annotationType() {
         return data.annotationType;
       },
@@ -410,6 +419,10 @@ export function createFakeZotero(
       },
       isAttachment() {
         return data.itemType === "attachment";
+      },
+      isFileAttachment() {
+        // Native Zotero excludes linked URLs (mode 3), not unavailable files.
+        return data.itemType === "attachment" && data.attachmentLinkMode !== 3;
       },
       isAnnotation() {
         return data.itemType === "annotation";

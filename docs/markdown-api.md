@@ -46,6 +46,10 @@ Notes:
   image-asset cleanup, item-title sync, Zotero file-sync marking).
 - `update` rejects with `WRITE_CONFLICT` when an open editor tab has unsaved
   changes — `force: true` permits that API update, but does not bypass external file conflict checks.
+- Pass `expectedRevision: content` from a prior `read()` to `update` when preparing
+  a replacement asynchronously. The exact current content must still match before
+  either writing or returning a no-op; otherwise it rejects with `WRITE_CONFLICT`.
+  `force` does not bypass this precondition.
 - `rename` renames the underlying file; for linked attachments this renames
   the file on disk.
 - API version: `Zotero.ScholarSketch.api.version` (currently `3`).

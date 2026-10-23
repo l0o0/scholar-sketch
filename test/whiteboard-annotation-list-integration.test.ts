@@ -33,6 +33,7 @@ function zoteroItem(
     getAnnotations: () => [],
     isRegularItem: () => kind === "regular",
     isAttachment: () => kind === "attachment",
+    isFileAttachment: () => kind === "attachment",
     isAnnotation: () => kind === "annotation",
     isNote: () => false,
     ...values,
@@ -191,4 +192,47 @@ test("terminal gateway errors retain their code through host and runtime", async
       },
     ],
   ]);
+});
+
+test("late annotation replies cannot update a replaced or closing editor", async () => {
+  for (const terminal of [
+    "replace",
+    "close",
+    "generation",
+    "failure",
+  ] as const) {
+    const calls: unknown[] = [];
+    const source = {
+      library: { type: "user" as const },
+      attachmentKey: "FILE",
+    };
+    const editor = {
+      applyAnnotationCandidates: (...args: unknown[]) => calls.push(args),
+      rejectAnnotationList: (...args: unknown[]) => calls.push(args),
+    };
+    const session = { editor, closing: false, sourceGeneration: 1 };
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const work = handleListLiteratureAnnotations(
+      session as never,
+      "late",
+      source,
+      {
+        async listAnnotations() {
+          await pending;
+          if (terminal === "failure") throw new Error("Late failure");
+          return { candidates: [], failures: [] };
+        },
+      },
+    );
+    if (terminal === "replace" || terminal === "failure")
+      session.editor = { ...editor };
+    if (terminal === "close") session.closing = true;
+    if (terminal === "generation") session.sourceGeneration = 2;
+    finish();
+    await work;
+    assert.deepEqual(calls, [], terminal);
+  }
 });

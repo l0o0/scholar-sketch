@@ -313,8 +313,11 @@ export const canvasApi = {
     return apiCall(() => {
       const gateway = createZoteroSourceGateway();
       const acquisition = gateway.acquireItem(itemByID(itemID));
-      if (acquisition.kind !== "literature")
-        invalid("Expected a literature item");
+      if (
+        acquisition.kind !== "literature" &&
+        acquisition.kind !== "attachment"
+      )
+        invalid("Expected a literature item or attachment");
       return gateway.listAnnotations(acquisition.source);
     });
   },

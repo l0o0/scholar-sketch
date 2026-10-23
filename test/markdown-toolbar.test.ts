@@ -10,6 +10,7 @@ import {
 } from "../src/modules/markdown/insert-template.ts";
 import { iconH2, iconH3 } from "../src/modules/markdown/icons.ts";
 import * as icons from "../src/modules/markdown/icons.ts";
+import * as shortcuts from "../src/modules/markdown/shortcut.ts";
 import { modeToggleState } from "../src/modules/markdown/tab.ts";
 import {
   responsiveToolbarSizingCSS,
@@ -172,19 +173,52 @@ describe("toolbar insert templates", () => {
     };
     try {
       injectMarkdownStyles(window as unknown as globalThis.Window);
-      for (const label of [
-        "右侧边栏",
-        "显示与当前文档相关的所有引用和反向链接侧边栏",
+      for (const [label, platform] of [
+        ["右侧边栏", "Win32"],
+        ["显示与当前文档相关的所有引用和反向链接侧边栏", "MacIntel"],
       ]) {
+        Object.defineProperty(window.navigator, "platform", {
+          configurable: true,
+          value: platform,
+        });
         const spec = runInNewContext(`(${toolbar.getText(source)})`, {
           ...icons,
-          getString: () => label,
+          ...shortcuts,
+          win: window,
+          getString: (_: string, options?: { args: { shortcut: string } }) =>
+            options ? `${label} (${options.args.shortcut})` : label,
         }) as ElementSpec;
         const root = window.document.createElement("main");
         root.append(render(spec));
         window.document.body.append(root);
         const inner = root.querySelector(".zotero-markdown-toolbar-inner")!;
         const actions = root.querySelector(".zotero-markdown-toolbar-actions")!;
+        for (const [action, shortcut] of [
+          [
+            "h1",
+            platform === "MacIntel" ? "Cmd + Option + 1" : "Ctrl + Alt + 1",
+          ],
+          [
+            "h2",
+            platform === "MacIntel" ? "Cmd + Option + 2" : "Ctrl + Alt + 2",
+          ],
+          [
+            "h3",
+            platform === "MacIntel" ? "Cmd + Option + 3" : "Ctrl + Alt + 3",
+          ],
+          ["redo", platform === "MacIntel" ? "Cmd + Shift + Z" : "Ctrl + Y"],
+          [
+            "image",
+            platform === "MacIntel" ? "Cmd + Option + I" : "Ctrl + Alt + I",
+          ],
+        ]) {
+          assert.equal(
+            root
+              .querySelector(`[data-action="${action}"]`)
+              ?.getAttribute("title"),
+            `${label} (${shortcut})`,
+          );
+        }
         assert.equal(actions.parentElement, inner);
         assert.deepEqual(
           [...actions.children].map((button) => button.className),

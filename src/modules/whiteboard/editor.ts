@@ -30,7 +30,7 @@ import {
   type WhiteboardTheme,
 } from "./protocol";
 import type { CanvasDocument } from "./snapshot";
-import type { LiteratureSource, NoteSource } from "./snapshot";
+import type { AnnotationListSource, NoteSource } from "./snapshot";
 import type { NoteTemplate } from "../../../packages/whiteboard/src/model/note-template";
 
 export interface WhiteboardHandle {
@@ -83,13 +83,13 @@ export interface WhiteboardHandle {
   ) => void;
   applyAnnotationCandidates: (
     requestId: string,
-    source: LiteratureSource,
+    source: AnnotationListSource,
     candidates: AnnotationCandidate[],
     failures: AnnotationListFailure[],
   ) => void;
   rejectAnnotationList: (
     requestId: string,
-    source: LiteratureSource,
+    source: AnnotationListSource,
     failure: AnnotationListFailure,
   ) => void;
   setSaveState: (state: "saved" | "saving" | "error") => void;
@@ -276,7 +276,7 @@ export function createWhiteboardEditor(
     ) => void;
     onListLiteratureAnnotations?: (
       requestId: string,
-      source: LiteratureSource,
+      source: AnnotationListSource,
     ) => void;
     onExportFile?: (payload: {
       requestId: string;

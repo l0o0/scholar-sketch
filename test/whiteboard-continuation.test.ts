@@ -346,6 +346,88 @@ test("quote reference falls back to the item key and bounds the display title", 
   assert.equal(quote.snapshot.citation.length, 5000);
 });
 
+test("standalone annotation continuations reference their attachment and survive save/reopen", () => {
+  const document = quoteDocument();
+  const quote = document.nodes[0];
+  assert.equal(quote.kind, "quote");
+  if (quote.kind !== "quote") throw new Error("Expected quote");
+  delete quote.source.itemKey;
+  quote.snapshot = {
+    text: "",
+    annotationType: "note",
+    comment: "A useful comment",
+  };
+  const before = structuredClone(document);
+  deepFreeze(document);
+  for (const noteType of ["claim", "evidence"] as const) {
+    const result = createNoteFromQuote(document, { ...options, noteType })!;
+    const note = addedNote(result.document);
+    assert.equal(note.content, "");
+    assert.equal(note.noteType, noteType);
+    assert.deepEqual(note.references, [
+      {
+        id: "reference-continued",
+        kind: "attachment",
+        source: {
+          library: { type: "group", groupID: 41 },
+          attachmentKey: "PDF12345",
+        },
+        title: "PDF12345",
+      },
+    ]);
+    assert.equal(
+      noteReferenceHref(note.references![0]),
+      "zotero://select/groups/41/items/PDF12345",
+    );
+    const reopened = canvasFileToDocument(
+      canvasDocumentToFile(result.document),
+    );
+    assert.deepEqual(reopened.issues, []);
+    assert.deepEqual(reopened.document.nodes, result.document.nodes);
+    assert.deepEqual(
+      reopened.document.connections,
+      result.document.connections,
+    );
+    assert.deepEqual(document, before);
+  }
+});
+
+test("standalone quote references use matching attachment card titles across library identities", () => {
+  for (const kind of ["pdf", "attachment"] as const) {
+    const document = quoteDocument();
+    const quote = document.nodes[0];
+    if (quote.kind !== "quote") throw new Error("Expected quote");
+    delete quote.source.itemKey;
+    for (const [id, library, title] of [
+      ["wrong-user", { type: "user" }, "Wrong user"],
+      ["wrong-group", { type: "group", groupID: 9 }, "Wrong group"],
+      ["matching", { type: "group", groupID: 41 }, "A webpage snapshot"],
+    ] as const) {
+      document.nodes.push({
+        id,
+        kind,
+        position: { x: 0, y: 300 },
+        width: 240,
+        height: 120,
+        data: { title, source: { library, attachmentKey: "PDF12345" } },
+      });
+    }
+    const result = createNoteFromQuote(deepFreeze(document), {
+      ...options,
+      noteType: "claim",
+    })!;
+    const reference = addedNote(result.document).references![0];
+    assert.equal(reference.kind, "attachment");
+    assert.equal(reference.title, "A webpage snapshot");
+    assert.equal(reference.creators, undefined);
+    assert.equal(reference.year, undefined);
+    assert.equal(
+      noteReferenceHref(reference),
+      "zotero://select/groups/41/items/PDF12345",
+    );
+  }
+});
+
 test("quote creation rejects non-quotes and unsupported note types without mutation", () => {
   const document = deepFreeze(quoteDocument());
   const before = structuredClone(document);

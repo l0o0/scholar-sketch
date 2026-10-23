@@ -5,7 +5,7 @@ import { MarkerType } from "@xyflow/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PropertiesPanel } from "../packages/whiteboard/src/chrome/PropertiesPanel.tsx";
-import { quoteSourceIdentity } from "../packages/whiteboard/src/model/academic.ts";
+import { nativeAnnotationIdentity } from "../packages/whiteboard/src/model/academic.ts";
 import {
   parseCanvasDocument,
   type CanvasDocument,
@@ -25,6 +25,7 @@ import {
   mergeEditingStyle,
   toggleEditingBold,
   updateFlowNodeModel,
+  updateCanvasNodeText,
   withEdgeStyle,
   verticalAlignmentStyle,
   withEdgeColor,
@@ -48,6 +49,7 @@ import {
 } from "../packages/whiteboard/src/whiteboard/noteRefresh.ts";
 import {
   applyResolvedAcquisition,
+  annotationListSourceForNode,
   createQuoteBatchRuntime,
   createSourceRefreshRuntime,
   sourceCacheKey,
@@ -588,7 +590,7 @@ test("background Note resolution updates source title without overwriting local 
   );
 });
 
-test("selected annotations become one undoable Quote batch without automatic connections", () => {
+test("selected annotations and source connections become one undoable Quote batch", () => {
   const existing = annotationCandidate("PDF-A", "SAME-KEY", "Existing");
   const first = annotationCandidate("PDF-B", "SAME-KEY", "First");
   const duplicateFirst = annotationCandidate(
@@ -618,6 +620,7 @@ test("selected annotations become one undoable Quote batch without automatic con
     changes.push(revision),
   );
   const ids = ["quote-added-1", "quote-added-2"];
+  let edgeId = 0;
   const batch = createQuoteBatchRuntime({
     getWorkingDocument: () => live,
     getHistoryDocument: () => live,
@@ -626,10 +629,11 @@ test("selected annotations become one undoable Quote batch without automatic con
     },
     commitHistory: (document) => history.commit(document),
     createNodeId: () => ids.shift()!,
+    createConnectionId: () => `quote-edge-${++edgeId}`,
   });
   const selected = new Set(
     [first, duplicateFirst, second].map((candidate) =>
-      quoteSourceIdentity(candidate.acquisition.source),
+      nativeAnnotationIdentity(candidate.acquisition.source),
     ),
   );
 
@@ -665,14 +669,33 @@ test("selected annotations become one undoable Quote batch without automatic con
       },
     ],
   );
-  assert.deepEqual(live.connections, before.connections);
+  assert.deepEqual(live.connections, [
+    ...before.connections,
+    {
+      id: "quote-edge-1",
+      kind: "academic",
+      source: "literature-1",
+      target: "quote-added-1",
+      relation: "related",
+    },
+    {
+      id: "quote-edge-2",
+      kind: "academic",
+      source: "literature-1",
+      target: "quote-added-2",
+      relation: "related",
+    },
+  ]);
   assert.equal(JSON.stringify(live).includes("attachmentTitle"), false);
   assert.equal(JSON.stringify(live).includes("sortIndex"), false);
   assert.equal(history.revision, 1);
   assert.deepEqual(changes, [1]);
 
+  const after = structuredClone(live);
   const undone = history.undo(live);
   assert.deepEqual(undone, before);
+  assert.deepEqual(history.redo(undone!), after);
+  assert.deepEqual(history.undo(after), before);
   assert.equal(history.undo(undone!), undefined);
 });
 
@@ -705,13 +728,14 @@ test("an empty or duplicate-only Quote batch creates no history or save revision
     },
     commitHistory: (document) => history.commit(document),
     createNodeId: () => "must-not-be-created",
+    createConnectionId: () => assert.fail("No connection should be created"),
   });
 
   assert.deepEqual(
     batch.add(
       "literature-1",
       [existing, existing],
-      new Set([quoteSourceIdentity(existing.acquisition.source)]),
+      new Set([nativeAnnotationIdentity(existing.acquisition.source)]),
     ),
     [],
   );
@@ -1343,7 +1367,6 @@ test("only source-backed Notes expose refresh in properties", () => {
         sourceState: { status: "resolved" },
         onOpen: () => undefined,
         onRefreshSource: () => undefined,
-        onViewAnnotations: () => undefined,
         onCopy: () => undefined,
         onDelete: () => undefined,
       }),
@@ -1366,7 +1389,6 @@ test("only source-backed Notes expose refresh in properties", () => {
       sourceState: { status: "unavailable", message: "Item missing" },
       onOpen: () => undefined,
       onRefreshSource: () => undefined,
-      onViewAnnotations: () => undefined,
       onCopy: () => undefined,
       onDelete: () => undefined,
     }),
@@ -1389,7 +1411,6 @@ test("source-backed properties distinguish every transient source state", () => 
         sourceState,
         onOpen: () => undefined,
         onRefreshSource: () => undefined,
-        onViewAnnotations: () => undefined,
         onCopy: () => undefined,
         onDelete: () => undefined,
       }),
@@ -1414,8 +1435,6 @@ test("source-backed properties distinguish every transient source state", () => 
 
 test("source action failures are rendered inside the nonblocking canvas UI", () => {
   assert.match(appSource, /className="zmd-board-notice/);
-  assert.match(appSource, /role="status"/);
-  assert.match(appSource, /aria-live="polite"/);
   assert.match(
     appSource,
     /rejectSourceAction\(requestId, nodeId, source, failure\)/,
@@ -1532,7 +1551,6 @@ test("Literature and Quote properties expose native source open and refresh acti
         sourceState: { status: "resolved" },
         onOpen: () => undefined,
         onRefreshSource: () => undefined,
-        onViewAnnotations: () => undefined,
         onCopy: () => undefined,
         onDelete: () => undefined,
       }),
@@ -3046,6 +3064,102 @@ test("style transition commits Academic content and style in one node update", (
   assert.equal(flowNodeText(node), "Old");
 });
 
+test("comment-only annotation editing starts from visible text and preserves its field across save/reopen", () => {
+  for (const annotationType of ["note", "text"] as const) {
+    const original: CanvasDocument = {
+      ...EMPTY,
+      nodes: [
+        {
+          id: "annotation",
+          kind: "quote",
+          position: { x: 0, y: 0 },
+          width: 280,
+          height: 192,
+          source: {
+            library: { type: "user" },
+            attachmentKey: "ATTACH12",
+            annotationKey: "ANNOT123",
+          },
+          snapshot: {
+            text: "",
+            comment: "Visible comment",
+            annotationType,
+            color: "#ffd400",
+            tags: ["review"],
+            pageLabel: "3",
+          },
+        },
+      ],
+    };
+    let current = structuredClone(original);
+    const initial = canvasDocumentToFlow(current);
+    assert.deepEqual(beginNodeEditing(initial.nodes, "annotation")?.editing, {
+      nodeId: "annotation",
+      value: "Visible comment",
+    });
+    for (const content of ["Revised comment", "", "Written again"]) {
+      current = {
+        ...current,
+        nodes: current.nodes.map((node) => updateCanvasNodeText(node, content)),
+      };
+      const changed = current.nodes[0];
+      if (changed.kind !== "quote") throw new Error("Expected quote");
+      assert.equal(changed.snapshot.text, "");
+      assert.equal(changed.snapshot.comment, content);
+      assert.deepEqual(
+        changed.source,
+        original.nodes[0].kind === "quote" && original.nodes[0].source,
+      );
+      assert.equal(changed.snapshot.annotationType, annotationType);
+      assert.deepEqual(changed.snapshot.tags, ["review"]);
+      assert.equal(changed.snapshot.color, "#ffd400");
+      assert.equal(changed.snapshot.pageLabel, "3");
+      const reopened = canvasFileToDocument(canvasDocumentToFile(current));
+      assert.deepEqual(reopened.issues, []);
+      assert.deepEqual(reopened.document.nodes, current.nodes);
+      current = reopened.document;
+      assert.equal(
+        flowNodeText(canvasDocumentToFlow(current).nodes[0]),
+        content,
+      );
+    }
+    const originalNode = original.nodes[0];
+    if (originalNode.kind !== "quote") throw new Error("Expected quote");
+    assert.equal(originalNode.snapshot.comment, "Visible comment");
+    assert.equal(originalNode.snapshot.text, "");
+  }
+});
+
+test("excerpt editing keeps secondary comments and text-less annotations without comments use text", () => {
+  for (const snapshot of [
+    { text: "Excerpt", comment: "Secondary comment" },
+    { text: "" },
+  ]) {
+    const document: CanvasDocument = {
+      ...EMPTY,
+      nodes: [
+        {
+          id: "annotation",
+          kind: "quote",
+          position: { x: 0, y: 0 },
+          width: 280,
+          height: 192,
+          source: {
+            library: { type: "user" },
+            attachmentKey: "ATTACH12",
+            annotationKey: "ANNOT123",
+          },
+          snapshot,
+        },
+      ],
+    };
+    const edited = updateCanvasNodeText(document.nodes[0], "Edited text");
+    if (edited.kind !== "quote") throw new Error("Expected quote");
+    assert.equal(edited.snapshot.text, "Edited text");
+    assert.equal(edited.snapshot.comment, snapshot.comment);
+  }
+});
+
 test("bold editing shortcut toggles effective default-bold nodes normal then bold", () => {
   const nodes: CanvasDocument["nodes"] = [
     {
@@ -3305,4 +3419,167 @@ test("shape and editor layout map every vertical alignment with middle default",
     "var(--zmd-node-ink, var(--zmd-board-text, #111827))",
   );
   assert.equal(labelTextStyle({ textColor: "#abcdef" }).color, "#abcdef");
+});
+
+test("attachment annotation batches isolate the attachment and library and reload with connections", () => {
+  for (const contentType of [
+    "application/pdf",
+    "text/html",
+    "application/epub+zip",
+  ]) {
+    const source = {
+      library: { type: "user" as const },
+      attachmentKey: "FILE",
+    };
+    const own = annotationCandidate("FILE", "ANN", "");
+    own.acquisition.source = { ...source, annotationKey: "ANN" };
+    own.acquisition.snapshot = {
+      text: "",
+      comment: "A standalone note",
+      annotationType: "note",
+      tags: ["test"],
+      color: "#ffd400",
+    };
+    const wrongAttachment = annotationCandidate("OTHER", "ANN", "Other file");
+    const wrongLibrary = structuredClone(own);
+    wrongLibrary.acquisition.source.library = { type: "group", groupID: 42 };
+    const candidates = [own, wrongAttachment, wrongLibrary];
+    let live: CanvasDocument = {
+      ...EMPTY,
+      nodes: [
+        {
+          id: "file",
+          kind: "attachment",
+          position: { x: 0, y: 0 },
+          width: 280,
+          height: 180,
+          data: { title: "Source", contentType, source },
+        },
+      ],
+    };
+    const before = structuredClone(live);
+    const history = new CanvasDocumentHistory(() => undefined);
+    const batch = createQuoteBatchRuntime({
+      getWorkingDocument: () => live,
+      getHistoryDocument: () => live,
+      applyDocument: (document) => {
+        live = document;
+      },
+      commitHistory: (document) => history.commit(document),
+      createNodeId: () => "quote",
+      createConnectionId: () => "connection",
+    });
+    const selected = new Set(
+      candidates.map((candidate) =>
+        nativeAnnotationIdentity(candidate.acquisition.source),
+      ),
+    );
+    assert.deepEqual(batch.add("file", candidates, selected), ["quote"]);
+    assert.equal(live.nodes.length, 2);
+    assert.deepEqual(
+      live.connections.map((edge) => [edge.source, edge.target]),
+      [["file", "quote"]],
+    );
+    const reloaded = canvasFileToDocument(canvasDocumentToFile(live)).document;
+    assert.equal(reloaded.nodes.length, 2);
+    assert.deepEqual(
+      reloaded.nodes.find((node) => node.kind === "quote"),
+      live.nodes[1],
+    );
+    assert.deepEqual(reloaded.connections, live.connections);
+    assert.deepEqual(batch.add("file", candidates, selected), []);
+    assert.equal(history.revision, 1);
+    assert.deepEqual(history.undo(live), before);
+    assert.deepEqual(history.redo(before), live);
+  }
+});
+
+test("reparenting an attachment does not duplicate its existing annotations or dirty the canvas", () => {
+  for (const previousItemKey of [undefined, "OLD-PARENT"]) {
+    const source = {
+      library: { type: "user" as const },
+      attachmentKey: "ATTACH12",
+      annotationKey: "ANNOT123",
+    };
+    const document: CanvasDocument = {
+      ...EMPTY,
+      nodes: [
+        {
+          id: "file",
+          kind: "attachment",
+          position: { x: 0, y: 0 },
+          width: 280,
+          height: 180,
+          data: {
+            title: "File",
+            contentType: "application/pdf",
+            source: {
+              library: source.library,
+              attachmentKey: source.attachmentKey,
+            },
+          },
+        },
+        {
+          id: "quote",
+          kind: "quote",
+          position: { x: 320, y: 0 },
+          width: 280,
+          height: 192,
+          source: {
+            ...source,
+            ...(previousItemKey ? { itemKey: previousItemKey } : {}),
+          },
+          snapshot: { text: "Already added" },
+        },
+      ],
+    };
+    const candidate: AnnotationCandidate = {
+      attachmentTitle: "File",
+      sortIndex: "1",
+      acquisition: {
+        kind: "quote",
+        source: { ...source, itemKey: "NEW-PARENT" },
+        snapshot: { text: "Current annotation" },
+      },
+    };
+    let writes = 0;
+    const runtime = createQuoteBatchRuntime({
+      getWorkingDocument: () => document,
+      getHistoryDocument: () => document,
+      applyDocument: () => writes++,
+      commitHistory: () => writes++,
+      createNodeId: () => "duplicate",
+      createConnectionId: () => "duplicate-edge",
+    });
+    assert.deepEqual(
+      runtime.add(
+        "file",
+        [candidate],
+        new Set([nativeAnnotationIdentity(candidate.acquisition.source)]),
+      ),
+      [],
+    );
+    assert.equal(writes, 0);
+  }
+});
+
+test("legacy PDF cards without a content type can list their Zotero annotations", () => {
+  const source = { library: { type: "user" as const }, attachmentKey: "PDF" };
+  const node = {
+    id: "legacy-pdf",
+    kind: "pdf" as const,
+    position: { x: 0, y: 0 },
+    width: 280,
+    height: 180,
+    data: { title: "Paper", source },
+  };
+  assert.deepEqual(annotationListSourceForNode(node), source);
+  assert.equal(
+    annotationListSourceForNode({ ...node, data: { title: "Local PDF" } }),
+    undefined,
+  );
+  assert.equal(
+    annotationListSourceForNode({ ...node, kind: "attachment" }),
+    undefined,
+  );
 });

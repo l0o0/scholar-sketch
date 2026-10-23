@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { Window } from "happy-dom";
 import * as icons from "../src/modules/markdown/icons.ts";
+import * as shortcuts from "../src/modules/markdown/shortcut.ts";
 import { tableInsertTemplate } from "../src/modules/markdown/insert-template.ts";
 import { mountMoreMenu } from "../src/modules/markdown/tab.ts";
 import { injectMarkdownStyles } from "../src/modules/markdown/styles.ts";
@@ -210,6 +211,8 @@ function fixture(initialWidth = 560, withMotion = false) {
   };
   const spec = runInNewContext(`(${toolbarSource})`, {
     ...icons,
+    ...shortcuts,
+    win,
     getString: (key: string) => key,
   }) as Spec;
   workspace.append(render(spec));

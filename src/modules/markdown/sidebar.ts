@@ -890,9 +890,8 @@ class SidebarController {
         if (seq !== this.renderSeq || this.item?.id !== item.id) return;
         navigateDocumentLink(item, this.win, href, { onNavigateNote });
       },
-      onPasteImage: ({ bytes, mimeType }) => {
-        void this.insertImage(new Uint8Array(bytes), mimeType);
-      },
+      onPasteImage: ({ bytes, mimeType }) =>
+        this.insertImage(new Uint8Array(bytes), mimeType),
     });
     this.editor = editor;
     editor.setMode("live");
@@ -1131,24 +1130,39 @@ class SidebarController {
   ): Promise<void> {
     const seq = this.renderSeq;
     const itemID = this.itemID;
-    if (itemID == null) return;
+    const editor = this.editor;
+    if (!editor || itemID == null) return;
+    const isCurrent = () =>
+      this.editor === editor &&
+      seq === this.renderSeq &&
+      this.itemID === itemID &&
+      !this.destroyed &&
+      !this.editorHost.hidden &&
+      this.editable &&
+      !editor.isComposing();
+    if (!isCurrent()) return;
     try {
       const item = Zotero.Items.get(itemID);
       if (!item) throw new Error(getString("sidebar-attachment-gone"));
+      if (!item.isEditable()) return;
       const reference = await writeImageAsset(item, bytes, mimeType);
       // The user may have switched items while the asset was being written;
       // never insert into a document that is no longer the one we saved to.
-      if (seq !== this.renderSeq || this.destroyed) return;
-      this.editor?.insertText(`![](${reference})`, 2, 2);
+      if (!isCurrent() || !item.isEditable()) return;
+      editor.insertText(`![](${reference})`, 2, 2);
       const asset = await resolveImageAssetEntry(item, reference);
-      if (seq !== this.renderSeq || this.destroyed) return;
+      if (!isCurrent()) return;
       // Single-asset push: merge so already-loaded images stay resolved.
-      this.editor?.setImageAssets(
-        { [reference]: asset } as ImageAssetMap,
-        false,
-      );
+      editor.setImageAssets({ [reference]: asset } as ImageAssetMap, false);
     } catch (error) {
       ztoolkit.log("Sidebar image insert failed", error);
+      if (!isCurrent()) return;
+      new ztoolkit.ProgressWindow(addon.data.config.addonName)
+        .createLine({
+          text: error instanceof Error ? error.message : String(error),
+          type: "fail",
+        })
+        .show();
     }
   }
 

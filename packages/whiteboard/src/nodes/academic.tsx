@@ -17,6 +17,7 @@ import {
   nodeSurfaceStyle,
 } from "./CardShell";
 import type { CanvasFlowNode } from "./types";
+import { quoteNodeStyle } from "./annotationStyle";
 
 function citationLine(parts: Array<string | undefined>) {
   const text = parts.filter(Boolean).join(" · ");
@@ -74,9 +75,13 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   return (
     <CardShell
       kind="quote"
-      kindLabel={labels.kindQuote}
+      kindLabel={
+        (snapshot.annotationType &&
+          labels.annotationTypeLabels?.[snapshot.annotationType]) ||
+        labels.kindQuote
+      }
       selected={selected}
-      nodeStyle={model.style}
+      nodeStyle={quoteNodeStyle(snapshot, model.style)}
       footer={citationLine([snapshot.citation, snapshot.pageLabel])}
     >
       {snapshot.color ? (
@@ -91,10 +96,20 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
         className="zmd-board-card-content"
         style={nodeTextStyle(model.style ?? {})}
       >
-        {snapshot.text}
+        {snapshot.text ||
+          snapshot.comment ||
+          labels.annotationNoText ||
+          "Open the source to view this annotation"}
       </blockquote>
-      {snapshot.comment ? (
+      {snapshot.text && snapshot.comment ? (
         <p className="zmd-board-card-comment">{snapshot.comment}</p>
+      ) : null}
+      {snapshot.tags?.length ? (
+        <div className="zmd-board-card-tags">
+          {snapshot.tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
       ) : null}
     </CardShell>
   );

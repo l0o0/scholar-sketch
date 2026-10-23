@@ -3,12 +3,18 @@ import type {
   AnnotationListFailure,
   AnnotationListFailureCode,
   AnnotationListResult,
+  AnnotationListSource,
   AcademicAcquisition,
   AcademicSourceDescriptor,
   AttachmentSnapshot,
   LiteratureSource,
   NoteSource,
   SourceResolutionResult,
+} from "../../../packages/whiteboard/src/model";
+import {
+  annotationSourceMatches,
+  isAnnotatableAttachmentContentType,
+  isAnnotationType,
 } from "../../../packages/whiteboard/src/model";
 
 export interface SourceGatewayDependencies {
@@ -41,7 +47,7 @@ export interface ZoteroSourceGateway {
     generation: number,
     descriptor: AcademicSourceDescriptor,
   ): Promise<SourceResolutionResult>;
-  listAnnotations(source: LiteratureSource): Promise<AnnotationListResult>;
+  listAnnotations(source: AnnotationListSource): Promise<AnnotationListResult>;
   refreshNote(
     source: NoteSource,
   ): Promise<Extract<AcademicAcquisition, { kind: "note" }>>;
@@ -132,6 +138,8 @@ export function createZoteroSourceGateway(
 
     const item = deps.getByLibraryAndKey(id, keyFor(descriptor));
     if (!item) return unavailable(nodeId, generation, "item-missing");
+    if (item.libraryID !== id)
+      return unavailable(nodeId, generation, "parent-mismatch");
 
     try {
       const resolved = await acquisitionForDescriptor(item, descriptor, deps);
@@ -144,7 +152,7 @@ export function createZoteroSourceGateway(
   }
 
   async function listAnnotations(
-    source: LiteratureSource,
+    source: AnnotationListSource,
   ): Promise<AnnotationListResult> {
     const id = libraryID(source.library);
     if (id == null)
@@ -152,21 +160,36 @@ export function createZoteroSourceGateway(
         "library-missing",
         unavailableMessages["library-missing"],
       );
-    const literature = deps.getByLibraryAndKey(id, source.itemKey);
-    if (!literature)
+    const isAttachmentSource = "attachmentKey" in source;
+    const sourceKey = isAttachmentSource
+      ? source.attachmentKey
+      : source.itemKey;
+    const sourceItem = deps.getByLibraryAndKey(id, sourceKey);
+    if (!sourceItem)
       throw new SourceGatewayError(
         "item-missing",
         unavailableMessages["item-missing"],
       );
-    if (!literature.isRegularItem())
+    if (sourceItem.libraryID !== id || sourceItem.key !== sourceKey)
+      throw new SourceGatewayError(
+        "parent-mismatch",
+        unavailableMessages["parent-mismatch"],
+      );
+    if (
+      isAttachmentSource
+        ? !isAnnotatableAttachment(sourceItem)
+        : !sourceItem.isRegularItem()
+    )
       throw new SourceGatewayError(
         "wrong-kind",
         unavailableMessages["wrong-kind"],
       );
 
-    let attachmentIDs: ReturnType<Zotero.Item["getAttachments"]>;
+    let attachments: Array<number | Zotero.Item>;
     try {
-      attachmentIDs = literature.getAttachments();
+      attachments = isAttachmentSource
+        ? [sourceItem]
+        : sourceItem.getAttachments();
     } catch {
       throw new SourceGatewayError(
         "list-failed",
@@ -175,18 +198,21 @@ export function createZoteroSourceGateway(
     }
     const candidates: AnnotationCandidate[] = [];
     const failures: AnnotationListFailure[] = [];
-    for (const child of attachmentIDs) {
+    for (const child of attachments) {
       const attachment = childItem(child, deps);
       if (!attachment?.isAttachment()) {
         failures.push(attachmentFailure());
         continue;
       }
-      if (attachment.attachmentContentType !== "application/pdf") {
+      if (!isAnnotatableAttachment(attachment)) {
         continue;
       }
       if (
-        !attachment.parentItem?.isRegularItem() ||
-        attachment.parentItem.key !== source.itemKey
+        attachment.libraryID !== id ||
+        (!isAttachmentSource &&
+          (!attachment.parentItem?.isRegularItem() ||
+            attachment.parentItem.key !== source.itemKey ||
+            attachment.parentItem.libraryID !== id))
       ) {
         failures.push(attachmentFailure(attachment.key));
         continue;
@@ -206,7 +232,8 @@ export function createZoteroSourceGateway(
           if (!isSupportedAnnotation(annotation)) continue;
           const acquisition = quoteAcquisition(annotation, source.library);
           if (
-            acquisition.source.itemKey !== source.itemKey ||
+            annotation.libraryID !== id ||
+            !annotationSourceMatches(acquisition.source, source) ||
             acquisition.source.attachmentKey !== attachment.key
           ) {
             throw new SourceIntegrityError("parent-mismatch");
@@ -288,6 +315,11 @@ export function createZoteroSourceGateway(
         "item-missing",
         unavailableMessages["item-missing"],
       );
+    if (item.libraryID !== id)
+      throw new SourceGatewayError(
+        "parent-mismatch",
+        unavailableMessages["parent-mismatch"],
+      );
 
     try {
       if (descriptor.kind === "literature") {
@@ -313,7 +345,9 @@ export function createZoteroSourceGateway(
       if (!exact) {
         await deps.openAttachmentPage(
           quote.attachment,
-          pageIndex(item.annotationPosition),
+          quote.attachment.attachmentContentType === "application/pdf"
+            ? pageIndex(item.annotationPosition)
+            : undefined,
         );
       }
     } catch (error) {
@@ -421,16 +455,22 @@ function quoteAcquisition(
     kind: "quote",
     source: {
       library,
-      itemKey: literature.key,
+      ...(literature ? { itemKey: literature.key } : {}),
       attachmentKey: attachment.key,
       annotationKey: item.key,
     },
-    snapshot: omitEmpty({
+    snapshot: {
       text: item.annotationText?.trim() || "",
-      comment: item.annotationComment?.trim(),
-      pageLabel: item.annotationPageLabel?.trim(),
-      color: item.annotationColor?.trim(),
-    }),
+      ...omitEmpty({
+        annotationType: isAnnotationType(item.annotationType)
+          ? item.annotationType
+          : undefined,
+        comment: item.annotationComment?.trim(),
+        pageLabel: item.annotationPageLabel?.trim(),
+        color: item.annotationColor?.trim(),
+        tags: tags(item),
+      }),
+    },
   };
 }
 
@@ -498,45 +538,58 @@ function quoteForSource(
   if (
     item.key !== source.annotationKey ||
     attachment.key !== source.attachmentKey ||
-    literature.key !== source.itemKey
+    (source.itemKey && literature?.key !== source.itemKey)
   ) {
     throw new SourceIntegrityError("parent-mismatch");
   }
-  return { attachment, acquisition: quoteAcquisition(item, source.library) };
+  // A formerly standalone file can acquire a parent. Keep the stored source
+  // identity instead of silently rebinding that quote to the new literature.
+  return {
+    attachment,
+    acquisition: { ...quoteAcquisition(item, source.library), source },
+  };
 }
 
 function quoteChain(annotation: Zotero.Item): {
   attachment: Zotero.Item;
-  literature: Zotero.Item;
+  literature?: Zotero.Item;
 } {
   const attachment = annotation.parentItem;
   const literature = attachment?.parentItem;
-  if (!attachment?.isAttachment() || !literature?.isRegularItem()) {
+  if (
+    !attachment?.isAttachment() ||
+    attachment.libraryID !== annotation.libraryID ||
+    (literature &&
+      (!literature.isRegularItem() ||
+        literature.libraryID !== annotation.libraryID))
+  ) {
     throw new SourceIntegrityError("parent-mismatch");
   }
-  return { attachment, literature };
+  return { attachment, ...(literature ? { literature } : {}) };
 }
 
 function validatedQuote(annotation: Zotero.Item): {
   attachment: Zotero.Item;
-  literature: Zotero.Item;
+  literature?: Zotero.Item;
 } {
   if (!isSupportedAnnotation(annotation)) {
     throw new SourceIntegrityError("wrong-kind");
   }
   const chain = quoteChain(annotation);
-  if (chain.attachment.attachmentContentType !== "application/pdf") {
+  if (!isAnnotatableAttachment(chain.attachment)) {
     throw new SourceIntegrityError("wrong-kind");
   }
   return chain;
 }
 
 function isSupportedAnnotation(item: Zotero.Item): boolean {
+  return item.isAnnotation() && isAnnotationType(item.annotationType);
+}
+
+function isAnnotatableAttachment(item: Zotero.Item): boolean {
   return (
-    item.isAnnotation() &&
-    (item.annotationType === "highlight" ||
-      item.annotationType === "underline") &&
-    Boolean(item.annotationText?.trim())
+    item.isFileAttachment() &&
+    isAnnotatableAttachmentContentType(item.attachmentContentType)
   );
 }
 
@@ -646,7 +699,7 @@ function childItem(
 function attachmentFailure(attachmentKey?: string): AnnotationListFailure {
   return {
     code: "attachment-unavailable",
-    message: "Annotations from a PDF attachment could not be loaded.",
+    message: "Annotations from an attachment could not be loaded.",
     ...(attachmentKey ? { attachmentKey } : {}),
   };
 }
@@ -778,7 +831,7 @@ function productionDependencies(): GatewayDependencies {
         }
       }
       if (
-        attachment.attachmentContentType === "application/pdf" &&
+        isAnnotatableAttachment(attachment) &&
         typeof zotero.Reader?.open === "function"
       ) {
         await zotero.Reader.open(attachment.id);

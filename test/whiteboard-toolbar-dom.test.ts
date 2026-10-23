@@ -438,7 +438,6 @@ test("properties show full details immediately and reset per node", async (t) =>
     position: { x: 180, y: 120 },
     onOpen: () => {},
     onRefreshSource: () => {},
-    onViewAnnotations: () => {},
     onCopy: () => {},
     onDelete: () => {},
   });
@@ -506,7 +505,6 @@ test("file properties keep metadata visible and expose embedded open", async (t)
           opened += 1;
         },
         onRefreshSource: () => {},
-        onViewAnnotations: () => {},
         onCopy: () => {},
         onDelete: () => {},
       }),

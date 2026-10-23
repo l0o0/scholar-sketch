@@ -9,7 +9,7 @@ import {
   canvasFileToDocument,
 } from "../packages/whiteboard/src/model/canvas-file.ts";
 import type { CanvasDocument } from "../packages/whiteboard/src/model/document.ts";
-import { quoteSourceIdentity } from "../packages/whiteboard/src/model/academic.ts";
+import { nativeAnnotationIdentity } from "../packages/whiteboard/src/model/academic.ts";
 import {
   buildCanvasMarkdown,
   buildCanvasSvg,
@@ -295,11 +295,12 @@ test("an acquired Quote keeps its persisted fallback through save, reopen, and e
     },
     commitHistory: () => undefined,
     createNodeId: () => "quote-1",
+    createConnectionId: () => "edge-quote",
   });
   batch.add(
     "literature-1",
     [candidate],
-    new Set([quoteSourceIdentity(candidate.acquisition.source)]),
+    new Set([nativeAnnotationIdentity(candidate.acquisition.source)]),
   );
 
   const reopened = canvasFileToDocument(
@@ -971,4 +972,74 @@ test("SVG matches fill-based ink, explicit text colors and transparent surfaces"
       assert.match(svg, new RegExp(`<text[^>]*fill="${text}"`));
     }
   }
+});
+
+test("annotation SVG and Markdown export retain comment-only notes, type, tags, and annotation fill", () => {
+  const original = canonicalDocument().nodes.find(
+    (node) => node.kind === "quote",
+  )!;
+  assert.equal(original.kind, "quote");
+  const note = {
+    ...original,
+    snapshot: {
+      text: "",
+      comment: "Read this carefully",
+      annotationType: "note" as const,
+      pageLabel: "3",
+      color: "#ffd400",
+      tags: ["review"],
+    },
+  };
+  const document: CanvasDocument = {
+    version: 2,
+    nodes: [note],
+    connections: [],
+  };
+  const before = structuredClone(document);
+  for (const theme of ["light", "dark"] as const) {
+    const svg = buildCanvasSvg(document, undefined, {
+      fontFamily: "system-ui",
+      backgroundColor: "#ffffff",
+      theme,
+    });
+    assert.match(svg, /fill="#ffd400"/);
+    assert.match(svg, /fill="#111827"/);
+    assert.equal(svg.match(/Read this carefully/g)?.length, 1);
+    assert.match(svg, /note/i);
+    assert.match(svg, /Page 3/);
+    assert.match(svg, /#review/);
+  }
+  const markdown = buildCanvasMarkdown(document);
+  assert.match(markdown, /> Read this carefully/);
+  assert.match(markdown, /Type: note/);
+  assert.match(markdown, /Page: 3/);
+  assert.match(markdown, /Tags: review/);
+  assert.deepEqual(
+    document,
+    before,
+    "export must not write the effective annotation fill into the source document",
+  );
+  const manual = buildCanvasSvg({
+    ...document,
+    nodes: [{ ...note, style: { fill: "#111827" } }],
+  });
+  assert.match(manual, /fill="#111827"/);
+  assert.match(manual, /fill="#e8eaed"/);
+  assert.doesNotMatch(manual, /fill="#ffd400"/);
+  const drawing = {
+    ...note,
+    snapshot: { text: "", annotationType: "ink" as const, pageLabel: "4" },
+  };
+  assert.match(
+    buildCanvasSvg({ ...document, nodes: [drawing] }),
+    /Open the source/,
+  );
+  assert.match(
+    buildCanvasMarkdown({ ...document, nodes: [drawing] }),
+    /Type: ink/,
+  );
+  assert.match(
+    buildCanvasMarkdown({ ...document, nodes: [drawing] }),
+    /Page: 4/,
+  );
 });

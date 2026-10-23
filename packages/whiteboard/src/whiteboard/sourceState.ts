@@ -1,12 +1,17 @@
 import {
   ACADEMIC_SOURCE_CARD_SIZE,
   attachmentSourceIdentity,
+  annotationSourceMatches,
+  isAnnotatableAttachmentContentType,
+  type AnnotationListSource,
   createAcademicNode,
   literatureSourceIdentity,
   noteSourceIdentity,
   quoteSourceIdentity,
+  nativeAnnotationIdentity,
   type CanvasNode,
 } from "../model/academic";
+import { createAcademicConnection } from "../model/connection";
 import type { CanvasDocument } from "../model/document";
 import type {
   AcademicAcquisition,
@@ -37,11 +42,12 @@ export interface QuoteBatchRuntimeBindings {
   applyDocument: (document: CanvasDocument) => void;
   commitHistory: (document: CanvasDocument) => void;
   createNodeId: (candidate: AnnotationCandidate, index: number) => string;
+  createConnectionId: () => string;
 }
 
 export interface QuoteBatchRuntime {
   add(
-    literatureNodeId: string,
+    originNodeId: string,
     candidates: readonly AnnotationCandidate[],
     selectedKeys: ReadonlySet<string>,
   ): string[];
@@ -310,31 +316,44 @@ export function sourceSnapshotChanged(
   return false;
 }
 
+export function annotationListSourceForNode(
+  node: CanvasNode,
+): AnnotationListSource | undefined {
+  if (node.kind === "literature") return node.source;
+  if (
+    (node.kind === "pdf" || node.kind === "attachment") &&
+    node.data.source &&
+    isAnnotatableAttachmentContentType(
+      node.data.contentType ??
+        (node.kind === "pdf" ? "application/pdf" : undefined),
+    )
+  )
+    return node.data.source;
+  return undefined;
+}
+
 export function createQuoteBatchRuntime(
   bindings: QuoteBatchRuntimeBindings,
 ): QuoteBatchRuntime {
   return {
-    add(literatureNodeId, candidates, selectedKeys) {
+    add(originNodeId, candidates, selectedKeys) {
       const document = bindings.getWorkingDocument();
-      const literature = document.nodes.find(
-        (node) => node.id === literatureNodeId && node.kind === "literature",
-      );
-      if (!literature || literature.kind !== "literature") return [];
-
-      const literatureIdentity = literatureSourceIdentity(literature.source);
+      const origin = document.nodes.find((node) => node.id === originNodeId);
+      const listSource = origin && annotationListSourceForNode(origin);
+      if (!origin || !listSource) return [];
       const seen = new Set(
         document.nodes.flatMap((node) =>
-          node.kind === "quote" ? [quoteSourceIdentity(node.source)] : [],
+          node.kind === "quote" ? [nativeAnnotationIdentity(node.source)] : [],
         ),
       );
       const accepted: AnnotationCandidate[] = [];
       for (const candidate of candidates) {
         const source = candidate.acquisition.source;
-        const identity = quoteSourceIdentity(source);
+        const identity = nativeAnnotationIdentity(source);
         if (
           !selectedKeys.has(identity) ||
           seen.has(identity) ||
-          literatureSourceIdentity(source) !== literatureIdentity
+          !annotationSourceMatches(source, listSource)
         ) {
           continue;
         }
@@ -347,7 +366,7 @@ export function createQuoteBatchRuntime(
         document.nodes.filter(
           (node) =>
             node.kind === "quote" &&
-            literatureSourceIdentity(node.source) === literatureIdentity,
+            annotationSourceMatches(node.source, listSource),
         ).length / QUOTE_LAYOUT_COLUMNS,
       );
       const added = accepted.map((candidate, index) => {
@@ -357,13 +376,13 @@ export function createQuoteBatchRuntime(
           "quote",
           {
             x:
-              literature.position.x +
-              literature.width +
+              origin.position.x +
+              origin.width +
               QUOTE_LAYOUT_GAP +
               column *
                 (ACADEMIC_SOURCE_CARD_SIZE.quote.width + QUOTE_LAYOUT_GAP),
             y:
-              literature.position.y +
+              origin.position.y +
               row * (ACADEMIC_SOURCE_CARD_SIZE.quote.height + QUOTE_LAYOUT_GAP),
           },
           bindings.createNodeId(candidate, index),
@@ -377,6 +396,16 @@ export function createQuoteBatchRuntime(
       bindings.applyDocument({
         ...document,
         nodes: [...document.nodes, ...added],
+        connections: [
+          ...document.connections,
+          ...added.map((node) =>
+            createAcademicConnection(
+              bindings.createConnectionId(),
+              origin.id,
+              node.id,
+            ),
+          ),
+        ],
       });
       return added.map((node) => node.id);
     },
@@ -541,7 +570,9 @@ function quoteSnapshotsEqual(
     left.comment === right.comment &&
     left.citation === right.citation &&
     left.pageLabel === right.pageLabel &&
-    left.color === right.color
+    left.color === right.color &&
+    left.annotationType === right.annotationType &&
+    stringArraysEqual(left.tags, right.tags)
   );
 }
 

@@ -40,6 +40,7 @@ test("public canvas API validates, creates, reads and protects replacement write
     itemType: "journalArticle",
     isRegularItem: () => true,
     isAttachment: () => false,
+    isFileAttachment: () => false,
     isNote: () => false,
     isAnnotation: () => false,
     getField: (key: string) => (key === "title" ? "Paper" : ""),
@@ -53,6 +54,8 @@ test("public canvas API validates, creates, reads and protects replacement write
     parentItem: paper,
     isRegularItem: () => false,
     isAttachment: () => true,
+    isFileAttachment: () => true,
+    getAnnotations: () => [quote],
     attachmentFilename: "paper.pdf",
     attachmentContentType: "application/pdf",
   };
@@ -92,6 +95,10 @@ test("public canvas API validates, creates, reads and protects replacement write
       },
       Items: {
         get: (id: number) => items.get(id),
+        getByLibraryAndKey: (libraryID: number, key: string) =>
+          [paper, attachment, note, quote].find(
+            (item) => item.libraryID === libraryID && item.key === key,
+          ),
         getAll: async () => [board],
       },
       Libraries: {
@@ -160,6 +167,17 @@ test("public canvas API validates, creates, reads and protects replacement write
     );
     assert.equal((await canvasApi.list()).length, 1);
     assert.equal((await canvasApi.getSelection())[0].itemID, 2);
+    assert.deepEqual((await canvasApi.listAnnotations(2)).candidates, []);
+    const annotations = await canvasApi.listAnnotations(3);
+    assert.equal(annotations.candidates.length, 1);
+    assert.equal(
+      annotations.candidates[0].acquisition.source.annotationKey,
+      quote.key,
+    );
+    assert.deepEqual(annotations.failures, []);
+    await assert.rejects(canvasApi.listAnnotations(4), {
+      code: "INVALID_ARGUMENT",
+    });
     const sources = await canvasApi.fromItems([2, 2]);
     assert.equal(sources.nodes.length, 1);
     assert.equal(

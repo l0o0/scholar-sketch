@@ -303,6 +303,7 @@ export type EditorToParentMessage = (
       payload: { href: string };
     }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "save" }
+  | { source: typeof EDITOR_MESSAGE_SOURCE; type: "importImage" }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "imageDebug";
@@ -343,6 +344,7 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "importImage") return data.payload === undefined;
   if (data.type === "applyIfUnchanged") {
     const payload = data.payload as Record<string, unknown> | null;
     return (

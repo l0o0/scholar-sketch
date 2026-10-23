@@ -29,9 +29,11 @@ export interface AttachmentSource {
   attachmentKey: string;
 }
 
-export interface QuoteSource extends LiteratureSource {
-  attachmentKey: string;
+export type AnnotationListSource = LiteratureSource | AttachmentSource;
+
+export interface QuoteSource extends AttachmentSource {
   annotationKey: string;
+  itemKey?: string;
 }
 
 export interface NoteSource {
@@ -62,11 +64,36 @@ export function attachmentSourceIdentity(source: AttachmentSource): string {
   ]);
 }
 
+export function annotationListSourceIdentity(
+  source: AnnotationListSource,
+): string {
+  return "attachmentKey" in source
+    ? attachmentSourceIdentity(source)
+    : literatureSourceIdentity(source);
+}
+
+export function annotationSourceMatches(
+  quote: QuoteSource,
+  source: AnnotationListSource,
+): boolean {
+  const sameLibrary =
+    quote.library.type === source.library.type &&
+    (quote.library.type === "user" ||
+      (source.library.type === "group" &&
+        quote.library.groupID === source.library.groupID));
+  return (
+    sameLibrary &&
+    ("attachmentKey" in source
+      ? quote.attachmentKey === source.attachmentKey
+      : quote.itemKey === source.itemKey)
+  );
+}
+
 export function quoteAttachmentIdentity(source: QuoteSource): string {
   return JSON.stringify([
     "quote-attachment",
     ...sourceLibraryIdentity(source.library),
-    source.itemKey,
+    source.itemKey ?? null,
     source.attachmentKey,
   ]);
 }
@@ -75,7 +102,17 @@ export function quoteSourceIdentity(source: QuoteSource): string {
   return JSON.stringify([
     "quote",
     ...sourceLibraryIdentity(source.library),
-    source.itemKey,
+    source.itemKey ?? null,
+    source.attachmentKey,
+    source.annotationKey,
+  ]);
+}
+
+/** Annotation identity remains stable when its attachment is reparented. */
+export function nativeAnnotationIdentity(source: QuoteSource): string {
+  return JSON.stringify([
+    "annotation",
+    ...sourceLibraryIdentity(source.library),
     source.attachmentKey,
     source.annotationKey,
   ]);
@@ -108,8 +145,35 @@ export interface AttachmentSnapshot {
   availability: AttachmentAvailability;
 }
 
+export function isAnnotatableAttachmentContentType(
+  contentType?: string,
+): boolean {
+  const mimeType = contentType?.split(";")[0].trim().toLowerCase();
+  return (
+    mimeType === "application/pdf" ||
+    mimeType === "application/epub+zip" ||
+    mimeType === "text/html"
+  );
+}
+
+export const ANNOTATION_TYPES = [
+  "highlight",
+  "underline",
+  "note",
+  "text",
+  "image",
+  "ink",
+] as const;
+export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
+
+export function isAnnotationType(value: unknown): value is AnnotationType {
+  return ANNOTATION_TYPES.some((type) => type === value);
+}
+
 export interface QuoteSnapshot {
   text: string;
+  annotationType?: AnnotationType;
+  tags?: string[];
   comment?: string;
   citation?: string;
   pageLabel?: string;

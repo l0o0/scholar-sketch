@@ -4,10 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Scholar Sketch Whiteboard</title>
-    <link
-      rel="stylesheet"
-      href="chrome://bamboo/content/whiteboard/whiteboard.css?v=__buildTime__"
-    />
+    <link id="whiteboard-stylesheet" rel="stylesheet" />
+    <script>
+      // Styles and scripts must share the editor mount version after a reload.
+      const version =
+        new URLSearchParams(location.search).get("v") || "__buildTime__";
+      document.getElementById("whiteboard-stylesheet").href =
+        "chrome://bamboo/content/whiteboard/whiteboard.css?v=" +
+        encodeURIComponent(version);
+    </script>
     <style>
       html,
       body {
@@ -40,9 +45,6 @@
   <body>
     <div id="whiteboard-root" tabindex="-1"></div>
     <script>
-      // Each editor mount gets a fresh URL, including after a development reload.
-      const version =
-        new URLSearchParams(location.search).get("v") || "__buildTime__";
       const script = document.createElement("script");
       script.src =
         "chrome://bamboo/content/whiteboard/whiteboard.js?v=" +

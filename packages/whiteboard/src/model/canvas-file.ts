@@ -254,6 +254,7 @@ function academicText(node: AcademicNode): string {
     case "quote":
       return [
         node.snapshot.text,
+        node.snapshot.comment,
         node.snapshot.citation,
         node.snapshot.pageLabel,
       ]
@@ -362,6 +363,8 @@ function payloadSchema(kind: unknown): PayloadSchema | undefined {
         },
         snapshot: {
           text: true,
+          annotationType: true,
+          tags: true,
           comment: true,
           citation: true,
           pageLabel: true,

@@ -14,6 +14,8 @@ export async function createMarkdownAttachment(
   options: {
     open?: boolean;
     initialContent?: string;
+    /** Attachment display title; does not change its generated filename. */
+    title?: string;
     /** Suppress UI side effects (ProgressWindow, pane selection) for API use. */
     silent?: boolean;
     /** Target library for top-level attachments (defaults to user library). */
@@ -64,6 +66,7 @@ export async function createMarkdownAttachment(
   if (options.shouldContinue?.() === false) return null;
 
   const filename = defaultMarkdownFilename();
+  const attachmentTitle = options.title?.trim() || filename;
   const documentTitle = markdownDocumentTitle(filename);
 
   const useFrontmatter = getPref("frontmatter") !== false;
@@ -110,7 +113,7 @@ export async function createMarkdownAttachment(
       // Only for top-level items; parent path uses parentItemID alone
       libraryID: parent ? undefined : targetLibraryID,
       collections,
-      title: filename,
+      title: attachmentTitle,
       contentType: "text/markdown",
       charset: "utf-8",
     });
@@ -124,8 +127,8 @@ export async function createMarkdownAttachment(
       attachment.attachmentContentType = "text/markdown";
       await attachment.saveTx({ skipSelect: true });
     }
-    if (attachment.getField("title") !== filename) {
-      attachment.setField("title", filename);
+    if (attachment.getField("title") !== attachmentTitle) {
+      attachment.setField("title", attachmentTitle);
       await attachment.saveTx({ skipSelect: true });
     }
 

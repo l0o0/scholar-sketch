@@ -4,6 +4,8 @@ import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   MARKDOWN_HEADING_SHORTCUTS,
   markdownHeadingShortcutLabel,
+  markdownImageShortcutLabel,
+  markdownRedoShortcutLabel,
   shortcutFromKeyboardEvent,
   shortcutKeycaps,
 } from "./shortcut";
@@ -505,22 +507,26 @@ export function createMarkdownModalController(
       const header = doc.createElement("div");
       header.className = "zotero-markdown-settings-shortcuts-header";
       header.appendChild(heading);
-      const surface = doc.createElement("select");
-      surface.name = "shortcutSurface";
-      surface.className = "zotero-markdown-settings-select";
+      const surface = doc.createElement("div");
+      surface.className = "zotero-markdown-settings-shortcut-surface";
+      surface.setAttribute("role", "radiogroup");
       surface.setAttribute(
         "aria-label",
         getString("settings-shortcut-surface"),
       );
-      for (const [value, labelKey] of [
+      const surfaces = [
         ["markdown", "settings-shortcut-surface-markdown"],
         ["whiteboard", "settings-shortcut-surface-whiteboard"],
-      ] as const) {
-        const option = doc.createElement("option");
-        option.value = value;
+      ] as const;
+      const surfaceButtons = surfaces.map(([value, labelKey]) => {
+        const option = doc.createElement("button");
+        option.type = "button";
+        option.dataset.shortcutSurface = value;
+        option.setAttribute("role", "radio");
         option.textContent = getString(labelKey);
         surface.appendChild(option);
-      }
+        return option;
+      });
       header.appendChild(surface);
       pageContent.appendChild(header);
 
@@ -533,9 +539,17 @@ export function createMarkdownModalController(
             ? [
                 ["Ctrl/Meta + S", "whiteboard-save"],
                 ["Ctrl/Meta + F", "more-find"],
+                ["Ctrl/Meta + G", "settings-shortcut-find-next"],
+                ["Ctrl/Meta + Shift + G", "settings-shortcut-find-previous"],
                 ["Ctrl/Meta + B", "sidebar-bold"],
                 ["Ctrl/Meta + I", "sidebar-italic"],
                 ["Ctrl/Meta + K", "sidebar-link"],
+                [
+                  markdownImageShortcutLabel(
+                    doc.defaultView?.navigator.platform,
+                  ),
+                  "settings-shortcut-import-image",
+                ],
                 ...MARKDOWN_HEADING_SHORTCUTS.map(
                   ({ level }): [string, FluentMessageId] => [
                     markdownHeadingShortcutLabel(
@@ -546,8 +560,16 @@ export function createMarkdownModalController(
                   ],
                 ),
                 ["Ctrl/Meta + Z", "whiteboard-undo"],
-                ["Ctrl/Meta + Shift + Z", "whiteboard-redo"],
+                [
+                  markdownRedoShortcutLabel(
+                    doc.defaultView?.navigator.platform,
+                  ),
+                  "whiteboard-redo",
+                ],
                 ["Tab", "settings-shortcut-indent"],
+                ["Shift + Tab", "settings-shortcut-unindent"],
+                ["Tab", "settings-shortcut-table-next"],
+                ["Shift + Tab", "settings-shortcut-table-previous"],
               ]
             : [
                 ["Ctrl/Meta + S", "whiteboard-save"],
@@ -709,10 +731,34 @@ export function createMarkdownModalController(
         row.appendChild(controls);
         list.appendChild(row);
       };
-      surface.addEventListener("change", () => {
-        renderRows(surface.value === "whiteboard" ? "whiteboard" : "markdown");
+      const selectSurface = (index: number) => {
+        if (surfaceButtons[index].getAttribute("aria-checked") === "true")
+          return;
+        surfaceButtons.forEach((option, optionIndex) => {
+          const selected = optionIndex === index;
+          option.setAttribute("aria-checked", String(selected));
+          option.tabIndex = selected ? 0 : -1;
+        });
+        renderRows(surfaces[index][0]);
+      };
+      surfaceButtons.forEach((option, index) => {
+        option.addEventListener("click", () => selectSurface(index));
+        option.addEventListener("keydown", (event) => {
+          if (event.altKey || event.ctrlKey || event.metaKey) return;
+          let next: number;
+          if (event.key === "ArrowRight" || event.key === "ArrowDown")
+            next = (index + 1) % surfaces.length;
+          else if (event.key === "ArrowLeft" || event.key === "ArrowUp")
+            next = (index + surfaces.length - 1) % surfaces.length;
+          else if (event.key === "Home") next = 0;
+          else if (event.key === "End") next = surfaces.length - 1;
+          else return;
+          event.preventDefault();
+          selectSurface(next);
+          surfaceButtons[next].focus();
+        });
       });
-      renderRows("markdown");
+      selectSurface(0);
       pageContent.appendChild(list);
       return heading;
     };

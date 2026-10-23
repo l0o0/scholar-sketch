@@ -64,7 +64,7 @@ export function compactCardTitle(node: CanvasNode): string {
     case "literature":
       return node.snapshot.title.slice(0, 160);
     case "quote":
-      return node.snapshot.text.slice(0, 160);
+      return (node.snapshot.text || node.snapshot.comment || "").slice(0, 160);
     case "item":
     case "pdf":
     case "attachment":

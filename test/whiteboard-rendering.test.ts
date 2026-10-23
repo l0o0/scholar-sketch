@@ -202,3 +202,71 @@ test("PNG preparation rejects a canvas closed before paint", async (t) => {
   host.remove();
   await assert.rejects(paint, /closed/);
 });
+
+test("zoomed-out comment-only annotations retain their visible comment", async (t) => {
+  const win = installDOM(t, async () => {
+    await act(async () => root.unmount());
+  });
+  const host = win.document.createElement("div");
+  win.document.body.append(host);
+  const root = createRoot(host);
+  const model = createAcademicNode("quote", { x: 0, y: 0 }, "annotation", {
+    source: {
+      library: { type: "user" },
+      attachmentKey: "ATTACH12",
+      annotationKey: "ANNOT123",
+    },
+    snapshot: {
+      text: "",
+      comment: "A visible comment",
+      annotationType: "note",
+    },
+  });
+  const labels = new Proxy({} as WhiteboardLabels, {
+    get: (_target, key) => String(key),
+  });
+  let store: ReturnType<typeof useStoreApi> | undefined;
+  function CaptureStore() {
+    const current = useStoreApi();
+    useEffect(() => {
+      store = current;
+    }, [current]);
+    return null;
+  }
+  await act(async () =>
+    root.render(
+      createElement(
+        WhiteboardLabelsProvider,
+        { value: labels },
+        createElement(
+          ReactFlowProvider,
+          null,
+          createElement(CaptureStore),
+          createElement(canvasNodeTypes.quote, {
+            id: model.id,
+            type: "quote",
+            data: { model },
+            selected: false,
+            width: model.width,
+            height: model.height,
+            isConnectable: true,
+          } as NodeProps<CanvasFlowNode>),
+        ),
+      ),
+    ),
+  );
+  assert.equal(
+    host.querySelector("blockquote")?.textContent,
+    "A visible comment",
+  );
+  await act(async () => store!.setState({ transform: [0, 0, 0.2] }));
+  assert.equal(
+    host.querySelector(".zmd-board-card-summary")?.textContent,
+    "A visible comment",
+  );
+  await act(async () => store!.setState({ transform: [0, 0, 1] }));
+  assert.equal(
+    host.querySelector("blockquote")?.textContent,
+    "A visible comment",
+  );
+});

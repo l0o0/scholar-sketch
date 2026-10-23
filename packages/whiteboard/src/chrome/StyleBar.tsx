@@ -13,7 +13,9 @@ import {
 import type { WhiteboardLabels } from "../model/protocol";
 import type { WhiteboardTheme } from "../model/protocol";
 import type { CanvasFlowNode } from "../nodes";
+import { annotationListSourceForNode } from "../whiteboard/sourceState";
 import {
+  IconAnnotations,
   IconCorners,
   IconEdit,
   IconMore,
@@ -46,6 +48,9 @@ export function StyleBar(props: {
   onEdit?: () => void;
   onStartFormatPaint?: (continuous: boolean) => void;
   formatPaintMode?: "single" | "continuous";
+  onViewAnnotations?: () => void;
+  annotationsOpen?: boolean;
+  viewAnnotationsRef?: Ref<HTMLButtonElement>;
   onToggleDetails?: () => void;
   detailsOpen?: boolean;
   detailsButtonRef?: Ref<HTMLButtonElement>;
@@ -106,6 +111,23 @@ export function StyleBar(props: {
           }}
         >
           <IconEdit />
+        </button>
+      ) : null}
+      {props.onViewAnnotations && annotationListSourceForNode(model) ? (
+        <button
+          ref={props.viewAnnotationsRef}
+          type="button"
+          className={`zmd-board-selection-annotations${props.annotationsOpen ? " is-active" : ""}`}
+          title={props.labels.viewAnnotations}
+          aria-label={props.labels.viewAnnotations}
+          aria-haspopup="dialog"
+          aria-expanded={!!props.annotationsOpen}
+          onClick={() => {
+            setMenu(null);
+            props.onViewAnnotations?.();
+          }}
+        >
+          <IconAnnotations />
         </button>
       ) : null}
       {props.onStartFormatPaint ? (

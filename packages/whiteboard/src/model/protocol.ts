@@ -10,6 +10,8 @@
 import type { ColorSchemeID } from "./colorSchemes";
 
 import type {
+  AnnotationListSource,
+  AnnotationType,
   AttachmentSnapshot,
   AttachmentSource,
   LiteratureSnapshot,
@@ -19,8 +21,10 @@ import type {
   QuoteSnapshot,
   QuoteSource,
 } from "./academic";
+import { ANNOTATION_TYPES } from "./academic";
 import {
   parseCanvasDocument,
+  parseAnnotationListSource,
   parseLiteratureSource,
   parseNoteSource,
   parseQuoteSource,
@@ -153,6 +157,12 @@ export interface WhiteboardLabels {
   focusExistingAnnotation: string;
   addSelectedAnnotations: string;
   annotationPage: string;
+  annotationTypeLabels?: Record<AnnotationType, string>;
+  annotationTypeFilter?: string;
+  annotationTagFilter?: string;
+  annotationAllTypes?: string;
+  annotationAllTags?: string;
+  annotationNoText?: string;
   noteOverwriteTitle: string;
   noteOverwriteBody: string;
   confirm: string;
@@ -436,6 +446,7 @@ export type CanvasNotice =
     }
   | { code: AcademicDropFailureCode }
   | { code: "acquisition-failed" }
+  | { code: "group-required" }
   | {
       code: "source-open-failed";
       nodeId: string;
@@ -510,7 +521,7 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
         type: "annotationsListed";
         payload: {
           requestId: string;
-          source: LiteratureSource;
+          source: AnnotationListSource;
           candidates: AnnotationCandidate[];
           failures: AnnotationListFailure[];
         };
@@ -519,7 +530,7 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
         type: "annotationListFailed";
         payload: {
           requestId: string;
-          source: LiteratureSource;
+          source: AnnotationListSource;
           failure: AnnotationListFailure;
         };
       }
@@ -631,7 +642,7 @@ export type WhiteboardToParentBody =
     }
   | {
       type: "listLiteratureAnnotations";
-      payload: { requestId: string; source: LiteratureSource };
+      payload: { requestId: string; source: AnnotationListSource };
     }
   | {
       type: "refreshZoteroNote";
@@ -886,12 +897,17 @@ function isOptionalOwnPositiveInteger(
 }
 
 const whiteboardLabelStringKeys: Record<
-  Exclude<keyof WhiteboardLabels, "annotations">,
+  Exclude<keyof WhiteboardLabels, "annotations" | "annotationTypeLabels">,
   true
 > = {
   searchCanvas: true,
   duplicateSelection: true,
   layoutAllConfirm: true,
+  annotationTypeFilter: true,
+  annotationTagFilter: true,
+  annotationAllTypes: true,
+  annotationAllTags: true,
+  annotationNoText: true,
   canvas: true,
   selection: true,
   select: true,
@@ -1150,17 +1166,36 @@ function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
     "sizeAuto",
     "shortcutNudge",
     "shortcutNudgeLarge",
+    "annotationTypeFilter",
+    "annotationTagFilter",
+    "annotationAllTypes",
+    "annotationAllTags",
+    "annotationNoText",
   ];
   const stringKeys = Object.keys(whiteboardLabelStringKeys).filter(
     (key) => !optional.includes(key),
   );
-  if (!hasExactKeys(value, [...stringKeys, "annotations"], optional))
+  if (
+    !hasExactKeys(
+      value,
+      [...stringKeys, "annotations"],
+      [...optional, "annotationTypeLabels"],
+    )
+  )
     return false;
   if (
     !optional.every((key) => value[key] === undefined || isString(value[key]))
   )
     return false;
   if (!stringKeys.every((key) => isString(value[key]))) return false;
+  const typeLabels = value.annotationTypeLabels;
+  if (
+    typeLabels !== undefined &&
+    (!isPlainRecord(typeLabels) ||
+      !hasExactKeys(typeLabels, ANNOTATION_TYPES) ||
+      !ANNOTATION_TYPES.every((type) => isString(typeLabels[type])))
+  )
+    return false;
   return (
     isPlainRecord(value.annotations) &&
     hasExactKeys(value.annotations, ["one", "other"]) &&
@@ -1195,12 +1230,16 @@ function isLiteratureSource(value: unknown): boolean {
   return matchesParsedAcademicFields(value, parseLiteratureSource);
 }
 
+function isAnnotationListSource(value: unknown): boolean {
+  return matchesParsedAcademicFields(value, parseAnnotationListSource);
+}
+
 function isNoteSource(value: unknown): boolean {
   return matchesParsedAcademicFields(value, parseNoteSource, ["itemKey"]);
 }
 
 function isQuoteSource(value: unknown): boolean {
-  return matchesParsedAcademicFields(value, parseQuoteSource);
+  return matchesParsedAcademicFields(value, parseQuoteSource, ["itemKey"]);
 }
 
 function isAcademicSourceDescriptor(value: unknown): boolean {
@@ -1265,6 +1304,8 @@ function isLiteratureSnapshot(value: unknown): boolean {
 
 function isQuoteSnapshot(value: unknown): boolean {
   return matchesParsedAcademicFields(value, parseQuoteSnapshot, [
+    "annotationType",
+    "tags",
     "comment",
     "citation",
     "pageLabel",
@@ -1664,7 +1705,7 @@ function validateWhiteboardToParentMessageForChannel(
         isPlainRecord(payload) &&
         hasExactKeys(payload, ["requestId", "source"]) &&
         isNonEmptyString(payload.requestId) &&
-        isLiteratureSource(payload.source)
+        isAnnotationListSource(payload.source)
       );
     case "refreshZoteroNote":
       return (
@@ -1925,7 +1966,7 @@ function validateParentToWhiteboardMessageForChannel(
           "failures",
         ]) &&
         isNonEmptyString(payload.requestId) &&
-        isLiteratureSource(payload.source) &&
+        isAnnotationListSource(payload.source) &&
         isArrayOf(payload.candidates, isAnnotationCandidate) &&
         isArrayOf(payload.failures, isAnnotationFailure)
       );
@@ -1935,7 +1976,7 @@ function validateParentToWhiteboardMessageForChannel(
         isPlainRecord(payload) &&
         hasExactKeys(payload, ["requestId", "source", "failure"]) &&
         isNonEmptyString(payload.requestId) &&
-        isLiteratureSource(payload.source) &&
+        isAnnotationListSource(payload.source) &&
         isAnnotationFailure(payload.failure)
       );
     case "noteRefreshed":

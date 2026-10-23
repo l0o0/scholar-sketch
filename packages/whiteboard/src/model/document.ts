@@ -1,6 +1,8 @@
 import {
   ACADEMIC_SOURCE_CARD_SIZE,
+  ANNOTATION_TYPES,
   isNoteType,
+  type AnnotationListSource,
   type AttachmentSource,
   type CanvasNode,
   type LiteratureSnapshot,
@@ -669,19 +671,32 @@ export function parseAttachmentSource(
   return library ? { library, attachmentKey: value.attachmentKey } : undefined;
 }
 
-export function parseQuoteSource(value: unknown): QuoteSource | undefined {
-  const source = parseLiteratureSource(value);
+export function parseAnnotationListSource(
+  value: unknown,
+): AnnotationListSource | undefined {
+  if (!isRecord(value) || !has(value, "library")) return undefined;
+  if (has(value, "itemKey") === has(value, "attachmentKey")) return undefined;
+  const sourceKey = has(value, "attachmentKey") ? "attachmentKey" : "itemKey";
   if (
-    !source ||
-    !isRecord(value) ||
-    !isNonEmptyString(value.attachmentKey) ||
-    !isNonEmptyString(value.annotationKey)
+    Object.keys(value).some((key) => key !== "library" && key !== sourceKey)
   ) {
     return undefined;
   }
+  return sourceKey === "attachmentKey"
+    ? parseAttachmentSource(value)
+    : parseLiteratureSource(value);
+}
+
+export function parseQuoteSource(value: unknown): QuoteSource | undefined {
+  const source = parseAttachmentSource(value);
+  if (!source || !isRecord(value) || !isNonEmptyString(value.annotationKey)) {
+    return undefined;
+  }
+  const itemKey = parseOptionalNonEmptyString(value, "itemKey");
+  if (itemKey === INVALID) return undefined;
   return {
     ...source,
-    attachmentKey: value.attachmentKey,
+    ...(itemKey !== undefined ? { itemKey } : {}),
     annotationKey: value.annotationKey,
   };
 }
@@ -744,11 +759,20 @@ export function parseLiteratureSnapshot(
 
 export function parseQuoteSnapshot(value: unknown): QuoteSnapshot | undefined {
   if (!isRecord(value) || typeof value.text !== "string") return undefined;
+  const annotationType = parseOptionalEnum(
+    value,
+    "annotationType",
+    ANNOTATION_TYPES,
+  );
+  const tags = parseOptionalStringArray(value, "tags");
   const comment = parseOptionalString(value, "comment");
   const citation = parseOptionalString(value, "citation");
   const pageLabel = parseOptionalString(value, "pageLabel");
   const color = parseOptionalString(value, "color");
   if (
+    annotationType === INVALID ||
+    tags === INVALID ||
+    tags?.some((tag) => !isNonEmptyString(tag) || !tag.trim()) ||
     comment === INVALID ||
     citation === INVALID ||
     pageLabel === INVALID ||
@@ -758,6 +782,8 @@ export function parseQuoteSnapshot(value: unknown): QuoteSnapshot | undefined {
   }
   return {
     text: value.text,
+    ...(annotationType !== undefined ? { annotationType } : {}),
+    ...(tags !== undefined ? { tags } : {}),
     ...(comment !== undefined ? { comment } : {}),
     ...(citation !== undefined ? { citation } : {}),
     ...(pageLabel !== undefined ? { pageLabel } : {}),

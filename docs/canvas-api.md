@@ -13,8 +13,8 @@ Methods are asynchronous and return JSON-friendly values. Canvas inputs accept a
 | `update(itemID, canvas, { expectedRevision })`              | Replace a closed canvas, with file history and content conflict checking; mark imported attachment for sync. Returns metadata.                                                          |
 | `open(itemID)`                                              | `{ opened: boolean }`.                                                                                                                                                                  |
 | `getSelection()`                                            | Selected Zotero item IDs, keys, library IDs, types and titles.                                                                                                                          |
-| `fromItems(itemIDs)`                                        | A standalone canvas containing source cards for actual items, notes, supported PDF annotations or attachments. Does not save. Deduplicates IDs; accepts at most 500 IDs.                |
-| `listAnnotations(itemID)`                                   | `{ candidates, failures }` for a literature item; candidates contain source identities and snapshots. Inspect failures for incomplete results.                                          |
+| `fromItems(itemIDs)`                                        | A standalone canvas containing source cards for actual items, notes, supported attachment annotations or attachments. Does not save. Deduplicates IDs; accepts at most 500 IDs.         |
+| `listAnnotations(itemID)`                                   | `{ candidates, failures }` for a literature item or supported file attachment; candidates contain source identities and snapshots. Inspect failures for incomplete results.             |
 | `resolveItem({ library, key })`                             | Resolve a persistent source identity to `{ itemID, libraryID, key }`. `library` is `{ type: "user" }` or `{ type: "group", groupID }`.                                                  |
 
 ## Create a canvas from the current selection
@@ -50,10 +50,11 @@ Use `revision` unchanged; it is an exact saved-content token, not an mtime. Clos
 
 `update` replaces the entire document, so preserve IDs, unmodified nodes, edges, array order and unknown extension fields. Remove affected edges when deleting nodes. A normalized node's standard fallback text and `bamboo.node` can both contain content: editing fallback `text` alone does not modify its authoritative plugin payload. Preserve source cards, or use a standard-only document for newly authored content. Live editor mutations and high-level node-content patching are not exposed in this version.
 
-## Import selected PDF annotations
+## Import attachment annotations
 
 ```js
-const result = await api.listAnnotations(paperItemID);
+// A regular item aggregates its child attachments; an attachment ID lists only that file.
+const result = await api.listAnnotations(paperOrAttachmentItemID);
 const ids = [];
 for (const candidate of result.candidates) {
   const source = candidate.acquisition.source;
@@ -67,7 +68,26 @@ const canvas = await api.fromItems(ids);
 // Inspect result.failures before treating this as a complete import.
 ```
 
-Supported quotations are nonempty highlight/underline annotations. Notes are imported as content snapshots with source references; this does not enable write-back. Attachments keep Zotero references, not embedded copies of their bytes. Source identities always come from actual Zotero objects.
+Annotation sources can be PDF, EPUB or HTML snapshot file attachments, including
+standalone attachments without a parent regular item. URL-only attachments do
+not support annotation listing. Supported types are `highlight`, `underline`,
+`note`, `text`, `image` and `ink`.
+
+Each candidate's `acquisition.source` contains `library`, `attachmentKey` and
+`annotationKey`, plus `itemKey` when the attachment has a regular-item parent.
+Its snapshot contains `text` (which may be empty), `annotationType`, and any
+available `comment`, `pageLabel`, `color` and `tags`. Note and text-box annotation
+content is stored in `comment`. Image and ink annotations preserve metadata and
+source navigation; cached image previews are not copied. Source identities come
+from actual Zotero objects and are verified within their library.
+
+`fromItems` creates source cards without edges. In the editor's annotation picker,
+new Quote cards and their connections to the selected source card are added as a
+single undoable operation. These picker semantics do not apply to the API call.
+
+Zotero Notes are imported as content snapshots with source references; this does
+not enable write-back. Attachments keep Zotero references, not embedded copies of
+their bytes.
 
 ## Errors
 

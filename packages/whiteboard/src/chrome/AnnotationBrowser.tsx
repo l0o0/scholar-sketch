@@ -2,18 +2,23 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type MouseEvent,
   type RefObject,
 } from "react";
 import type { CanvasDocument } from "../model/document";
 import {
   quoteAttachmentIdentity,
-  quoteSourceIdentity,
+  ANNOTATION_TYPES,
+  nativeAnnotationIdentity,
+  type AnnotationType,
 } from "../model/academic";
 import type {
   AnnotationCandidate,
   AnnotationListFailure,
 } from "../model/protocol";
+import { IconAnnotations } from "../whiteboard/icons";
+import { AnnotationTypeIcon } from "./AnnotationTypeIcon";
 
 export interface AnnotationBrowserLabels {
   title: string;
@@ -27,6 +32,12 @@ export interface AnnotationBrowserLabels {
   addSelected: string;
   page: string;
   close: string;
+  typeLabels?: Record<AnnotationType, string>;
+  typeFilter?: string;
+  tagFilter?: string;
+  allTypes?: string;
+  allTags?: string;
+  noText?: string;
 }
 
 export type AnnotationBrowserState =
@@ -47,13 +58,20 @@ export interface AnnotationCandidateGroup {
 export function filterAnnotationCandidates(
   candidates: AnnotationCandidate[],
   query: string,
+  type: AnnotationType | "" = "",
+  tag = "",
 ): AnnotationCandidate[] {
   const needle = query.trim().toLocaleLowerCase();
-  if (!needle) return candidates;
   return candidates.filter(({ acquisition }) => {
-    const { text, comment, pageLabel } = acquisition.snapshot;
-    return [text, comment, pageLabel].some((value) =>
-      value?.toLocaleLowerCase().includes(needle),
+    const { text, comment, pageLabel, annotationType, tags } =
+      acquisition.snapshot;
+    if (type && annotationType !== type) return false;
+    if (tag && !tags?.includes(tag)) return false;
+    return (
+      !needle ||
+      [text, comment, pageLabel, ...(tags ?? [])].some((value) =>
+        value?.toLocaleLowerCase().includes(needle),
+      )
     );
   });
 }
@@ -85,7 +103,7 @@ export function groupAnnotationCandidates(
 export function existingAnnotationKeys(document: CanvasDocument): Set<string> {
   return new Set(
     document.nodes.flatMap((node) =>
-      node.kind === "quote" ? [quoteSourceIdentity(node.source)] : [],
+      node.kind === "quote" ? [nativeAnnotationIdentity(node.source)] : [],
     ),
   );
 }
@@ -114,6 +132,8 @@ export function AnnotationBrowser(props: {
   onFocusExisting: (annotationKey: string) => void;
   onAddSelected: () => void;
 }) {
+  const [typeFilter, setTypeFilter] = useState<AnnotationType | "">("");
+  const [tagFilter, setTagFilter] = useState("");
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -153,7 +173,7 @@ export function AnnotationBrowser(props: {
       if (event.key !== "Tab") return;
       const focusable = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
         ),
       );
       if (!focusable.length) {
@@ -197,13 +217,28 @@ export function AnnotationBrowser(props: {
   };
   const candidates =
     props.state.status === "ready"
-      ? filterAnnotationCandidates(props.state.candidates, props.query)
+      ? filterAnnotationCandidates(
+          props.state.candidates,
+          props.query,
+          typeFilter,
+          tagFilter,
+        )
       : [];
   const groups = groupAnnotationCandidates(candidates);
+  const availableCandidates =
+    props.state.status === "ready" ? props.state.candidates : [];
+  const typeOptions: Array<AnnotationType | ""> = ["", ...ANNOTATION_TYPES];
+  const availableTags = [
+    ...new Set(
+      availableCandidates.flatMap(
+        ({ acquisition }) => acquisition.snapshot.tags ?? [],
+      ),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
   const hasEligibleSelection =
     props.state.status === "ready" &&
     props.state.candidates.some(({ acquisition }) => {
-      const identity = quoteSourceIdentity(acquisition.source);
+      const identity = nativeAnnotationIdentity(acquisition.source);
       return (
         props.selectedKeys.has(identity) && !props.existingKeys.has(identity)
       );
@@ -224,7 +259,21 @@ export function AnnotationBrowser(props: {
         tabIndex={-1}
       >
         <header>
-          <h2 id="zmd-board-annotation-title">{props.labels.title}</h2>
+          <h2
+            id="zmd-board-annotation-title"
+            className="zmd-board-annotation-title"
+          >
+            {props.labels.title}
+          </h2>
+          <input
+            ref={searchRef}
+            className="zmd-board-annotation-search"
+            type="search"
+            aria-label={props.labels.search}
+            placeholder={props.labels.search}
+            value={props.query}
+            onChange={(event) => props.onQueryChange(event.currentTarget.value)}
+          />
           <button
             type="button"
             className="zmd-board-annotation-close"
@@ -235,17 +284,93 @@ export function AnnotationBrowser(props: {
           </button>
         </header>
 
-        <input
-          ref={searchRef}
-          className="zmd-board-annotation-search"
-          type="search"
-          aria-label={props.labels.search}
-          placeholder={props.labels.search}
-          value={props.query}
-          onChange={(event) => props.onQueryChange(event.currentTarget.value)}
-        />
+        <div
+          className="zmd-board-annotation-type-filters"
+          role="group"
+          aria-label={props.labels.typeFilter ?? "Annotation type"}
+        >
+          {typeOptions.map((type, index) => {
+            const label = type
+              ? (props.labels.typeLabels?.[type] ?? type)
+              : (props.labels.allTypes ?? "All");
+            return (
+              <button
+                key={type}
+                type="button"
+                data-annotation-type={type}
+                aria-label={label}
+                aria-pressed={typeFilter === type}
+                title={label}
+                disabled={props.state.status !== "ready"}
+                onClick={() => setTypeFilter(type)}
+                onKeyDown={(event) => {
+                  if (
+                    event.nativeEvent.isComposing ||
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.altKey ||
+                    event.shiftKey
+                  )
+                    return;
+                  let next: number;
+                  if (event.key === "ArrowRight")
+                    next = (index + 1) % typeOptions.length;
+                  else if (event.key === "ArrowLeft")
+                    next =
+                      (index - 1 + typeOptions.length) % typeOptions.length;
+                  else if (event.key === "Home") next = 0;
+                  else if (event.key === "End") next = typeOptions.length - 1;
+                  else return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setTypeFilter(typeOptions[next]);
+                  event.currentTarget.parentElement
+                    ?.querySelectorAll<HTMLButtonElement>("button")
+                    .item(next)
+                    ?.focus();
+                }}
+              >
+                {type ? (
+                  <span
+                    className="zmd-board-annotation-type-icon"
+                    data-annotation-icon={type}
+                    aria-hidden="true"
+                  >
+                    <AnnotationTypeIcon type={type} />
+                  </span>
+                ) : (
+                  <span>{label}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        <div className="zmd-board-annotation-results" aria-live="polite">
+        {availableTags.length ? (
+          <div className="zmd-board-annotation-tools">
+            <label className="zmd-board-annotation-tag-filter">
+              <span>{props.labels.tagFilter ?? "Tag"}</span>
+              <select
+                aria-label={props.labels.tagFilter ?? "Tag"}
+                value={tagFilter}
+                disabled={props.state.status !== "ready"}
+                onChange={(event) => setTagFilter(event.currentTarget.value)}
+              >
+                <option value="">{props.labels.allTags ?? "All tags"}</option>
+                {availableTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+
+        <div
+          className={`zmd-board-annotation-results${groups.length ? "" : " is-empty"}`}
+          aria-live="polite"
+        >
           {props.state.status === "loading" ? (
             <p className="zmd-board-annotation-state">{props.labels.loading}</p>
           ) : props.state.status === "unavailable" ? (
@@ -261,7 +386,8 @@ export function AnnotationBrowser(props: {
               ) : null}
               {!groups.length ? (
                 <p className="zmd-board-annotation-state">
-                  {props.labels.empty}
+                  <IconAnnotations />
+                  <span>{props.labels.empty}</span>
                 </p>
               ) : (
                 groups.map((group) => (
@@ -274,10 +400,17 @@ export function AnnotationBrowser(props: {
                     <ul>
                       {group.candidates.map((candidate) => {
                         const { source, snapshot } = candidate.acquisition;
-                        const identity = quoteSourceIdentity(source);
+                        const identity = nativeAnnotationIdentity(source);
                         const existing = props.existingKeys.has(identity);
                         return (
-                          <li key={identity}>
+                          <li
+                            key={identity}
+                            className={
+                              props.selectedKeys.has(identity)
+                                ? "is-selected"
+                                : undefined
+                            }
+                          >
                             <label>
                               <input
                                 type="checkbox"
@@ -297,23 +430,42 @@ export function AnnotationBrowser(props: {
                               />
                               <span className="zmd-board-annotation-content">
                                 <span className="zmd-board-annotation-text">
-                                  {snapshot.text}
+                                  {snapshot.text ||
+                                    snapshot.comment ||
+                                    props.labels.noText ||
+                                    "Open the source to view this annotation"}
                                 </span>
-                                {snapshot.comment ? (
+                                {snapshot.text && snapshot.comment ? (
                                   <span className="zmd-board-annotation-comment">
                                     {snapshot.comment}
                                   </span>
                                 ) : null}
-                                {snapshot.pageLabel ? (
-                                  <span className="zmd-board-annotation-page">
-                                    {props.labels.page} {snapshot.pageLabel}
-                                  </span>
-                                ) : null}
-                                {existing ? (
-                                  <span className="zmd-board-annotation-existing">
-                                    {props.labels.alreadyAdded}
-                                  </span>
-                                ) : null}
+                                <span className="zmd-board-annotation-metadata">
+                                  {snapshot.annotationType ? (
+                                    <span className="zmd-board-annotation-type">
+                                      {props.labels.typeLabels?.[
+                                        snapshot.annotationType
+                                      ] ?? snapshot.annotationType}
+                                    </span>
+                                  ) : null}
+                                  {snapshot.pageLabel ? (
+                                    <span className="zmd-board-annotation-page">
+                                      {props.labels.page} {snapshot.pageLabel}
+                                    </span>
+                                  ) : null}
+                                  {snapshot.tags?.length ? (
+                                    <span className="zmd-board-annotation-tags">
+                                      {snapshot.tags.map((tag) => (
+                                        <span key={tag}>#{tag}</span>
+                                      ))}
+                                    </span>
+                                  ) : null}
+                                  {existing ? (
+                                    <span className="zmd-board-annotation-existing">
+                                      {props.labels.alreadyAdded}
+                                    </span>
+                                  ) : null}
+                                </span>
                               </span>
                             </label>
                             {existing ? (

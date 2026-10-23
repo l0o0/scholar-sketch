@@ -1,7 +1,7 @@
 export const USER_GUIDE_URL =
   "https://zotero-chinese.com/user-guide/plugins/scholar-sketch";
 export const USER_GUIDE_FALLBACK_URL =
-  "https://github.com/l0o0/wiki/blob/123b2d11ddaf509cfa2061f2a27f03552c624b6e/user-guide/plugins/scholar-sketch.md";
+  "https://github.com/l0o0/wiki/blob/6bdd307847e2acf20167bfe624b77ac6ba4b883d/user-guide/plugins/scholar-sketch.md";
 
 let guideAvailable = false;
 let openingGuide: Promise<void> | undefined;

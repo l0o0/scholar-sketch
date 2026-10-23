@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import type {
   TutorialCanvasLabels,
@@ -116,7 +115,7 @@ test("an existing completion marker skips tutorial work", async () => {
   assert.equal(createCalls, 0);
 });
 
-test("manual example creation repeats without reading or changing onboarding completion", async () => {
+test("manual example requests reconcile and open without changing onboarding completion", async () => {
   const events: string[] = [];
   const deps = dependencies({
     completed: () => {
@@ -440,13 +439,26 @@ test("an in-flight call is returned before completion is read again", async () =
   await first;
 });
 
-test("production creation pins the tutorial to the user-library root", () => {
-  const source = readFileSync(
-    new URL("../src/modules/whiteboard/tutorial.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(
-    source,
-    /createWhiteboardAttachment\(null,\s*\{\s*document,\s*libraryID: Zotero\.Libraries\.userLibraryID,\s*collections: \[\],\s*filename,\s*select: false,\s*reportError: false,?\s*\}\)/,
-  );
+test("manual and startup requests share one in-flight reconciliation", async () => {
+  let release: () => void = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  const deps = dependencies({
+    create: async () => {
+      calls++;
+      await pending;
+      return attachment;
+    },
+  });
+  const startup = ensureTutorialWhiteboard(deps);
+  const manual = createExampleWhiteboard(deps);
+  const secondManual = createExampleWhiteboard(deps);
+  assert.equal(startup, manual);
+  assert.equal(manual, secondManual);
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  release();
+  await startup;
 });

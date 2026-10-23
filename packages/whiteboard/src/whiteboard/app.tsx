@@ -66,10 +66,10 @@ import "./board.css";
 import {
   createAcademicNode,
   effectiveCanvasNodeUiTextStyle,
-  quoteSourceIdentity,
+  nativeAnnotationIdentity,
   type CanvasNode,
   type CanvasNodeKind,
-  type LiteratureSource,
+  type AnnotationListSource,
   type NoteSource,
 } from "../model/academic";
 import { createBasicNode } from "../model/basic";
@@ -123,6 +123,7 @@ import { canvasNodeTypes, type CanvasFlowNode } from "../nodes";
 import { nodeSurfaceInk } from "../nodes/CardShell";
 import { PropertiesPanel } from "../chrome/PropertiesPanel";
 import { GroupPicker } from "../chrome/GroupPicker";
+import { Notice, type NoticeTone } from "../chrome/Notice";
 import { joinFrame } from "./groupMembership";
 import { createConnectedNote, createNoteFromQuote } from "./continuation";
 import {
@@ -208,6 +209,7 @@ import {
   IconEdit,
   IconExport,
   IconFormatPaint,
+  IconGroup,
   IconOpen,
   IconTrash,
 } from "./icons";
@@ -234,6 +236,7 @@ import {
 } from "./runtime";
 import {
   createQuoteBatchRuntime,
+  annotationListSourceForNode,
   createSourceActionCorrelation,
   createSourceRefreshRuntime,
   createSourceResolutionStates,
@@ -371,13 +374,26 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   annotationBrowserTitle: "Annotations",
   searchAnnotations: "Search annotations",
   annotationsLoading: "Loading annotations…",
-  annotationsEmpty: "No supported annotations",
+  annotationsEmpty: "No matching annotations",
   annotationsUnavailable: "Annotations unavailable",
   annotationsPartialFailure: "Some annotations could not be loaded",
   annotationAlreadyAdded: "Already added",
   focusExistingAnnotation: "Focus existing",
   addSelectedAnnotations: "Add selected",
   annotationPage: "Page",
+  annotationTypeLabels: {
+    highlight: "Highlight",
+    underline: "Underline",
+    note: "Note",
+    text: "Text",
+    image: "Image",
+    ink: "Ink",
+  },
+  annotationTypeFilter: "Annotation type",
+  annotationTagFilter: "Annotation tag",
+  annotationAllTypes: "All",
+  annotationAllTags: "All tags",
+  annotationNoText: "Open source to view this annotation",
   noteOverwriteTitle: "Replace local Note?",
   noteOverwriteBody:
     "Zotero's current Note will replace local content. Local changes will be lost.",
@@ -566,7 +582,7 @@ export interface WhiteboardAppProps {
   ) => void;
   onListLiteratureAnnotations?: (
     requestId: string,
-    source: LiteratureSource,
+    source: AnnotationListSource,
   ) => void;
   onExportFile: (payload: {
     requestId: string;
@@ -629,13 +645,13 @@ export interface WhiteboardRuntime {
   ) => void;
   applyAnnotationCandidates: (
     requestId: string,
-    source: LiteratureSource,
+    source: AnnotationListSource,
     candidates: AnnotationCandidate[],
     failures: AnnotationListFailure[],
   ) => void;
   rejectAnnotationList: (
     requestId: string,
-    source: LiteratureSource,
+    source: AnnotationListSource,
     failure: AnnotationListFailure,
   ) => void;
   setSaveState: (state: "saved" | "saving" | "error") => void;
@@ -675,6 +691,8 @@ export function canvasNoticeText(
       return labels.dropUnsupported;
     case "acquisition-failed":
       return labels.acquisitionFailed;
+    case "group-required":
+      return labels.noGroups ?? "Create a group first";
     case "source-open-failed":
       return withFailures(labels.sourceOpenFailed, [notice.failureCode]);
     case "source-refresh-failed":
@@ -721,6 +739,24 @@ export function canvasFailureText(
 
 const NOTICE_AUTO_DISMISS_MS = 8000;
 
+function canvasNoticeTone(notice: CanvasNotice): NoticeTone {
+  switch (notice.code) {
+    case "group-required":
+      return "info";
+    case "acquisition-summary":
+      if (notice.context.failureCount > 0) {
+        return notice.context.successCount > 0 ? "warning" : "error";
+      }
+      return notice.context.successCount > 0 ? "success" : "info";
+    case "annotations-partial-failure":
+    case "drop-malformed":
+    case "drop-unsupported":
+      return "warning";
+    default:
+      return "error";
+  }
+}
+
 export function CanvasNoticeRegion(props: {
   labels: WhiteboardLabels;
   notice: CanvasNotice | null;
@@ -738,26 +774,13 @@ export function CanvasNoticeRegion(props: {
   }, [notice, onDismiss, props.autoDismissMs]);
   if (!notice) return null;
   return (
-    <div
-      className="zmd-board-notice"
-      data-tone={notice.code === "acquisition-summary" ? "info" : "error"}
+    <Notice
+      tone={canvasNoticeTone(notice)}
+      icon={notice.code === "group-required" ? <IconGroup /> : undefined}
+      dismiss={{ label: labels.close, onClick: onDismiss }}
     >
-      <span role="status" aria-live="polite" aria-atomic="true">
-        {canvasNoticeText(labels, notice)}
-      </span>
-      <button
-        type="button"
-        aria-label={labels.close}
-        onClick={onDismiss}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          onDismiss();
-        }}
-      >
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
+      {canvasNoticeText(labels, notice)}
+    </Notice>
   );
 }
 
@@ -1552,19 +1575,20 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   const openAnnotationBrowser = useCallback((node: CanvasFlowNode) => {
     const model = node.data.model;
-    if (model.kind !== "literature" || annotationBrowserRef.current) return;
+    const source = annotationListSourceForNode(model);
+    if (!source || annotationBrowserRef.current) return;
     const requestId = newId("annotations");
-    const session = openAnnotationBrowserSession(requestId, model.source);
+    const session = openAnnotationBrowserSession(requestId, source);
     annotationBrowserOriginNodeIdRef.current = node.id;
     annotationBrowserRef.current = session;
     setAnnotationBrowser(session);
-    propsRef.current.onListLiteratureAnnotations?.(requestId, model.source);
+    propsRef.current.onListLiteratureAnnotations?.(requestId, source);
   }, []);
 
   const applyAnnotationCandidates = useCallback(
     (
       requestId: string,
-      source: LiteratureSource,
+      source: AnnotationListSource,
       candidates: AnnotationCandidate[],
       failures: AnnotationListFailure[],
     ) => {
@@ -1575,7 +1599,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       });
       if (next === current) return;
       const originNodeId = annotationBrowserOriginNodeIdRef.current;
-      if (originNodeId) {
+      if (originNodeId && "itemKey" in source) {
         applyLiteratureAnnotationCount(originNodeId, source, candidates.length);
       }
       annotationBrowserRef.current = next;
@@ -1600,7 +1624,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const rejectAnnotationList = useCallback(
     (
       requestId: string,
-      source: LiteratureSource,
+      source: AnnotationListSource,
       failure: AnnotationListFailure,
     ) => {
       const current = annotationBrowserRef.current;
@@ -1632,8 +1656,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   const addSelectedAnnotations = useCallback(() => {
     const session = annotationBrowserRef.current;
-    const literatureNodeId = annotationBrowserOriginNodeIdRef.current;
-    if (!session || !literatureNodeId || session.state.status !== "ready") {
+    const originNodeId = annotationBrowserOriginNodeIdRef.current;
+    if (!session || !originNodeId || session.state.status !== "ready") {
       closeAnnotationBrowser();
       return;
     }
@@ -1643,12 +1667,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       applyDocument,
       commitHistory: (document) => documentHistory.commit(document),
       createNodeId: () => newId("quote"),
-    }).add(literatureNodeId, session.state.candidates, session.selectedKeys);
+      createConnectionId: () => newId("edge"),
+    }).add(originNodeId, session.state.candidates, session.selectedKeys);
     if (addedNodeIds.length) {
       setNodes((current) =>
         current.map((node) => ({
           ...node,
-          selected: node.id === literatureNodeId,
+          selected: node.id === originNodeId,
         })),
       );
       sourceStatesRef.current = updateSourceResolutionStates(
@@ -1673,7 +1698,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       const existing = nodesRef.current.find(
         (node) =>
           node.data.model.kind === "quote" &&
-          quoteSourceIdentity(node.data.model.source) === annotationIdentity,
+          nativeAnnotationIdentity(node.data.model.source) ===
+            annotationIdentity,
       );
       if (!existing) return;
       closeAnnotationBrowser();
@@ -3582,9 +3608,25 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       setMenu(null);
       setDetailsTarget(null);
       setGroupFeedback(null);
+      if (
+        !nodesRef.current.some(
+          (node) => node.data.model.kind === "frame" && !node.hidden,
+        )
+      ) {
+        showCanvasNotice({ code: "group-required" });
+        canvasHostRef.current?.focus();
+        return;
+      }
+      clearMatchingNotice((notice) => notice.code === "group-required");
       setGroupPicker({ ids: eligible });
     },
-    [academicAcquisition, canContinue, nodesRef],
+    [
+      academicAcquisition,
+      canContinue,
+      clearMatchingNotice,
+      nodesRef,
+      showCanvasNotice,
+    ],
   );
   const closeGroupPicker = useCallback(() => {
     setGroupPicker(null);
@@ -4631,45 +4673,46 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             </button>
           </div>
         ) : null}
-        {exportStatus ? (
-          <div
-            className="zmd-board-notice"
-            role={exportStatus === "error" ? "alert" : "status"}
-            data-tone={exportStatus === "error" ? "error" : "info"}
-          >
-            <span>
+        <div className="zmd-board-notice-stack">
+          {exportStatus ? (
+            <Notice
+              tone={exportStatus === "error" ? "error" : "progress"}
+              role={exportStatus === "error" ? "alert" : "status"}
+              dismiss={
+                exportStatus === "error"
+                  ? {
+                      label: labels.close,
+                      onClick: () => setExportStatus(null),
+                    }
+                  : undefined
+              }
+            >
               {exportStatus === "busy"
                 ? labels.exporting
                 : labels.exportRenderFailed}
-            </span>
-            {exportStatus === "error" ? (
-              <button
-                type="button"
-                aria-label={labels.close}
-                onClick={() => setExportStatus(null)}
-              >
-                ×
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        <CanvasNoticeRegion
-          labels={labels}
-          notice={canvasNotice}
-          onDismiss={clearCanvasNotice}
-        />
-        {fileNotice ? (
-          <div className="zmd-board-notice" data-tone="error">
-            <span role="alert">{fileNotice}</span>
-            <button
-              type="button"
-              aria-label={labels.close}
-              onClick={() => setFileNotice(null)}
+            </Notice>
+          ) : null}
+          <CanvasNoticeRegion
+            labels={labels}
+            notice={canvasNotice}
+            onDismiss={clearCanvasNotice}
+          />
+          {fileNotice ? (
+            <Notice
+              tone="error"
+              role="alert"
+              dismiss={{
+                label: labels.close,
+                onClick: () => setFileNotice(null),
+              }}
             >
-              <span aria-hidden="true">×</span>
-            </button>
-          </div>
-        ) : null}
+              {fileNotice}
+            </Notice>
+          ) : null}
+          {groupFeedback ? (
+            <Notice tone="success">{groupFeedback}</Notice>
+          ) : null}
+        </div>
         {imageViewer ? (
           <div
             className="zmd-board-image-viewer-backdrop"
@@ -4717,8 +4760,6 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           }}
           onOpen={openNode}
           onRefreshSource={refreshNodeSource}
-          onViewAnnotations={openAnnotationBrowser}
-          viewAnnotationsRef={viewAnnotationsRef}
           onCopy={copyNode}
           onDelete={deleteNode}
           onRemoveFromGroup={removeFromGroup}
@@ -4760,6 +4801,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               focusExisting: labels.focusExistingAnnotation,
               addSelected: labels.addSelectedAnnotations,
               page: labels.annotationPage,
+              typeLabels: labels.annotationTypeLabels,
+              typeFilter: labels.annotationTypeFilter,
+              tagFilter: labels.annotationTagFilter,
+              allTypes: labels.annotationAllTypes,
+              allTags: labels.annotationAllTags,
+              noText: labels.annotationNoText,
               close: labels.close,
             }}
             state={annotationBrowser.state}
@@ -5523,41 +5570,32 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             onClose={closeGroupPicker}
           />
         ) : null}
-        {groupFeedback ? (
-          <div className="zmd-board-notice" role="status">
-            {groupFeedback}
-          </div>
-        ) : null}
         {formatPainter || styleFeedback ? (
-          <div
-            className="zmd-board-notice zmd-board-format-status"
-            role="status"
+          <Notice
+            className="zmd-board-format-status"
+            tone={formatPainter ? "info" : "success"}
+            icon={formatPainter ? <IconFormatPaint /> : undefined}
+            dismiss={
+              formatPainter
+                ? {
+                    label:
+                      labels.cancelFormatPainter ?? "Cancel format painter",
+                    onClick: () => {
+                      cancelFormatPainter();
+                      canvasHostRef.current?.focus();
+                    },
+                  }
+                : undefined
+            }
           >
-            <IconFormatPaint />
-            <span>
-              {formatPainter
-                ? formatPainter.continuous
-                  ? (labels.formatPainterContinuousHint ??
-                    "Continuous format painter · Click targets to apply · Esc to exit")
-                  : (labels.formatPainterHint ??
-                    "Click a target to apply style · Esc to exit")
-                : styleFeedback}
-            </span>
-            {formatPainter ? (
-              <button
-                type="button"
-                aria-label={
-                  labels.cancelFormatPainter ?? "Cancel format painter"
-                }
-                onClick={() => {
-                  cancelFormatPainter();
-                  canvasHostRef.current?.focus();
-                }}
-              >
-                ×
-              </button>
-            ) : null}
-          </div>
+            {formatPainter
+              ? formatPainter.continuous
+                ? (labels.formatPainterContinuousHint ??
+                  "Continuous format painter · Click targets to apply · Esc to exit")
+                : (labels.formatPainterHint ??
+                  "Click a target to apply style · Esc to exit")
+              : styleFeedback}
+          </Notice>
         ) : null}
         {editing && editingNode && editingScreen ? (
           <TextStyleBar
@@ -5710,6 +5748,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               height: nodeSize(toolbarNode).height * zoom,
             }}
             onEdit={() => startEdit(toolbarNode.id)}
+            onViewAnnotations={() => openAnnotationBrowser(toolbarNode)}
+            annotationsOpen={
+              !!annotationBrowser &&
+              annotationBrowserOriginNodeIdRef.current === toolbarNode.id
+            }
+            viewAnnotationsRef={viewAnnotationsRef}
             onStartFormatPaint={
               editable && supportsNodeStyleTransfer(toolbarNode.data.model)
                 ? (continuous) => startFormatPainter(toolbarNode.id, continuous)

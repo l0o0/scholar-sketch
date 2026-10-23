@@ -150,4 +150,28 @@ test("the real editor keeps host tab keys free and applies its documented format
       assert.equal(view.state.doc.toString(), "A note");
     },
   );
+
+  await t.test(
+    "the advertised platform redo shortcut restores an undone edit",
+    () => {
+      const view = init("A note");
+      view.dispatch({ selection: { anchor: 0, head: 6 } });
+      keydown(view, "b");
+      assert.equal(view.state.doc.toString(), "**A note**");
+      assert.equal(keydown(view, "z").defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "A note");
+      const redo = new browser.KeyboardEvent("keydown", {
+        key: macKeymap ? "z" : "y",
+        code: macKeymap ? "KeyZ" : "KeyY",
+        metaKey: macKeymap,
+        ctrlKey: !macKeymap,
+        shiftKey: macKeymap,
+        bubbles: true,
+        cancelable: true,
+      });
+      view.contentDOM.dispatchEvent(redo);
+      assert.equal(redo.defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "**A note**");
+    },
+  );
 });

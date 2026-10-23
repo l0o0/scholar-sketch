@@ -127,6 +127,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     const openedFiles: unknown[] = [];
     const openedSources: unknown[] = [];
     const pickedSources: [string, string][] = [];
+    const revisions: number[] = [];
     await act(async () =>
       root.render(
         createElement(app.WhiteboardApp, {
@@ -158,7 +159,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
               });
             }
           },
-          onChange: noop,
+          onChange: (revision) => revisions.push(revision),
           onSave: noop,
           onPickAcademicSource: (requestId, nodeId) =>
             pickedSources.push([requestId, nodeId]),
@@ -1645,6 +1646,69 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       connections: [],
       viewport: { x: 0, y: 0, zoom: 1 },
     };
+    const ungroupedDocument = {
+      ...groupDocument,
+      nodes: groupDocument.nodes.filter((node) => node.kind !== "frame"),
+    };
+    await act(async () => runtime!.loadSnapshot(ungroupedDocument));
+    const revisionsBeforeEmptyJoin = [...revisions];
+    for (const entry of ["details", "context"] as const) {
+      await dispatch(container.querySelector('[data-id="member-a"]')!, "click");
+      if (entry === "details") {
+        await dispatch(
+          container.querySelector(".zmd-board-selection-details")!,
+          "click",
+        );
+      } else {
+        await dispatch(
+          container.querySelector('[data-id="member-a"]')!,
+          "contextmenu",
+        );
+      }
+      const actions = container.querySelectorAll(
+        entry === "details"
+          ? ".zmd-board-properties-actions button"
+          : ".zmd-board-context-menu button",
+      );
+      await dispatch(
+        Array.from(actions).find(
+          (button) => button.textContent === "Join group",
+        )!,
+        "click",
+      );
+      assert.equal(
+        Boolean(
+          container.querySelector('[role="dialog"][aria-label="Join group"]'),
+        ),
+        false,
+        "an empty group list must not open a blocking picker",
+      );
+      assert.equal(container.querySelector(".zmd-board-properties"), null);
+      assert.equal(container.querySelector(".zmd-board-context-menu"), null);
+      const notice = container.querySelector(
+        '.zmd-board-notice[data-tone="info"]',
+      );
+      assert.equal(
+        notice?.querySelector('[role="status"]')?.textContent,
+        "Create a group first",
+      );
+      assert.equal(window.document.activeElement, boardHost);
+      await dispatch(container.querySelector('[data-id="member-b"]')!, "click");
+      assert.ok(
+        container.querySelector('[data-id="member-b"].selected'),
+        "the notice must leave canvas selection usable",
+      );
+      assert.deepEqual(runtime!.getSnapshot(), ungroupedDocument);
+      assert.deepEqual(revisions, revisionsBeforeEmptyJoin);
+      await dispatch(
+        notice!.querySelector('button[aria-label="Close"]')!,
+        "click",
+      );
+      assert.equal(
+        container.querySelector('.zmd-board-notice[data-tone="info"]'),
+        null,
+      );
+    }
     await act(async () => runtime!.loadSnapshot(groupDocument));
     await dispatch(container.querySelector('[data-id="member-a"]')!, "click");
     await act(async () =>

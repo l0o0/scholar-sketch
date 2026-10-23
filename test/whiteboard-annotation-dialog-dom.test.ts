@@ -7,7 +7,7 @@ import {
   AnnotationBrowser,
   type AnnotationBrowserLabels,
 } from "../packages/whiteboard/src/chrome/AnnotationBrowser.tsx";
-import { quoteSourceIdentity } from "../packages/whiteboard/src/model/academic.ts";
+import { nativeAnnotationIdentity } from "../packages/whiteboard/src/model/academic.ts";
 import type { AnnotationCandidate } from "../packages/whiteboard/src/model/protocol.ts";
 import { handleGlobalCanvasKeyDown } from "../packages/whiteboard/src/whiteboard/keyboard.ts";
 
@@ -94,7 +94,7 @@ test("mounted dialog traps focus, inerts siblings, and restores trigger focus on
             labels,
             state: { status: "ready", candidates: [candidate], failures: [] },
             query: "",
-            selectedKeys: new Set([quoteSourceIdentity(source)]),
+            selectedKeys: new Set([nativeAnnotationIdentity(source)]),
             existingKeys: new Set(),
             returnFocusRef: triggerRef,
             onQueryChange: () => undefined,
@@ -155,11 +155,20 @@ test("Focus existing unmounts without restoring the trigger and transfers focus"
   const window = installDom(t);
   const container = window.document.createElement("div");
   window.document.body.append(container);
+  const focusedKeys: string[] = [];
+  const reparentedCandidate: AnnotationCandidate = {
+    ...candidate,
+    acquisition: {
+      ...candidate.acquisition,
+      source: { ...source, itemKey: "NEW-PARENT" },
+    },
+  };
 
   function Harness() {
     const [open, setOpen] = useState(true);
     const triggerRef = useRef<HTMLButtonElement | null>(null);
-    const focusExisting = () => {
+    const focusExisting = (identity: string) => {
+      focusedKeys.push(identity);
       setOpen(false);
       window.requestAnimationFrame(() =>
         window.document.querySelector<HTMLElement>("#existing-node")?.focus(),
@@ -177,10 +186,14 @@ test("Focus existing unmounts without restoring the trigger and transfers focus"
       open
         ? createElement(AnnotationBrowser, {
             labels,
-            state: { status: "ready", candidates: [candidate], failures: [] },
+            state: {
+              status: "ready",
+              candidates: [reparentedCandidate],
+              failures: [],
+            },
             query: "",
             selectedKeys: new Set(),
-            existingKeys: new Set([quoteSourceIdentity(source)]),
+            existingKeys: new Set([nativeAnnotationIdentity(source)]),
             returnFocusRef: triggerRef,
             onQueryChange: () => undefined,
             onToggle: () => undefined,
@@ -202,6 +215,7 @@ test("Focus existing unmounts without restoring the trigger and transfers focus"
   assert.equal(window.document.querySelector('[role="dialog"]'), null);
   assert.equal(window.document.activeElement?.id, "existing-node");
   assert.notEqual(window.document.activeElement?.id, "trigger");
+  assert.deepEqual(focusedKeys, [nativeAnnotationIdentity(source)]);
   await act(async () => root.unmount());
 });
 
@@ -299,7 +313,7 @@ test("checkbox interaction emits the full source identity", async (t) => {
     'input[type="checkbox"]',
   );
   await act(async () => checkbox?.click());
-  assert.deepEqual(toggled, [[quoteSourceIdentity(source), true]]);
+  assert.deepEqual(toggled, [[nativeAnnotationIdentity(source), true]]);
   await act(async () => root.unmount());
 });
 
@@ -451,4 +465,157 @@ test("production canvas keyboard handling leaves modal search input and dismissa
   assert.equal(arrow.defaultPrevented, true);
   assert.equal(nudges, 1);
   await act(async () => root.unmount());
+});
+
+test("type segments filter with arrows without hijacking modal Tab or losing selections", async (t) => {
+  t.after(async () => {
+    await act(async () => root.unmount());
+  });
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  const underline: AnnotationCandidate = {
+    ...candidate,
+    acquisition: {
+      ...candidate.acquisition,
+      snapshot: {
+        text: "Underlined evidence",
+        annotationType: "underline",
+        tags: ["review"],
+      },
+    },
+  };
+  const note: AnnotationCandidate = {
+    ...candidate,
+    sortIndex: "0002",
+    acquisition: {
+      kind: "quote",
+      source: { ...source, annotationKey: "NOTE1234" },
+      snapshot: {
+        text: "",
+        comment: "Review this finding",
+        annotationType: "note",
+      },
+    },
+  };
+  let submitted: string[] = [];
+  function Harness() {
+    const [selected, setSelected] = useState(new Set<string>());
+    return createElement(AnnotationBrowser, {
+      labels,
+      state: { status: "ready", candidates: [note, underline], failures: [] },
+      query: "",
+      selectedKeys: selected,
+      existingKeys: new Set<string>(),
+      returnFocusRef: { current: null },
+      onQueryChange: () => undefined,
+      onToggle: (identity, checked) =>
+        setSelected((previous) => {
+          const next = new Set(previous);
+          if (checked) next.add(identity);
+          else next.delete(identity);
+          return next;
+        }),
+      onClose: () => undefined,
+      onFocusExisting: () => undefined,
+      onAddSelected: () => {
+        submitted = [...selected];
+      },
+    });
+  }
+  await act(async () => root.render(createElement(Harness)));
+  const group = container.querySelector(
+    '[role="group"][aria-label="Annotation type"]',
+  );
+  assert.ok(group);
+  const segments = [...group.querySelectorAll<HTMLButtonElement>("button")];
+  assert.deepEqual(
+    segments.map((button) => button.dataset.annotationType),
+    ["", "highlight", "underline", "note", "text", "image", "ink"],
+  );
+  assert.equal(segments[0].getAttribute("aria-pressed"), "true");
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
+      .item(1)
+      ?.click(),
+  );
+  segments[0].focus();
+  const arrow = new window.KeyboardEvent("keydown", {
+    key: "ArrowRight",
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(async () => segments[0].dispatchEvent(arrow));
+  assert.equal(arrow.defaultPrevented, true);
+  assert.equal(window.document.activeElement, segments[1]);
+  assert.equal(segments[1].getAttribute("aria-pressed"), "true");
+  assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 0);
+  assert.equal(
+    container.querySelector(".zmd-board-annotation-state")?.textContent,
+    labels.empty,
+    "an absent type remains available and shows the empty state",
+  );
+  assert.equal(
+    container.querySelector<HTMLButtonElement>("footer button")?.disabled,
+    false,
+    "empty type filters retain selections from other types",
+  );
+  await act(async () =>
+    segments[1].dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  assert.equal(window.document.activeElement, segments[2]);
+  assert.equal(segments[2].getAttribute("aria-pressed"), "true");
+  assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 1);
+  assert.equal(
+    container.querySelector<HTMLInputElement>('input[type="checkbox"]')
+      ?.checked,
+    true,
+  );
+  const tab = new window.KeyboardEvent("keydown", {
+    key: "Tab",
+    bubbles: true,
+    cancelable: true,
+  });
+  segments[2].dispatchEvent(tab);
+  assert.equal(
+    tab.defaultPrevented,
+    false,
+    "Tab retains normal modal focus traversal",
+  );
+  assert.equal(segments[2].getAttribute("aria-pressed"), "true");
+  await act(async () => segments[3].click());
+  assert.equal(
+    container.querySelector(".zmd-board-annotation-text")?.textContent,
+    "Review this finding",
+  );
+  assert.equal(
+    container.querySelector<HTMLInputElement>('input[type="checkbox"]')
+      ?.checked,
+    false,
+  );
+  const add = container.querySelector<HTMLButtonElement>("footer button");
+  assert.equal(
+    add?.disabled,
+    false,
+    "hidden selected annotations remain eligible",
+  );
+  await act(async () => add?.click());
+  assert.deepEqual(submitted, [nativeAnnotationIdentity(source)]);
+  const home = new window.KeyboardEvent("keydown", {
+    key: "Home",
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(async () => segments[3].dispatchEvent(home));
+  assert.equal(window.document.activeElement, segments[0]);
+  assert.equal(segments[0].getAttribute("aria-pressed"), "true");
+  assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 2);
 });

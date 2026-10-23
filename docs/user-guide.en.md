@@ -48,6 +48,8 @@ Click the same Scholar Sketch button and choose **New Whiteboard…**. Whiteboar
 
 To try the whiteboard controls, choose **Help → Scholar Sketch: Create Example Whiteboard**. Follow the example's prompts to add papers, write cards, and connect them.
 
+Both initialization and this menu action first search your personal library for the example Markdown note and whiteboard. Existing examples are reused, and only missing examples are created. Recognized examples that you have not edited can be updated; your edits are preserved. Older examples are also preserved when the plugin cannot establish whether they have been edited. An attachment that has not yet been downloaded does not cause a duplicate to be created. Existing duplicates are not automatically deleted or merged. Before installing on a new computer, complete Zotero library sync so the plugin can find your existing examples.
+
 ![Research whiteboard connecting papers, annotations, questions, viewpoints, and summaries](screenshots/research-whiteboard.jpg)
 
 ## Quickly link papers and notes in Markdown
@@ -119,18 +121,24 @@ In Live mode, the content being edited reveals the Markdown markup you need. For
 
 Common default shortcuts include:
 
-| Key                                                          | Action                          |
-| ------------------------------------------------------------ | ------------------------------- |
-| `Ctrl/Cmd + S`                                               | Save                            |
-| `Ctrl/Cmd + Z`                                               | Undo                            |
-| `Ctrl/Cmd + Shift + Z`                                       | Redo                            |
-| `Ctrl/Cmd + B`                                               | Bold                            |
-| `Ctrl/Cmd + I`                                               | Italic                          |
-| `Ctrl/Cmd + K`                                               | Insert a standard Markdown link |
-| `Ctrl/Cmd + F`                                               | Find and replace                |
-| `Ctrl + Alt + 1 / 2 / 3` (macOS: `Cmd + Option + 1 / 2 / 3`) | Heading level 1 / 2 / 3         |
+| Key                                                          | Action                                                    |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `Ctrl/Cmd + S`                                               | Save                                                      |
+| `Ctrl/Cmd + Z`                                               | Undo                                                      |
+| `Ctrl + Y` (macOS: `Cmd + Shift + Z`)                        | Redo                                                      |
+| `Ctrl/Cmd + B`                                               | Bold                                                      |
+| `Ctrl/Cmd + I`                                               | Italic                                                    |
+| `Ctrl/Cmd + K`                                               | Insert a standard Markdown link                           |
+| `Ctrl + Alt + I` (macOS: `Cmd + Option + I`)                 | Import a local image                                      |
+| `Ctrl/Cmd + F`                                               | Find and replace                                          |
+| `Ctrl/Cmd + G` / `Ctrl/Cmd + Shift + G`                      | Find next / previous match                                |
+| `Ctrl + Alt + 1 / 2 / 3` (macOS: `Cmd + Option + 1 / 2 / 3`) | Heading level 1 / 2 / 3                                   |
+| `Tab` / `Shift + Tab`                                        | Indent / unindent                                         |
+| `Tab` / `Shift + Tab` inside a table                         | Next / previous cell; `Tab` from the last cell adds a row |
 
 `Ctrl/Cmd + 1…9` remains available for switching Zotero tabs. For more shortcuts and the shortcuts you can customize, see **More → Shortcuts** and the **Shortcuts** page in settings.
+
+Use the local-image shortcut inside an editable Markdown editor, including Source mode and the sidebar editor. Selected images use the same image-saving flow as the toolbar. Cancelling the picker inserts nothing. `Ctrl/Cmd + Shift + I` remains available for Zotero's Import command.
 
 ## Work with tables, images, formulas, and diagrams
 
@@ -253,14 +261,17 @@ This is an export feature, not real-time, two-way sync between Zotero and Obsidi
 
 ## Connect papers, annotations, and ideas on a whiteboard
 
-### Add papers and PDF annotations
+### Add papers and attachment annotations
 
-- Click **Add Zotero materials** at the top of the whiteboard and select items in the picker.
-- Alternatively, drag bibliographic items from your Zotero library onto the canvas.
-- Use **View annotations** on a literature card to search, filter, and select annotations, then add them as quote cards.
-- Use **Open source** on a source card to return to its Zotero item. For an annotation source, this opens the original annotation location in the PDF.
+- Click **Add Zotero materials** at the top of the whiteboard and select items in the picker, or drag papers and attachments from your Zotero library onto the canvas.
+- Select a literature card and click **View annotations** in the floating toolbar above it to browse annotations from its PDF, EPUB, and webpage snapshot attachments.
+- Zotero PDF, EPUB, and HTML webpage snapshot attachment cards also offer **View annotations** in their floating toolbar. Standalone attachments do not need a parent paper. Locally imported files have no Zotero annotation source, so they do not show this action.
+- Search annotation text, comments, page labels, and tags at the top of the dialog. Below it, **All** and Zotero icons for all six annotation types remain visible; hover over an icon to see its type name. A tag filter appears when annotations have tags. The dialog keeps the same height when filters change, with an independently scrolling list and a placeholder when no annotations match. Changing filters preserves your selections; click **Add selected** to add them together.
+- New annotation cards are automatically connected to the literature or attachment card you started from. Undo removes the new cards and connections together. Annotations already on the board are marked **Already added**; choose **Focus existing** to find their cards.
 
-The whiteboard stores references to the sources and information for displaying them. Removing a source card does not delete the original Zotero item. If source information changes, use **Refresh source** to update the card.
+Supported types are highlights, underlines, sticky notes, text annotations, image annotations, and ink annotations. Available types depend on the attachment and Zotero reader. A card shows its annotation type at the top left and uses the annotation color as its default fill; a manually chosen fill takes precedence. Sticky notes and text annotations without excerpt text show their comments. Image and ink annotations currently show their type, comments, and source information without copying Zotero's cached annotation images. Use **Open source** to view the original image or drawing.
+
+Use **Open source** to return to the Zotero item; on an annotation card, it opens the attachment at the annotation. The whiteboard stores source references and display information. Removing a card does not delete the original Zotero item or annotation. If source information changes, use **Refresh source** to update the card.
 
 ### Write question, viewpoint, and evidence cards
 
@@ -292,7 +303,9 @@ Text in rectangles, diamonds, and ovals automatically adapts to the shape's dime
 
 Drag from a card's connection point to another card to connect them. Select a connection to change its text, color, line style, arrows, or relationship type, such as **Related**, **Supports**, or **Contradicts**.
 
-Select several cards and choose **Group selection** to move and organize them together. You can also add cards to an existing group, remove them from a group, or ungroup them.
+Select several cards and choose **Group selection** to move and organize them together. You can also add cards to an existing group, remove them from a group, or ungroup them. If no groups exist, **Join group** shows a non-blocking **Create a group first** notice. Otherwise, it opens the group selection list.
+
+Whiteboard notices use icons and subtle colors to distinguish information, success, warnings, and errors. Partially failed imports show a warning. Notices appear below the top toolbar and stack when several are present; format painter instructions stay at the bottom.
 
 While dragging cards, guides help align edges, centers, and spacing. Hold `Alt` while dragging to temporarily disable snapping. With multiple cards selected, you can also use alignment and equal-distribution actions.
 

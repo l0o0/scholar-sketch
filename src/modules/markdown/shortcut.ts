@@ -1,4 +1,15 @@
 export const DEFAULT_NEW_MARKDOWN_SHORTCUT = "accel,shift,M";
+export const MARKDOWN_IMAGE_SHORTCUT = "Mod-Alt-i";
+
+export function markdownImageShortcutLabel(platform?: string): string {
+  return MARKDOWN_IMAGE_SHORTCUT.split("-")
+    .map((part) => {
+      if (part === "Mod") return isMacPlatform(platform) ? "Cmd" : "Ctrl";
+      if (part === "Alt") return isMacPlatform(platform) ? "Option" : "Alt";
+      return part.toUpperCase();
+    })
+    .join(" + ");
+}
 
 // Zotero captures Mod-1…9 for tab navigation before the editor receives them.
 // Keep the heading bindings and their help labels together.
@@ -15,6 +26,10 @@ export function markdownHeadingShortcutLabel(
   return isMacPlatform(platform)
     ? `Cmd + Option + ${level}`
     : `Ctrl + Alt + ${level}`;
+}
+
+export function markdownRedoShortcutLabel(platform?: string): string {
+  return isMacPlatform(platform) ? "Cmd + Shift + Z" : "Ctrl + Y";
 }
 
 export interface ShortcutKeyboardEvent {

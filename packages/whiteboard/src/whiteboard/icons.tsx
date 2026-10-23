@@ -85,6 +85,23 @@ export const IconQuote = () => (
   </Icon>
 );
 
+export const IconAnnotations = () => (
+  <Icon>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+    <path d="M14 2v6h6M8 11h8" />
+    <rect
+      x="1"
+      y="14"
+      width="22"
+      height="6"
+      rx="1"
+      fill="#c8da72"
+      stroke="none"
+    />
+    <path d="M7 17h10" stroke="#394421" strokeWidth="1.5" />
+  </Icon>
+);
+
 export const IconSelect = () => (
   <Icon>
     <path d="M4 4 11 20 13 13 20 11Z" />

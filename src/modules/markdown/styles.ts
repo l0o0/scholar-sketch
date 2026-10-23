@@ -669,14 +669,61 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
 
 .zotero-markdown-settings-shortcuts-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-block-end: 4px;
+  gap: 12px;
+  margin-block-end: 12px;
 }
 
+.zotero-markdown-settings-shortcuts-header .zotero-markdown-settings-page-title,
 .zotero-markdown-settings-shortcuts-header .zotero-markdown-settings-description {
   margin-block: 0;
+}
+
+.zotero-markdown-settings-shortcut-surface {
+  box-sizing: border-box;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 9px;
+  background: var(--zmd-surface-2);
+}
+
+.zotero-markdown-settings-shortcut-surface > button {
+  appearance: none;
+  min-inline-size: 0;
+  min-block-size: 28px;
+  padding: 3px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--zmd-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.zotero-markdown-settings-shortcut-surface > button:hover {
+  color: var(--zmd-text);
+}
+
+.zotero-markdown-settings-shortcut-surface > button[aria-checked="true"] {
+  border-color: var(--zmd-border);
+  background: var(--zmd-surface);
+  color: var(--zmd-text);
+  box-shadow: var(--zmd-shadow);
+}
+
+.zotero-markdown-modal.is-settings .zotero-markdown-settings-shortcut-surface > button:focus-visible {
+  outline: 2px solid var(--zmd-accent);
+  outline-offset: 1px;
 }
 
 .zotero-markdown-settings-shortcut-list {
@@ -945,6 +992,13 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   .zotero-markdown-settings-color-controls {
     inline-size: 100%;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 400px) {
+  .zotero-markdown-settings-shortcut-surface {
+    inline-size: 100%;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

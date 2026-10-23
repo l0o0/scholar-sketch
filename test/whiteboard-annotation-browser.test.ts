@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement, type ReactElement, type ReactNode } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   AnnotationBrowser,
@@ -11,9 +11,10 @@ import {
   type AnnotationBrowserLabels,
 } from "../packages/whiteboard/src/chrome/AnnotationBrowser.tsx";
 import { PropertiesPanel } from "../packages/whiteboard/src/chrome/PropertiesPanel.tsx";
+import { StyleBar } from "../packages/whiteboard/src/chrome/StyleBar.tsx";
 import {
   quoteAttachmentIdentity,
-  quoteSourceIdentity,
+  nativeAnnotationIdentity,
 } from "../packages/whiteboard/src/model/academic.ts";
 import type { CanvasDocument } from "../packages/whiteboard/src/model/document.ts";
 import type {
@@ -167,20 +168,6 @@ function browser(
   });
 }
 
-function visit(
-  node: ReactNode,
-  consume: (element: ReactElement) => void,
-): void {
-  if (Array.isArray(node)) {
-    for (const child of node) visit(child, consume);
-    return;
-  }
-  if (!node || typeof node !== "object" || !("props" in node)) return;
-  const element = node as ReactElement<{ children?: ReactNode }>;
-  consume(element);
-  visit(element.props.children, consume);
-}
-
 test("filters text, comment, and page label case-insensitively", () => {
   assert.deepEqual(
     filterAnnotationCandidates(candidates, "METHOD").map(
@@ -237,22 +224,22 @@ test("groups by full attachment identity without changing gateway order or title
   );
 });
 
-test("uses a stable full Quote source identity for duplicates", () => {
+test("uses native annotation identity for duplicates across attachment reparenting", () => {
   const existing = document.nodes[1];
   assert.equal(existing.kind, "quote");
   assert.deepEqual(
     existingAnnotationKeys(document),
-    new Set(['["quote","user",null,"OTHER","OTHER-PDF","ANN1"]']),
+    new Set(['["annotation","user",null,"OTHER-PDF","ANN1"]']),
   );
   assert.notEqual(
-    quoteSourceIdentity(candidates[0].acquisition.source),
-    quoteSourceIdentity(existing.source),
+    nativeAnnotationIdentity(candidates[0].acquisition.source),
+    nativeAnnotationIdentity(existing.source),
   );
 });
 
 test("supports checkbox multi-selection without selecting duplicate keys", () => {
-  const ann2 = quoteSourceIdentity(candidates[1].acquisition.source);
-  const ann3 = quoteSourceIdentity(candidates[2].acquisition.source);
+  const ann2 = nativeAnnotationIdentity(candidates[1].acquisition.source);
+  const ann3 = nativeAnnotationIdentity(candidates[2].acquisition.source);
   const first = toggleAnnotationSelection(new Set<string>(), ann2, true);
   const second = toggleAnnotationSelection(first, ann3, true);
   const removed = toggleAnnotationSelection(second, ann2, false);
@@ -266,7 +253,7 @@ test("supports checkbox multi-selection without selecting duplicate keys", () =>
 
 test("renders an accessible dialog and duplicate focus action", () => {
   const duplicate = candidate("ANN1", "Other.pdf", "Duplicate source", {
-    itemKey: "OTHER",
+    itemKey: "NEW-PARENT",
     attachmentKey: "OTHER-PDF",
   });
   const markup = renderToStaticMarkup(
@@ -342,8 +329,8 @@ test("Add selected is disabled only when no eligible annotation is selected", ()
   const selected = renderToStaticMarkup(
     browser({
       selectedKeys: new Set([
-        quoteSourceIdentity(candidates[1].acquisition.source),
-        quoteSourceIdentity(candidates[2].acquisition.source),
+        nativeAnnotationIdentity(candidates[1].acquisition.source),
+        nativeAnnotationIdentity(candidates[2].acquisition.source),
       ]),
     }),
   );
@@ -354,7 +341,7 @@ test("Add selected is disabled only when no eligible annotation is selected", ()
   );
 });
 
-test("only a selected Literature exposes the lazy annotation action", () => {
+test("Literature exposes annotations in its selection toolbar, without a duplicate details action", () => {
   const literature = canvasDocumentToFlow(document).nodes[0];
   const quote = canvasDocumentToFlow(document).nodes[1];
   const labels = {
@@ -370,32 +357,37 @@ test("only a selected Literature exposes the lazy annotation action", () => {
     copy: "Copy",
     delete: "Delete",
   };
-  let requests = 0;
   const renderPanel = (node: typeof literature) =>
-    PropertiesPanel({
+    createElement(PropertiesPanel, {
       labels,
       node,
       sourceState: { status: "resolved" },
       onOpen: () => undefined,
       onRefreshSource: () => undefined,
-      onViewAnnotations: () => requests++,
       onCopy: () => undefined,
       onDelete: () => undefined,
     });
   const literaturePanel = renderPanel(literature);
   const quotePanel = renderPanel(quote);
-  assert.equal(requests, 0, "rendering must not request annotations");
-  assert.match(renderToStaticMarkup(literaturePanel), /View annotations/);
+  assert.doesNotMatch(
+    renderToStaticMarkup(literaturePanel),
+    /View annotations/,
+  );
   assert.doesNotMatch(renderToStaticMarkup(quotePanel), /View annotations/);
-
-  let action: ReactElement<Record<string, unknown>> | undefined;
-  visit(literaturePanel, (element) => {
-    const markup = renderToStaticMarkup(element);
-    if (element.type === "button" && markup.includes("View annotations")) {
-      action = element as ReactElement<Record<string, unknown>>;
-    }
-  });
-  assert.ok(action);
-  (action.props.onClick as () => void)();
-  assert.equal(requests, 1, "one click issues one on-demand request");
+  let requests = 0;
+  const renderToolbar = (node: typeof literature) =>
+    renderToStaticMarkup(
+      createElement(StyleBar, {
+        labels,
+        node,
+        left: 0,
+        top: 0,
+        theme: "light",
+        onViewAnnotations: () => requests++,
+        onChange: () => undefined,
+      }),
+    );
+  assert.match(renderToolbar(literature), /aria-label="View annotations"/);
+  assert.doesNotMatch(renderToolbar(quote), /aria-label="View annotations"/);
+  assert.equal(requests, 0, "rendering must not request annotations");
 });
