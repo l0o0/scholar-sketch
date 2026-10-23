@@ -4,6 +4,8 @@ import zotero from "@zotero-plugin/eslint-config";
 
 export default zotero({
   overrides: [
+    // The promo film is a separate video project with its own toolchain.
+    { ignores: ["promo/**"] },
     {
       files: ["**/*.ts"],
       rules: {

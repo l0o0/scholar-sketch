@@ -1,0 +1,824 @@
+{
+  "planSha256": "2172d489b8dd65a1e12651721d899b6272c3a6d93e76f0b0ac06af13c0f4dfb0",
+  "music": {
+    "file": "assets/music.wav",
+    "gain": 0.65,
+    "sha256": "2ec3fe366d00d1c79a560547086ca5076d246530b2ccff081b6bb148277ddeb0"
+  },
+  "cues": [
+    {
+      "actionId": "brand-fold",
+      "file": "assets/sfx/logo-fold.wav",
+      "kind": "click",
+      "gain": 0.25,
+      "syncOffset": 0.0,
+      "at": 1.2,
+      "role": "sfx",
+      "sha256": "a453af91552afc66dde9506bf48def1c84e6feb325b219defec5f992303fbe0f"
+    },
+    {
+      "actionId": "entry-click",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 2.06,
+      "syncOffset": 0.0,
+      "at": 4.2,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "entry-items",
+      "file": "assets/sfx/pop-pair.wav",
+      "kind": "pop",
+      "gain": 1.06,
+      "syncOffset": 0.001,
+      "at": 4.399,
+      "role": "sfx",
+      "sha256": "491968961cba91af2e2fc5192e9c15215518a2ff24328f7ea27ac86b2af0b0b0"
+    },
+    {
+      "actionId": "drop-grab",
+      "file": "assets/sfx/paper-slide.wav",
+      "kind": "sweep",
+      "gain": 0.53,
+      "syncOffset": 0.103,
+      "at": 8.397,
+      "role": "sfx",
+      "duck": {
+        "hold": 0.35
+      },
+      "sha256": "0e1ed6af3cd8f3eb18bb97efbb96acaa88ff08f16034643176abdbfaee700ba1"
+    },
+    {
+      "actionId": "drop-release",
+      "file": "assets/sfx/soft-drop.wav",
+      "kind": "pop",
+      "gain": 1.39,
+      "syncOffset": 0.001,
+      "at": 9.832,
+      "role": "sfx",
+      "duck": {
+        "db": 6,
+        "hold": 0.25
+      },
+      "sha256": "81887b7f8462d80c3443e97c4df3ae97719d85daa68b0a56c2c2c0cfffc799af"
+    },
+    {
+      "actionId": "drop-select",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.57,
+      "syncOffset": 0.0,
+      "at": 11.9,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "ann-details",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.49,
+      "syncOffset": 0.0,
+      "at": 12.8,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "ann-open",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 3.25,
+      "syncOffset": 0.001,
+      "at": 13.399,
+      "role": "sfx",
+      "sha256": "c8bf0412a4580a6d8d2f5d9328c49636d78518c8dfa3d2d72099ec24d6a15952"
+    },
+    {
+      "actionId": "ann-tick-1",
+      "file": "assets/sfx/toggle.wav",
+      "kind": "toggle",
+      "gain": 1.68,
+      "syncOffset": 0.001,
+      "at": 14.499,
+      "role": "sfx",
+      "sha256": "317813eaf6717cb808ec55e20c44baa878b1168e6d963c2fadb4e37c4369c326"
+    },
+    {
+      "actionId": "ann-tick-2",
+      "file": "assets/sfx/toggle.wav",
+      "kind": "toggle",
+      "gain": 1.46,
+      "syncOffset": 0.001,
+      "at": 15.166,
+      "role": "sfx",
+      "sha256": "317813eaf6717cb808ec55e20c44baa878b1168e6d963c2fadb4e37c4369c326"
+    },
+    {
+      "actionId": "ann-add",
+      "file": "assets/sfx/click-drop.wav",
+      "kind": "click",
+      "gain": 0.51,
+      "syncOffset": 0.0,
+      "at": 15.833,
+      "role": "sfx",
+      "sha256": "f1b0864b4dbd61441c7749c63c869c92519ebf96aa5af2bc40644852d49a59e7"
+    },
+    {
+      "actionId": "cards-context",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 2.38,
+      "syncOffset": 0.001,
+      "at": 20.499,
+      "role": "sfx",
+      "sha256": "c8bf0412a4580a6d8d2f5d9328c49636d78518c8dfa3d2d72099ec24d6a15952"
+    },
+    {
+      "actionId": "cards-new-claim",
+      "file": "assets/sfx/click-drop.wav",
+      "kind": "click",
+      "gain": 0.75,
+      "syncOffset": 0.0,
+      "at": 21.167,
+      "role": "sfx",
+      "sha256": "f1b0864b4dbd61441c7749c63c869c92519ebf96aa5af2bc40644852d49a59e7"
+    },
+    {
+      "actionId": "cards-type",
+      "file": "assets/sfx/typing-claim.wav",
+      "kind": "typing",
+      "gain": 2.12,
+      "syncOffset": 0.001,
+      "at": 21.499,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 1.1
+      },
+      "sha256": "1f633c68f4cd55aad964b27edeb500ca96c69f66b4ad9fb5d17aedea6438b66c"
+    },
+    {
+      "actionId": "cards-commit",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 2.05,
+      "syncOffset": 0.0,
+      "at": 22.95,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "paint-select",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.89,
+      "syncOffset": 0.0,
+      "at": 24.5,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "paint-arm",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 1.52,
+      "syncOffset": 0.001,
+      "at": 25.166,
+      "role": "sfx",
+      "sha256": "c8bf0412a4580a6d8d2f5d9328c49636d78518c8dfa3d2d72099ec24d6a15952"
+    },
+    {
+      "actionId": "paint-apply",
+      "file": "assets/sfx/brush.wav",
+      "kind": "sweep",
+      "gain": 1.15,
+      "syncOffset": 0.107,
+      "at": 26.393,
+      "role": "sfx",
+      "sha256": "a7a4cd6f0d8277fb9182c37d3583d9f59c73b07ffefc1be7a36d86c2c2922100"
+    },
+    {
+      "actionId": "align-grab",
+      "file": "assets/sfx/paper-drag.wav",
+      "kind": "sweep",
+      "gain": 0.69,
+      "syncOffset": 0.001,
+      "at": 29.166,
+      "role": "sfx",
+      "duck": {
+        "db": 3,
+        "hold": 0.4
+      },
+      "sha256": "7f2c06b82946a529a52e02044cf621f23966f076662cb7a8b518b3b6c8a80a47"
+    },
+    {
+      "actionId": "align-snap",
+      "file": "assets/sfx/snap-tick.wav",
+      "kind": "click",
+      "gain": 1.53,
+      "syncOffset": 0.0,
+      "at": 29.733,
+      "role": "sfx",
+      "duck": {
+        "db": 4.5
+      },
+      "sha256": "e08701aa257610f45592302fe5e1d0c7051b7ab65cd7884e6aa8d900cd9f964d"
+    },
+    {
+      "actionId": "write-turn",
+      "file": "assets/sfx/page-turn.wav",
+      "kind": "sweep",
+      "gain": 0.45,
+      "syncOffset": 0.358,
+      "at": 31.642,
+      "role": "sfx",
+      "duck": {
+        "db": 3,
+        "hold": 0.75,
+        "release": 0.35
+      },
+      "sha256": "b3cd46b7842e1ab290aa1b7cb9e2df76ce2635714e77e42b7569377b1fe313ea"
+    },
+    {
+      "actionId": "write-type",
+      "file": "assets/sfx/typing-long.wav",
+      "kind": "typing",
+      "gain": 1.96,
+      "syncOffset": 0.001,
+      "at": 33.499,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 1.42
+      },
+      "sha256": "f471357c4d61a045b019874faa4fde78064852e629d0a7ac9350952404e012e5"
+    },
+    {
+      "actionId": "links-type",
+      "file": "assets/sfx/typing-short.wav",
+      "kind": "typing",
+      "gain": 1.56,
+      "syncOffset": 0.001,
+      "at": 37.299,
+      "role": "sfx",
+      "duck": {
+        "db": 3.5,
+        "hold": 0.62
+      },
+      "sha256": "5f9f175015a22015e8f50912a54891cb1db50927fa1ad6d0d11a8f3891e51931"
+    },
+    {
+      "actionId": "links-popup",
+      "file": "assets/sfx/pop.wav",
+      "kind": "pop",
+      "gain": 0.49,
+      "syncOffset": 0.0,
+      "at": 37.9,
+      "role": "sfx",
+      "sha256": "2c65509ef61daa12cc2c7671e205cec910bbf3063e8428ce3447e0d91deb1be9"
+    },
+    {
+      "actionId": "links-filter",
+      "file": "assets/sfx/click.wav",
+      "kind": "click",
+      "gain": 1.02,
+      "syncOffset": 0.0,
+      "at": 39.167,
+      "role": "sfx",
+      "sha256": "470a657217af81b515571250441110ccdc55564ea63ddde6c4fd73c9db12f2a0"
+    },
+    {
+      "actionId": "links-insert",
+      "file": "assets/sfx/click-alt.wav",
+      "kind": "click-alt",
+      "gain": 1.33,
+      "syncOffset": 0.001,
+      "at": 39.832,
+      "role": "sfx",
+      "sha256": "c8bf0412a4580a6d8d2f5d9328c49636d78518c8dfa3d2d72099ec24d6a15952"
+    },
+    {
+      "actionId": "files-turn",
+      "file": "assets/sfx/page-turn.wav",
+      "kind": "sweep",
+      "gain": 0.64,
+      "syncOffset": 0.358,
+      "at": 49.142,
+      "role": "sfx",
+      "duck": {
+        "db": 3,
+        "hold": 0.75,
+        "release": 0.35
+      },
+      "sha256": "b3cd46b7842e1ab290aa1b7cb9e2df76ce2635714e77e42b7569377b1fe313ea"
+    },
+    {
+      "actionId": "files-lift",
+      "file": "assets/sfx/pop.wav",
+      "kind": "pop",
+      "gain": 0.25,
+      "syncOffset": 0.0,
+      "at": 50.5,
+      "role": "sfx",
+      "sha256": "2c65509ef61daa12cc2c7671e205cec910bbf3063e8428ce3447e0d91deb1be9"
+    }
+  ],
+  "master": {
+    "file": "assets/master.wav",
+    "sha256": "ecc652a69b965ba21c02c82042c3331898d1f3b4e50877a3c8c44269614b675a"
+  },
+  "sfxStem": {
+    "file": "assets/sfx-stem.wav",
+    "sha256": "f5fabbfea301cd3d95b7ea8d3adde7f23997635cb356f2d16bdf348dbf2c4d26"
+  },
+  "musicStem": {
+    "file": "assets/music-ducked.wav",
+    "sha256": "dcec6213b42ecf7c76cb22c5df98853127d0154529745235e59d64e0f0a5ac61"
+  },
+  "ducking": {
+    "method": "cue-envelope",
+    "windows": [
+      {
+        "actionId": "brand-fold",
+        "kind": "click",
+        "start": 1.16,
+        "attackEnd": 1.2,
+        "holdEnd": 1.3,
+        "end": 1.5,
+        "db": 3
+      },
+      {
+        "actionId": "entry-click",
+        "kind": "click",
+        "start": 4.16,
+        "attackEnd": 4.2,
+        "holdEnd": 4.3,
+        "end": 4.5,
+        "db": 3
+      },
+      {
+        "actionId": "entry-items",
+        "kind": "pop",
+        "start": 4.36,
+        "attackEnd": 4.4,
+        "holdEnd": 4.5200000000000005,
+        "end": 4.760000000000001,
+        "db": 3.5
+      },
+      {
+        "actionId": "drop-grab",
+        "kind": "sweep",
+        "start": 8.46,
+        "attackEnd": 8.5,
+        "holdEnd": 8.85,
+        "end": 9.2,
+        "db": 4
+      },
+      {
+        "actionId": "drop-release",
+        "kind": "pop",
+        "start": 9.793000000000001,
+        "attackEnd": 9.833,
+        "holdEnd": 10.083,
+        "end": 10.323,
+        "db": 6
+      },
+      {
+        "actionId": "drop-select",
+        "kind": "click",
+        "start": 11.860000000000001,
+        "attackEnd": 11.9,
+        "holdEnd": 12.0,
+        "end": 12.2,
+        "db": 3
+      },
+      {
+        "actionId": "ann-details",
+        "kind": "click",
+        "start": 12.760000000000002,
+        "attackEnd": 12.8,
+        "holdEnd": 12.9,
+        "end": 13.1,
+        "db": 3
+      },
+      {
+        "actionId": "ann-open",
+        "kind": "click-alt",
+        "start": 13.36,
+        "attackEnd": 13.399999999999999,
+        "holdEnd": 13.499999999999998,
+        "end": 13.699999999999998,
+        "db": 3
+      },
+      {
+        "actionId": "ann-tick-1",
+        "kind": "toggle",
+        "start": 14.46,
+        "attackEnd": 14.5,
+        "holdEnd": 14.62,
+        "end": 14.86,
+        "db": 3
+      },
+      {
+        "actionId": "ann-tick-2",
+        "kind": "toggle",
+        "start": 15.127,
+        "attackEnd": 15.167,
+        "holdEnd": 15.286999999999999,
+        "end": 15.527,
+        "db": 3
+      },
+      {
+        "actionId": "ann-add",
+        "kind": "click",
+        "start": 15.793000000000001,
+        "attackEnd": 15.833,
+        "holdEnd": 15.933,
+        "end": 16.133,
+        "db": 3
+      },
+      {
+        "actionId": "cards-context",
+        "kind": "click-alt",
+        "start": 20.46,
+        "attackEnd": 20.5,
+        "holdEnd": 20.6,
+        "end": 20.8,
+        "db": 3
+      },
+      {
+        "actionId": "cards-new-claim",
+        "kind": "click",
+        "start": 21.127000000000002,
+        "attackEnd": 21.167,
+        "holdEnd": 21.267000000000003,
+        "end": 21.467000000000002,
+        "db": 3
+      },
+      {
+        "actionId": "cards-type",
+        "kind": "typing",
+        "start": 21.46,
+        "attackEnd": 21.5,
+        "holdEnd": 22.6,
+        "end": 22.85,
+        "db": 3.5
+      },
+      {
+        "actionId": "cards-commit",
+        "kind": "click",
+        "start": 22.91,
+        "attackEnd": 22.95,
+        "holdEnd": 23.05,
+        "end": 23.25,
+        "db": 3
+      },
+      {
+        "actionId": "paint-select",
+        "kind": "click",
+        "start": 24.46,
+        "attackEnd": 24.5,
+        "holdEnd": 24.6,
+        "end": 24.8,
+        "db": 3
+      },
+      {
+        "actionId": "paint-arm",
+        "kind": "click-alt",
+        "start": 25.127000000000002,
+        "attackEnd": 25.167,
+        "holdEnd": 25.267000000000003,
+        "end": 25.467000000000002,
+        "db": 3
+      },
+      {
+        "actionId": "paint-apply",
+        "kind": "sweep",
+        "start": 26.46,
+        "attackEnd": 26.5,
+        "holdEnd": 26.7,
+        "end": 27.05,
+        "db": 4
+      },
+      {
+        "actionId": "align-grab",
+        "kind": "sweep",
+        "start": 29.127000000000002,
+        "attackEnd": 29.167,
+        "holdEnd": 29.567,
+        "end": 29.917,
+        "db": 3
+      },
+      {
+        "actionId": "align-snap",
+        "kind": "click",
+        "start": 29.693,
+        "attackEnd": 29.733,
+        "holdEnd": 29.833000000000002,
+        "end": 30.033,
+        "db": 4.5
+      },
+      {
+        "actionId": "write-turn",
+        "kind": "sweep",
+        "start": 31.96,
+        "attackEnd": 32.0,
+        "holdEnd": 32.75,
+        "end": 33.1,
+        "db": 3
+      },
+      {
+        "actionId": "write-type",
+        "kind": "typing",
+        "start": 33.46,
+        "attackEnd": 33.5,
+        "holdEnd": 34.92,
+        "end": 35.17,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-type",
+        "kind": "typing",
+        "start": 37.26,
+        "attackEnd": 37.3,
+        "holdEnd": 37.919999999999995,
+        "end": 38.169999999999995,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-popup",
+        "kind": "pop",
+        "start": 37.86,
+        "attackEnd": 37.9,
+        "holdEnd": 38.019999999999996,
+        "end": 38.26,
+        "db": 3.5
+      },
+      {
+        "actionId": "links-filter",
+        "kind": "click",
+        "start": 39.127,
+        "attackEnd": 39.167,
+        "holdEnd": 39.267,
+        "end": 39.467000000000006,
+        "db": 3
+      },
+      {
+        "actionId": "links-insert",
+        "kind": "click-alt",
+        "start": 39.793,
+        "attackEnd": 39.833,
+        "holdEnd": 39.933,
+        "end": 40.133,
+        "db": 3
+      },
+      {
+        "actionId": "files-turn",
+        "kind": "sweep",
+        "start": 49.46,
+        "attackEnd": 49.5,
+        "holdEnd": 50.25,
+        "end": 50.6,
+        "db": 3
+      },
+      {
+        "actionId": "files-lift",
+        "kind": "pop",
+        "start": 50.46,
+        "attackEnd": 50.5,
+        "holdEnd": 50.62,
+        "end": 50.86,
+        "db": 3.5
+      }
+    ],
+    "overlap": "deepest-envelope-wins"
+  },
+  "timing": [
+    {
+      "actionId": "brand-fold",
+      "fileStart": 1.2,
+      "audibleLandmark": 1.2,
+      "actionTime": 1.2,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "entry-click",
+      "fileStart": 4.2,
+      "audibleLandmark": 4.2,
+      "actionTime": 4.2,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "entry-items",
+      "fileStart": 4.399,
+      "audibleLandmark": 4.4,
+      "actionTime": 4.4,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-grab",
+      "fileStart": 8.397,
+      "audibleLandmark": 8.5,
+      "actionTime": 8.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-release",
+      "fileStart": 9.832,
+      "audibleLandmark": 9.833,
+      "actionTime": 9.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "drop-select",
+      "fileStart": 11.9,
+      "audibleLandmark": 11.9,
+      "actionTime": 11.9,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-details",
+      "fileStart": 12.8,
+      "audibleLandmark": 12.8,
+      "actionTime": 12.8,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-open",
+      "fileStart": 13.399,
+      "audibleLandmark": 13.399999999999999,
+      "actionTime": 13.4,
+      "errorFrames": -0.0
+    },
+    {
+      "actionId": "ann-tick-1",
+      "fileStart": 14.499,
+      "audibleLandmark": 14.5,
+      "actionTime": 14.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-tick-2",
+      "fileStart": 15.166,
+      "audibleLandmark": 15.167,
+      "actionTime": 15.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "ann-add",
+      "fileStart": 15.833,
+      "audibleLandmark": 15.833,
+      "actionTime": 15.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-context",
+      "fileStart": 20.499,
+      "audibleLandmark": 20.5,
+      "actionTime": 20.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-new-claim",
+      "fileStart": 21.167,
+      "audibleLandmark": 21.167,
+      "actionTime": 21.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-type",
+      "fileStart": 21.499,
+      "audibleLandmark": 21.5,
+      "actionTime": 21.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "cards-commit",
+      "fileStart": 22.95,
+      "audibleLandmark": 22.95,
+      "actionTime": 22.95,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-select",
+      "fileStart": 24.5,
+      "audibleLandmark": 24.5,
+      "actionTime": 24.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-arm",
+      "fileStart": 25.166,
+      "audibleLandmark": 25.167,
+      "actionTime": 25.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "paint-apply",
+      "fileStart": 26.393,
+      "audibleLandmark": 26.5,
+      "actionTime": 26.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "align-grab",
+      "fileStart": 29.166,
+      "audibleLandmark": 29.167,
+      "actionTime": 29.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "align-snap",
+      "fileStart": 29.733,
+      "audibleLandmark": 29.733,
+      "actionTime": 29.7333,
+      "errorFrames": -0.009
+    },
+    {
+      "actionId": "write-turn",
+      "fileStart": 31.642,
+      "audibleLandmark": 32.0,
+      "actionTime": 32.0,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "write-type",
+      "fileStart": 33.499,
+      "audibleLandmark": 33.5,
+      "actionTime": 33.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-type",
+      "fileStart": 37.299,
+      "audibleLandmark": 37.3,
+      "actionTime": 37.3,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-popup",
+      "fileStart": 37.9,
+      "audibleLandmark": 37.9,
+      "actionTime": 37.9,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-filter",
+      "fileStart": 39.167,
+      "audibleLandmark": 39.167,
+      "actionTime": 39.167,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "links-insert",
+      "fileStart": 39.832,
+      "audibleLandmark": 39.833,
+      "actionTime": 39.833,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "files-turn",
+      "fileStart": 49.142,
+      "audibleLandmark": 49.5,
+      "actionTime": 49.5,
+      "errorFrames": 0.0
+    },
+    {
+      "actionId": "files-lift",
+      "fileStart": 50.5,
+      "audibleLandmark": 50.5,
+      "actionTime": 50.5,
+      "errorFrames": 0.0
+    }
+  ],
+  "warnings": [],
+  "normalization": {
+    "requested": "linear",
+    "normalization_type": "linear",
+    "measurement": {
+      "input_i": "-21.54",
+      "input_tp": "-7.69",
+      "input_lra": "4.80",
+      "input_thresh": "-31.68",
+      "output_i": "-16.07",
+      "output_tp": "-1.50",
+      "output_lra": "4.10",
+      "output_thresh": "-26.15",
+      "normalization_type": "dynamic",
+      "target_offset": "0.07"
+    },
+    "output": {
+      "input_i": "-21.45",
+      "input_tp": "-7.69",
+      "input_lra": "4.40",
+      "input_thresh": "-31.53",
+      "output_i": "-15.91",
+      "output_tp": "-2.15",
+      "output_lra": "4.50",
+      "output_thresh": "-25.99",
+      "normalization_type": "linear",
+      "target_offset": "-0.09"
+    }
+  },
+  "listeningStatus": "Not auditioned by script; listen to isolated SFX, final mix and encoded MP4."
+}

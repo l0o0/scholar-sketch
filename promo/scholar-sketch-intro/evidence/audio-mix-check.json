@@ -1,0 +1,268 @@
+{
+ "normalization": "linear",
+ "masterOut": {
+  "output_i": "-15.91",
+  "output_tp": "-2.15",
+  "output_lra": "4.50"
+ },
+ "maxAbsErrorFrames": 0.009,
+ "cuesBelowDuckedMusic": [
+  "align-grab"
+ ],
+ "masterLast100msPeakDbfs": -120.0,
+ "masterDuration": 58.5,
+ "cues": [
+  {
+   "actionId": "brand-fold",
+   "file": "logo-fold.wav",
+   "landmark": 1.2,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -26.0,
+   "duckedMusicPeakDbfs": -28.6,
+   "sfxOverMusicDb": 2.6
+  },
+  {
+   "actionId": "entry-click",
+   "file": "click.wav",
+   "landmark": 4.2,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -12.9,
+   "duckedMusicPeakDbfs": -13.9,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "entry-items",
+   "file": "pop-pair.wav",
+   "landmark": 4.4,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -16.9,
+   "duckedMusicPeakDbfs": -16.9,
+   "sfxOverMusicDb": 0.0
+  },
+  {
+   "actionId": "drop-grab",
+   "file": "paper-slide.wav",
+   "landmark": 8.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -17.2,
+   "duckedMusicPeakDbfs": -17.3,
+   "sfxOverMusicDb": 0.1
+  },
+  {
+   "actionId": "drop-release",
+   "file": "soft-drop.wav",
+   "landmark": 9.833,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -10.3,
+   "duckedMusicPeakDbfs": -19.5,
+   "sfxOverMusicDb": 9.2
+  },
+  {
+   "actionId": "drop-select",
+   "file": "click.wav",
+   "landmark": 11.9,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -15.2,
+   "duckedMusicPeakDbfs": -16.2,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "ann-details",
+   "file": "click.wav",
+   "landmark": 12.8,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -15.7,
+   "duckedMusicPeakDbfs": -16.7,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "ann-open",
+   "file": "click-alt.wav",
+   "landmark": 13.4,
+   "errorFrames": -0.0,
+   "sfxPeakDbfs": -10.4,
+   "duckedMusicPeakDbfs": -11.5,
+   "sfxOverMusicDb": 1.1
+  },
+  {
+   "actionId": "ann-tick-1",
+   "file": "toggle.wav",
+   "landmark": 14.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -14.4,
+   "duckedMusicPeakDbfs": -15.4,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "ann-tick-2",
+   "file": "toggle.wav",
+   "landmark": 15.167,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -15.7,
+   "duckedMusicPeakDbfs": -16.6,
+   "sfxOverMusicDb": 0.9
+  },
+  {
+   "actionId": "ann-add",
+   "file": "click-drop.wav",
+   "landmark": 15.833,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -19.0,
+   "duckedMusicPeakDbfs": -20.3,
+   "sfxOverMusicDb": 1.3
+  },
+  {
+   "actionId": "cards-context",
+   "file": "click-alt.wav",
+   "landmark": 20.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -13.1,
+   "duckedMusicPeakDbfs": -16.8,
+   "sfxOverMusicDb": 3.7
+  },
+  {
+   "actionId": "cards-new-claim",
+   "file": "click-drop.wav",
+   "landmark": 21.167,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -15.7,
+   "duckedMusicPeakDbfs": -16.8,
+   "sfxOverMusicDb": 1.1
+  },
+  {
+   "actionId": "cards-type",
+   "file": "typing-claim.wav",
+   "landmark": 21.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -12.9,
+   "duckedMusicPeakDbfs": -13.0,
+   "sfxOverMusicDb": 0.1
+  },
+  {
+   "actionId": "cards-commit",
+   "file": "click.wav",
+   "landmark": 22.95,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -12.9,
+   "duckedMusicPeakDbfs": -14.4,
+   "sfxOverMusicDb": 1.5
+  },
+  {
+   "actionId": "paint-select",
+   "file": "click.wav",
+   "landmark": 24.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -13.6,
+   "duckedMusicPeakDbfs": -14.6,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "paint-arm",
+   "file": "click-alt.wav",
+   "landmark": 25.167,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -17.0,
+   "duckedMusicPeakDbfs": -18.1,
+   "sfxOverMusicDb": 1.1
+  },
+  {
+   "actionId": "paint-apply",
+   "file": "brush.wav",
+   "landmark": 26.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -11.2,
+   "duckedMusicPeakDbfs": -12.2,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "align-grab",
+   "file": "paper-drag.wav",
+   "landmark": 29.167,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -16.2,
+   "duckedMusicPeakDbfs": -15.7,
+   "sfxOverMusicDb": -0.5
+  },
+  {
+   "actionId": "align-snap",
+   "file": "snap-tick.wav",
+   "landmark": 29.733,
+   "errorFrames": -0.009,
+   "sfxPeakDbfs": -10.3,
+   "duckedMusicPeakDbfs": -20.1,
+   "sfxOverMusicDb": 9.8
+  },
+  {
+   "actionId": "write-turn",
+   "file": "page-turn.wav",
+   "landmark": 32.0,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -17.4,
+   "duckedMusicPeakDbfs": -19.5,
+   "sfxOverMusicDb": 2.1
+  },
+  {
+   "actionId": "write-type",
+   "file": "typing-long.wav",
+   "landmark": 33.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -11.8,
+   "duckedMusicPeakDbfs": -17.7,
+   "sfxOverMusicDb": 5.9
+  },
+  {
+   "actionId": "links-type",
+   "file": "typing-short.wav",
+   "landmark": 37.3,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -12.6,
+   "duckedMusicPeakDbfs": -18.6,
+   "sfxOverMusicDb": 6.0
+  },
+  {
+   "actionId": "links-popup",
+   "file": "pop.wav",
+   "landmark": 37.9,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -12.6,
+   "duckedMusicPeakDbfs": -22.3,
+   "sfxOverMusicDb": 9.7
+  },
+  {
+   "actionId": "links-filter",
+   "file": "click.wav",
+   "landmark": 39.167,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -19.0,
+   "duckedMusicPeakDbfs": -20.0,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "links-insert",
+   "file": "click-alt.wav",
+   "landmark": 39.833,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -18.2,
+   "duckedMusicPeakDbfs": -19.2,
+   "sfxOverMusicDb": 1.0
+  },
+  {
+   "actionId": "files-turn",
+   "file": "page-turn.wav",
+   "landmark": 49.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -14.3,
+   "duckedMusicPeakDbfs": -16.4,
+   "sfxOverMusicDb": 2.1
+  },
+  {
+   "actionId": "files-lift",
+   "file": "pop.wav",
+   "landmark": 50.5,
+   "errorFrames": 0.0,
+   "sfxPeakDbfs": -27.0,
+   "duckedMusicPeakDbfs": -32.0,
+   "sfxOverMusicDb": 5.0
+  }
+ ]
+}

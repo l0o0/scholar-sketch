@@ -1,0 +1,23 @@
+/* Adapted from CodePilot, © 2025–2026 op7418. See LICENSE.CodePilot. */
+.film-theme {
+  --film-bg: #fafaf9; --film-fg: #252525; --film-muted: #6c665e;
+  --film-surface: #ffffff; --film-soft: #f0eeeb; --film-border: #e6e1db;
+  --film-accent: #252525; --film-on-accent: #ffffff;
+  --film-radius: 24px;
+  --film-shadow: 0 12px 40px -8px rgb(0 0 0 / 10%), 0 4px 12px -4px rgb(0 0 0 / 4%);
+  --film-font-zh: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --film-font-en: Georgia, "Times New Roman", serif;
+  --film-sans: var(--film-font-zh);
+}
+.film-theme[data-tone="dark"] {
+  --film-bg: #202020; --film-fg: #fafaf9; --film-muted: #bab5ae;
+  --film-surface: #2b2b2b; --film-soft: #373634; --film-border: #484542;
+  --film-accent: #fafaf9; --film-on-accent: #252525;
+}
+.film-card-frame { position: relative; isolation: isolate; border-radius: var(--film-radius); box-shadow: var(--film-shadow); overflow: visible; }
+.film-card-surface { border-radius: inherit; overflow: hidden; background: var(--film-surface); color: var(--film-fg); border: 1px solid var(--film-border); }
+.film-button { display: inline-flex; justify-content: center; align-items: center; gap: .5em; border: 1px solid transparent; border-radius: 999px; padding: .7em 1.2em; font: inherit; font-weight: 550; background: var(--film-accent); color: var(--film-on-accent); }
+.film-button[data-variant="secondary"] { background: var(--film-soft); color: var(--film-fg); }
+.film-button[data-variant="outline"] { background: transparent; color: var(--film-fg); border-color: var(--film-border); }
+.film-badge { display: inline-flex; align-items: center; border: 1px solid var(--film-border); border-radius: 999px; padding: .35em .7em; background: var(--film-soft); color: var(--film-fg); font-size: .72em; white-space: nowrap; }
+.film-divider { border: 0; border-top: 1px solid var(--film-border); }

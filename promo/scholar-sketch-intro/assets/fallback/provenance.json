@@ -1,0 +1,24 @@
+{
+  "product": "CodePilot",
+  "licensor": "op7418",
+  "revisionContext": "6e0ec7d23201613146244861dc64c39aa2470ef5",
+  "snapshotNote": "Extracted from working-tree files; hashes identify the exact source content, which may differ from the revision context.",
+  "files": [
+    {
+      "path": "src/components/layout/card-primitives.tsx",
+      "sha256": "f99a412cb86105b4ab96a2aa6069bd7ddfd0196185725707ae8e2d5e191a20dd"
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "sha256": "0ab8abe67e8b6e351bfb359482d6d4484d42b95ebb5497795e2432c69afc0902"
+    },
+    {
+      "path": "src/components/ui/badge.tsx",
+      "sha256": "6dbd83d8aa66b16389225ca9fbce387c03c5b8196a34e0f7bab97a2d18480f6c"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "08f2b42aa6a8d9b0c04e4a9510b89406143daab5a732dc99d811762f18464615"
+    }
+  ]
+}

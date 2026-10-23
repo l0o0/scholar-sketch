@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.build/
+# draft renders and scratch stills stay local; the final film is committed explicitly
+renders/draft*.mp4
+renders/technical-demo.mp4
+evidence/tech-stills/
+# generated from node_modules/@fontsource/noto-sans-sc by tools/gen-cjk-font.mjs (build runs it)
+public/fonts/
+src/fonts.generated.css
+
+# audio venv (tools/audio, assets/audio/score.py); recreate with the pinned versions in evidence/audio-selection.json
+.venv-audio
+# generated audio (assets/audio/score.py and the skill's mix_audio.py rebuild these deterministically)
+assets/music.wav
+assets/master.wav
+assets/sfx-stem.wav
+assets/music-ducked.wav
+__pycache__/
