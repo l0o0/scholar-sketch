@@ -4,6 +4,7 @@ pref("fontSize", 15);
 pref("theme", "system");
 pref("markdownFontFamily", "system");
 pref("markdownBackgroundColor", "");
+pref("markdownSlashSearchLanguage", "auto");
 pref("whiteboardColorScheme", "traditional");
 pref("whiteboardFontFamily", "system");
 pref("whiteboardBackgroundColor", "");

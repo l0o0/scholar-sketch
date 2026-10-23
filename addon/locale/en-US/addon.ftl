@@ -809,3 +809,59 @@ image-repair-skipped = Left { $count } sibling images unchanged because they cou
 image-repair-session-closed = The note is closed. Reopen it to check images.
 image-repair-file-missing = The Markdown file was not found. Download the attachment first.
 image-repair-sync-hint = Images have been restored. Complete Zotero sync on this computer, then sync the other computer.
+
+slash-menu-title = Insert
+
+slash-menu-hint = Type to filter · ↑↓ select · Enter insert · Esc close
+
+slash-menu-empty = No matching commands
+
+slash-menu-reference = Reference literature or notes
+
+slash-menu-ordered-list = Numbered list
+
+slash-menu-quote = Block quote
+
+slash-menu-code-block = Code block
+
+slash-menu-divider = Divider
+
+slash-menu-table = Table (3 × 3)
+
+menuitem-convert-note-md = Convert Notes to MD
+
+note-convert-unavailable = The selected Note or its destination is unavailable or read-only.
+
+note-convert-running = This Note is already being converted.
+
+note-convert-untitled = Untitled Note
+
+note-convert-changed = The source Note or image changed during conversion. Please retry.
+
+note-convert-image-unavailable = A Note image is missing or unsupported. Download its images in Zotero and retry; the original Note is unchanged.
+
+note-convert-translation-failed = Zotero could not convert this Note to Markdown. The original Note is unchanged.
+
+note-convert-complete = Created { $count } MD files · original Notes kept
+
+note-convert-failed = { $count } Notes could not be converted · original Notes kept
+
+feature-updates-slash-menu-title = Insert with slash commands
+
+feature-updates-slash-menu-body = Type / in a blank paragraph to find formatting, images, and references. Search language follows Zotero; choose English or pinyin in Markdown settings.
+
+feature-updates-note-conversion-title = Convert Zotero Notes to Markdown
+
+feature-updates-note-conversion-body = Select native Zotero Notes and choose Scholar Sketch → Convert Notes to MD from the context menu. Images are copied into the new attachments; the original Notes are kept.
+
+note-convert-format-warning = { $count } converted Notes need review: unsupported formatting is kept as HTML for source mode; damaged citations retain their visible text. Original Notes are unchanged.
+
+settings-slash-search-language = Slash menu search
+
+settings-slash-search-auto = Automatic
+
+settings-slash-search-english = English
+
+settings-slash-search-pinyin = Pinyin
+
+settings-slash-search-description = Automatic uses Pinyin for Chinese Zotero and English otherwise. Displayed command names always remain searchable.

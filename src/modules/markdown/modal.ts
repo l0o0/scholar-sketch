@@ -37,8 +37,10 @@ import {
   normalizeAppearanceTheme,
   normalizeColor,
   normalizeFontFamily,
+  normalizeSlashSearchLanguage,
   type AppearanceTheme,
   type FontFamilyID,
+  type SlashSearchLanguage,
 } from "./preferences";
 
 export { normalizeMarkdownFilename } from "./storage-filename";
@@ -62,6 +64,7 @@ export interface SettingsModalData {
   theme: AppearanceTheme;
   markdownFontFamily: FontFamilyID;
   markdownBackgroundColor: string;
+  markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
   whiteboardColorScheme: ColorSchemeID;
   whiteboardFontFamily: FontFamilyID;
@@ -134,6 +137,9 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(getPref("theme")),
     markdownFontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
     markdownBackgroundColor: normalizeColor(getPref("markdownBackgroundColor")),
+    markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
+      getPref("markdownSlashSearchLanguage"),
+    ),
     shortcutNewStandaloneMd: String(getPref("shortcutNewStandaloneMd") || ""),
     whiteboardColorScheme: normalizeColorScheme(
       getPref("whiteboardColorScheme"),
@@ -151,6 +157,9 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(prefs.theme),
     markdownFontFamily: normalizeFontFamily(prefs.markdownFontFamily),
     markdownBackgroundColor: normalizeColor(prefs.markdownBackgroundColor),
+    markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
+      prefs.markdownSlashSearchLanguage,
+    ),
     shortcutNewStandaloneMd: String(prefs.shortcutNewStandaloneMd || ""),
     whiteboardColorScheme: normalizeColorScheme(prefs.whiteboardColorScheme),
     whiteboardFontFamily: normalizeFontFamily(prefs.whiteboardFontFamily),
@@ -181,6 +190,47 @@ function button(doc: Document, label: string, action: string, primary = false) {
   element.className = `zotero-markdown-modal-button${primary ? " is-primary" : ""}`;
   element.textContent = label;
   return element;
+}
+
+function bindSegmentedOptions(
+  buttons: HTMLButtonElement[],
+  onSelect: (index: number) => void,
+  initialIndex = 0,
+) {
+  const select = (index: number) => {
+    if (buttons[index].getAttribute("aria-checked") === "true") return;
+    buttons.forEach((option, optionIndex) => {
+      const selected = optionIndex === index;
+      option.setAttribute("aria-checked", String(selected));
+      option.tabIndex = selected ? 0 : -1;
+    });
+    onSelect(index);
+  };
+  buttons.forEach((option, index) => {
+    option.addEventListener("click", () => select(index));
+    option.addEventListener("keydown", (event) => {
+      if (
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.isComposing ||
+        event.keyCode === 229
+      )
+        return;
+      let next: number;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown")
+        next = (index + 1) % buttons.length;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowUp")
+        next = (index + buttons.length - 1) % buttons.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = buttons.length - 1;
+      else return;
+      event.preventDefault();
+      select(next);
+      buttons[next].focus();
+    });
+  });
+  select(initialIndex);
 }
 
 export function createMarkdownModalController(
@@ -296,6 +346,9 @@ export function createMarkdownModalController(
       markdownBackgroundColor:
         payload.markdownBackgroundColor ??
         normalizeColor(getPref("markdownBackgroundColor")),
+      markdownSlashSearchLanguage:
+        payload.markdownSlashSearchLanguage ??
+        normalizeSlashSearchLanguage(getPref("markdownSlashSearchLanguage")),
       shortcutNewStandaloneMd:
         payload.shortcutNewStandaloneMd ??
         String(getPref("shortcutNewStandaloneMd") || ""),
@@ -499,6 +552,53 @@ export function createMarkdownModalController(
       backgroundControls.append(background, colorValue, reset);
       backgroundRow.appendChild(backgroundControls);
       pageContent.appendChild(backgroundRow);
+      const searchRow = doc.createElement("div");
+      searchRow.className = "zotero-markdown-settings-row";
+      searchRow.appendChild(
+        textElement(doc, "span", getString("settings-slash-search-language")),
+      );
+      const searchLanguage = doc.createElement("div");
+      searchLanguage.className =
+        "zotero-markdown-settings-shortcut-surface zotero-markdown-settings-slash-language";
+      searchLanguage.setAttribute("role", "radiogroup");
+      searchLanguage.setAttribute(
+        "aria-label",
+        getString("settings-slash-search-language"),
+      );
+      const languages = [
+        ["auto", "settings-slash-search-auto"],
+        ["english", "settings-slash-search-english"],
+        ["pinyin", "settings-slash-search-pinyin"],
+      ] as const;
+      const languageButtons = languages.map(([value, labelKey]) => {
+        const option = doc.createElement("button");
+        option.type = "button";
+        option.dataset.slashSearchLanguage = value;
+        option.setAttribute("role", "radio");
+        option.textContent = getString(labelKey);
+        searchLanguage.appendChild(option);
+        return option;
+      });
+      bindSegmentedOptions(
+        languageButtons,
+        (index) => {
+          if (pendingSettings)
+            pendingSettings.markdownSlashSearchLanguage = languages[index][0];
+        },
+        languages.findIndex(
+          ([value]) => value === pendingSettings?.markdownSlashSearchLanguage,
+        ),
+      );
+      searchRow.appendChild(searchLanguage);
+      pageContent.append(
+        searchRow,
+        textElement(
+          doc,
+          "p",
+          getString("settings-slash-search-description"),
+          "zotero-markdown-settings-description",
+        ),
+      );
       return heading;
     };
 
@@ -731,34 +831,9 @@ export function createMarkdownModalController(
         row.appendChild(controls);
         list.appendChild(row);
       };
-      const selectSurface = (index: number) => {
-        if (surfaceButtons[index].getAttribute("aria-checked") === "true")
-          return;
-        surfaceButtons.forEach((option, optionIndex) => {
-          const selected = optionIndex === index;
-          option.setAttribute("aria-checked", String(selected));
-          option.tabIndex = selected ? 0 : -1;
-        });
-        renderRows(surfaces[index][0]);
-      };
-      surfaceButtons.forEach((option, index) => {
-        option.addEventListener("click", () => selectSurface(index));
-        option.addEventListener("keydown", (event) => {
-          if (event.altKey || event.ctrlKey || event.metaKey) return;
-          let next: number;
-          if (event.key === "ArrowRight" || event.key === "ArrowDown")
-            next = (index + 1) % surfaces.length;
-          else if (event.key === "ArrowLeft" || event.key === "ArrowUp")
-            next = (index + surfaces.length - 1) % surfaces.length;
-          else if (event.key === "Home") next = 0;
-          else if (event.key === "End") next = surfaces.length - 1;
-          else return;
-          event.preventDefault();
-          selectSurface(next);
-          surfaceButtons[next].focus();
-        });
-      });
-      selectSurface(0);
+      bindSegmentedOptions(surfaceButtons, (index) =>
+        renderRows(surfaces[index][0]),
+      );
       pageContent.appendChild(list);
       return heading;
     };
@@ -1220,6 +1295,7 @@ export function applySettings(settings: SettingsModalData) {
   setPref("theme", values.theme);
   setPref("markdownFontFamily", values.markdownFontFamily);
   setPref("markdownBackgroundColor", values.markdownBackgroundColor);
+  setPref("markdownSlashSearchLanguage", values.markdownSlashSearchLanguage);
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);
   setPref("whiteboardColorScheme", values.whiteboardColorScheme);
   setPref("whiteboardFontFamily", values.whiteboardFontFamily);

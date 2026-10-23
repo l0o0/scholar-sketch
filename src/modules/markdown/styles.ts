@@ -710,6 +710,10 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   cursor: pointer;
 }
 
+.zotero-markdown-settings-slash-language {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .zotero-markdown-settings-shortcut-surface > button:hover {
   color: var(--zmd-text);
 }

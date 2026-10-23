@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.13-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.14-blue?style=flat-square" alt="version" /></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -55,6 +55,8 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 ## 快速开始
 
 - **写笔记**：点击工具栏的 **Scholar Sketch** 按钮 → **新建 Markdown 笔记…**。先选中文献可创建其附属笔记；取消选择则在当前文库或分类下创建独立笔记。之后双击 `.md` 附件即可继续编辑，输入 `[[` 可链接其他笔记。
+- **斜杠菜单**：在空白段落输入 `/`，筛选命令后用 ↑/↓ 和 Enter 插入。检索关键词默认跟随 Zotero 语言，也可在 Markdown 设置中改为英文或拼音。
+- **转换原生笔记**：选中 Zotero 原生笔记，右键 → **Scholar Sketch → 将笔记转换为 MD**。新附件保留受支持的图片与来源链接，原笔记不变。
 - **引用文献**：输入 `[[` 后按标题检索，候选列表显示 Zotero 条目类型图标，并可切换 **全部**、**常规条目**、**笔记/附件**、**已打开**。其中“已打开”包含当前 Zotero 窗口所有已打开标签页中的附件及其父条目。Tab 立即循环切换分类，Shift+Tab 反向切换，↑/↓ 选择条目，Enter 插入，Esc 关闭弹窗；切换分类后仍可直接继续输入。
 - **建白板**：点击工具栏的 **Scholar Sketch** 按钮 → **新建白板…**，拖入文献、添加卡片并连接想法。按住 **空格** 拖动可移动画布。
 - **复用样式**：选中卡片或图形，点击 **格式刷** 后再点击目标；双击格式刷可连续使用，按 **Esc** 退出。右键菜单也支持 **复制样式** 和 **粘贴样式**，多选粘贴可一次撤销，并保留目标的内容、文献引用和尺寸。

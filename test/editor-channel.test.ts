@@ -83,6 +83,42 @@ test("applies original-document changes from last to first", () => {
   );
 });
 
+test("slash search preferences accept only resolved languages on the owning channel", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    type: "setSlashSearchLanguage",
+    channel: "slash",
+  };
+  for (const language of ["english", "pinyin"]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: { language } },
+        "slash",
+      ),
+      true,
+    );
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: { language } },
+        "other",
+      ),
+      false,
+    );
+  }
+  for (const payload of [
+    undefined,
+    null,
+    {},
+    { language: "auto" },
+    { language: "invalid" },
+    { language: 1 },
+  ])
+    assert.equal(
+      isEditorProtocolMessageForChannel({ ...message, payload }, "slash"),
+      false,
+    );
+});
+
 test("does not accept another tab's outline update", () => {
   const message = {
     source: EDITOR_MESSAGE_SOURCE,

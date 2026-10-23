@@ -4,12 +4,22 @@ import {
   DEFAULT_LINK_LABELS,
   type LinkCompletionPopup,
 } from "./link-completion";
+import {
+  activeSlashQuery,
+  createSlashCommandPopup,
+  DEFAULT_SLASH_LABELS,
+  type SlashCommandID,
+  type SlashCommandPopup,
+  type SlashQuery,
+} from "./slash-commands";
+import { tableInsertTemplate } from "../modules/markdown/insert-template";
 import { editorTableLabels } from "./table-config";
 import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
 import {
   normalizeFontFamily,
   normalizeBackgroundColor,
+  type ResolvedSlashSearchLanguage,
 } from "../modules/markdown/preferences";
 import { validViewState } from "../modules/markdown/editor-view-state";
 import {
@@ -48,6 +58,7 @@ import {
   history,
   historyKeymap,
   indentWithTab,
+  isolateHistory,
   redo,
   undo,
 } from "@codemirror/commands";
@@ -74,6 +85,7 @@ import {
   type EditorLinkCandidate,
   type EditorLinkFilter,
   type EditorLinkLabels,
+  type EditorSlashLabels,
   type EditorMode,
   type EditorOutlineItem,
   type EditorSurface,
@@ -194,6 +206,10 @@ interface EditorRuntime {
   linkSearchFilter: EditorLinkFilter;
   linkLabels: EditorLinkLabels;
   linkCompletion: LinkCompletionPopup | null;
+  slashLabels: EditorSlashLabels;
+  slashSearchLanguage: ResolvedSlashSearchLanguage;
+  slashCompletion: SlashCommandPopup | null;
+  dismissedSlash: string | null;
   composing: boolean;
   removeCompositionListeners: (() => void) | null;
 }
@@ -225,6 +241,10 @@ const runtime: EditorRuntime = {
   linkSearchFilter: "all",
   linkLabels: DEFAULT_LINK_LABELS,
   linkCompletion: null,
+  slashLabels: DEFAULT_SLASH_LABELS,
+  slashSearchLanguage: "english",
+  slashCompletion: null,
+  dismissedSlash: null,
   composing: false,
   removeCompositionListeners: null,
 };
@@ -310,6 +330,85 @@ function clearLinkCompletion() {
   runtime.linkSearchRequestID += 1;
   runtime.linkSearchFrom = null;
   runtime.linkSearchFilter = "all";
+}
+
+function clearSlashCompletion(dismiss = false) {
+  if (dismiss && runtime.view) {
+    const active = activeSlashQuery(runtime.view.state);
+    runtime.dismissedSlash = active ? `${active.from}:${active.query}` : null;
+  }
+  runtime.slashCompletion?.destroy();
+  runtime.slashCompletion = null;
+}
+
+function runSlashCommand(view: EditorView, command: SlashCommandID) {
+  if (runtime.view !== view || runtime.composing || view.compositionStarted)
+    return;
+  const query = activeSlashQuery(view.state);
+  if (!query) return;
+  clearSlashCompletion();
+  const prefix = {
+    h1: "# ",
+    h2: "## ",
+    h3: "### ",
+    list: "- ",
+    orderedList: "1. ",
+    task: "- [ ] ",
+    quote: "> ",
+  };
+  if (command in prefix) {
+    prefixLineInView(view, prefix[command as keyof typeof prefix], query);
+  } else if (command === "bold") wrapSelectionInView(view, "**", "**", query);
+  else if (command === "italic") wrapSelectionInView(view, "*", "*", query);
+  else if (command === "code") wrapSelectionInView(view, "`", "`", query);
+  else if (command === "link") wrapSelectionInView(view, "[", "](url)", query);
+  else if (command === "table") {
+    const template = tableInsertTemplate();
+    insertTextInView(
+      view,
+      template.text,
+      template.selectionFrom,
+      template.selectionTo,
+      query,
+    );
+  } else if (command === "reference") insertTextInView(view, "[[", 2, 2, query);
+  else if (command === "codeBlock")
+    insertTextInView(view, "```\n\n```", 4, 4, query);
+  else if (command === "divider") insertTextInView(view, "---\n", 4, 4, query);
+  else if (command === "image") {
+    insertTextInView(view, "", 0, 0, query);
+    postToParent({ type: "importImage" });
+  }
+}
+
+function updateSlashCompletion(view: EditorView) {
+  if (runtime.composing || view.compositionStarted || view.state.readOnly) {
+    clearSlashCompletion();
+    return;
+  }
+  const active = activeSlashQuery(view.state);
+  if (!active) {
+    clearSlashCompletion();
+    runtime.dismissedSlash = null;
+    return;
+  }
+  if (runtime.dismissedSlash === `${active.from}:${active.query}`) return;
+  clearLinkCompletion();
+  if (!runtime.slashCompletion) {
+    runtime.slashCompletion = createSlashCommandPopup({
+      host: view.dom,
+      contentDOM: view.contentDOM,
+      labels: runtime.slashLabels,
+      isComposing: () => runtime.composing || view.compositionStarted,
+      anchor: () => {
+        const query = activeSlashQuery(view.state);
+        return query ? view.coordsAtPos(query.to) : null;
+      },
+      onChoose: (command) => runSlashCommand(view, command),
+      onDismiss: () => clearSlashCompletion(true),
+    });
+  }
+  runtime.slashCompletion.update(active.query, runtime.slashSearchLanguage);
 }
 
 function escapedMarkdownLabel(value: string): string {
@@ -1005,6 +1104,7 @@ function bindComposition(view: EditorView) {
       runtime.outlineFrame = null;
     }
     clearLinkCompletion();
+    clearSlashCompletion();
     runtime.linkSearchRequestID += 1;
     postToParent({ type: "composition", payload: { active: true } });
   };
@@ -1021,7 +1121,10 @@ function bindComposition(view: EditorView) {
       postToParent({ type: "composition", payload: { active: false } });
       scheduleOutlineUpdate(view);
       scheduleViewState(view);
-      if (view.hasFocus) requestLinkSearch(view);
+      if (view.hasFocus) {
+        requestLinkSearch(view);
+        updateSlashCompletion(view);
+      }
     }, 0);
   };
   // Capture also covers editable table cells whose widgets handle events
@@ -1332,6 +1435,13 @@ function buildExtensions(
         scheduleViewState(update.view);
       if (update.docChanged || update.selectionSet) {
         requestLinkSearch(update.view);
+        if (
+          update.transactions.some((transaction) =>
+            transaction.annotation(fromParentAnnotation),
+          )
+        )
+          clearSlashCompletion(true);
+        else updateSlashCompletion(update.view);
       }
       if (!update.docChanged) return;
       scheduleOutlineUpdate(update.view);
@@ -1464,9 +1574,14 @@ function applyMode(mode: EditorMode) {
   });
 }
 
-function wrapSelectionInView(v: EditorView, before: string, after: string) {
-  const { from, to } = v.state.selection.main;
-  const selected = v.state.doc.sliceString(from, to);
+function wrapSelectionInView(
+  v: EditorView,
+  before: string,
+  after: string,
+  query?: SlashQuery,
+) {
+  const { from, to } = query ?? v.state.selection.main;
+  const selected = query ? "" : v.state.doc.sliceString(from, to);
   const insert = before + selected + after;
   const selection = selected
     ? { anchor: from, head: from + insert.length }
@@ -1474,6 +1589,7 @@ function wrapSelectionInView(v: EditorView, before: string, after: string) {
   v.dispatch({
     changes: { from, to, insert },
     selection,
+    annotations: query ? isolateHistory.of("full") : undefined,
   });
   v.focus();
 }
@@ -1483,26 +1599,33 @@ function insertTextInView(
   text: string,
   selectionFrom = text.length,
   selectionTo = selectionFrom,
+  query?: SlashQuery,
 ) {
-  const { from, to } = v.state.selection.main;
+  const { from, to } = query ?? v.state.selection.main;
   v.dispatch({
     changes: { from, to, insert: text },
     selection: {
       anchor: from + selectionFrom,
       head: from + selectionTo,
     },
+    annotations: query ? isolateHistory.of("full") : undefined,
   });
   v.focus();
 }
 
-function prefixLineInView(v: EditorView, prefix: string) {
+function prefixLineInView(v: EditorView, prefix: string, query?: SlashQuery) {
   const { from } = v.state.selection.main;
   const line = v.state.doc.lineAt(from);
-  const stripped = line.text.replace(/^#{1,6}\s+/, "");
+  const text = query
+    ? line.text.slice(0, query.from - line.from) +
+      line.text.slice(query.to - line.from)
+    : line.text;
+  const stripped = text.replace(/^#{1,6}\s+/, "");
   const newLine = prefix + stripped;
   v.dispatch({
     changes: { from: line.from, to: line.to, insert: newLine },
     selection: { anchor: line.from + newLine.length },
+    annotations: query ? isolateHistory.of("full") : undefined,
   });
   v.focus();
 }
@@ -1568,6 +1691,7 @@ function createOrResetEditor(init: EditorInitPayload) {
     }
     runtime.removeImageDoubleClickListener?.();
     clearLinkCompletion();
+    clearSlashCompletion();
     runtime.removeTableCellListeners?.();
     cancelTableDrag();
     runtime.activeTableCell = null;
@@ -1588,6 +1712,10 @@ function createOrResetEditor(init: EditorInitPayload) {
   runtime.linkSearchFrom = null;
   runtime.linkSearchFilter = "all";
   runtime.linkLabels = { ...DEFAULT_LINK_LABELS, ...init.linkLabels };
+  runtime.slashLabels = { ...DEFAULT_SLASH_LABELS, ...init.slashLabels };
+  runtime.slashSearchLanguage =
+    init.slashSearchLanguage === "pinyin" ? "pinyin" : "english";
+  runtime.dismissedSlash = null;
   runtime.imageAssets = {};
   runtime.tableSelection = null;
   runtime.tableContextSelection = null;
@@ -1875,6 +2003,12 @@ function handleParentMessage(data: ParentToEditorMessage) {
       });
       break;
     }
+    case "setSlashSearchLanguage": {
+      runtime.slashSearchLanguage = data.payload.language;
+      if (runtime.view && runtime.slashCompletion)
+        updateSlashCompletion(runtime.view);
+      break;
+    }
     case "setFontSize": {
       if (!runtime.view) return;
       runtime.fontSize = data.payload.fontSize;
@@ -1898,6 +2032,7 @@ function handleParentMessage(data: ParentToEditorMessage) {
       if (!runtime.view) return;
       const readOnly = !!data.payload.readOnly;
       if (readOnly) {
+        clearSlashCompletion();
         setTableSelection(null);
         runtime.activeTableCell = null;
       }
@@ -1987,6 +2122,7 @@ function handleParentMessage(data: ParentToEditorMessage) {
       runtime.linkSearchRequestID += 1;
       runtime.removeImageDoubleClickListener?.();
       clearLinkCompletion();
+      clearSlashCompletion();
       runtime.removeTableCellListeners?.();
       cancelTableDrag();
       runtime.activeTableCell = null;
@@ -2019,6 +2155,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "setTheme",
   "setFontSize",
   "setAppearance",
+  "setSlashSearchLanguage",
   "setReadOnly",
   "setMode",
   "setImageAssets",

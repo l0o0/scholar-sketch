@@ -7,6 +7,7 @@ import {
   normalizeTheme,
   normalizeFontFamily,
   normalizeBackgroundColor,
+  resolveSlashSearchLanguage,
 } from "./preferences";
 import type { DocumentViewState } from "./editor-view-state";
 /**
@@ -124,6 +125,7 @@ type PendingCommand = Extract<
       | "setTheme"
       | "setFontSize"
       | "setAppearance"
+      | "setSlashSearchLanguage"
       | "setReadOnly"
       | "setMode"
       | "setImageAssets"
@@ -413,6 +415,7 @@ export function createMarkdownEditor(
         message.type === "setTheme" ||
         message.type === "setFontSize" ||
         message.type === "setAppearance" ||
+        message.type === "setSlashSearchLanguage" ||
         message.type === "setReadOnly" ||
         message.type === "setMode"
       ) {
@@ -502,6 +505,10 @@ export function createMarkdownEditor(
             readOnly,
             fontSize: resolveFontSize(),
             appearance: resolveAppearance(),
+            slashSearchLanguage: resolveSlashSearchLanguage(
+              getPref("markdownSlashSearchLanguage"),
+              Zotero.locale || "en-US",
+            ),
             theme: currentTheme,
             mode: currentMode,
             surface,
@@ -519,6 +526,27 @@ export function createMarkdownEditor(
               open: getString("document-link-filter-open"),
               empty: getString("document-link-filter-empty"),
               loading: getString("document-link-filter-loading"),
+            },
+            slashLabels: {
+              title: getString("slash-menu-title"),
+              hint: getString("slash-menu-hint"),
+              empty: getString("slash-menu-empty"),
+              reference: getString("slash-menu-reference"),
+              h1: getString("tab-h1"),
+              h2: getString("tab-h2"),
+              h3: getString("tab-h3"),
+              list: getString("tab-list"),
+              orderedList: getString("slash-menu-ordered-list"),
+              task: getString("tab-task"),
+              quote: getString("slash-menu-quote"),
+              bold: getString("tab-bold"),
+              italic: getString("tab-italic"),
+              code: getString("tab-code"),
+              codeBlock: getString("slash-menu-code-block"),
+              link: getString("tab-link"),
+              table: getString("slash-menu-table"),
+              image: getString("settings-shortcut-import-image"),
+              divider: getString("slash-menu-divider"),
             },
             tableLabels: Object.fromEntries(
               (
@@ -752,6 +780,16 @@ export function createMarkdownEditor(
       source: EDITOR_MESSAGE_SOURCE,
       type: "setAppearance",
       payload: resolveAppearance(),
+    });
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setSlashSearchLanguage",
+      payload: {
+        language: resolveSlashSearchLanguage(
+          getPref("markdownSlashSearchLanguage"),
+          Zotero.locale || "en-US",
+        ),
+      },
     });
   };
   preferenceRefreshers.add(applyPreferences);

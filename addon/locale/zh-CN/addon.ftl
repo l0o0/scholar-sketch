@@ -809,3 +809,59 @@ image-repair-skipped = 另有 { $count } 个同级图片无法与正文引用明
 image-repair-session-closed = 笔记已关闭，请重新打开后检查图片。
 image-repair-file-missing = 找不到 Markdown 文件，请先完成附件下载。
 image-repair-sync-hint = 图片已恢复。请在本机完成 Zotero 同步，再让另一台电脑同步。
+
+slash-menu-title = 插入
+
+slash-menu-hint = 输入筛选 · ↑↓ 选择 · Enter 插入 · Esc 关闭
+
+slash-menu-empty = 没有匹配的命令
+
+slash-menu-reference = 引用文献或笔记
+
+slash-menu-ordered-list = 有序列表
+
+slash-menu-quote = 引用块
+
+slash-menu-code-block = 代码块
+
+slash-menu-divider = 分隔线
+
+slash-menu-table = 表格（3 × 3）
+
+menuitem-convert-note-md = 将笔记转换为 MD
+
+note-convert-unavailable = 所选笔记或目标位置不可用，或没有编辑权限。
+
+note-convert-running = 此笔记正在转换，请稍候。
+
+note-convert-untitled = 未命名笔记
+
+note-convert-changed = 源笔记或图片在转换过程中发生变化，请重试。
+
+note-convert-image-unavailable = 笔记图片缺失或不受支持。请在 Zotero 中下载图片后重试；原笔记未改动。
+
+note-convert-translation-failed = Zotero 无法将此笔记转换为 Markdown，原笔记未改动。
+
+note-convert-complete = 已创建 { $count } 个 MD 文件 · 原笔记已保留
+
+note-convert-failed = { $count } 个笔记转换失败 · 原笔记已保留
+
+feature-updates-slash-menu-title = 用斜杠菜单快速插入
+
+feature-updates-slash-menu-body = 在空白段落开头输入 /，查找格式、图片和文献引用。检索语言默认跟随 Zotero，可在 Markdown 设置中切换英文或拼音。
+
+feature-updates-note-conversion-title = 将 Zotero 笔记转换为 Markdown
+
+feature-updates-note-conversion-body = 选中 Zotero 原生笔记，在右键 Scholar Sketch 菜单中选择「将笔记转换为 MD」。图片随新附件保存，原笔记保留。
+
+note-convert-format-warning = { $count } 个转换后的笔记需检查：不支持的格式已保留为 HTML（请在源码模式查看），损坏的引用保留可见文字。原笔记未改动。
+
+settings-slash-search-language = 斜杠菜单检索
+
+settings-slash-search-auto = 跟随语言
+
+settings-slash-search-english = 英文
+
+settings-slash-search-pinyin = 拼音
+
+settings-slash-search-description = 默认跟随 Zotero 语言：中文使用拼音，其他语言使用英文。菜单显示名称始终可以检索。

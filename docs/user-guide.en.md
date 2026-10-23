@@ -52,6 +52,14 @@ Both initialization and this menu action first search your personal library for 
 
 ![Research whiteboard connecting papers, annotations, questions, viewpoints, and summaries](screenshots/research-whiteboard.jpg)
 
+## Insert content with slash commands
+
+At the start of a blank paragraph in Live Preview or Source mode, type `/` to open the insert menu. Keep typing a command name or keyword. Search language follows Zotero by default: Chinese interfaces use pinyin keywords (such as `/biaoge`); other interfaces use English keywords (such as `/heading`). Choose **Automatic**, **English**, or **Pinyin** in **Settings → Markdown → Slash menu search**. Saving applies the choice to open editors immediately. Menu labels still follow the interface language and remain searchable. Commands include headings, lists, tasks, block quotes, bold, italic, code, links, tables, dividers, local images, and literature or note references.
+
+Use `↑` / `↓` to select a command, `Enter` to insert it, or `Esc` to dismiss the menu. You can also click a command. When using an IME, confirm the composed text before navigating the menu. **Reference literature or notes** opens the existing `[[` picker; the local-image command opens the file picker.
+
+The menu activates only in an editable blank paragraph. It stays closed inside code, existing text, URLs, and YAML frontmatter. Dismissing it keeps your typed text; formatting insertions can be undone.
+
 ## Quickly link papers and notes in Markdown
 
 ### Find Zotero content with two opening brackets
@@ -236,6 +244,16 @@ All entered keywords must match. Up to 100 notes are shown. Content that has not
 The resulting note contains text excerpts, comments, page numbers, and links back to the original PDF annotations. Image-only or area-snapshot annotations without text or comments are not included in this text-annotation export.
 
 ## Import, export, and move Markdown notes
+
+### Convert native Zotero Notes to Markdown
+
+Finish editing the native Note, then select one or more Note items in the Zotero library. Right-click and choose **Scholar Sketch → Convert Notes to MD**. Conversion reads Zotero's saved Note content and creates new `.md` stored attachments while keeping the original Notes.
+
+A child Note produces an MD attachment under the same parent item. A standalone Note produces an attachment in the same library and collections. Running conversion again creates another copy; it does not overwrite an earlier MD attachment or your edits to it.
+
+Conversion uses Zotero's Markdown exporter for headings, lists, ordinary tables, math, citations, and annotation source links. Downloaded embedded images are copied into the new attachment's `assets` directory; remote images keep their URLs. Missing or unsupported images, or source changes during conversion, stop that Note's conversion with an error while preserving the original. Batch conversion reports successful and failed Notes separately.
+
+Markdown cannot represent every rich-text format. Content such as subscripts, superscripts, and merged table cells is retained as HTML, with a notice to inspect it in Source mode; general HTML rendering remains disabled. Fonts, sizes, and colors may not survive conversion, so check complex Notes against their originals. You can export the resulting MD files with images as described below; conversion does not create automatic two-way sync with native Notes or external folders.
 
 ### Import existing Markdown files
 
