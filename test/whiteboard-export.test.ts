@@ -1043,3 +1043,33 @@ test("annotation SVG and Markdown export retain comment-only notes, type, tags, 
     /Page: 4/,
   );
 });
+
+test("drawing image previews survive SVG and Markdown export", () => {
+  const image = "data:image/png;base64,aGVsbG8=";
+  const node: CanvasNode = {
+    id: "drawing",
+    kind: "quote",
+    position: { x: 0, y: 0 },
+    width: 280,
+    height: 192,
+    source: {
+      library: { type: "user" },
+      attachmentKey: "PDF",
+      annotationKey: "INK",
+    },
+    snapshot: { text: "", annotationType: "ink", image, pageLabel: "4" },
+  };
+  const document: CanvasDocument = {
+    version: 2,
+    nodes: [node],
+    connections: [],
+  };
+  assert.match(
+    buildCanvasSvg(document),
+    /<image[^>]+href="data:image\/png;base64,aGVsbG8="/,
+  );
+  assert.match(
+    buildCanvasMarkdown(document),
+    /!\[ink\]\(data:image\/png;base64,aGVsbG8=\)/,
+  );
+});

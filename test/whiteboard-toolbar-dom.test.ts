@@ -985,3 +985,100 @@ test("fill picker preserves custom colors and explicit ink through transparent a
     container.remove();
   }
 });
+
+test("quote properties group actions and reset expanded content per selection", async (t) => {
+  let cleanup = async () => {};
+  t.after(() => cleanup());
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  cleanup = async () => {
+    await act(async () => root.unmount());
+  };
+  const calls: string[] = [];
+  const model = createAcademicNode("quote", { x: 0, y: 0 }, "quote-one", {
+    source: {
+      library: { type: "user" },
+      attachmentKey: "PDF00001",
+      annotationKey: "QUOTE001",
+    },
+    snapshot: {
+      text: "A long quote. ".repeat(60),
+      citation: "Paper.pdf",
+      pageLabel: "3",
+      annotationType: "underline",
+    },
+  });
+  const props = {
+    labels: {
+      ...labels,
+      quoteProperties: "Quote properties",
+      annotationPage: "Page",
+      more: "More",
+      copy: "Copy",
+      delete: "Delete",
+      annotationTypeLabels: { underline: "Underline" },
+    } as WhiteboardLabels,
+    node: {
+      id: model.id,
+      type: model.kind,
+      position: model.position,
+      data: { model },
+    },
+    onOpen: () => calls.push("open"),
+    onRefreshSource: () => calls.push("refresh"),
+    onCopy: () => calls.push("copy"),
+    onDelete: () => calls.push("delete"),
+    onJoinGroup: () => calls.push("group"),
+  };
+  await act(async () => root.render(createElement(PropertiesPanel, props)));
+  const quote = container.querySelector("blockquote")!;
+  Object.defineProperties(quote, {
+    scrollHeight: { value: 600 },
+    clientHeight: { value: 100 },
+  });
+  await act(async () =>
+    root.render(
+      createElement(PropertiesPanel, { ...props, node: { ...props.node } }),
+    ),
+  );
+  assert.equal(container.querySelectorAll("h2").length, 1);
+  assert.equal(container.querySelector("h2")?.textContent, "Quote properties");
+  assert.equal(container.querySelector("strong"), null);
+  assert.match(
+    container.querySelector(".zmd-board-quote-source")!.textContent!,
+    /Paper.pdf.*3/s,
+  );
+  assert.ok(
+    container.querySelector("details button")?.textContent?.includes("Delete"),
+  );
+  const expand = container.querySelector<HTMLButtonElement>(
+    ".zmd-board-quote-expand",
+  )!;
+  assert.equal(expand.getAttribute("aria-expanded"), "false");
+  await act(async () => expand.click());
+  assert.ok(quote.classList.contains("is-expanded"));
+  assert.equal(expand.getAttribute("aria-expanded"), "true");
+  for (const selector of [
+    ".zmd-board-quote-content button",
+    ".zmd-board-quote-source-card button",
+    ".zmd-board-quote-footer .is-primary",
+    ".zmd-board-quote-footer button:last-child",
+    "details button",
+  ]) {
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(selector)!.click(),
+    );
+  }
+  assert.deepEqual(calls, ["copy", "refresh", "open", "group", "delete"]);
+  await act(async () =>
+    root.render(
+      createElement(PropertiesPanel, {
+        ...props,
+        node: { ...props.node, id: "quote-two" },
+      }),
+    ),
+  );
+  assert.ok(container.querySelector("blockquote.is-clamped"));
+});

@@ -565,3 +565,59 @@ test("the source PDF toolbar annotation button is lazy and exposes its expanded 
     "card details must not duplicate the toolbar action",
   );
 });
+
+test("drawing previews appear in cards, picker and properties without the missing-text hint", () => {
+  const image = "data:image/png;base64,aGVsbG8=";
+  for (const annotationType of ["image", "ink"] as const) {
+    const model = quote({ text: "", image, annotationType });
+    const node = canvasDocumentToFlow({
+      version: 2,
+      nodes: [model],
+      connections: [],
+    }).nodes[0];
+    const card = renderNode(model);
+    const properties = renderToStaticMarkup(
+      createElement(PropertiesPanel, {
+        labels,
+        node,
+        onOpen: () => undefined,
+        onRefreshSource: () => undefined,
+        onCopy: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
+    const browser = renderToStaticMarkup(
+      createElement(AnnotationBrowser, {
+        labels: browserLabels,
+        state: {
+          status: "ready",
+          candidates: [
+            {
+              acquisition: {
+                kind: "quote",
+                source: model.source,
+                snapshot: model.snapshot,
+              },
+              attachmentTitle: "Paper.pdf",
+              sortIndex: "1",
+            },
+          ],
+          failures: [],
+        },
+        query: "",
+        selectedKeys: new Set<string>(),
+        existingKeys: new Set<string>(),
+        onQueryChange: () => undefined,
+        onToggle: () => undefined,
+        onClose: () => undefined,
+        onFocusExisting: () => undefined,
+        onAddSelected: () => undefined,
+      }),
+    );
+    for (const markup of [card, properties, browser]) {
+      assert.match(markup, /<img[^>]+src="data:image\/png;base64,aGVsbG8="/);
+      assert.match(markup, new RegExp(`alt="${typeLabels[annotationType]}"`));
+      assert.doesNotMatch(markup, /Open the source to view this annotation/);
+    }
+  }
+});

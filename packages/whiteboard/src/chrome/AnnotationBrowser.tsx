@@ -429,12 +429,30 @@ export function AnnotationBrowser(props: {
                                 aria-hidden="true"
                               />
                               <span className="zmd-board-annotation-content">
-                                <span className="zmd-board-annotation-text">
-                                  {snapshot.text ||
-                                    snapshot.comment ||
-                                    props.labels.noText ||
-                                    "Open the source to view this annotation"}
-                                </span>
+                                {snapshot.image ? (
+                                  <img
+                                    className="zmd-board-annotation-preview"
+                                    src={snapshot.image}
+                                    alt={
+                                      snapshot.annotationType
+                                        ? (props.labels.typeLabels?.[
+                                            snapshot.annotationType
+                                          ] ?? snapshot.annotationType)
+                                        : props.labels.title
+                                    }
+                                    draggable={false}
+                                  />
+                                ) : null}
+                                {!snapshot.image ||
+                                snapshot.text ||
+                                snapshot.comment ? (
+                                  <span className="zmd-board-annotation-text">
+                                    {snapshot.text ||
+                                      snapshot.comment ||
+                                      props.labels.noText ||
+                                      "Open the source to view this annotation"}
+                                  </span>
+                                ) : null}
                                 {snapshot.text && snapshot.comment ? (
                                   <span className="zmd-board-annotation-comment">
                                     {snapshot.comment}

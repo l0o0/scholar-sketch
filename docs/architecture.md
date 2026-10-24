@@ -76,8 +76,16 @@ without a parent Literature item. URL-only attachments are not annotatable.
 Highlights, underlines, notes, text boxes, image selections and ink annotations
 become Quote nodes with their type, tags, color, comment and location metadata.
 Text is allowed to be empty; notes and text boxes use their comment as content.
-Image and ink annotations retain a type label, comment and source navigation;
-their cached image previews are not copied into the canvas.
+Image and ink annotations retain a type label, comment and source navigation.
+The host reads Zotero’s cached PNG crop for these annotations, including the page
+background and marks. Bounded safe image data is included in the Quote snapshot
+for the picker, card and properties panel and survives saving/reopening. Missing
+cache files leave source navigation usable; resolution retains the last saved
+preview until a replacement is available. The iframe never reads Zotero cache paths.
+Quote snapshots also retain the source attachment title for the compact properties
+panel. Older snapshots fall back to their citation or attachment key until resolved.
+The panel clamps quotes to five lines; expanding scrolls the content while keeping
+source navigation and grouping actions visible.
 
 The host verifies the library and attachment/annotation key chain. Existing
 Quotes that record a Literature key also require that parent to remain unchanged.

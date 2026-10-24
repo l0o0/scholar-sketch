@@ -121,6 +121,41 @@ test("file, loadSnapshot and acquisition messages agree on Academic field values
     [literatureAcquisition, true],
     [noteAcquisition, true],
     [quoteAcquisition, true],
+    [
+      {
+        ...quoteAcquisition,
+        snapshot: {
+          text: "",
+          annotationType: "ink",
+          image: "data:image/png;base64,aGVsbG8=",
+        },
+      },
+      true,
+    ],
+    ...[
+      12,
+      "file:///secret.png",
+      "https://example.com/a.png",
+      "data:text/html;base64,YQ==",
+      "data:image/png;base64,invalid!",
+    ].map(
+      (image) =>
+        [{ ...quoteAcquisition, snapshot: { text: "", image } }, false] as [
+          Record<string, unknown>,
+          boolean,
+        ],
+    ),
+    [
+      {
+        ...quoteAcquisition,
+        snapshot: { text: "Quote", attachmentTitle: "Source.pdf" },
+      },
+      true,
+    ],
+    [
+      { ...quoteAcquisition, snapshot: { text: "Quote", attachmentTitle: 12 } },
+      false,
+    ],
     [{ ...noteAcquisition, source: noteSource, sourceSnapshot: {} }, true],
     [{ ...noteAcquisition, source: { ...noteSource, itemKey: "" } }, false],
     [{ ...noteAcquisition, sourceSnapshot: { title: 123 } }, false],

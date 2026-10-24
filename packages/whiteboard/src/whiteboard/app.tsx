@@ -370,7 +370,7 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   openSource: "Open source",
   refreshSource: "Refresh source",
   refreshNote: "Refresh from Zotero",
-  viewAnnotations: "View annotations",
+  viewAnnotations: "Add annotations",
   annotationBrowserTitle: "Annotations",
   searchAnnotations: "Search annotations",
   annotationsLoading: "Loading annotations…",

@@ -78,6 +78,7 @@ function gatewayWithPartialFailure() {
     unescapeHTML: (value) => value,
     openItem: async () => undefined,
     openNote: async () => undefined,
+    readAnnotationImage: async () => undefined,
     openAnnotation: async () => false,
     openAttachmentPage: async () => undefined,
   };

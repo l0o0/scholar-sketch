@@ -390,6 +390,13 @@ export const IconExport = () => (
   </Icon>
 );
 
+export const IconRefresh = () => (
+  <Icon>
+    <path d="M20 7v5h-5" />
+    <path d="M19.4 12a8 8 0 1 0-2.1 5.7M20 12l-4-4" />
+  </Icon>
+);
+
 export const IconMore = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

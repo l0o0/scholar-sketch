@@ -126,7 +126,7 @@ whiteboard-failure-list-failed = Zotero 无法列出此来源的批注。
 whiteboard-open-source = 打开来源
 whiteboard-refresh-source = 刷新来源
 whiteboard-refresh-note = 从 Zotero 刷新
-whiteboard-view-annotations = 查看批注
+whiteboard-view-annotations = 添加注释
 whiteboard-annotation-browser-title = 批注
 whiteboard-search-annotations = 搜索批注
 whiteboard-annotations-loading = 正在加载批注…
@@ -756,7 +756,7 @@ feature-updates-current-description = 当前版本功能速览（含已有功能
 feature-updates-description = 本次更新
 feature-updates-maintenance-description = 本次更新包含修复与体验改进，详情见完整更新日志
 feature-updates-attachment-annotations-title = 将附件批注带到白板
-feature-updates-attachment-annotations-body = 选中文献或 Zotero 附件卡片，点击上方浮动工具栏中的查看批注，搜索、筛选后批量添加，并自动连接来源卡片
+feature-updates-attachment-annotations-body = 选中文献或 Zotero 附件卡片，点击上方浮动工具栏中的添加注释，搜索、筛选后批量添加，并自动连接来源卡片
 feature-updates-local-image-shortcut-title = 用快捷键导入本地图片
 feature-updates-local-image-shortcut-body = 编辑 Markdown 时按 Ctrl+Alt+I，macOS 使用 Cmd+Option+I。设置中可通过紧凑的分段按钮切换 Markdown 与白板快捷键说明
 feature-updates-canvas-notices-title = 更清晰的白板操作反馈
@@ -809,3 +809,13 @@ image-repair-skipped = 另有 { $count } 个同级图片无法与正文引用明
 image-repair-session-closed = 笔记已关闭，请重新打开后检查图片。
 image-repair-file-missing = 找不到 Markdown 文件，请先完成附件下载。
 image-repair-sync-hint = 图片已恢复。请在本机完成 Zotero 同步，再让另一台电脑同步。
+
+whiteboard-quote-properties = 引文属性
+
+whiteboard-quote-source = 来源
+
+whiteboard-quote-content = 引文内容
+
+whiteboard-expand-quote = 展开全文
+
+whiteboard-collapse-quote = 收起全文

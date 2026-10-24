@@ -366,6 +366,8 @@ function payloadSchema(kind: unknown): PayloadSchema | undefined {
           annotationType: true,
           tags: true,
           comment: true,
+          image: true,
+          attachmentTitle: true,
           citation: true,
           pageLabel: true,
           color: true,
