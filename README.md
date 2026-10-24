@@ -88,8 +88,13 @@ Mermaid is bundled for offline use and loaded when needed. Invalid or overly com
 <details>
 <summary>Development and plugin integration</summary>
 
+Start with [contributor and agent rules](AGENTS.md), the [maintenance workflow and pilot progress](docs/maintenance.md), and [candidate verification and release promotion](docs/releasing.md).
+
+Use Node.js 22 (at least 22.16.0) and pnpm 9.15.9, matching CI.
+
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+pnpm run verify      # Test ownership, lint, unit/fake tests, and build
 cp .env.example .env  # Configure your Zotero development environment
 pnpm start           # Build and launch Zotero
 pnpm run build       # Build the XPI
@@ -97,7 +102,7 @@ pnpm run build       # Build the XPI
 
 [Browser testing](docs/fake-zotero.md) · [Markdown API](docs/markdown-api.md) · [Canvas API](docs/canvas-api.md)
 
-See [release preparation](docs/releasing.md) for maintaining the in-app update highlights.
+Native Zotero acceptance is separate from Node/fake checks. CI builds candidates; maintainers explicitly approve and promote the verified package.
 
 </details>
 

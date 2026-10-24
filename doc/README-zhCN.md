@@ -92,14 +92,21 @@ flowchart LR
 <details>
 <summary>开发与插件集成</summary>
 
+先读[协作与 Agent 规则](../AGENTS.md)、[维护流程与试点进度](../docs/maintenance.md)，涉及发行时再读[候选验收与发布推广](../docs/releasing.md)。
+
+使用与 CI 一致的 Node.js 22（至少 22.16.0）和 pnpm 9.15.9。
+
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+pnpm run verify      # 测试归属、lint、unit/fake 测试及构建
 cp .env.example .env  # 配置 Zotero 开发环境
 pnpm start           # 构建并启动 Zotero
 pnpm run build       # 生成 XPI
 ```
 
 [浏览器测试](../docs/fake-zotero.md) · [Markdown API](../docs/markdown-api.md) · [Canvas API](../docs/canvas-api.md)
+
+真实 Zotero 验收独立于 Node/fake 检查。CI 生成候选包，由维护者明确验收并推广同一份包。
 
 </details>
 
