@@ -5,12 +5,13 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -73,15 +74,49 @@ jobs:
           path: .scaffold/build/scholarsketch-v${{ steps.package.outputs.version }}.xpi
           if-no-files-found: error
 
-  # Plugin integration tests need a Zotero binary in CI — skip until wired.
-  # test:
-  #   runs-on: ubuntu-latest
-  #   needs: [build]
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - uses: pnpm/action-setup@v6
-  #       with: { version: 9.15.9 }
-  #     - uses: actions/setup-node@v7
-  #       with: { node-version: 22, cache: pnpm }
-  #     - run: pnpm install --frozen-lockfile
-  #     - run: pnpm test
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check test ownership
+        run: pnpm run test:suites:check
+
+      - name: Unit tests
+        run: pnpm run test:unit
+
+      # This command builds fake-zotero before running its package and integration tests.
+      - name: Fake Zotero tests
+        run: pnpm run test:fake-zotero
+
+  checks:
+    name: Sketch checks
+    runs-on: ubuntu-latest
+    needs: [lint, build, tests]
+    if: always()
+    steps:
+      - name: Require every check to succeed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+        run: |
+          printf 'lint=%s build=%s tests=%s\n' "$LINT_RESULT" "$BUILD_RESULT" "$TEST_RESULT"
+          test "$LINT_RESULT" = success && test "$BUILD_RESULT" = success && test "$TEST_RESULT" = success
+
+  # Real Zotero startup/unload and native windows still require host verification.
