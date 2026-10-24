@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -16,17 +17,11 @@ test("release download uses the configured versioned XPI name", async () => {
   assert.match(config, /\{\{xpiName\}\}\.xpi/);
 });
 
-test("GitHub workflows resolve package versions with valid bash quoting", async () => {
-  const workflows = await Promise.all([
-    readFile(".github/workflows/ci.yml", "utf8"),
-    readFile(".github/workflows/release.yml", "utf8"),
-  ]);
-
-  for (const workflow of workflows) {
-    assert.match(
-      workflow,
-      /VERSION="\$\(node -p "require\('\.\/package\.json'\)\.version"\)"/,
-    );
-    assert.doesNotMatch(workflow, /node -p \\"require/);
-  }
+test("release entry refuses local publication before contacting GitHub", () => {
+  const result = spawnSync(process.execPath, ["scripts/release-promote.mjs"], {
+    encoding: "utf8",
+    env: { PATH: process.env.PATH, GITHUB_ACTIONS: "false" },
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Promotion only runs in GitHub Actions/);
 });

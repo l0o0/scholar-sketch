@@ -94,6 +94,7 @@ export const testSuites = {
       "test/preview-render-state.test.ts",
       "test/preview-worker-client.test.ts",
       "test/preview-worker-protocol.test.ts",
+      "test/release-candidate.test.ts",
       "test/release-config.test.ts",
       "test/release-highlights.test.ts",
       "test/remaining-features.test.ts",

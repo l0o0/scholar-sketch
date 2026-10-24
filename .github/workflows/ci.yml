@@ -55,24 +55,22 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Resolve package version
-        id: package
-        run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm run build
 
-      - name: Upload build result
+      - name: Prepare verified candidate
+        run: node scripts/release-candidate.mjs create
+
+      - name: Upload candidate for review
         uses: actions/upload-artifact@v7
         with:
-          name: scholarsketch-v${{ steps.package.outputs.version }}.xpi
-          path: .scaffold/build/scholarsketch-v${{ steps.package.outputs.version }}.xpi
+          name: scholar-sketch-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .scaffold/candidate/
           if-no-files-found: error
+          retention-days: 14
 
   tests:
     runs-on: ubuntu-latest
