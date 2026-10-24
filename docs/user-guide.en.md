@@ -249,7 +249,7 @@ The resulting note contains text excerpts, comments, page numbers, and links bac
 
 Finish editing the native Note, then select one or more Note items in the Zotero library. Right-click and choose **Scholar Sketch → Convert Notes to MD**. Conversion reads Zotero's saved Note content and creates new `.md` stored attachments while keeping the original Notes.
 
-A child Note produces an MD attachment under the same parent item. A standalone Note produces an attachment in the same library and collections. Running conversion again creates another copy; it does not overwrite an earlier MD attachment or your edits to it.
+A child Note produces an MD attachment under the same parent item. A standalone Note produces an attachment in the same library and collections. Conversion reports results without changing the current selection or opening the new MD. If a batch partly fails, select only the failed Notes before retrying to avoid duplicate copies. Running conversion again creates another copy; it does not overwrite an earlier MD attachment or your edits to it.
 
 Conversion uses Zotero's Markdown exporter for headings, lists, ordinary tables, math, citations, and annotation source links. Downloaded embedded images are copied into the new attachment's `assets` directory; remote images keep their URLs. Missing or unsupported images, or source changes during conversion, stop that Note's conversion with an error while preserving the original. Batch conversion reports successful and failed Notes separately.
 

@@ -191,7 +191,7 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
     if (!selected.length || !selected.every(canConvertNote)) return;
     busy = true;
     void convertSelectedNotes(win, selected, { shouldContinue })
-      .then(async (result) => {
+      .then((result) => {
         if (!shouldContinue()) return;
         const progress = new ztoolkit.ProgressWindow(
           addon.data.config.addonName,
@@ -230,35 +230,6 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
           }
         }
         if (result.created.length || result.failed.length) progress.show();
-        // Keep failed sources selected for retry; successful Notes already have
-        // independent MD copies and must not be converted again by that retry.
-        const selection = result.failed.length
-          ? result.failed.map(({ note }) => note.id)
-          : result.created.map((item) => item.id);
-        try {
-          if (selection.length) await win.ZoteroPane.selectItems(selection);
-          if (
-            shouldContinue() &&
-            !result.failed.length &&
-            result.created.length === 1
-          )
-            await openMarkdownTab(result.created[0], {
-              win,
-              shouldOpen: shouldContinue,
-            });
-        } catch (error) {
-          ztoolkit.log(
-            "Converted Notes could not be selected or opened",
-            error,
-          );
-          if (shouldContinue())
-            new ztoolkit.ProgressWindow(addon.data.config.addonName)
-              .createLine({
-                text: getString("toolbar-created-open-failed"),
-                type: "fail",
-              })
-              .show();
-        }
       })
       .catch(reportError)
       .finally(() => {

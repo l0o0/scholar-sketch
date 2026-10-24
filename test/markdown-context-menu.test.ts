@@ -275,8 +275,9 @@ test("native Note selections expose conversion without duplicate MD creation com
   await command(win, "convert-note-md");
   assert.deepEqual(Array.from(f.conversions[0].items), [first]);
   assert.equal(f.conversions[0].win, win);
-  assert.equal(f.opened[0].item, md);
-  assert.deepEqual(state.selectedIDs, [101]);
+  assert.equal(f.opened.length, 0);
+  assert.deepEqual(state.selectedIDs, []);
+  assert.deepEqual(state.selection, [first]);
   state.selection = [first, second];
   show(win);
   assert.equal(entry(win, "scholar-sketch").hidden, false);
@@ -285,7 +286,7 @@ test("native Note selections expose conversion without duplicate MD creation com
   assert.equal(entry(win, "scholar-sketch").hidden, true);
 });
 
-test("partial Note conversion selects only failures for retry and shows formatting warnings", async (t) => {
+test("partial Note conversion preserves the selection and shows formatting warnings", async (t) => {
   const f = fixture(t);
   const { win, state } = f.makeWindow();
   const first = makeItem(1, { kind: "note" });
@@ -298,7 +299,8 @@ test("partial Note conversion selects only failures for retry and shows formatti
     cancelled: false,
   });
   await command(win, "convert-note-md");
-  assert.deepEqual(state.selectedIDs, [second.id]);
+  assert.deepEqual(state.selectedIDs, []);
+  assert.deepEqual(state.selection, [first, second]);
   assert.equal(f.opened.length, 0);
   assert.ok(f.notices.includes("note-convert-complete"));
   assert.ok(f.notices.includes("note-convert-format-warning"));
@@ -346,22 +348,32 @@ test("read-only Notes are disabled and repeated commands or disposed windows can
   assert.deepEqual(state.selectedIDs, []);
 });
 
-test("a navigation failure after conversion reports that the new MD was created", async (t) => {
+test("successful batch conversion does not invoke navigation and still reports completion", async (t) => {
   const f = fixture(t);
   const { win, state } = f.makeWindow();
-  state.selection = [makeItem(1, { kind: "note" })];
+  const sources = [
+    makeItem(1, { kind: "note" }),
+    makeItem(2, { kind: "note" }),
+  ];
+  state.selection = sources;
   f.setConversion({
-    created: [makeItem(101, { kind: "md" })],
+    created: [makeItem(101, { kind: "md" }), makeItem(102, { kind: "md" })],
     failed: [],
     warnings: 0,
     cancelled: false,
   });
+  let navigationCalls = 0;
   win.ZoteroPane.selectItems = async () => {
-    throw new Error("Pane unavailable");
+    navigationCalls++;
+    throw new Error("Unexpected navigation");
   };
   await command(win, "convert-note-md");
   assert.ok(f.notices.includes("note-convert-complete"));
-  assert.ok(f.notices.includes("toolbar-created-open-failed"));
+  assert.equal(navigationCalls, 0);
+  assert.deepEqual(state.selection, sources);
+  assert.deepEqual(Array.from(f.conversions[0].items), sources);
+  assert.equal(f.opened.length, 0);
+  assert.ok(!f.notices.includes("toolbar-created-open-failed"));
   assert.ok(
     f.notices.every((text) => !text.includes("markdown-transfer-failed")),
   );
