@@ -875,3 +875,11 @@ settings-slash-search-english = English
 settings-slash-search-pinyin = Pinyin
 
 settings-slash-search-description = Automatic uses Pinyin for Chinese Zotero and English otherwise. Displayed command names always remain searchable.
+
+feature-updates-annotation-preview-title = Annotation image previews
+
+feature-updates-annotation-preview-body = Image and ink annotations show cached page previews that are saved with the canvas and included in exports.
+
+feature-updates-quote-details-title = Compact quote details
+
+feature-updates-quote-details-body = View the source, annotation content and status together. Expand long quotes while keeping source and grouping actions visible.

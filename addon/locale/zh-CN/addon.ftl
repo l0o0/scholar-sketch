@@ -875,3 +875,11 @@ settings-slash-search-english = 英文
 settings-slash-search-pinyin = 拼音
 
 settings-slash-search-description = 默认跟随 Zotero 语言：中文使用拼音，其他语言使用英文。菜单显示名称始终可以检索。
+
+feature-updates-annotation-preview-title = 白板批注图片预览
+
+feature-updates-annotation-preview-body = 图像和手绘批注可显示页面局部预览，随白板保存，并支持导出。
+
+feature-updates-quote-details-title = 更紧凑的引文属性
+
+feature-updates-quote-details-body = 集中查看来源、批注内容和状态；长引用可展开，来源与分组操作保持可见。
