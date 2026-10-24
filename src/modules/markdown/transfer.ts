@@ -168,6 +168,9 @@ export async function importMarkdownFile(
       throw new Error("This Zotero host cannot import Markdown image packages");
     attachment = await importSnapshot.call(Zotero.Attachments, {
       file: staged.file,
+      // Native snapshot import writes this field even for local packages and
+      // Item.setField rejects undefined. A local MD has no source URL.
+      url: "",
       title: filename,
       contentType: "text/markdown",
       charset: "utf-8",

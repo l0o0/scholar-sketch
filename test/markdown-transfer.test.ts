@@ -100,6 +100,14 @@ function fixture(t: TestContext) {
       LINK_MODE_IMPORTED_FILE: 0,
       LINK_MODE_LINKED_URL: 3,
       importSnapshotFromFile: async (options: any) => {
+        // Native snapshot import forwards url to Item.setField, which rejects undefined.
+        if (options.url === undefined)
+          throw new Error("'url' value cannot be undefined");
+        assert.equal(
+          options.url,
+          "",
+          "local Markdown packages must not claim a remote URL",
+        );
         imports.push(options);
         const id = 100 + imports.length;
         const folder = join(storage, String(id));
