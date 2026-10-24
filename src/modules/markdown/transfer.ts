@@ -21,6 +21,17 @@ export interface MarkdownImportTarget {
   parent?: Zotero.Item | null;
   libraryID: number;
   collectionID?: number | null;
+  /** Preserve all memberships when importing an existing standalone Note. */
+  collectionIDs?: readonly number[];
+}
+
+function importCollections(target: MarkdownImportTarget): readonly number[] {
+  if (target.collectionIDs !== undefined && target.collectionID != null)
+    throw new Error("Specify one collection destination");
+  return (
+    target.collectionIDs ??
+    (target.collectionID == null ? [] : [target.collectionID])
+  );
 }
 
 /** Recheck the captured destination, rather than consulting a later selection. */
@@ -36,8 +47,8 @@ export function assertMarkdownImportTarget(target: MarkdownImportTarget): void {
       !target.parent.isEditable())
   )
     throw new Error("The selected parent item is unavailable or read-only");
-  if (!target.parent && target.collectionID != null) {
-    const collection = Zotero.Collections.get(target.collectionID);
+  for (const id of target.parent ? [] : importCollections(target)) {
+    const collection = Zotero.Collections.get(id);
     if (
       !collection ||
       collection.deleted ||
@@ -172,8 +183,8 @@ export async function importMarkdownFile(
       assertTransferContinues(options.shouldContinue);
       assertMarkdownImportTarget(target);
       created.attachmentLinkMode = Zotero.Attachments.LINK_MODE_IMPORTED_FILE;
-      if (!target.parent && target.collectionID != null)
-        created.setCollections([target.collectionID]);
+      if (!target.parent && importCollections(target).length)
+        created.setCollections([...importCollections(target)]);
       await created.saveTx({ skipSelect: true });
       await markAttachmentForUpload(created, { packageChanged: true });
     });

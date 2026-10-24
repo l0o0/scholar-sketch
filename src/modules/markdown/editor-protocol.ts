@@ -1,4 +1,4 @@
-import type { FontFamilyID } from "./preferences";
+import type { FontFamilyID, ResolvedSlashSearchLanguage } from "./preferences";
 import { validViewState, type DocumentViewState } from "./editor-view-state";
 import { parseDocumentLink } from "./document-link-shared";
 import { parseNoteLink, portableNoteFilename } from "./note-links";
@@ -52,6 +52,28 @@ export interface EditorLinkLabels {
   loading: string;
 }
 
+export interface EditorSlashLabels {
+  title: string;
+  hint: string;
+  empty: string;
+  reference: string;
+  h1: string;
+  h2: string;
+  h3: string;
+  list: string;
+  orderedList: string;
+  task: string;
+  quote: string;
+  bold: string;
+  italic: string;
+  code: string;
+  codeBlock: string;
+  link: string;
+  table: string;
+  image: string;
+  divider: string;
+}
+
 export interface EditorLinkCandidate {
   key: string;
   libraryID: number;
@@ -87,6 +109,8 @@ export interface EditorInitPayload {
   imageLabels?: EditorImageLabels;
   tableLabels?: EditorTableLabels;
   linkLabels?: EditorLinkLabels;
+  slashLabels?: EditorSlashLabels;
+  slashSearchLanguage?: ResolvedSlashSearchLanguage;
   mermaidLabels?: EditorMermaidLabels;
   viewState?: DocumentViewState;
 }
@@ -184,6 +208,11 @@ export type ParentToEditorMessage = (
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setAppearance";
       payload: EditorAppearance;
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setSlashSearchLanguage";
+      payload: { language: ResolvedSlashSearchLanguage };
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -383,6 +412,14 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
       typeof payload.backgroundColor === "string" &&
       (payload.backgroundColor === "" ||
         /^#[\da-f]{6}$/i.test(payload.backgroundColor))
+    );
+  }
+  if (data.type === "setSlashSearchLanguage") {
+    const payload = data.payload as { language?: unknown } | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      (payload.language === "english" || payload.language === "pinyin")
     );
   }
   if (data.type === "viewState") return validViewState(data.payload);

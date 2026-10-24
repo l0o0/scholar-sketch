@@ -42,6 +42,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
     whiteboardFontFamily: "system",
@@ -54,6 +55,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
     whiteboardFontFamily: "system",
@@ -66,6 +68,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
     whiteboardFontFamily: "system",
@@ -84,6 +87,110 @@ test("normalizes unsupported whiteboard schemes to the traditional palette", () 
     }).whiteboardColorScheme,
     "traditional",
   );
+});
+
+test("slash search segmented settings support keyboard selection, cancellation and persistence", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController, applySettings } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const stored = new Map<string, unknown>();
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    { onSettings: applySettings },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const radios = () => [
+    ...win.document.querySelectorAll<HTMLButtonElement>(
+      "[data-slash-search-language]",
+    ),
+  ];
+  const assertSelection = (language: string) => {
+    assert.equal(radios().length, 3);
+    for (const option of radios()) {
+      const selected = option.dataset.slashSearchLanguage === language;
+      assert.equal(option.getAttribute("aria-checked"), String(selected));
+      assert.equal(option.tabIndex, selected ? 0 : -1);
+    }
+  };
+  controller.open("settings", undefined, "editor");
+  assertSelection("auto");
+  radios()[2].click();
+  assertSelection("pinyin");
+  controller.close();
+  assert.equal(stored.size, 0, "cancelled edits do not change preferences");
+  controller.open("settings", undefined, "editor");
+  assertSelection("auto");
+  radios()[0].focus();
+  radios()[0].dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assertSelection("english");
+  assert.equal(win.document.activeElement, radios()[1]);
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="general"]')!
+    .click();
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="editor"]')!
+    .click();
+  assertSelection("english");
+  win.document
+    .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+    .click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    stored.get("extensions.zotero.bamboo.markdownSlashSearchLanguage"),
+    "english",
+  );
+  controller.open("settings", undefined, "editor");
+  assertSelection("english");
+  radios()[1].dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "End",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assertSelection("pinyin");
+  radios()[2].dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Home",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assertSelection("auto");
+  win.document
+    .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+    .click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    stored.get("extensions.zotero.bamboo.markdownSlashSearchLanguage"),
+    "auto",
+  );
+  stored.set("extensions.zotero.bamboo.markdownSlashSearchLanguage", "unknown");
+  controller.open("settings", undefined, "editor");
+  assertSelection("auto");
 });
 
 test("provides stable modal titles via localized keys", () => {

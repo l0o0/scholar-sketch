@@ -75,6 +75,7 @@ test("standalone window commands are shown only for one matching attachment", as
     for (const extension of ["md", "canvas", "pdf"]) {
       const item = {
         isAttachment: () => true,
+        isNote: () => false,
         isEditable: () => true,
         isRegularItem: () => false,
         libraryID: 1,

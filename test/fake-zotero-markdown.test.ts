@@ -443,3 +443,54 @@ test("appearance preferences reach pending and live editors and stop after destr
   applyMarkdownEditorPreferences();
   assert.equal(posted.length, count);
 });
+
+test("slash search preference resolves the host locale and refreshes pending/live editor bridges", (t) => {
+  const { editor, posted, ready, fake } = editorHarness(t);
+  const set = (value: string) =>
+    fake.Zotero.Prefs.set(
+      "extensions.zotero.bamboo.markdownSlashSearchLanguage",
+      value,
+      true,
+    );
+  (fake.Zotero as any).locale = "zh-CN";
+  set("auto");
+  applyMarkdownEditorPreferences();
+  assert.equal(posted.length, 0);
+  ready();
+  assert.equal(
+    posted.find((message) => message.type === "init").payload
+      .slashSearchLanguage,
+    "pinyin",
+  );
+  assert.equal(
+    posted.findLast((message) => message.type === "setSlashSearchLanguage")
+      .payload.language,
+    "pinyin",
+  );
+  set("english");
+  applyMarkdownEditorPreferences();
+  assert.equal(
+    posted.findLast((message) => message.type === "setSlashSearchLanguage")
+      .payload.language,
+    "english",
+  );
+  (fake.Zotero as any).locale = "de-DE";
+  set("auto");
+  applyMarkdownEditorPreferences();
+  assert.equal(
+    posted.findLast((message) => message.type === "setSlashSearchLanguage")
+      .payload.language,
+    "english",
+  );
+  set("pinyin");
+  applyMarkdownEditorPreferences();
+  assert.equal(
+    posted.findLast((message) => message.type === "setSlashSearchLanguage")
+      .payload.language,
+    "pinyin",
+  );
+  editor.destroy();
+  const count = posted.length;
+  applyMarkdownEditorPreferences();
+  assert.equal(posted.length, count);
+});

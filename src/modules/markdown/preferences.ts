@@ -1,5 +1,25 @@
 export type AppearanceTheme = "system" | "light" | "dark";
 export type FontFamilyID = "system" | "serif" | "mono";
+export type SlashSearchLanguage = "auto" | "english" | "pinyin";
+export type ResolvedSlashSearchLanguage = Exclude<SlashSearchLanguage, "auto">;
+
+export function normalizeSlashSearchLanguage(
+  value: unknown,
+): SlashSearchLanguage {
+  return value === "english" || value === "pinyin" ? value : "auto";
+}
+
+export function resolveSlashSearchLanguage(
+  value: unknown,
+  locale: string,
+): ResolvedSlashSearchLanguage {
+  const language = normalizeSlashSearchLanguage(value);
+  return language === "auto"
+    ? /^zh(?:[-_]|$)/i.test(locale)
+      ? "pinyin"
+      : "english"
+    : language;
+}
 
 export const FONT_FAMILY_CSS: Record<FontFamilyID, string> = {
   system:

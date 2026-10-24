@@ -10,6 +10,7 @@ type Host = Window & {
   ZoteroPane: {
     getSelectedItems(): Item[];
     selectItem(id: number): Promise<void>;
+    selectItems(ids: number[]): Promise<void>;
   };
 };
 type Item = ReturnType<typeof makeItem>;
@@ -18,7 +19,7 @@ function makeItem(
   options: {
     parent?: number;
     libraryID?: number;
-    kind?: "regular" | "md" | "pdf";
+    kind?: "regular" | "md" | "pdf" | "note";
     deleted?: boolean;
     editable?: boolean;
     children?: number[];
@@ -32,7 +33,9 @@ function makeItem(
     attachmentFilename: `${id}.${options.kind === "pdf" ? "pdf" : "md"}`,
     isRegularItem: () => !options.kind || options.kind === "regular",
     isAttachment: () => options.kind === "md" || options.kind === "pdf",
+    isNote: () => options.kind === "note",
     isEditable: () => options.editable !== false,
+    getNoteTitle: () => `Note ${id}`,
     getAttachments: () => options.children ?? [],
   };
 }
@@ -46,6 +49,19 @@ function fixture(t: TestContext) {
     options: Record<string, unknown>;
   }> = [];
   const exports: Array<{ win: Host; items: Item[] }> = [];
+  const conversions: Array<{
+    win: Host;
+    items: Item[];
+    shouldContinue: () => boolean;
+  }> = [];
+  let conversionResult: {
+    created: Item[];
+    failed: Array<{ note: Item; error: unknown }>;
+    warnings: number;
+    cancelled: boolean;
+  } = { created: [], failed: [], warnings: 0, cancelled: false };
+  let pendingConversion: Promise<typeof conversionResult> | undefined;
+  const notices: string[] = [];
   const opened: Array<{ kind: string; win: Host; item: Item }> = [];
   const libraries = new Map([
     [1, { editable: true, filesEditable: true }],
@@ -110,6 +126,25 @@ function fixture(t: TestContext) {
         return null;
       },
     },
+    "./convert-note": {
+      canConvertNote: (item: Item) =>
+        item.isNote() &&
+        !item.deleted &&
+        item.isEditable() &&
+        Boolean(libraries.get(item.libraryID)?.filesEditable),
+      convertSelectedNotes: async (
+        win: Host,
+        selected: Item[],
+        options: { shouldContinue: () => boolean },
+      ) => {
+        conversions.push({
+          win,
+          items: selected,
+          shouldContinue: options.shouldContinue,
+        });
+        return pendingConversion ?? conversionResult;
+      },
+    },
   };
   const module = { exports: {} as Record<string, unknown> };
   const code = transpileModule(
@@ -137,7 +172,8 @@ function fixture(t: TestContext) {
     ztoolkit: {
       log() {},
       ProgressWindow: class {
-        createLine() {
+        createLine(options: { text: string }) {
+          notices.push(options.text);
           return this;
         }
         show() {
@@ -167,6 +203,9 @@ function fixture(t: TestContext) {
       selectItem: async (id) => {
         state.selectedIDs.push(id);
       },
+      selectItems: async (ids) => {
+        state.selectedIDs.push(...ids);
+      },
     };
     Object.assign(win.document, {
       createXULElement: (name: string) => win.document.createElement(name),
@@ -186,10 +225,18 @@ function fixture(t: TestContext) {
     items,
     calls,
     exports,
+    conversions,
+    notices,
     opened,
     libraries,
     setPending: (value?: Promise<Item>) => {
       pending = value;
+    },
+    setConversion: (value: typeof conversionResult) => {
+      conversionResult = value;
+    },
+    setPendingConversion: (value: typeof pendingConversion) => {
+      pendingConversion = value;
     },
   };
 }
@@ -213,6 +260,112 @@ function visibleCommands(win: Host) {
     .filter((element) => !element.hidden)
     .map((element) => element.id);
 }
+
+test("native Note selections expose conversion without duplicate MD creation commands", async (t) => {
+  const f = fixture(t);
+  const { win, state } = f.makeWindow();
+  const first = makeItem(1, { kind: "note" });
+  const second = makeItem(2, { kind: "note" });
+  const md = makeItem(101, { kind: "md" });
+  state.selection = [first];
+  f.setConversion({ created: [md], failed: [], warnings: 0, cancelled: false });
+  show(win);
+  assert.deepEqual(visibleCommands(win), ["bamboo-item-convert-note-md"]);
+  assert.equal(entry(win, "convert-note-md").hasAttribute("disabled"), false);
+  await command(win, "convert-note-md");
+  assert.deepEqual(Array.from(f.conversions[0].items), [first]);
+  assert.equal(f.conversions[0].win, win);
+  assert.equal(f.opened[0].item, md);
+  assert.deepEqual(state.selectedIDs, [101]);
+  state.selection = [first, second];
+  show(win);
+  assert.equal(entry(win, "scholar-sketch").hidden, false);
+  state.selection = [first, md];
+  show(win);
+  assert.equal(entry(win, "scholar-sketch").hidden, true);
+});
+
+test("partial Note conversion selects only failures for retry and shows formatting warnings", async (t) => {
+  const f = fixture(t);
+  const { win, state } = f.makeWindow();
+  const first = makeItem(1, { kind: "note" });
+  const second = makeItem(2, { kind: "note" });
+  state.selection = [first, second];
+  f.setConversion({
+    created: [makeItem(101, { kind: "md" })],
+    failed: [{ note: second, error: new Error("Missing image") }],
+    warnings: 1,
+    cancelled: false,
+  });
+  await command(win, "convert-note-md");
+  assert.deepEqual(state.selectedIDs, [second.id]);
+  assert.equal(f.opened.length, 0);
+  assert.ok(f.notices.includes("note-convert-complete"));
+  assert.ok(f.notices.includes("note-convert-format-warning"));
+  assert.ok(f.notices.includes("note-convert-failed"));
+  assert.ok(f.notices.some((text) => text.includes("Missing image")));
+  state.selection = [second];
+  await command(win, "convert-note-md");
+  assert.deepEqual(Array.from(f.conversions[1].items), [second]);
+});
+
+test("read-only Notes are disabled and repeated commands or disposed windows cannot start another conversion", async (t) => {
+  const f = fixture(t);
+  const { win, state } = f.makeWindow();
+  const note = makeItem(1, { kind: "note" });
+  state.selection = [makeItem(2, { kind: "note", editable: false })];
+  show(win);
+  assert.equal(entry(win, "convert-note-md").getAttribute("disabled"), "true");
+  await command(win, "convert-note-md");
+  assert.equal(f.conversions.length, 0);
+  state.selection = [note];
+  let resolve!: (result: {
+    created: Item[];
+    failed: [];
+    warnings: number;
+    cancelled: boolean;
+  }) => void;
+  f.setPendingConversion(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  await command(win, "convert-note-md");
+  await command(win, "convert-note-md");
+  assert.equal(f.conversions.length, 1);
+  f.unregisterItemContextMenu(win);
+  assert.equal(f.conversions[0].shouldContinue(), false);
+  resolve({
+    created: [makeItem(101, { kind: "md" })],
+    failed: [],
+    warnings: 0,
+    cancelled: false,
+  });
+  await setImmediate();
+  assert.equal(f.opened.length, 0);
+  assert.deepEqual(state.selectedIDs, []);
+});
+
+test("a navigation failure after conversion reports that the new MD was created", async (t) => {
+  const f = fixture(t);
+  const { win, state } = f.makeWindow();
+  state.selection = [makeItem(1, { kind: "note" })];
+  f.setConversion({
+    created: [makeItem(101, { kind: "md" })],
+    failed: [],
+    warnings: 0,
+    cancelled: false,
+  });
+  win.ZoteroPane.selectItems = async () => {
+    throw new Error("Pane unavailable");
+  };
+  await command(win, "convert-note-md");
+  assert.ok(f.notices.includes("note-convert-complete"));
+  assert.ok(f.notices.includes("toolbar-created-open-failed"));
+  assert.ok(
+    f.notices.every((text) => !text.includes("markdown-transfer-failed")),
+  );
+});
 
 test("regular items expose both child creation commands and export only their direct Markdown attachments", async (t) => {
   const f = fixture(t);

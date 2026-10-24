@@ -8,6 +8,7 @@ import { resolveConfiguredShortcut } from "./shortcut";
 import { openMarkdownWindow } from "./window";
 import { openMarkdownTab } from "./tab";
 import { exportSelectedNotes } from "./export-notes";
+import { canConvertNote, convertSelectedNotes } from "./convert-note";
 import { createWhiteboardAttachment } from "../whiteboard/create";
 import { openWhiteboardTab } from "../whiteboard/tab";
 import { rememberWhiteboard } from "../whiteboard/open";
@@ -79,7 +80,10 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
   const exportItem = doc.createXULElement("menuitem") as HTMLElement;
   exportItem.id = `${addon.data.config.addonRef}-item-export-md`;
   exportItem.setAttribute("label", getString("menuitem-export-selected-md"));
-  scholarPopup.append(canvasItem, createItem, exportItem);
+  const convertItem = doc.createXULElement("menuitem") as HTMLElement;
+  convertItem.id = `${addon.data.config.addonRef}-item-convert-note-md`;
+  convertItem.setAttribute("label", getString("menuitem-convert-note-md"));
+  scholarPopup.append(canvasItem, createItem, exportItem, convertItem);
   scholarMenu.append(scholarPopup);
   const editableParent = (item: Zotero.Item | undefined) => {
     if (!item?.isRegularItem() || item.deleted || !item.isEditable())
@@ -181,6 +185,86 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
         busy = false;
       });
   };
+  const onConvert = () => {
+    if (!shouldContinue() || busy) return;
+    const selected = [...(win.ZoteroPane?.getSelectedItems?.() || [])];
+    if (!selected.length || !selected.every(canConvertNote)) return;
+    busy = true;
+    void convertSelectedNotes(win, selected, { shouldContinue })
+      .then(async (result) => {
+        if (!shouldContinue()) return;
+        const progress = new ztoolkit.ProgressWindow(
+          addon.data.config.addonName,
+        );
+        if (result.created.length)
+          progress.createLine({
+            text: getString("note-convert-complete", {
+              args: { count: result.created.length },
+            }),
+            type: "success",
+          });
+        if (result.warnings)
+          progress.createLine({
+            text: getString("note-convert-format-warning", {
+              args: { count: result.warnings },
+            }),
+            type: "default",
+          });
+        if (result.failed.length) {
+          progress.createLine({
+            text: getString("note-convert-failed", {
+              args: { count: result.failed.length },
+            }),
+            type: "fail",
+          });
+          for (const failure of result.failed) {
+            ztoolkit.log(
+              "Native Note conversion failed",
+              failure.note.id,
+              failure.error,
+            );
+            progress.createLine({
+              text: `${failure.note.getNoteTitle()}: ${failure.error instanceof Error ? failure.error.message : String(failure.error)}`,
+              type: "fail",
+            });
+          }
+        }
+        if (result.created.length || result.failed.length) progress.show();
+        // Keep failed sources selected for retry; successful Notes already have
+        // independent MD copies and must not be converted again by that retry.
+        const selection = result.failed.length
+          ? result.failed.map(({ note }) => note.id)
+          : result.created.map((item) => item.id);
+        try {
+          if (selection.length) await win.ZoteroPane.selectItems(selection);
+          if (
+            shouldContinue() &&
+            !result.failed.length &&
+            result.created.length === 1
+          )
+            await openMarkdownTab(result.created[0], {
+              win,
+              shouldOpen: shouldContinue,
+            });
+        } catch (error) {
+          ztoolkit.log(
+            "Converted Notes could not be selected or opened",
+            error,
+          );
+          if (shouldContinue())
+            new ztoolkit.ProgressWindow(addon.data.config.addonName)
+              .createLine({
+                text: getString("toolbar-created-open-failed"),
+                type: "fail",
+              })
+              .show();
+        }
+      })
+      .catch(reportError)
+      .finally(() => {
+        busy = false;
+      });
+  };
   const onShowing = (event?: Event) => {
     if (event && event.target !== popup && event.target !== scholarPopup)
       return;
@@ -200,10 +284,22 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
     const markdownSelection = Boolean(
       items.length && items.every(isMarkdownAttachment),
     );
-    scholarMenu.hidden = !regular && !markdownSelection;
+    const noteSelection = Boolean(
+      items.length && items.every((item) => item.isNote()),
+    );
+    scholarMenu.hidden = !regular && !markdownSelection && !noteSelection;
     createItem.hidden = !regular;
     canvasItem.hidden = !regular;
     exportItem.hidden = !regular && !markdownSelection;
+    convertItem.hidden = !noteSelection;
+    if (
+      !busy &&
+      shouldContinue() &&
+      noteSelection &&
+      items.every(canConvertNote)
+    )
+      convertItem.removeAttribute("disabled");
+    else convertItem.setAttribute("disabled", "true");
     for (const item of [createItem, canvasItem]) {
       if (!busy && shouldContinue() && editableParent(one))
         item.removeAttribute("disabled");
@@ -218,6 +314,7 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
   createItem.addEventListener("command", onCreate);
   canvasItem.addEventListener("command", onCreateCanvas);
   exportItem.addEventListener("command", onExport);
+  convertItem.addEventListener("command", onConvert);
   windowItem.addEventListener("command", onOpenWindow);
   popup.addEventListener("popupshowing", onShowing);
   popup.append(scholarMenu, windowItem);
@@ -231,6 +328,7 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
     createItem.removeEventListener("command", onCreate);
     canvasItem.removeEventListener("command", onCreateCanvas);
     exportItem.removeEventListener("command", onExport);
+    convertItem.removeEventListener("command", onConvert);
     createItem.remove();
     scholarMenu.remove();
     windowItem.removeEventListener("command", onOpenWindow);

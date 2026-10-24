@@ -13,6 +13,7 @@ declare namespace _ZoteroTypes {
       "theme": string;
       "markdownFontFamily": string;
       "markdownBackgroundColor": string;
+      "markdownSlashSearchLanguage": string;
       "whiteboardColorScheme": string;
       "whiteboardFontFamily": string;
       "whiteboardBackgroundColor": string;

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.13-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.14-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -53,6 +53,8 @@ Requires **Zotero 9 / 10 / 11 for desktop**.
 ## Quick start
 
 - **Write a note**: click the **Scholar Sketch** toolbar button → **New Markdown Note…**. Select a paper first to attach the note to it, or clear the selection to create a standalone note in the current library or collection. Double-click its `.md` attachment to continue editing. Type `[[` to link another note.
+- **Insert with slash commands**: type `/` in a blank paragraph, filter commands, then use ↑/↓ and Enter. Search keywords follow Zotero’s language; override English or pinyin in Markdown settings.
+- **Convert existing Notes**: select native Zotero Notes, then right-click → **Scholar Sketch → Convert Notes to MD**. The new attachments keep supported images and source links; originals are retained.
 - **Reference literature**: type `[[` and search by title. The picker shows Zotero item icons and filters for **All**, **Regular items**, **Notes/attachments**, and **Open tabs**. Open tabs includes attachments from every open tab in the current Zotero window and their parent items. Tab cycles filters immediately, Shift+Tab cycles backward, ↑/↓ selects a result, Enter inserts it, and Esc closes the picker. You can continue typing without leaving the editor.
 - **Create a whiteboard**: click the **Scholar Sketch** toolbar button → **New Whiteboard…**, drag in papers, and connect cards. Hold **Space** and drag to pan.
 - **Reuse a style**: select a card or shape and click **Format painter**, then click a target. Double-click the brush for continuous use; press **Esc** to exit. The context menu also offers **Copy style** and **Paste style**, including pasting to multiple selected nodes with one undo step. Contents, references, and dimensions stay intact.

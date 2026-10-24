@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.14 - 2026-10-24
+
+### Features
+
+- Open a Markdown insert menu with `/` in a blank paragraph, search visible command names with English or pinyin keywords, and navigate with the keyboard
+- Follow Zotero’s language for command search by default, with English and pinyin overrides in Markdown settings
+- Reuse existing formatting, reference, table, and image commands, with IME-safe interaction and undo support
+- Convert selected native Zotero Notes into new Markdown attachments while keeping the original Notes and their parent items or collections
+- Copy supported embedded images into the new attachment assets directory and retain citation, annotation, and external-image links through Zotero's Markdown exporter
+
+### Safety and documentation
+
+- Stop conversion when source Notes or images change or required images are unavailable, and report partial batch failures
+- Preserve unsupported scientific markup and complex tables as HTML source with a notice instead of silently losing content
+- Update the Chinese and English user guides and in-app release highlights
+
 ## 0.2.13 - 2026-10-24
 
 ### Features

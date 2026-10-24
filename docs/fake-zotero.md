@@ -58,6 +58,16 @@ pnpm whiteboard:build
 
 基础 fake 测试覆盖根项目/白板类型检查、网页构建和 Zotero 插件打包；双链回归另见 `test/document-links*.test.ts`。白板的 TypeScript 开发依赖已与根项目统一为 6，以兼容生产 gateway 引入的 Zotero DOM 类型。网页构建仍有 CodeMirror 分包和包体积提示。
 
+### 原生笔记转换回归
+
+`test/markdown-note-conversion.test.ts` 通过宿主替身与真实临时文件检查原生笔记转换、图片归属、源内容变化、批量失败和清理。`test/markdown-note-translator.test.ts` 可进一步执行本机已安装的官方 Note Markdown 转换器；它不会将第三方转换器复制到仓库。设置路径后运行完整测试：
+
+```sh
+ZOTERO_NOTE_MARKDOWN_TRANSLATOR='/path/to/Zotero/translators/Note Markdown.js' pnpm run test:unit
+```
+
+未提供路径时，六项官方转换器集成测试明确跳过。提供路径时会校验转换器标识，并通过生产转换与导入入口检查实际生成的 Markdown 和图片。DOM、Zotero 数据库及翻译沙箱边界仍是测试替身，不代表已验证原生 Zotero 窗口。
+
 ## Agent 调试入口
 
 等待按钮可点击或 `window.__fakeZoteroDemo.isReady === true`，再操作。推荐通过 DOM 点击以覆盖实际 UI；下面的接口用于准备 fixture 和核对结果：
