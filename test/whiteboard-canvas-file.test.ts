@@ -176,6 +176,10 @@ test("standalone annotation metadata round-trips without becoming extension data
       snapshot: {
         text: "",
         comment: "Comment",
+        attachmentTitle: "Source.pdf",
+        ...(["image", "ink"].includes(annotationType)
+          ? { image: "data:image/png;base64,aGVsbG8=" }
+          : {}),
         annotationType,
         tags: ["review", "方法"],
       },
@@ -183,11 +187,24 @@ test("standalone annotation metadata round-trips without becoming extension data
     connections: [],
   });
   assert.deepEqual(parsed.issues, []);
+  for (const node of parsed.document.nodes) {
+    assert.equal(
+      node.kind === "quote" && node.snapshot.attachmentTitle,
+      "Source.pdf",
+    );
+  }
   const first = parseStoredCanvas(
     serializeCanvasDocument(parsed.document, { now: NOW }),
   );
   assert.deepEqual(first.issues, []);
   assert.deepEqual(first.document.nodes, parsed.document.nodes);
+  for (const node of first.document.nodes) {
+    if (
+      node.kind === "quote" &&
+      ["image", "ink"].includes(node.snapshot.annotationType!)
+    )
+      assert.equal(node.snapshot.image, "data:image/png;base64,aGVsbG8=");
+  }
   const second = parseStoredCanvas(
     serializeCanvasDocument(first.document, { now: NOW }),
   );

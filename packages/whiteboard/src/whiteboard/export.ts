@@ -473,6 +473,24 @@ export function buildCanvasSvg(
           undefined,
           [body, metadata].filter(Boolean).join("\n\n"),
         );
+      if (snapshot.image) {
+        const imageHeight = Math.max(0, height - 92);
+        const caption = [snapshot.text, snapshot.comment, metadata]
+          .filter(Boolean)
+          .join("\n");
+        text =
+          `<text x="${x + 12}" y="${y + 23}" font-size="11" fill="${escapeXml(headerColor)}">${escapeXml(heading)}</text>` +
+          `<image x="${x + 12}" y="${y + 34}" width="${Math.max(0, width - 24)}" height="${imageHeight}" preserveAspectRatio="xMidYMid meet" href="${escapeXml(snapshot.image)}"/>` +
+          textElement(
+            { ...node, position: { x, y: y + 34 + imageHeight } },
+            width,
+            Math.max(0, height - imageHeight - 34),
+            clipId,
+            1.45,
+            undefined,
+            caption,
+          );
+      }
     }
     if (node.kind === "line" || node.kind === "arrow") {
       const from = node.data.from ?? { x: 0, y: height / 2 };
@@ -713,6 +731,11 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
           .join(" · ");
         if (citation) lines.push(citation, "");
       } else if (node.kind === "quote") {
+        if (node.snapshot.image)
+          lines.push(
+            `![${node.snapshot.annotationType || "Annotation"}](${node.snapshot.image})`,
+            "",
+          );
         lines.push(
           ...(
             node.snapshot.text ||

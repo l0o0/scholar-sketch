@@ -1,3 +1,4 @@
+import { AnnotationTypeIcon } from "../chrome/AnnotationTypeIcon";
 import { IconZotero } from "../whiteboard/icons";
 import { IconFile } from "../whiteboard/icons";
 import { IconGroup } from "../whiteboard/icons";
@@ -75,6 +76,11 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   return (
     <CardShell
       kind="quote"
+      kindIcon={
+        snapshot.annotationType ? (
+          <AnnotationTypeIcon type={snapshot.annotationType} />
+        ) : undefined
+      }
       kindLabel={
         (snapshot.annotationType &&
           labels.annotationTypeLabels?.[snapshot.annotationType]) ||
@@ -82,7 +88,12 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       }
       selected={selected}
       nodeStyle={quoteNodeStyle(snapshot, model.style)}
-      footer={citationLine([snapshot.citation, snapshot.pageLabel])}
+      footer={citationLine([
+        snapshot.citation,
+        snapshot.pageLabel
+          ? `${labels.annotationPage}: ${snapshot.pageLabel}`
+          : undefined,
+      ])}
     >
       {snapshot.color ? (
         <span
@@ -92,15 +103,30 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
           role="img"
         />
       ) : null}
-      <blockquote
-        className="zmd-board-card-content"
-        style={nodeTextStyle(model.style ?? {})}
-      >
-        {snapshot.text ||
-          snapshot.comment ||
-          labels.annotationNoText ||
-          "Open the source to view this annotation"}
-      </blockquote>
+      {snapshot.image ? (
+        <img
+          className="zmd-board-annotation-preview"
+          src={snapshot.image}
+          alt={
+            snapshot.annotationType
+              ? (labels.annotationTypeLabels?.[snapshot.annotationType] ??
+                labels.kindQuote)
+              : labels.kindQuote
+          }
+          draggable={false}
+        />
+      ) : null}
+      {!snapshot.image || snapshot.text || snapshot.comment ? (
+        <blockquote
+          className="zmd-board-card-content"
+          style={nodeTextStyle(model.style ?? {})}
+        >
+          {snapshot.text ||
+            snapshot.comment ||
+            labels.annotationNoText ||
+            "Open the source to view this annotation"}
+        </blockquote>
+      ) : null}
       {snapshot.text && snapshot.comment ? (
         <p className="zmd-board-card-comment">{snapshot.comment}</p>
       ) : null}

@@ -1,3 +1,4 @@
+import { isSafeImagePreview } from "../../../packages/whiteboard/src/model/file-attachment";
 import type {
   AnnotationCandidate,
   AnnotationListFailure,
@@ -26,6 +27,7 @@ export interface SourceGatewayDependencies {
   getByLibraryAndKey(libraryID: number, key: string): Zotero.Item | null;
   cleanTags(html: string): string;
   unescapeHTML(html: string): string;
+  readAnnotationImage(item: Zotero.Item): Promise<string | undefined>;
   openItem(item: Zotero.Item): Promise<void>;
   openNote(item: Zotero.Item): Promise<void>;
   openAnnotation(
@@ -128,6 +130,26 @@ export function createZoteroSourceGateway(
     throw new Error("Unsupported Zotero item.");
   }
 
+  async function withQuoteImage(
+    item: Zotero.Item,
+    acquired: Extract<AcademicAcquisition, { kind: "quote" }>,
+  ): Promise<Extract<AcademicAcquisition, { kind: "quote" }>> {
+    if (!["image", "ink"].includes(acquired.snapshot.annotationType ?? ""))
+      return acquired;
+    const libraryID = item.libraryID;
+    const image = await deps.readAnnotationImage(item);
+    // Reading the cache is asynchronous: revalidate the source before returning it.
+    if (item.libraryID !== libraryID)
+      throw new SourceIntegrityError("parent-mismatch");
+    const current = quoteForSource(item, acquired.source).acquisition;
+    if (
+      current.snapshot.annotationType !== acquired.snapshot.annotationType ||
+      !isSafeImagePreview(image)
+    )
+      return current;
+    return { ...current, snapshot: { ...current.snapshot, image } };
+  }
+
   async function resolve(
     nodeId: string,
     generation: number,
@@ -142,7 +164,9 @@ export function createZoteroSourceGateway(
       return unavailable(nodeId, generation, "parent-mismatch");
 
     try {
-      const resolved = await acquisitionForDescriptor(item, descriptor, deps);
+      let resolved = await acquisitionForDescriptor(item, descriptor, deps);
+      if (resolved.kind === "quote")
+        resolved = await withQuoteImage(item, resolved);
       return { nodeId, generation, status: "resolved", acquisition: resolved };
     } catch (error) {
       const code =
@@ -239,7 +263,7 @@ export function createZoteroSourceGateway(
             throw new SourceIntegrityError("parent-mismatch");
           }
           candidates.push({
-            acquisition,
+            acquisition: await withQuoteImage(annotation, acquisition),
             attachmentTitle: textField(attachment, "title") || attachment.key,
             sortIndex: annotation.annotationSortIndex || "",
           });
@@ -461,6 +485,7 @@ function quoteAcquisition(
     },
     snapshot: {
       text: item.annotationText?.trim() || "",
+      attachmentTitle: textField(attachment, "title") || attachment.key,
       ...omitEmpty({
         annotationType: isAnnotationType(item.annotationType)
           ? item.annotationType
@@ -809,6 +834,21 @@ function productionDependencies(): GatewayDependencies {
     getByID: (itemID) => zotero.Items.get(itemID) || null,
     cleanTags: (html) => zotero.Utilities.cleanTags(html),
     unescapeHTML: (html) => zotero.Utilities.unescapeHTML(html),
+    readAnnotationImage: async (item) => {
+      // Some test/development hosts do not provide the annotation image cache.
+      if (!zotero.Annotations) return undefined;
+      try {
+        if (!(await zotero.Annotations.hasCacheImage(item))) return undefined;
+        return await zotero.File.generateDataURI(
+          zotero.Annotations.getCacheImagePath(item),
+          "image/png",
+        );
+      } catch (error) {
+        // The preview is auxiliary. A cache read failure must retain the annotation metadata and navigation.
+        zotero.logError(error);
+        return undefined;
+      }
+    },
     openItem: async (item) =>
       void (await zotero.getMainWindow().ZoteroPane.selectItem(item.id)),
     openNote: async (item) =>

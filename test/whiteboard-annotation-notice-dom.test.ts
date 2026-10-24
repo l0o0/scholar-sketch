@@ -336,22 +336,41 @@ test("mounted canvas notice auto-expires and replacement resets its timer", asyn
     });
   }
 
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  // Route the browser clock through Node's controlled clock so scheduling delays
+  // cannot consume the assertion window between replacement and expiration.
+  const originalSetTimeout = window.setTimeout;
+  const originalClearTimeout = window.clearTimeout;
+  Object.defineProperty(window, "setTimeout", {
+    configurable: true,
+    writable: true,
+    value: globalThis.setTimeout,
+  });
+  Object.defineProperty(window, "clearTimeout", {
+    configurable: true,
+    writable: true,
+    value: globalThis.clearTimeout,
+  });
+  t.after(() => {
+    window.setTimeout = originalSetTimeout;
+    window.clearTimeout = originalClearTimeout;
+  });
   await act(async () => root.render(createElement(Harness)));
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15));
+    t.mock.timers.tick(15);
   });
   await act(async () =>
     replace({ code: "source-refresh-failed", failureCode: "wrong-kind" }),
   );
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    t.mock.timers.tick(20);
   });
   assert.match(
     window.document.querySelector('[role="status"]')?.textContent ?? "",
     /Wrong item kind/,
   );
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    t.mock.timers.tick(20);
   });
   assert.equal(window.document.querySelector('[role="status"]'), null);
   await act(async () => root.unmount());

@@ -548,3 +548,48 @@ test("the app advances generations and defers remaining source requests", () => 
   assert.match(appSource, /applySourceResolutionBatch/);
   assert.doesNotMatch(appSource, /sourceResolutionRequestId/);
 });
+
+test("missing image cache retains the saved drawing while a new preview replaces it", () => {
+  const node = canvasDocumentToFlow(DOCUMENT).nodes[1];
+  assert.equal(node.data.model.kind, "quote");
+  if (node.data.model.kind !== "quote") throw new Error("Expected quote");
+  const snapshot = {
+    ...node.data.model.snapshot,
+    annotationType: "ink" as const,
+    image: "data:image/png;base64,YQ==",
+  };
+  const drawing = {
+    ...node,
+    data: { ...node.data, model: { ...node.data.model, snapshot } },
+  };
+  const { image: _image, ...withoutImage } = snapshot;
+  const acquisition = {
+    kind: "quote" as const,
+    source: node.data.model.source,
+    snapshot: withoutImage,
+  };
+  assert.equal(sourceSnapshotChanged(drawing, acquisition), false);
+  const retained = applyResolvedAcquisition(drawing, acquisition).data.model;
+  assert.equal(
+    retained.kind === "quote" && retained.snapshot.image,
+    snapshot.image,
+  );
+  const updated = {
+    ...acquisition,
+    snapshot: { ...withoutImage, image: "data:image/png;base64,Yg==" },
+  };
+  assert.equal(sourceSnapshotChanged(drawing, updated), true);
+  const replaced = applyResolvedAcquisition(drawing, updated).data.model;
+  assert.equal(
+    replaced.kind === "quote" && replaced.snapshot.image,
+    updated.snapshot.image,
+  );
+  const changedType = applyResolvedAcquisition(drawing, {
+    ...acquisition,
+    snapshot: { ...withoutImage, annotationType: "highlight" },
+  }).data.model;
+  assert.equal(
+    changedType.kind === "quote" && changedType.snapshot.image,
+    undefined,
+  );
+});

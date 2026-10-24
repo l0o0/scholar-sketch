@@ -126,7 +126,7 @@ whiteboard-failure-list-failed = Zotero could not list annotations for this sour
 whiteboard-open-source = Open source
 whiteboard-refresh-source = Refresh source
 whiteboard-refresh-note = Refresh from Zotero
-whiteboard-view-annotations = View annotations
+whiteboard-view-annotations = Add annotations
 whiteboard-annotation-browser-title = Annotations
 whiteboard-search-annotations = Search annotations
 whiteboard-annotations-loading = Loading annotations…
@@ -756,7 +756,7 @@ feature-updates-current-description = Explore this version, including existing f
 feature-updates-description = What’s new
 feature-updates-maintenance-description = This update includes fixes and refinements. See the full release notes for details.
 feature-updates-attachment-annotations-title = Bring attachment annotations onto your canvas
-feature-updates-attachment-annotations-body = Select a paper or Zotero attachment card and choose View annotations in its floating toolbar. Search and filter annotations, then add linked cards together
+feature-updates-attachment-annotations-body = Select a paper or Zotero attachment card and choose Add annotations in its floating toolbar. Search and filter annotations, then add linked cards together
 feature-updates-local-image-shortcut-title = Import local images from the keyboard
 feature-updates-local-image-shortcut-body = Use Ctrl+Alt+I, or Cmd+Option+I on macOS, while editing Markdown. Settings now show Markdown and Whiteboard shortcuts with a compact switch
 feature-updates-canvas-notices-title = Clearer whiteboard feedback
@@ -809,6 +809,16 @@ image-repair-skipped = Left { $count } sibling images unchanged because they cou
 image-repair-session-closed = The note is closed. Reopen it to check images.
 image-repair-file-missing = The Markdown file was not found. Download the attachment first.
 image-repair-sync-hint = Images have been restored. Complete Zotero sync on this computer, then sync the other computer.
+
+whiteboard-quote-properties = Quote properties
+
+whiteboard-quote-source = Source
+
+whiteboard-quote-content = Quote
+
+whiteboard-expand-quote = Show full quote
+
+whiteboard-collapse-quote = Collapse
 
 slash-menu-title = Insert
 
@@ -865,3 +875,11 @@ settings-slash-search-english = English
 settings-slash-search-pinyin = Pinyin
 
 settings-slash-search-description = Automatic uses Pinyin for Chinese Zotero and English otherwise. Displayed command names always remain searchable.
+
+feature-updates-annotation-preview-title = Annotation image previews
+
+feature-updates-annotation-preview-body = Image and ink annotations show cached page previews that are saved with the canvas and included in exports.
+
+feature-updates-quote-details-title = Compact quote details
+
+feature-updates-quote-details-body = View the source, annotation content and status together. Expand long quotes while keeping source and grouping actions visible.

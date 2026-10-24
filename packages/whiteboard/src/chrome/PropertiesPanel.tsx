@@ -9,7 +9,14 @@ import type { NoteType } from "../model/academic";
 import type { NoteTemplate } from "../model/note-template";
 import type { WhiteboardLabels } from "../model/protocol";
 import type { CanvasFlowNode } from "../nodes";
-import { IconCopy, IconOpen, IconTrash } from "../whiteboard/icons";
+import {
+  IconCopy,
+  IconOpen,
+  IconTrash,
+  IconMore,
+  IconFile,
+  IconRefresh,
+} from "../whiteboard/icons";
 import { flowNodeText } from "../whiteboard/document";
 import type { SourceResolutionState } from "../whiteboard/sourceState";
 import { nodeKindLabel } from "./labels";
@@ -38,7 +45,7 @@ export function placePropertiesPanel(
   const right = viewport.x + viewport.width - 8;
   const bottom = viewport.y + viewport.height - 8;
   const width = Math.min(
-    expanded ? 320 : panel.width,
+    expanded ? Math.min(360, panel.width) : panel.width,
     Math.max(1, right - left),
   );
   const maxHeight = Math.min(420, Math.max(1, bottom - top));
@@ -290,6 +297,204 @@ type PropertiesPanelProps = {
   onDeleteTemplate?: (templateId: string) => void;
 };
 
+function QuoteProperties(
+  props: PropertiesPanelProps & { node: CanvasFlowNode },
+) {
+  const { node, labels } = props;
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const textRef = useRef<HTMLQuoteElement>(null);
+  useLayoutEffect(() => {
+    const text = textRef.current;
+    if (!text || expanded) return;
+    const measure = () =>
+      setOverflows(text.scrollHeight > text.clientHeight + 1);
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(text);
+    return () => observer?.disconnect();
+  }, [expanded, node]);
+  const model = node.data.model;
+  if (model.kind !== "quote") return null;
+  const { snapshot } = model;
+  const status = props.sourceState?.status ?? "idle";
+  const statusLabel = {
+    idle: labels.sourceIdle,
+    loading: labels.sourceLoading,
+    resolved: labels.sourceAvailable,
+    unavailable: labels.sourceMissing,
+  }[status];
+  return (
+    <>
+      <header className="zmd-board-properties-head">
+        <div className="zmd-board-quote-heading">
+          <h2>{labels.quoteProperties ?? "Quote properties"}</h2>
+          {snapshot.annotationType ? (
+            <span className="zmd-board-quote-type">
+              {labels.annotationTypeLabels?.[snapshot.annotationType] ??
+                snapshot.annotationType}
+            </span>
+          ) : null}
+        </div>
+        <div className="zmd-board-quote-head-actions">
+          <details
+            className="zmd-board-quote-more"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}
+          >
+            <summary aria-label={labels.more} title={labels.more}>
+              <IconMore />
+            </summary>
+            <div>
+              <button type="button" onClick={() => props.onDelete(node.id)}>
+                <IconTrash />
+                {labels.delete}
+              </button>
+            </div>
+          </details>
+          {props.onClose ? (
+            <button
+              type="button"
+              className="zmd-board-properties-close"
+              aria-label={labels.close}
+              title={labels.close}
+              onClick={props.onClose}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      </header>
+      <div className="zmd-board-properties-details-body">
+        <section className="zmd-board-quote-source">
+          <div className="zmd-board-quote-section-heading">
+            <h3>{labels.quoteSource ?? "Source"}</h3>
+            <span
+              className="zmd-board-source-status"
+              data-source-status={status}
+            >
+              {statusLabel}
+            </span>
+          </div>
+          <div className="zmd-board-quote-source-card">
+            <IconFile />
+            <div>
+              <span className="zmd-board-quote-source-title">
+                {snapshot.attachmentTitle ||
+                  snapshot.citation ||
+                  model.source.attachmentKey}
+              </span>
+              {snapshot.pageLabel ? (
+                <span className="zmd-board-quote-location">
+                  {labels.annotationPage}: {snapshot.pageLabel}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              aria-label={labels.refreshSource}
+              title={labels.refreshSource}
+              disabled={status === "loading"}
+              onClick={() => props.onRefreshSource(node)}
+            >
+              <IconRefresh />
+            </button>
+          </div>
+        </section>
+        <section className="zmd-board-quote-content">
+          <div className="zmd-board-quote-section-heading">
+            <h3>{labels.quoteContent ?? "Quote"}</h3>
+            <button type="button" onClick={() => props.onCopy(node.id)}>
+              <IconCopy />
+              {labels.copy}
+            </button>
+          </div>
+          {snapshot.image ? (
+            <img
+              className="zmd-board-annotation-preview"
+              src={snapshot.image}
+              alt={
+                snapshot.annotationType
+                  ? (labels.annotationTypeLabels?.[snapshot.annotationType] ??
+                    labels.kindQuote)
+                  : labels.kindQuote
+              }
+              draggable={false}
+            />
+          ) : null}
+          {!snapshot.image || snapshot.text || snapshot.comment ? (
+            <blockquote
+              ref={textRef}
+              className={expanded ? "is-expanded" : "is-clamped"}
+            >
+              {snapshot.text || snapshot.comment || labels.annotationNoText}
+            </blockquote>
+          ) : null}
+          {expanded || overflows ? (
+            <button
+              type="button"
+              className="zmd-board-quote-expand"
+              aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded
+                ? (labels.collapseQuote ?? "Collapse")
+                : (labels.expandQuote ?? "Show full quote")}{" "}
+              <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+            </button>
+          ) : null}
+          {snapshot.text && snapshot.comment ? (
+            <p className="zmd-board-quote-comment">{snapshot.comment}</p>
+          ) : null}
+          {snapshot.tags?.length ? (
+            <div className="zmd-board-card-tags">
+              {snapshot.tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+          ) : null}
+          {props.groupTitle ? (
+            <p className="zmd-board-quote-comment">
+              {labels.groupLabel}: {props.groupTitle}
+            </p>
+          ) : null}
+        </section>
+      </div>
+      <footer className="zmd-board-quote-footer">
+        <button
+          type="button"
+          className="is-primary"
+          onClick={() => props.onOpen(node)}
+        >
+          <IconOpen />
+          {labels.openSource}
+        </button>
+        {props.onJoinGroup ? (
+          <button type="button" onClick={() => props.onJoinGroup?.(node.id)}>
+            <span aria-hidden="true">＋</span>
+            {labels.joinGroup ?? "Join group"}
+          </button>
+        ) : null}
+        {model.frameId !== undefined && props.onRemoveFromGroup ? (
+          <button
+            type="button"
+            onClick={() => props.onRemoveFromGroup?.(node.id)}
+          >
+            {labels.removeFromGroup}
+          </button>
+        ) : null}
+      </footer>
+    </>
+  );
+}
+
 function PropertiesPanelView(
   props: PropertiesPanelProps & {
     panelRef?: Ref<HTMLElement>;
@@ -347,172 +552,189 @@ function PropertiesPanelView(
     <aside
       ref={props.panelRef}
       key={node.id}
-      className={`zmd-board-properties is-expanded${props.position ? " is-positioned" : ""}`}
+      className={`zmd-board-properties is-expanded${model.kind === "quote" ? " is-quote" : ""}${props.position ? " is-positioned" : ""}`}
       data-placement={props.placement?.side}
       aria-label={labels.selection}
       style={positionStyle}
     >
-      <header className="zmd-board-properties-head">
-        <div>
-          <span className="zmd-board-card-kind">{kindLabel}</span>
-          <h2>
-            {propertiesLabel(labels, "selectionDetails", labels.selection)}
-          </h2>
-        </div>
-        {props.onClose ? (
-          <button
-            type="button"
-            className="zmd-board-properties-close"
-            aria-label={labels.close}
-            title={labels.close}
-            onClick={() => props.onClose?.()}
+      {model.kind === "quote" ? (
+        <QuoteProperties key={node.id} {...props} node={node} />
+      ) : (
+        <>
+          <header className="zmd-board-properties-head">
+            <div>
+              <span className="zmd-board-card-kind">{kindLabel}</span>
+              <h2>
+                {propertiesLabel(labels, "selectionDetails", labels.selection)}
+              </h2>
+            </div>
+            {props.onClose ? (
+              <button
+                type="button"
+                className="zmd-board-properties-close"
+                aria-label={labels.close}
+                title={labels.close}
+                onClick={() => props.onClose?.()}
+              >
+                ×
+              </button>
+            ) : null}
+          </header>
+          <div
+            className="zmd-board-properties-actions"
+            aria-label={labels.selection}
           >
-            ×
-          </button>
-        ) : null}
-      </header>
-      <div
-        className="zmd-board-properties-actions"
-        aria-label={labels.selection}
-      >
-        {hasSource ? (
-          <button type="button" onClick={() => props.onOpen(node)}>
-            <IconOpen />
-            <span>
-              {hasEmbeddedFile
-                ? fileLabel(labels, "fileOpen", "Open file")
-                : labels.openSource}
-            </span>
-          </button>
-        ) : canOpen ? (
-          <button type="button" onClick={() => props.onOpen(node)}>
-            <IconOpen />
-            <span>
-              {hasEmbeddedFile
-                ? fileLabel(labels, "fileOpen", "Open file")
-                : labels.openItem}
-            </span>
-          </button>
-        ) : null}
-        {model.kind !== "frame" && props.onJoinGroup ? (
-          <button type="button" onClick={() => props.onJoinGroup?.(node.id)}>
-            <IconOpen />
-            <span>{labels.joinGroup ?? "Join group"}</span>
-          </button>
-        ) : null}
-        {frameId !== undefined && props.onRemoveFromGroup ? (
-          <button
-            type="button"
-            onClick={() => props.onRemoveFromGroup?.(node.id)}
-          >
-            <IconOpen />
-            <span>
-              {propertiesLabel(labels, "removeFromGroup", labels.delete)}
-            </span>
-          </button>
-        ) : null}
-      </div>
-      <div className="zmd-board-properties-details-body">
-        <div className="zmd-board-properties-details-meta">
-          <strong>{flowNodeText(node) || kindLabel}</strong>
-          {props.groupTitle ? (
-            <p>
-              {labels.groupLabel ?? "Group"}: {props.groupTitle}
-            </p>
-          ) : null}
-          {subtitle ? <p>{subtitle}</p> : null}
-          {hasSource ? (
-            <p
-              className="zmd-board-source-status"
-              data-source-status={props.sourceState?.status ?? "idle"}
-            >
-              {labels.sourceStatus}: {sourceStatus}
-            </p>
-          ) : null}
-        </div>
-        {fileDetails ? (
-          <section
-            className="zmd-board-file-details"
-            aria-label={fileLabel(labels, "fileDetails", "File details")}
-          >
-            <h3>{fileLabel(labels, "fileDetails", "File details")}</h3>
-            <dl>
-              <dt>Name</dt>
-              <dd>{fileDetails.title}</dd>
-              {fileDetails.contentType ? (
-                <>
-                  <dt>MIME</dt>
-                  <dd>{fileDetails.contentType}</dd>
-                </>
+            {hasSource ? (
+              <button type="button" onClick={() => props.onOpen(node)}>
+                <IconOpen />
+                <span>
+                  {hasEmbeddedFile
+                    ? fileLabel(labels, "fileOpen", "Open file")
+                    : labels.openSource}
+                </span>
+              </button>
+            ) : canOpen ? (
+              <button type="button" onClick={() => props.onOpen(node)}>
+                <IconOpen />
+                <span>
+                  {hasEmbeddedFile
+                    ? fileLabel(labels, "fileOpen", "Open file")
+                    : labels.openItem}
+                </span>
+              </button>
+            ) : null}
+            {model.kind !== "frame" && props.onJoinGroup ? (
+              <button
+                type="button"
+                onClick={() => props.onJoinGroup?.(node.id)}
+              >
+                <IconOpen />
+                <span>{labels.joinGroup ?? "Join group"}</span>
+              </button>
+            ) : null}
+            {frameId !== undefined && props.onRemoveFromGroup ? (
+              <button
+                type="button"
+                onClick={() => props.onRemoveFromGroup?.(node.id)}
+              >
+                <IconOpen />
+                <span>
+                  {propertiesLabel(labels, "removeFromGroup", labels.delete)}
+                </span>
+              </button>
+            ) : null}
+          </div>
+          <div className="zmd-board-properties-details-body">
+            <div className="zmd-board-properties-details-meta">
+              <strong>{flowNodeText(node) || kindLabel}</strong>
+              {props.groupTitle ? (
+                <p>
+                  {labels.groupLabel ?? "Group"}: {props.groupTitle}
+                </p>
               ) : null}
-              {formatFileSize(fileDetails.size) ? (
-                <>
-                  <dt>Size</dt>
-                  <dd>{formatFileSize(fileDetails.size)}</dd>
-                </>
+              {subtitle ? <p>{subtitle}</p> : null}
+              {hasSource ? (
+                <p
+                  className="zmd-board-source-status"
+                  data-source-status={props.sourceState?.status ?? "idle"}
+                >
+                  {labels.sourceStatus}: {sourceStatus}
+                </p>
               ) : null}
-              {fileDetails.imageWidth && fileDetails.imageHeight ? (
-                <>
-                  <dt>{fileLabel(labels, "fileDimensions", "Dimensions")}</dt>
-                  <dd>
-                    {fileDetails.imageWidth} × {fileDetails.imageHeight}
-                  </dd>
-                </>
+            </div>
+            {fileDetails ? (
+              <section
+                className="zmd-board-file-details"
+                aria-label={fileLabel(labels, "fileDetails", "File details")}
+              >
+                <h3>{fileLabel(labels, "fileDetails", "File details")}</h3>
+                <dl>
+                  <dt>Name</dt>
+                  <dd>{fileDetails.title}</dd>
+                  {fileDetails.contentType ? (
+                    <>
+                      <dt>MIME</dt>
+                      <dd>{fileDetails.contentType}</dd>
+                    </>
+                  ) : null}
+                  {formatFileSize(fileDetails.size) ? (
+                    <>
+                      <dt>Size</dt>
+                      <dd>{formatFileSize(fileDetails.size)}</dd>
+                    </>
+                  ) : null}
+                  {fileDetails.imageWidth && fileDetails.imageHeight ? (
+                    <>
+                      <dt>
+                        {fileLabel(labels, "fileDimensions", "Dimensions")}
+                      </dt>
+                      <dd>
+                        {fileDetails.imageWidth} × {fileDetails.imageHeight}
+                      </dd>
+                    </>
+                  ) : null}
+                  {fileDetails.pageCount ? (
+                    <>
+                      <dt>{fileLabel(labels, "filePages", "Pages")}</dt>
+                      <dd>{fileDetails.pageCount}</dd>
+                    </>
+                  ) : null}
+                </dl>
+              </section>
+            ) : null}
+            {model.kind === "note" && props.noteTemplates ? (
+              <NoteTemplateControls
+                labels={labels}
+                note={model}
+                templates={props.noteTemplates}
+                onTypeChange={(type) => props.onTypeChange?.(node.id, type)}
+                onBadgeChange={(badge) => props.onBadgeChange?.(node.id, badge)}
+                onApply={(templateId) =>
+                  props.onApplyTemplate?.(node.id, templateId)
+                }
+                onSave={(name, includeContent) =>
+                  props.onSaveTemplate?.(node.id, name, includeContent)
+                }
+                onRename={(templateId, name) =>
+                  props.onRenameTemplate?.(templateId, name)
+                }
+                onDuplicate={(templateId) =>
+                  props.onDuplicateTemplate?.(templateId)
+                }
+                onDelete={(templateId) => props.onDeleteTemplate?.(templateId)}
+              />
+            ) : null}
+            <div className="zmd-board-properties-advanced-actions">
+              {model.kind === "note" && model.source ? (
+                <button
+                  type="button"
+                  onClick={() => props.onRefreshSource(node)}
+                >
+                  <IconOpen />
+                  <span>{labels.refreshNote}</span>
+                </button>
               ) : null}
-              {fileDetails.pageCount ? (
-                <>
-                  <dt>{fileLabel(labels, "filePages", "Pages")}</dt>
-                  <dd>{fileDetails.pageCount}</dd>
-                </>
+              {model.kind === "literature" ? (
+                <button
+                  type="button"
+                  onClick={() => props.onRefreshSource(node)}
+                >
+                  <IconOpen />
+                  <span>{labels.refreshSource}</span>
+                </button>
               ) : null}
-            </dl>
-          </section>
-        ) : null}
-        {model.kind === "note" && props.noteTemplates ? (
-          <NoteTemplateControls
-            labels={labels}
-            note={model}
-            templates={props.noteTemplates}
-            onTypeChange={(type) => props.onTypeChange?.(node.id, type)}
-            onBadgeChange={(badge) => props.onBadgeChange?.(node.id, badge)}
-            onApply={(templateId) =>
-              props.onApplyTemplate?.(node.id, templateId)
-            }
-            onSave={(name, includeContent) =>
-              props.onSaveTemplate?.(node.id, name, includeContent)
-            }
-            onRename={(templateId, name) =>
-              props.onRenameTemplate?.(templateId, name)
-            }
-            onDuplicate={(templateId) =>
-              props.onDuplicateTemplate?.(templateId)
-            }
-            onDelete={(templateId) => props.onDeleteTemplate?.(templateId)}
-          />
-        ) : null}
-        <div className="zmd-board-properties-advanced-actions">
-          {model.kind === "note" && model.source ? (
-            <button type="button" onClick={() => props.onRefreshSource(node)}>
-              <IconOpen />
-              <span>{labels.refreshNote}</span>
-            </button>
-          ) : null}
-          {model.kind === "literature" || model.kind === "quote" ? (
-            <button type="button" onClick={() => props.onRefreshSource(node)}>
-              <IconOpen />
-              <span>{labels.refreshSource}</span>
-            </button>
-          ) : null}
-          <button type="button" onClick={() => props.onCopy(node.id)}>
-            <IconCopy />
-            <span>{labels.copy}</span>
-          </button>
-          <button type="button" onClick={() => props.onDelete(node.id)}>
-            <IconTrash />
-            <span>{labels.delete}</span>
-          </button>
-        </div>
-      </div>
+              <button type="button" onClick={() => props.onCopy(node.id)}>
+                <IconCopy />
+                <span>{labels.copy}</span>
+              </button>
+              <button type="button" onClick={() => props.onDelete(node.id)}>
+                <IconTrash />
+                <span>{labels.delete}</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   );
 }
@@ -567,7 +789,7 @@ function PropertiesPanelContent(
           height: anchorHeight,
         },
         {
-          width: 420,
+          width: props.node.data.model.kind === "quote" ? 360 : 320,
           height: panel.scrollHeight
             ? panel.scrollHeight + 2
             : panelRect.height || 40,

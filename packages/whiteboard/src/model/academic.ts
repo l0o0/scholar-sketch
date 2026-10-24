@@ -172,6 +172,8 @@ export function isAnnotationType(value: unknown): value is AnnotationType {
 
 export interface QuoteSnapshot {
   text: string;
+  image?: string;
+  attachmentTitle?: string;
   annotationType?: AnnotationType;
   tags?: string[];
   comment?: string;

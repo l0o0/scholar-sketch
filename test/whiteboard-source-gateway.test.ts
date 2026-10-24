@@ -128,6 +128,7 @@ function dependencies(items: ItemFixture[] = []) {
     unescapeHTML: (html) => html.replace(/&nbsp;/g, " "),
     openItem: async (value) => void opened.push(`item:${value.key}`),
     openNote: async (value) => void opened.push(`note:${value.key}`),
+    readAnnotationImage: async () => undefined,
     openAnnotation: async () => false,
     openAttachmentPage: async (attachment, pageIndex) =>
       void pages.push({ key: attachment.key, pageIndex }),
@@ -142,6 +143,7 @@ async function withProductionQuoteZotero(
   },
   run: (fixture: {
     attachment: ItemFixture;
+    annotation: ItemFixture;
     fileHandlerCalls: unknown[][];
   }) => Promise<void>,
 ): Promise<void> {
@@ -190,7 +192,7 @@ async function withProductionQuoteZotero(
     },
   });
   try {
-    await run({ attachment, fileHandlerCalls });
+    await run({ attachment, annotation, fileHandlerCalls });
   } finally {
     if (previous) Object.defineProperty(globalThis, "Zotero", previous);
     else Reflect.deleteProperty(globalThis, "Zotero");
@@ -266,7 +268,11 @@ test("classifies notes, annotations, and file attachments while rejecting other 
       attachmentKey: "PDF",
       annotationKey: "ANNOTATION",
     },
-    snapshot: { text: "Evidence", annotationType: "highlight" },
+    snapshot: {
+      text: "Evidence",
+      attachmentTitle: "PDF",
+      annotationType: "highlight",
+    },
   });
   assert.deepEqual(gateway.acquireItem(attachment as Zotero.Item), {
     kind: "attachment",
@@ -478,6 +484,7 @@ test("validates the complete quote parent chain before resolving current fields"
       },
       snapshot: {
         text: "Current evidence",
+        attachmentTitle: "ATTACHMENT",
         annotationType: "underline",
         comment: "Comment",
         pageLabel: "12",
@@ -1286,6 +1293,7 @@ test("lists all six annotation types from standalone PDF, HTML, and EPUB attachm
       });
       assert.deepEqual(candidate.acquisition.snapshot, {
         text: index < 2 ? "Evidence" : "",
+        attachmentTitle: "Reading source",
         ...(index < 4 ? { comment: "A comment" } : {}),
         annotationType: annotations[index].annotationType,
         color: "#ffd400",
@@ -1538,4 +1546,146 @@ test("HTML and EPUB annotations navigate exactly or open their file without a PD
     assert.deepEqual(opened, ["FILE:ANN"]);
     assert.deepEqual(pages, []);
   }
+});
+
+test("image and ink previews travel through listing and resolution after source validation", async () => {
+  const image =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
+  const attachment = item("attachment", {
+    key: "PDF",
+    attachmentContentType: "application/pdf",
+  });
+  const annotations = ["ink", "image", "highlight"].map((annotationType, i) =>
+    item("annotation", {
+      key: `ANN${i}`,
+      parentItem: attachment,
+      annotationType,
+      annotationText: "",
+      annotationComment: "Comment",
+    }),
+  );
+  attachment.getAnnotations = () => annotations;
+  const { deps } = dependencies([attachment, ...annotations]);
+  const reads: string[] = [];
+  deps.readAnnotationImage = async (annotation) => {
+    reads.push(annotation.key);
+    return image;
+  };
+  const gateway = createZoteroSourceGateway(deps);
+  const result = await gateway.listAnnotations({
+    library: { type: "user" },
+    attachmentKey: "PDF",
+  });
+  assert.equal(result.candidates.length, 3);
+  assert.deepEqual(reads.sort(), ["ANN0", "ANN1"]);
+  for (const candidate of result.candidates) {
+    const expected =
+      candidate.acquisition.snapshot.annotationType === "highlight"
+        ? undefined
+        : image;
+    assert.equal(candidate.acquisition.snapshot.image, expected);
+    const resolved = await gateway.resolve("quote", 1, {
+      kind: "quote",
+      source: candidate.acquisition.source,
+    });
+    assert.equal(resolved.status, "resolved");
+    if (resolved.status === "resolved" && resolved.acquisition.kind === "quote")
+      assert.equal(resolved.acquisition.snapshot.image, expected);
+  }
+  deps.readAnnotationImage = async () => "https://example.com/tracking.png";
+  const withoutImage = await gateway.listAnnotations({
+    library: { type: "user" },
+    attachmentKey: "PDF",
+  });
+  assert.equal(withoutImage.failures.length, 0);
+  assert.ok(
+    withoutImage.candidates.every(
+      (c) =>
+        !c.acquisition.snapshot.image &&
+        c.acquisition.snapshot.comment === "Comment",
+    ),
+  );
+});
+
+test("a parent change during an annotation cache read cannot return a resolved preview", async () => {
+  const attachment = item("attachment", {
+    key: "PDF",
+    attachmentContentType: "application/pdf",
+  });
+  const annotation = item("annotation", {
+    key: "ANN",
+    parentItem: attachment,
+    annotationType: "ink",
+  });
+  const { deps } = dependencies([attachment, annotation]);
+  const started = Promise.withResolvers<void>();
+  const image = Promise.withResolvers<string | undefined>();
+  deps.readAnnotationImage = () => {
+    started.resolve();
+    return image.promise;
+  };
+  const gateway = createZoteroSourceGateway(deps);
+  const pending = gateway.resolve("quote", 1, {
+    kind: "quote",
+    source: {
+      library: { type: "user" },
+      attachmentKey: "PDF",
+      annotationKey: "ANN",
+    },
+  });
+  await started.promise;
+  annotation.parentItem = item("attachment", {
+    key: "OTHER",
+    attachmentContentType: "application/pdf",
+  });
+  image.resolve(undefined);
+  assert.equal((await pending).status, "unavailable");
+});
+
+test("production cache reads preserve metadata when the cache is missing or unreadable", async () => {
+  await withProductionQuoteZotero({}, async ({ annotation }) => {
+    annotation.annotationType = "ink";
+    const image = "data:image/png;base64,aGVsbG8=";
+    const errors: unknown[] = [];
+    const reads: unknown[][] = [];
+    let cached = true;
+    let fail = false;
+    Object.assign(Zotero, {
+      Annotations: {
+        hasCacheImage: async () => cached,
+        getCacheImagePath: () => "/cache/annotation.png",
+      },
+      File: {
+        generateDataURI: async (...args: unknown[]) => {
+          reads.push(args);
+          if (fail) throw new Error("Cache unreadable");
+          return image;
+        },
+      },
+      logError: (error: unknown) => errors.push(error),
+    });
+    const gateway = createZoteroSourceGateway();
+    const resolve = () =>
+      gateway.resolve("quote", 1, {
+        kind: "quote",
+        source: {
+          library: { type: "user" },
+          itemKey: "ITEM",
+          attachmentKey: "PDF",
+          annotationKey: "ANNOTATION",
+        },
+      });
+    const first = await resolve();
+    assert.equal(first.status, "resolved");
+    if (first.status === "resolved" && first.acquisition.kind === "quote")
+      assert.equal(first.acquisition.snapshot.image, image);
+    assert.deepEqual(reads, [["/cache/annotation.png", "image/png"]]);
+    cached = false;
+    assert.equal((await resolve()).status, "resolved");
+    assert.equal(reads.length, 1);
+    cached = true;
+    fail = true;
+    assert.equal((await resolve()).status, "resolved");
+    assert.equal(errors.length, 1);
+  });
 });

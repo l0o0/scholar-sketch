@@ -178,7 +178,10 @@ export function applyResolvedAcquisitionToCanvasNode(
     };
   }
   if (node.kind === "quote" && acquisition.kind === "quote") {
-    return { ...node, snapshot: acquisition.snapshot };
+    return {
+      ...node,
+      snapshot: mergeQuoteSnapshot(node.snapshot, acquisition.snapshot),
+    };
   }
   if (node.kind === "note" && acquisition.kind === "note") {
     const { sourceSnapshot: _previousSourceSnapshot, ...withoutTitle } = node;
@@ -300,7 +303,10 @@ export function sourceSnapshotChanged(
     );
   }
   if (model.kind === "quote" && acquisition.kind === "quote") {
-    return !quoteSnapshotsEqual(model.snapshot, acquisition.snapshot);
+    return !quoteSnapshotsEqual(
+      model.snapshot,
+      mergeQuoteSnapshot(model.snapshot, acquisition.snapshot),
+    );
   }
   if (
     (model.kind === "pdf" || model.kind === "attachment") &&
@@ -561,13 +567,27 @@ function mergeLiteratureSnapshot(
     : incoming;
 }
 
+function mergeQuoteSnapshot(
+  current: Extract<CanvasNode, { kind: "quote" }>["snapshot"],
+  incoming: Extract<CanvasNode, { kind: "quote" }>["snapshot"],
+) {
+  // A missing local cache must not erase the last saved preview of the same annotation type.
+  return !incoming.image &&
+    current.image &&
+    current.annotationType === incoming.annotationType
+    ? { ...incoming, image: current.image }
+    : incoming;
+}
+
 function quoteSnapshotsEqual(
   left: Extract<CanvasNode, { kind: "quote" }>["snapshot"],
   right: Extract<AcademicAcquisition, { kind: "quote" }>["snapshot"],
 ): boolean {
   return (
+    left.image === right.image &&
     left.text === right.text &&
     left.comment === right.comment &&
+    left.attachmentTitle === right.attachmentTitle &&
     left.citation === right.citation &&
     left.pageLabel === right.pageLabel &&
     left.color === right.color &&

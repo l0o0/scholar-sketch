@@ -197,11 +197,11 @@ test("selection toolbar opens scoped annotations once and Escape restores focus 
         "selection alone does not fetch annotations",
       );
       const trigger = container.querySelector<DOMButton>(
-        '.zmd-board-style-bar [aria-label="View annotations"]',
+        '.zmd-board-style-bar [aria-label="Add annotations"]',
       );
       assert.ok(
         trigger,
-        `${id} exposes View annotations in the selection toolbar`,
+        `${id} exposes Add annotations in the selection toolbar`,
       );
       assert.equal(trigger.disabled, false);
       const before = structuredClone(api.getSnapshot());

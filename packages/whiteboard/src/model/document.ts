@@ -764,16 +764,21 @@ export function parseQuoteSnapshot(value: unknown): QuoteSnapshot | undefined {
     "annotationType",
     ANNOTATION_TYPES,
   );
+  const image = parseOptionalString(value, "image");
   const tags = parseOptionalStringArray(value, "tags");
   const comment = parseOptionalString(value, "comment");
+  const attachmentTitle = parseOptionalString(value, "attachmentTitle");
   const citation = parseOptionalString(value, "citation");
   const pageLabel = parseOptionalString(value, "pageLabel");
   const color = parseOptionalString(value, "color");
   if (
+    image === INVALID ||
+    (image !== undefined && !isSafeImagePreview(image)) ||
     annotationType === INVALID ||
     tags === INVALID ||
     tags?.some((tag) => !isNonEmptyString(tag) || !tag.trim()) ||
     comment === INVALID ||
+    attachmentTitle === INVALID ||
     citation === INVALID ||
     pageLabel === INVALID ||
     color === INVALID
@@ -782,9 +787,11 @@ export function parseQuoteSnapshot(value: unknown): QuoteSnapshot | undefined {
   }
   return {
     text: value.text,
+    ...(image !== undefined ? { image } : {}),
     ...(annotationType !== undefined ? { annotationType } : {}),
     ...(tags !== undefined ? { tags } : {}),
     ...(comment !== undefined ? { comment } : {}),
+    ...(attachmentTitle !== undefined ? { attachmentTitle } : {}),
     ...(citation !== undefined ? { citation } : {}),
     ...(pageLabel !== undefined ? { pageLabel } : {}),
     ...(color !== undefined ? { color } : {}),

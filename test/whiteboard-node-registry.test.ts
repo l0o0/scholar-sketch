@@ -252,7 +252,7 @@ test("renders concise literature and quote snapshots with localized kinds", () =
   assert.doesNotMatch(quote, /zmd-board-quote-color[^>]*aria-hidden/);
   assert.match(
     quote,
-    /class="zmd-board-card-footer"[^>]*>[\s\S]*Chen 2026 · 42/,
+    /class="zmd-board-card-footer"[^>]*>[\s\S]*Chen 2026 · localized-annotationPage: 42/,
   );
 });
 

@@ -208,6 +208,11 @@ export interface WhiteboardLabels {
   quoteCreateEvidence?: string;
   fitSelection: string;
   drawTools: string;
+  quoteProperties?: string;
+  quoteSource?: string;
+  quoteContent?: string;
+  expandQuote?: string;
+  collapseQuote?: string;
   selectionDetails: string;
   edgeLabel: string;
   edgeRelation: string;
@@ -1048,6 +1053,11 @@ const whiteboardLabelStringKeys: Record<
   quoteCreateEvidence: true,
   fitSelection: true,
   drawTools: true,
+  quoteProperties: true,
+  quoteSource: true,
+  quoteContent: true,
+  expandQuote: true,
+  collapseQuote: true,
   selectionDetails: true,
   edgeLabel: true,
   edgeRelation: true,
@@ -1140,6 +1150,11 @@ const whiteboardLabelStringKeys: Record<
 function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
   if (!isPlainRecord(value)) return false;
   const optional = [
+    "collapseQuote",
+    "expandQuote",
+    "quoteContent",
+    "quoteSource",
+    "quoteProperties",
     "copyStyle",
     "pasteStyle",
     "formatPainter",
@@ -1304,9 +1319,11 @@ function isLiteratureSnapshot(value: unknown): boolean {
 
 function isQuoteSnapshot(value: unknown): boolean {
   return matchesParsedAcademicFields(value, parseQuoteSnapshot, [
+    "image",
     "annotationType",
     "tags",
     "comment",
+    "attachmentTitle",
     "citation",
     "pageLabel",
     "color",
