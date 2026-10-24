@@ -1,159 +1,72 @@
-# Auto-publish XPI to GitHub Releases when a version tag is pushed.
-#
-# Recommended:
-#   1. Bump package.json "version" (e.g. 0.1.1)
-#   2. Commit
-#   3. git tag v0.1.1 && git push origin v0.1.1
-#
-# Or: Actions → Release → Run workflow → enter v0.1.1
-#     (creates the tag; this workflow then runs on the tag push)
-#
-# Scaffold (`pnpm run release`) will:
-#   - create GitHub Release for the tag
-#   - upload .xpi
-#   - publish update.json / update-beta.json (floating "release" tag assets)
-
-name: Release
+name: Promote release candidate
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
+      candidate_run_id:
+        description: "Successful main push CI run containing the reviewed candidate"
+        required: true
+        type: string
+      expected_sha:
+        description: "Full 40-character commit SHA of that candidate"
+        required: true
+        type: string
+      expected_xpi_sha512:
+        description: "sha512:... value for the reviewed XPI, copied from candidate.json"
+        required: true
+        type: string
       version:
-        description: "Release tag (e.g. v0.1.1). Must match package.json version with a v prefix."
+        description: "Exact package version, without v (for example 0.2.15)"
+        required: true
+        type: string
+      host_evidence:
+        description: "Native Zotero version, candidate checks, results and remaining limitations"
         required: true
         type: string
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  actions: read
 
+# Both stable and beta releases mutate the same floating release assets.
 concurrency:
-  group: release-${{ github.ref }}
+  group: scholar-sketch-release-promotion
   cancel-in-progress: false
 
 jobs:
-  # Manual entry: only create & push the tag; the tag push re-enters this workflow.
-  create-tag:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+  promote:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
     steps:
-      - name: Checkout
+      - name: Checkout trusted promotion code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-
-      - name: Create and push tag
-        run: |
-          set -euo pipefail
-          TAG="${{ inputs.version }}"
-          if [[ ! "$TAG" =~ ^v[0-9] ]]; then
-            echo "Version must look like v0.1.0, got: $TAG"
-            exit 1
-          fi
-          EXPECTED="${TAG#v}"
-          PKG_VER=$(node -p "require('./package.json').version")
-          if [[ "$PKG_VER" != "$EXPECTED" ]]; then
-            echo "package.json version ($PKG_VER) does not match tag ($TAG)"
-            echo "Bump package.json first, commit, then re-run."
-            exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists"
-          else
-            git tag -a "$TAG" -m "Release $TAG"
-          fi
-          git push origin "$TAG"
-
-  release:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          # Must match package.json "packageManager"
-          version: 9.15.9
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
 
-      - name: Resolve package version
-        id: package
-        run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build XPI
-        run: pnpm run build
-
-      - name: Check bundled update highlights
-        run: node --import tsx --test test/release-highlights.test.ts
-
-      - name: Publish GitHub Release
-        run: pnpm run release
-
-      - name: Verify published release assets
+      - name: Verify and promote the existing candidate bytes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.package.outputs.version }}
-        run: |
-          set -euo pipefail
-          VERIFY_DIR="$RUNNER_TEMP/scholar-release-verification"
-          mkdir -p "$VERIFY_DIR"
-          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "scholarsketch-v$VERSION.xpi" --dir "$VERIFY_DIR"
-          MANIFEST=update.json
-          if [[ "$VERSION" == *-* ]]; then MANIFEST=update-beta.json; fi
-          gh release download release --repo "$GITHUB_REPOSITORY" --pattern "$MANIFEST" --dir "$VERIFY_DIR"
-          cmp ".scaffold/build/scholarsketch-v$VERSION.xpi" "$VERIFY_DIR/scholarsketch-v$VERSION.xpi"
-          python3 - <<'PYVERIFY'
-          import hashlib, json, os
-          from pathlib import Path
-          version = os.environ["VERSION"]
-          directory = Path(os.environ["RUNNER_TEMP"]) / "scholar-release-verification"
-          package = json.loads(Path("package.json").read_text())
-          manifest = "update-beta.json" if "-" in version else "update.json"
-          updates = json.loads((directory / manifest).read_text())["addons"][package["config"]["addonID"]]["updates"]
-          entry = next(update for update in updates if update["version"] == version)
-          filename = f"scholarsketch-v{version}.xpi"
-          expected_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/v{version}/{filename}"
-          assert entry["update_link"] == expected_url, "Update manifest points to the wrong repository or asset"
-          digest = hashlib.sha512((directory / filename).read_bytes()).hexdigest()
-          assert entry["update_hash"] == f"sha512:{digest}", "Update manifest hash does not match the published XPI"
-          print("Published XPI and update manifest verified")
-          PYVERIFY
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_XPI_SHA512: ${{ inputs.expected_xpi_sha512 }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          HOST_EVIDENCE: ${{ inputs.host_evidence }}
+        run: node scripts/release-promote.mjs
 
-      - name: Upload build artifact
+      - name: Preserve channel backups and promotion evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: scholarsketch-v${{ steps.package.outputs.version }}.xpi
-          path: .scaffold/build/scholarsketch-v${{ steps.package.outputs.version }}.xpi
-          if-no-files-found: error
-
-      - name: Comment on linked issues/PRs
-        uses: apexskier/github-release-commenter@v1
-        continue-on-error: true
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          comment-template: |
-            :rocket: Fixed in **{release_tag}**. See {release_link} for the release notes and XPI.
+          name: release-channel-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .scaffold/release-backup/
+          if-no-files-found: ignore
+          retention-days: 90

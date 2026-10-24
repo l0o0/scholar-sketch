@@ -68,27 +68,19 @@ test("packaged chrome pages use the Bamboo content namespace", async () => {
   assert.doesNotMatch(combined, /chrome:\/\/zoteromarkdown\/content\//);
 });
 
-test("uses a versioned Scholar Sketch XPI name in build and CI", async () => {
-  const scaffold = await read("zotero-plugin.config.ts");
-  const [ci, release] = await Promise.all([
-    read(".github/workflows/ci.yml"),
-    read(".github/workflows/release.yml"),
-  ]);
+test("build configuration preserves the versioned Scholar Sketch XPI and download route", async () => {
+  const { default: config } = await import("../zotero-plugin.config.ts");
+  const pkg = JSON.parse(await read("package.json"));
 
-  assert.match(scaffold, /xpiName:\s*`scholarsketch-v\$\{pkg\.version\}`/);
-  for (const workflow of [ci, release]) {
-    assert.match(workflow, /id:\s*package/);
-    assert.match(
-      workflow,
-      /name:\s*scholarsketch-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
-    );
-    assert.match(
-      workflow,
-      /\.scaffold\/build\/scholarsketch-v\$\{\{ steps\.package\.outputs\.version \}\}\.xpi/,
-    );
-    assert.doesNotMatch(workflow, /zotero-markdown-xpi/);
-    assert.doesNotMatch(workflow, /name:\s*build-result/);
-  }
+  assert.equal(config.xpiName, `scholarsketch-v${pkg.version}`);
+  assert.equal(
+    config.xpiDownloadLink,
+    "https://github.com/{{owner}}/{{repo}}/releases/download/v{{version}}/{{xpiName}}.xpi",
+  );
+  assert.equal(
+    config.updateURL,
+    `https://github.com/{{owner}}/{{repo}}/releases/download/release/${pkg.version.includes("-") ? "update-beta.json" : "update.json"}`,
+  );
 });
 
 test("documents repository and Scholar Sketch public API", async () => {

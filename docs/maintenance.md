@@ -2,9 +2,17 @@
 
 本文件维护试点阶段与操作流程；长期协作约束在 [AGENTS.md](../AGENTS.md)，发布操作在 [releasing.md](releasing.md)。规则发生长期变化时更新唯一来源，不复制到多个提示词。
 
-## 当前阶段：建立验证与交付基础
+## 当前阶段：验证流程可重复（1/3）
 
-先完成一个可复现的小任务，再用两个独立任务检验流程是否可重复。首项任务就是修复“已有测试未进入执行清单，CI 不运行行为测试”的维护缺陷，不需要为了试点制造产品 bug。
+首项任务“已有测试未进入执行清单，CI 不运行行为测试”已完成修复与合并，并在 main 验证通过。接下来再用两个独立、低风险且已接受的真实维护任务检验流程是否可重复，不需要为了试点制造产品 bug。同一基础设施任务拆成多个 PR 不重复计数。
+
+本阶段记录（2026-10-24）：
+
+- 任务：[L0O-43](https://linear.app/l0o0/issue/L0O-43)；测试与规则基础：[PR 31](https://github.com/l0o0/scholar-sketch/pull/31)；候选发布工程：[PR 32](https://github.com/l0o0/scholar-sketch/pull/32)。实时交付状态以对应任务及 PR 为准。
+- PR 31 已合入 `b714e55784b325757d271d81fdcbbd6365183de8`，对应 [main CI](https://github.com/l0o0/scholar-sketch/actions/runs/40060974083) 全部通过。后续任务须查询自身提交的 CI，不能把这次结果当作最新版本的验收。
+- [反向演练](https://github.com/l0o0/scholar-sketch/actions/runs/40059315570) 证明文件名行为回归会使 unit 与汇总检查失败，而 lint/build 仍通过；临时错误已撤销。真实未知测试文件也被归属检查拒绝。
+- 真实 Zotero 验收和首次线上候选推广尚未执行；本地发布测试与 PR 候选校验不能替代它们。基础设施任务无需为此发行插件版本，首次实际推广的权限、上传和分发结果仍须在发行任务中验收。
+- 另外两项独立维护任务尚待选定并完成；完成一项后在这里更新计数及原任务链接，不把待验收任务计作成功样本。人工审查时间与模型成本未测量。
 
 目前自动执行确定性检查，任务由维护者明确接受后交给 Agent。合并、宿主验收和正式发布保留维护者决策。尚未启用周期 AI 领取任务、自动合并或自动发布。
 
@@ -30,7 +38,7 @@ pnpm install --frozen-lockfile
 pnpm run verify
 ```
 
-`verify` 顺序执行归属检查、lint、unit、fake、build。unit 和 fake 各自调用 `test:prepare` 构建依赖，因此可以单独执行，不依赖旧的 dist。CI 拆为并行 job，但调用同一入口命令；`Sketch checks` 仅在全部 job 成功时通过，job 失败、取消、跳过都不能冒充成功。main 的 required status 应配置为这个名称，不为单维护者设置无法满足的第二人批准要求。只有远端规则实际配置后，才能称为强制合并门禁。
+`verify` 顺序执行归属检查、lint、unit、fake、build。unit 和 fake 各自调用 `test:prepare` 构建依赖，因此可以单独执行，不依赖旧的 dist。CI 拆为并行 job，但调用同一入口命令；`Sketch checks` 仅在全部 job 成功时通过，job 失败、取消、跳过都不能冒充成功。main 已配置 PR 与最新 `Sketch checks` 门禁，限定 GitHub Actions 来源，对管理员同样生效；不要求第二人的批准票。仓库设置可能变化，执行合并前仍须核对实际规则，不能通过绕过检查推进任务。
 
 单测允许既有的条件性跳过，报告须单列跳过数量与原因。目前 Linux CI 不执行 macOS 专属快捷键用例；未配置 `ZOTERO_NOTE_MARKDOWN_TRANSLATOR` 时，真实 Zotero Markdown translator 用例跳过。这些能力不能仅凭汇总绿色声称已验证，也不能把新失败随意改成 skip。
 

@@ -29,7 +29,7 @@
     "build": "tsc -p packages/fake-zotero/tsconfig.json && zotero-plugin build && tsc --noEmit",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
-    "release": "zotero-plugin release",
+    "release": "node scripts/release-promote.mjs",
     "test": "zotero-plugin test",
     "whiteboard:dev": "pnpm --filter @zotero-markdown/whiteboard dev",
     "whiteboard:build": "pnpm --filter @zotero-markdown/whiteboard build",
