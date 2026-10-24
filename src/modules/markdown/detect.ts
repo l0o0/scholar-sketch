@@ -43,7 +43,7 @@ export function defaultMarkdownFilename(now: Date = new Date()): string {
     pad2(now.getMinutes()),
     pad2(now.getSeconds()),
   ].join("");
-  return `Pilot-negative-control-${date}-${time}.md`;
+  return `Note-${date}-${time}.md`;
 }
 
 export function markdownDocumentTitle(filename: string): string {
