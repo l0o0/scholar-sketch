@@ -883,3 +883,7 @@ feature-updates-annotation-preview-body = Image and ink annotations show cached 
 feature-updates-quote-details-title = Compact quote details
 
 feature-updates-quote-details-body = View the source, annotation content and status together. Expand long quotes while keeping source and grouping actions visible.
+
+feature-updates-note-conversion-fix-title = Native Note conversion fix
+
+feature-updates-note-conversion-fix-body = Fix a missing URL parameter that prevented native Note conversion and Markdown import. Conversion keeps your current selection and reports results without opening the new note.

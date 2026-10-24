@@ -883,3 +883,7 @@ feature-updates-annotation-preview-body = 图像和手绘批注可显示页面�
 feature-updates-quote-details-title = 更紧凑的引文属性
 
 feature-updates-quote-details-body = 集中查看来源、批注内容和状态；长引用可展开，来源与分组操作保持可见。
+
+feature-updates-note-conversion-fix-title = 原生笔记转换修复
+
+feature-updates-note-conversion-fix-body = 修复原生笔记转换和 MD 导入时 URL 参数缺失导致的失败。转换后保留当前选择，只提示结果，不自动打开新笔记。

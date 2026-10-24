@@ -74,6 +74,8 @@ export type FluentMessageId =
   | 'feature-updates-mermaid-body'
   | 'feature-updates-mermaid-title'
   | 'feature-updates-note-conversion-body'
+  | 'feature-updates-note-conversion-fix-body'
+  | 'feature-updates-note-conversion-fix-title'
   | 'feature-updates-note-conversion-title'
   | 'feature-updates-quote-details-body'
   | 'feature-updates-quote-details-title'
