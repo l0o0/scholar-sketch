@@ -274,7 +274,14 @@ export class GitHub {
 
   request(
     path,
-    { method = "GET", body, rawBody, binary = false, missing = false } = {},
+    {
+      method = "GET",
+      body,
+      rawBody,
+      binary = false,
+      missing = false,
+      accept,
+    } = {},
   ) {
     const args = ["api", path, "--method", method];
     if (body !== undefined || rawBody !== undefined) args.push("--input", "-");
@@ -286,7 +293,8 @@ export class GitHub {
         `Content-Length: ${rawBody.byteLength}`,
       );
     }
-    if (binary) args.push("-H", "Accept: application/octet-stream");
+    if (accept || binary)
+      args.push("-H", `Accept: ${accept ?? "application/octet-stream"}`);
     try {
       const bytes = this.execute("gh", args, {
         input:
@@ -329,6 +337,8 @@ export class GitHub {
     await writeFile(
       archive,
       this.request(`${this.base}/actions/artifacts/${id}/zip`, {
+        // Actions archives redirect to ZIP bytes but require JSON API negotiation.
+        accept: "application/vnd.github+json",
         binary: true,
       }),
     );

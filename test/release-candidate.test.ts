@@ -495,3 +495,37 @@ test("version order handles numeric patches and prerelease identifiers", () => {
   assert.equal(compareVersions("0.2.15", "0.2.15"), 0);
   assert.throws(() => compareVersions("0.2.15-beta.01", "0.2.14"));
 });
+
+test("GitHub artifact download uses JSON negotiation and preserves ZIP bytes", async (t) => {
+  const f = await fixture(t);
+  const archive = join(f.root, "source.zip");
+  execFileSync(
+    "zip",
+    ["-q", archive, "candidate.json", f.xpi, "update.json", "update-beta.json"],
+    { cwd: f.directory },
+  );
+  const bytes = await readFile(archive);
+  const destination = join(f.root, "downloaded");
+  await mkdir(destination);
+  const api = new GitHub(repository, (_command: string, args: string[]) => {
+    assert.equal(args[1], `repos/${repository}/actions/artifacts/123/zip`);
+    assert.ok(args.includes("Accept: application/vnd.github+json"));
+    assert.ok(!args.includes("Accept: application/octet-stream"));
+    return bytes;
+  });
+  await api.downloadArtifact(123, destination);
+  await verifyCandidate(destination);
+  assert.deepEqual(await readFile(join(destination, f.xpi)), f.bytes);
+});
+
+test("GitHub release asset downloads still negotiate binary content", async () => {
+  const bytes = Buffer.from([0, 255, 128]);
+  const api = new GitHub(repository, (_command: string, args: string[]) => {
+    assert.ok(args.includes("Accept: application/octet-stream"));
+    return bytes;
+  });
+  assert.deepEqual(
+    api.request("repos/example/releases/assets/123", { binary: true }),
+    bytes,
+  );
+});
