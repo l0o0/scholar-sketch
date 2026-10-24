@@ -4,14 +4,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const scriptBuildTime = new Date().toISOString();
 
-// Extra options forwarded to bumpp's `versionBump` (not yet typed by the
-// scaffold): bump the README version badges together with package.json so
-// `pnpm release` keeps them in sync automatically.
-const releaseBumpp = {
-  release: "prompt",
-  files: ["package.json", "README.md", "doc/README-zhCN.md"],
-};
-
 export default defineConfig({
   source: ["src", "addon", "packages/whiteboard/src"],
   dist: ".scaffold/build",
@@ -120,10 +112,6 @@ export default defineConfig({
 
   test: {
     waitForPlugin: `() => Zotero.${pkg.config.addonInstance}.data.initialized`,
-  },
-
-  release: {
-    bumpp: releaseBumpp,
   },
 
   // If you need to see a more detailed log, uncomment the following line:
