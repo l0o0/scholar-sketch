@@ -63,18 +63,21 @@ export async function markTutorialAttachment(
   await item.saveTx({ skipSelect: true });
 }
 
-/** Resolve the portable link already stored in a recognized tutorial canvas. */
-export async function resolveTutorialMarkdown(
+/** Resolve a saved identity without requiring the attachment file to be downloaded. */
+export async function resolveTutorialAttachment(
+  kind: TutorialKind,
   key: string,
 ): Promise<Zotero.Item | null> {
   if (!Zotero.Utilities.isValidObjectKey(key))
-    throw new Error("Invalid tutorial Markdown attachment key");
+    throw new Error("Invalid tutorial attachment key");
   const libraryID = Zotero.Libraries.userLibraryID;
   const item = await Zotero.Items.getByLibraryAndKeyAsync(libraryID, key);
   return item &&
     item.libraryID === libraryID &&
     !item.deleted &&
-    isMarkdownAttachment(item)
+    (kind === "markdown"
+      ? isMarkdownAttachment(item)
+      : isWhiteboardAttachment(item))
     ? item
     : null;
 }

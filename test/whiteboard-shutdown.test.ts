@@ -72,6 +72,7 @@ function setup(
     addon,
     Zotero,
     tutorialStartup: options.tutorial,
+    settingsPhase: "ready",
     runShutdownSteps,
     unregisterWhiteboardMenus: (win: object) => {
       calls.push("unregisterWhiteboardMenus");
@@ -110,6 +111,7 @@ test("shutdown waits for saving before unregistering and closing editors", async
   const fixture = setup({ flushAllWhiteboards: () => saving });
   const closing = fixture.onShutdown();
   await setImmediate();
+  assert.equal(fixture.context.settingsPhase, "stopped");
   assert.deepEqual(
     fixture.calls,
     operations.slice(0, operations.indexOf("flushAllWhiteboards") + 1),
