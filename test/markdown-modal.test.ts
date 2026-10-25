@@ -10,6 +10,142 @@ import {
   settingsFromPrefs,
 } from "../src/modules/markdown/modal.ts";
 import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
+import { version } from "../package.json";
+import { releaseHighlights } from "../src/modules/release-highlights.ts";
+
+test("About shows installed release highlights and opens help links once across repeated visits", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const launched: string[] = [];
+  const stored = new Map<string, unknown>();
+  for (const [key, value] of Object.entries({
+    __buildVersion__: version,
+    Zotero: {
+      locale: "en-US",
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+      launchURL: (url: string) => launched.push(url),
+    },
+  })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (previous) Object.defineProperty(globalThis, key, previous);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    {},
+    {
+      initialSettingsPage: "about",
+      about: { name: "Scholar Sketch", version, buildTime: "test build" },
+    },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+  });
+  const click = (action: string) => {
+    const button = win.document.querySelector<HTMLButtonElement>(
+      `[data-modal-action="${action}"]`,
+    );
+    assert.ok(button, `Missing ${action} action`);
+    button.click();
+    return button;
+  };
+  controller.open("settings");
+  assert.deepEqual(
+    [
+      ...win.document.querySelectorAll(".zotero-markdown-settings-about dd"),
+    ].map((element) => element.textContent),
+    ["Scholar Sketch", version, "test build"],
+  );
+  const features = releaseHighlights(version)!.features;
+  assert.deepEqual(
+    [
+      ...win.document.querySelectorAll(
+        ".zotero-markdown-settings-release-highlights li",
+      ),
+    ].map((element) => element.textContent),
+    features.map((feature) => `bamboo-${feature.title}bamboo-${feature.body}`),
+  );
+  assert.match(win.document.body.textContent, /bamboo-settings-about-star/);
+  assert.equal(
+    launched.length,
+    0,
+    "Opening About must not open external pages",
+  );
+  click("release-notes");
+  const oldGuide = click("about-user-guide");
+  click("project-repository");
+  assert.deepEqual(launched, [
+    `https://github.com/l0o0/scholar-sketch/releases/tag/v${version}`,
+    "https://github.com/l0o0/scholar-sketch/blob/main/docs/user-guide.en.md",
+    "https://github.com/l0o0/scholar-sketch",
+  ]);
+  assert.equal(
+    stored.size,
+    0,
+    "Reading About must not consume the automatic notice",
+  );
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="general"]')!
+    .click();
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="about"]')!
+    .click();
+  oldGuide.click();
+  assert.equal(launched.length, 3, "Removed page actions must be detached");
+  click("project-repository");
+  controller.close();
+  controller.open("settings");
+  const lastAction = click("project-repository");
+  assert.equal(launched.length, 5);
+  controller.destroy();
+  lastAction.click();
+  assert.equal(launched.length, 5, "Destroyed settings must not launch pages");
+});
+
+test("About does not present another release's highlights for an unknown version", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: { Prefs: { get: () => undefined } },
+  });
+  t.after(() => {
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    {},
+    { about: { name: "Scholar Sketch", version: "99.0.0", buildTime: "test" } },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+  });
+  controller.open("settings", {}, "about");
+  assert.equal(
+    win.document.querySelector(".zotero-markdown-settings-release-highlights"),
+    null,
+  );
+  assert.match(
+    win.document.body.textContent,
+    /bamboo-settings-about-release-fallback/,
+  );
+  assert.ok(win.document.querySelector('[data-modal-action="release-notes"]'));
+});
 
 test("normalizes Markdown filenames without losing the extension", () => {
   assert.equal(

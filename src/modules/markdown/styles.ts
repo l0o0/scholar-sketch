@@ -941,6 +941,44 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   overflow-wrap: anywhere;
 }
 
+.zotero-markdown-settings-about-section {
+  margin-block: 20px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--zmd-border);
+  font-size: 13px;
+}
+
+.zotero-markdown-settings-about-section h4 {
+  margin: 0 0 10px;
+  color: var(--zmd-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.zotero-markdown-settings-about-section p {
+  margin: 4px 0 12px;
+  color: var(--zmd-text-muted);
+  line-height: 1.6;
+}
+
+.zotero-markdown-settings-release-highlights {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.zotero-markdown-settings-release-highlights strong {
+  font-weight: 550;
+}
+
+.zotero-markdown-settings-about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .zotero-markdown-settings-footer {
   grid-column: 1 / -1;
   flex: 0 0 auto;

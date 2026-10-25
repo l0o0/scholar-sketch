@@ -396,17 +396,17 @@ Local history contains versions from before saves, drafts preserved during sync,
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
 
-Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shows the plugin version and build information.
+Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
 ![Markdown settings for opening attachments, YAML frontmatter, font size, font, and background color](screenshots/settings-markdown.webp)
 
 ## Find help and discover new features
 
-In Zotero Settings, select **Scholar Sketch** and click **User guide** to open the guide, or **What’s new** to revisit the current version's feature highlights. The **General** page in the Markdown editor's settings also has an **Open user guide** button. The in-app guide link currently opens the Chinese guide. Find this complete English guide under **Documentation** in the [project README](../README.md#documentation), and use the language links at the top of the repository guides to switch languages.
+In Zotero Settings, select **Scholar Sketch** and click **User guide** to open the guide, or **What’s new** to revisit the current version's feature highlights. The **General** and **About** pages in the editor settings also provide a user guide button. The guide follows Zotero's interface language: Chinese interfaces open the Chinese guide, and other languages open this English guide. Use the language links at the top of the repository guides to switch languages.
 
 ![General settings with appearance options and the Open user guide button](screenshots/settings-general.webp)
 
-After an update, feature highlights appear once when a Markdown note or whiteboard is first successfully opened and displayed. They do not take editing focus or block your work. Once dismissed, the highlights for that version do not reappear every time you open a document. You can still view them again through **What’s new** in Zotero Settings.
+After an update, feature highlights appear once when a Markdown note or whiteboard is first successfully opened and displayed. Both editors share the seen-version record: viewing the highlights in a whiteboard means they will not appear again when you open Markdown, and vice versa. They do not take editing focus or block your work. You can revisit the summary and full release notes on the editor settings' **About** page, or reopen the highlights through **What’s new** in Zotero Settings.
 
 ## Frequently asked questions
 

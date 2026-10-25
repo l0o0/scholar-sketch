@@ -1,5 +1,10 @@
 import { getPref, setPref } from "../../utils/prefs";
-import { openUserGuide } from "../help";
+import {
+  openProjectRepository,
+  openReleaseNotes,
+  openUserGuide,
+} from "../help";
+import { releaseHighlights } from "../release-highlights";
 import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   MARKDOWN_HEADING_SHORTCUTS,
@@ -1042,6 +1047,60 @@ export function createMarkdownModalController(
         );
       }
       pageContent.appendChild(details);
+
+      const updates = doc.createElement("section");
+      updates.className = "zotero-markdown-settings-about-section";
+      updates.appendChild(
+        textElement(doc, "h4", getString("feature-updates-description")),
+      );
+      const highlights = releaseHighlights(about.version);
+      if (highlights?.features.length) {
+        const list = doc.createElement("ul");
+        list.className = "zotero-markdown-settings-release-highlights";
+        for (const feature of highlights.features) {
+          const item = doc.createElement("li");
+          item.append(
+            textElement(doc, "strong", getString(feature.title)),
+            textElement(doc, "p", getString(feature.body)),
+          );
+          list.appendChild(item);
+        }
+        updates.appendChild(list);
+      } else {
+        updates.appendChild(
+          textElement(
+            doc,
+            "p",
+            getString(
+              highlights
+                ? "feature-updates-maintenance-description"
+                : "settings-about-release-fallback",
+            ),
+          ),
+        );
+      }
+      updates.appendChild(
+        button(
+          doc,
+          getString("feature-updates-release-notes"),
+          "release-notes",
+        ),
+      );
+
+      const support = doc.createElement("section");
+      support.className = "zotero-markdown-settings-about-section";
+      const actions = doc.createElement("div");
+      actions.className = "zotero-markdown-settings-about-actions";
+      actions.append(
+        button(doc, getString("settings-user-guide"), "about-user-guide"),
+        button(doc, getString("settings-about-github"), "project-repository"),
+      );
+      support.append(
+        textElement(doc, "h4", getString("settings-about-support")),
+        textElement(doc, "p", getString("settings-about-star")),
+        actions,
+      );
+      pageContent.append(updates, support);
       return heading;
     };
 
@@ -1144,6 +1203,11 @@ export function createMarkdownModalController(
       ?.getAttribute("data-modal-action");
     if (!action) return;
     if (action === "close") return closeModal();
+    if (activeKind === "settings") {
+      if (action === "release-notes") return openReleaseNotes();
+      if (action === "about-user-guide") return void openUserGuide();
+      if (action === "project-repository") return openProjectRepository();
+    }
     if (action === "reveal") {
       return void Promise.resolve(callbacks.onReveal?.()).catch(
         showActionError,
