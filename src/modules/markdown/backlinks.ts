@@ -620,7 +620,10 @@ export function mountNoteBacklinks(
         if (disposed || current !== generation || choiceCancelled) return;
         if (
           result.status !== "opened" &&
-          !(from === "outgoing" && result.status === "external")
+          !(
+            from === "outgoing" &&
+            (result.status === "external" || result.status === "dispatched")
+          )
         )
           status.textContent = labels.failed;
       })

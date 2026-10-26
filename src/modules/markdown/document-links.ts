@@ -77,12 +77,19 @@ export type DocumentLinkSearchResult =
 export type DocumentLinkOpenResult =
   | { status: "opened"; candidate?: DocumentLinkCandidate }
   | { status: "external" }
+  /** Passed to Zotero's asynchronous URI handler, not proof the file opened. */
+  | { status: "dispatched" }
   | { status: "ambiguous"; candidates: DocumentLinkCandidate[] }
   | { status: "unresolved" }
   | { status: "unsupported" };
 
 function reportDocumentLinkResult(result: DocumentLinkOpenResult): void {
-  if (result.status === "opened" || result.status === "external") return;
+  if (
+    result.status === "opened" ||
+    result.status === "external" ||
+    result.status === "dispatched"
+  )
+    return;
   const text =
     result.status === "ambiguous"
       ? getString("document-link-ambiguous", {
@@ -992,7 +999,21 @@ export async function openDocumentLink(
   // may still be normalized the same way the native launcher handles them.
   const value = typeof href === "string" ? href : "";
   const externalValue = value.trim();
-  if (externalLink(externalValue) || isPdfDocumentLink(value)) {
+  if (isPdfDocumentLink(value)) {
+    try {
+      const pane =
+        (options.win as _ZoteroTypes.MainWindow | undefined)?.ZoteroPane ||
+        Zotero.getMainWindow?.()?.ZoteroPane;
+      if (!pane) return { status: "unsupported" };
+      // Native loadURI dispatches zotero: inside this process. launchURL sends
+      // it to the OS, which may prompt or open a different Zotero profile.
+      pane.loadURI(value);
+      return { status: "dispatched" };
+    } catch {
+      return { status: "unsupported" };
+    }
+  }
+  if (externalLink(externalValue)) {
     try {
       Zotero.launchURL(externalValue);
       return { status: "external" };

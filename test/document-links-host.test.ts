@@ -5,6 +5,89 @@ import {
   openDocumentLink,
 } from "../src/modules/markdown/document-links.ts";
 
+test("PDF links dispatch through the owning Zotero pane without leaving the process", async (t) => {
+  const globals = globalThis as any;
+  const previous = globals.Zotero;
+  t.after(() => {
+    globals.Zotero = previous;
+  });
+  const external: string[] = [];
+  const dispatched: string[] = [];
+  const ownerPane = {
+    loadURI(href: string) {
+      assert.equal(this, ownerPane);
+      dispatched.push(href);
+    },
+  };
+  globals.Zotero = {
+    launchURL: (href: string) => external.push(href),
+    getMainWindow: () => {
+      throw new Error("an owning pane must take precedence");
+    },
+  };
+  const pdf = "zotero://open-pdf/library/items/J3QEKE7G?page=2";
+  const result = await openDocumentLink(pdf, {
+    win: { ZoteroPane: ownerPane } as unknown as Window,
+  });
+  assert.deepEqual(result, { status: "dispatched" });
+  assert.deepEqual(dispatched, [pdf]);
+  assert.deepEqual(external, [], "internal PDF links must never reach the OS");
+
+  const mainPane = {
+    loadURI(href: string) {
+      assert.equal(this, mainPane);
+      dispatched.push(href);
+    },
+  };
+  globals.Zotero.getMainWindow = () => ({ ZoteroPane: mainPane });
+  const groupPDF =
+    "zotero://open-pdf/groups/42/items/J3QEKE7G?page=7&annotation=ANNO0001";
+  assert.deepEqual(await openDocumentLink(groupPDF, { win: {} as Window }), {
+    status: "dispatched",
+  });
+  assert.deepEqual(dispatched, [pdf, groupPDF]);
+  assert.deepEqual(external, []);
+
+  assert.deepEqual(await openDocumentLink(" https://example.com/paper "), {
+    status: "external",
+  });
+  assert.deepEqual(await openDocumentLink("mailto:author@example.com"), {
+    status: "external",
+  });
+  assert.deepEqual(external, [
+    "https://example.com/paper",
+    "mailto:author@example.com",
+  ]);
+});
+
+test("PDF dispatch fails without a native pane and never falls back to an external launch", async (t) => {
+  const globals = globalThis as any;
+  const previous = globals.Zotero;
+  t.after(() => {
+    globals.Zotero = previous;
+  });
+  const external: string[] = [];
+  globals.Zotero = {
+    launchURL: (href: string) => external.push(href),
+    getMainWindow: () => undefined,
+  };
+  const pdf = "zotero://open-pdf/library/items/J3QEKE7G?page=2";
+  assert.deepEqual(await openDocumentLink(pdf), { status: "unsupported" });
+  assert.deepEqual(
+    await openDocumentLink(pdf, {
+      win: {
+        ZoteroPane: {
+          loadURI() {
+            throw new Error("native protocol unavailable");
+          },
+        },
+      } as unknown as Window,
+    }),
+    { status: "unsupported" },
+  );
+  assert.deepEqual(external, []);
+});
+
 test("document links query only host metadata and preserve library identity", async (t) => {
   const globals = globalThis as any;
   const previous = globals.Zotero;

@@ -503,6 +503,7 @@ test("outgoing references filter native types without rereading files and preser
   Object.assign(item(4), { itemTypeID: 2 });
   Object.assign(item(5), { itemTypeID: 3 });
   const launched: string[] = [];
+  const dispatched: string[] = [];
   const reads: string[] = [];
   const typeLabels: Record<number, string> = {
     1: "Journal article",
@@ -523,6 +524,9 @@ test("outgoing references filter native types without rereading files and preser
     },
   });
   const browser = new Window();
+  Object.assign(browser, {
+    ZoteroPane: { loadURI: (href: string) => dispatched.push(href) },
+  });
   const doc = browser.document;
   const openedNotes: unknown[] = [];
   const dispose = mountNoteBacklinks(doc.body as any, item(3), browser as any, {
@@ -618,10 +622,11 @@ test("outgoing references filter native types without rereading files and preser
     "different pages stay within one attachment group",
   );
   pages[1].click();
-  await until(() => launched.length === 1);
-  assert.deepEqual(launched, [
+  await until(() => dispatched.length === 1);
+  assert.deepEqual(dispatched, [
     "zotero://open-pdf/library/items/PDFNOTE1?page=7",
   ]);
+  assert.deepEqual(launched, [], "PDF references stay in the current process");
   assert.doesNotMatch(
     doc.querySelector(".zmd-backlinks-status")!.textContent,
     /Failed/,

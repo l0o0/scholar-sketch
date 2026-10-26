@@ -393,6 +393,8 @@ export function backlinksSidebarCSS(): string {
 .zmd-reference-group { border-radius: 7px; content-visibility: auto; contain-intrinsic-size: auto 90px; }
 .zmd-reference-group + .zmd-reference-group { border-top: 1px solid var(--zmd-border); }
 .zmd-reference-open { box-sizing: border-box; display: block; inline-size: 100%; text-align: start; border: 0; border-radius: 6px; padding: 10px 7px; color: var(--zmd-text); background: transparent; font: inherit; cursor: pointer; list-style: none; }
+/* Zotero caps native macOS buttons at 25px; reference rows need content height. */
+button.zmd-reference-open, button.zmd-reference-occurrence { appearance: none; box-sizing: border-box; height: auto; max-height: none; margin: 0; }
 .zmd-reference-heading { display: flex; align-items: flex-start; gap: 7px; min-inline-size: 0; }
 .zmd-reference-heading > svg, .zmd-reference-heading > img { flex: 0 0 16px; margin-block-start: 2px; }
 .zmd-reference-title { min-inline-size: 0; font-size: 12px; font-weight: 550; line-height: 1.55; }
@@ -406,6 +408,7 @@ details.zmd-reference-group[open] > summary::after { transform: rotate(45deg); }
 details.zmd-reference-group[open] > summary .zmd-reference-excerpt { display: none; }
 .zmd-reference-occurrences { margin: 0 7px 8px 15px; border-inline-start: 1px solid var(--zmd-border); padding-inline-start: 5px; }
 .zmd-reference-occurrence { display: flex; align-items: flex-start; gap: 7px; inline-size: 100%; border: 0; border-radius: 5px; padding: 7px 5px; background: transparent; color: var(--zmd-text-muted); font: inherit; font-size: 12px; line-height: 1.6; text-align: start; cursor: pointer; }
+.zmd-reference-occurrence > span:last-child { flex: 1 1 0; min-inline-size: 0; }
 .zmd-reference-ordinal { flex: 0 0 12px; font-size: 10px; font-variant-numeric: tabular-nums; opacity: .75; }
 .zmd-backlinks-failures { border-top: 1px solid var(--zmd-border); padding-top: 10px; color: var(--zmd-text-muted); }
 .zmd-backlinks-failures > summary { cursor: pointer; font-size: 12px; line-height: 1.6; }

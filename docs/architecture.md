@@ -65,6 +65,9 @@ from that result, without another document scan on filter changes. Source ranges
 remain per occurrence, and outgoing destinations retain their headings or PDF
 locations. Direction, filters, group expansion and width belong to the mounted
 view; stale asynchronous responses cannot replace a newer view result.
+PDF links use the current Zotero process's native URI handler, preserving page
+and annotation locations. Dispatch does not imply the asynchronous file open
+succeeded; Zotero owns that operation and its error feedback.
 
 ## Protocol
 
