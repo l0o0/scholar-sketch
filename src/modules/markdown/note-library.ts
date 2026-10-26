@@ -2,6 +2,7 @@ import { noteIndex } from "./note-index";
 import {
   extractNoteLinks,
   formatNoteLink,
+  noteLinkExcerpt,
   resolveNoteLink,
 } from "./note-links";
 import { isMarkdownAttachment } from "./detect";
@@ -20,7 +21,7 @@ export interface NoteReadFailure {
 export type NoteAttachmentDownloadResult =
   "available" | "sync-unavailable" | "not-started" | "not-available";
 
-interface IndexedNoteDocument extends NoteDocument {
+export interface IndexedNoteDocument extends NoteDocument {
   readFailure?: NoteReadFailure;
 }
 
@@ -704,13 +705,12 @@ export function clearNoteLibraries(): void {
   listeners.clear();
 }
 
-function lineExcerpt(content: string, position: number): string {
-  const from = Math.max(0, content.lastIndexOf("\n", position - 1) + 1);
-  const end = content.indexOf("\n", position);
-  return content
-    .slice(from, end < 0 ? content.length : end)
-    .trim()
-    .slice(0, 240);
+/** Read this note's saved file without scanning or updating the library cache. */
+export async function readSavedNote(
+  item: Zotero.Item,
+): Promise<IndexedNoteDocument | null> {
+  const metadata = noteMetadata(item);
+  return metadata ? readDocument(item, metadata) : null;
 }
 
 export async function getNoteBacklinks(item: Zotero.Item): Promise<{
@@ -752,7 +752,8 @@ export async function getNoteBacklinks(item: Zotero.Item): Promise<{
       );
       continue;
     }
-    for (const link of source.links ?? extractNoteLinks(source.content)) {
+    const links = source.links ?? extractNoteLinks(source.content);
+    for (const link of links) {
       const resolved = resolveNoteLink(link.href, source, notes);
       if (resolved.status !== "resolved" || resolved.note.key !== target.key)
         continue;
@@ -762,7 +763,7 @@ export async function getNoteBacklinks(item: Zotero.Item): Promise<{
         title: source.title,
         filename: source.filename,
         href: formatNoteLink(source),
-        excerpt: lineExcerpt(source.content, link.from),
+        excerpt: noteLinkExcerpt(source.content, link, links),
         position: link.from,
       });
     }

@@ -221,17 +221,24 @@ The outline on the left is generated from headings in the note. Click a heading 
 
 The left and right sidebar buttons on the toolbar control the outline and backlinks panels independently. In a narrow window, collapse a sidebar to leave more room for the note.
 
-### See which notes link to the current note
+### Explore outgoing links and backlinks
 
-The **Linked mentions** panel on the right lists other Markdown notes in the current library that link to the current note, together with a snippet of the reference. Click a result to return to that location.
+The **References** panel offers two directions and initially shows **Links to here**:
 
-When attachments are missing locally, the panel reports incomplete results. Expand **Notes not included in the results** and choose **Download attachment** for one note, or **Download all** for every downloadable missing attachment in that list, including entries beyond the visible preview. Downloads use Zotero's file-sync configuration: Zotero Storage or WebDAV for your personal library, and Zotero Storage for group libraries. The panel refreshes after files become available, without opening attachments or downloading over existing local files. Closing the note stops queued batch items; Zotero continues any native download already started.
+- **Links from here** lists notes and Zotero items linked in the current Markdown note. Filter by **All**, **Literature**, **Notes**, or **Files**. Literature includes regular items such as journal articles and theses; Notes includes Markdown and native Zotero notes; Files includes PDFs, canvases, and other attachments. Rows show a type icon, type name, and the first creator when available. Ordinary web links and images are omitted.
+- **Links to here** lists other Markdown notes in the current library that link to this note. It does not currently index references inside native notes, bibliographic metadata, or canvases, so it has no category filter.
+
+Repeated references to the same item form one group; counts indicate distinct targets or sources. Expand a group to see and open each reference separately. Outgoing links retain target headings or PDF page numbers; incoming links return to the reference location in the source note. Older title-only links appear under **All** and resolve on click, with a chooser for ambiguous titles. Changing a category only filters the loaded results and does not rescan the library.
+
+In a wide window, drag the sidebar's left edge to resize it. You can also focus the separator and use the left and right arrow keys; press Enter or double-click to restore the default width. In a narrow window, the sidebar appears as an overlay.
+
+When attachments are missing locally, **Links to here** shows **Incomplete results** below the references. Expand it and choose **Download attachment** for one note, or **Download all** for every downloadable missing attachment in that list, including entries beyond the visible preview. Downloads use Zotero's file-sync configuration: Zotero Storage or WebDAV for your personal library, and Zotero Storage for group libraries. The panel refreshes after files become available, without opening attachments or downloading over existing local files. Closing the note stops queued batch items; Zotero continues any native download already started.
 
 If an attachment is not retrieved, the panel shows a compact count and guidance below the affected note. Check Zotero sync settings if file sync is disabled or not ready; check your connection and Zotero sync errors if the download did not start or failed. When a native download finishes but the file remains unavailable locally, it may not have been uploaded: complete file sync on the device holding the original file, then retry. This does not confirm that the remote file was deleted. Linked files and other read errors require locating and fixing the item.
 
-Backlinks are built from **saved notes**. After adding a link in another note, save it first, then check the panel or click **Refresh links**.
+Both directions update from **saved notes**. After adding a link, save it first, then check the panel or click **Refresh links**.
 
-If a message says some notes have not been indexed and the results are incomplete, click it to see the affected notes and reasons, such as an attachment that has not been downloaded or a read error. Download or restore the relevant attachments in Zotero, then refresh the links. This message alone does not mean that the current note is damaged.
+**Incomplete results** also explains other read errors. Restore the affected attachment, then refresh the links. This message alone does not mean that the current note is damaged.
 
 ### Search Markdown notes across your library
 

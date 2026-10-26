@@ -45,6 +45,27 @@ whiteboard iframe (canonical Zotero-free canvas + transient source state)
 
 Each session has `currentRev` / `savedRev`. Typing increments `currentRev`. Autosave, Ctrl+S, and tab close enqueue a write. The writer snapshots the latest editor value; if a newer rev appears during I/O, another write follows. `flush()` waits until the queue is empty.
 
+## Markdown reference index
+
+`NoteIndex` owns the existing local SQLite cache at
+`<Zotero.DataDirectory>/scholar-canvas/scholar-canvas.sqlite`. Its `notes` table
+stores note metadata, file stamps and saved text; `links` stores each parsed
+reference and its source range. Markdown files remain authoritative. The cache
+can be rebuilt and is not part of Zotero file synchronization. Saves update the
+index; library scans reconcile metadata and read changed files. Backlinks match
+parsed references in the in-memory library cache populated from this index.
+They are not yet a direct SQL query by target key.
+
+The host reference sidebar uses saved content in both directions. Incoming
+references cover Markdown notes in the same library. Outgoing references read
+only the current note and resolve explicit Zotero keys in metadata batches for
+type, icon and first creator; title-only legacy links resolve through the normal
+link chooser when clicked. Categories and repeated-reference groups are derived
+from that result, without another document scan on filter changes. Source ranges
+remain per occurrence, and outgoing destinations retain their headings or PDF
+locations. Direction, filters, group expansion and width belong to the mounted
+view; stale asynchronous responses cannot replace a newer view result.
+
 ## Protocol
 
 High-frequency `change` messages carry `{ rev, changes }` instead of the full document. The parent applies those ranges to its shadow copy. Save/flush calls `requestSnapshot` so the written file is the latest iframe document. Image widgets request a single `resolveAsset`; the parent answers with a cached data URL.

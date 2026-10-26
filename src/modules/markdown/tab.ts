@@ -1019,7 +1019,7 @@ function mountEditorUI(
             classList: ["zotero-markdown-backlinks-sidebar"],
             attributes: {
               id: `${session.tabID}-backlinks`,
-              "aria-label": getString("note-backlinks-title"),
+              "aria-label": getString("note-references-title"),
             },
           },
         ],

@@ -514,6 +514,34 @@ async function loadLinkItems(ids: readonly number[]): Promise<Zotero.Item[]> {
   return items;
 }
 
+/** Describe only explicitly referenced items, without searching or reading bodies. */
+export async function describeDocumentLinkTargets(
+  targets: readonly { libraryID: number; key: string }[],
+): Promise<DocumentLinkCandidate[]> {
+  const ids = new Set<number>();
+  for (const target of targets) {
+    const id = Zotero.Items.getIDFromLibraryAndKey(
+      target.libraryID,
+      target.key,
+    );
+    if (id) ids.add(id);
+  }
+  const selected = [...ids];
+  const candidates: DocumentLinkCandidate[] = [];
+  for (let offset = 0; offset < selected.length; offset += 48) {
+    const items = await loadLinkItems(selected.slice(offset, offset + 48));
+    await loadCandidateCreators(items);
+    for (const item of items) {
+      const candidate = candidateFromItem(item);
+      if (!candidate) continue;
+      const author = firstAuthor(item);
+      if (author) candidate.author = author;
+      candidates.push(candidate);
+    }
+  }
+  return candidates;
+}
+
 function candidateMatchesQuery(
   item: Zotero.Item,
   query: string,

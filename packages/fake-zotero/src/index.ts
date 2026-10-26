@@ -126,6 +126,7 @@ export interface FakeZotero {
     getAsync(itemID: number): Promise<FakeItem | false>;
     getAsync(itemID: number[]): Promise<(FakeItem | false)[]>;
     getByLibraryAndKey(libraryID: number, key: string): FakeItem | false;
+    getIDFromLibraryAndKey(libraryID: number, key: string): number | false;
     getAll(libraryID?: number): Promise<FakeItem[]>;
   };
   readonly Reader: {
@@ -579,6 +580,13 @@ export function createFakeZotero(
           itemsData
             .filter((item) => item.libraryID === libraryID && item.key === key)
             .map((item) => itemRegistry.get(item.id))[0] ?? false
+        );
+      },
+      getIDFromLibraryAndKey(libraryID, key) {
+        return (
+          itemsData.find(
+            (item) => item.libraryID === libraryID && item.key === key,
+          )?.id ?? false
         );
       },
       getAll: itemGetAll,
