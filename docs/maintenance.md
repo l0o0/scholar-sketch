@@ -2,19 +2,21 @@
 
 本文件维护试点阶段与操作流程；长期协作约束在 [AGENTS.md](../AGENTS.md)，发布操作在 [releasing.md](releasing.md)。规则发生长期变化时更新唯一来源，不复制到多个提示词。
 
-## 当前阶段：验证流程可重复（2/3）
+## 当前阶段：验证流程可重复（3/3，待维护者决定后续阶段）
 
-已完成两项独立任务：测试执行清单与 CI 门禁、设置关于页的更新与帮助入口。接下来再用一项独立、低风险且已接受的真实维护任务检验流程是否可重复，不需要为了试点制造产品 bug。同一基础设施任务拆成多个 PR 不重复计数；交付计数不代表所有宿主场景均已验证，限制随各项任务记录。
+已完成三项独立任务：测试执行清单与 CI 门禁、设置关于页的更新与帮助入口、缺失 Markdown 附件的原生下载与反馈。第三项及后续引用侧栏优化已随 v0.2.18 交付，试点计数达到目标，后续阶段仍由维护者决定。同一基础设施任务拆成多个 PR 不重复计数；交付计数不代表所有宿主场景均已验证，限制随各项任务记录。
 
 本阶段记录（2026-10-26）：
 
 - 任务：[L0O-43](https://linear.app/l0o0/issue/L0O-43)；测试与规则基础：[PR 31](https://github.com/l0o0/scholar-sketch/pull/31)；候选发布工程：[PR 32](https://github.com/l0o0/scholar-sketch/pull/32)。实时交付状态以对应任务及 PR 为准。
 - PR 31 已合入 `b714e55784b325757d271d81fdcbbd6365183de8`，对应 [main CI](https://github.com/l0o0/scholar-sketch/actions/runs/40060974083) 全部通过。后续任务须查询自身提交的 CI，不能把这次结果当作最新版本的验收。
 - [反向演练](https://github.com/l0o0/scholar-sketch/actions/runs/40059315570) 证明文件名行为回归会使 unit 与汇总检查失败，而 lint/build 仍通过；临时错误已撤销。真实未知测试文件也被归属检查拒绝。
-- 首次线上候选推广已随 [v0.2.16](https://github.com/l0o0/scholar-sketch/releases/tag/v0.2.16) 完成，开发模式宿主证据见发布记录与 [发布流程](releasing.md#真实宿主验收)；候选 XPI 安装验收仍未覆盖，不能与临时扩展验收混同。
+- 首次线上候选推广已随 [v0.2.16](https://github.com/l0o0/scholar-sketch/releases/tag/v0.2.16) 完成，开发模式宿主证据见发布记录与 [发布流程](releasing.md#真实宿主验收)；该次未覆盖候选 XPI 安装验收，不能与临时扩展验收混同。
 - 第二项任务：[L0O-46](https://linear.app/l0o0/issue/L0O-46)；[PR 42](https://github.com/l0o0/scholar-sketch/pull/42) 经独立审查后合入 `26a600540f7161744f3975294154efd2d6d0b676`，[main CI](https://github.com/l0o0/scholar-sketch/actions/runs/40248801698) 通过；经用户明确授权，[推广工作流](https://github.com/l0o0/scholar-sketch/actions/runs/40249097505) 成功发布 [v0.2.17](https://github.com/l0o0/scholar-sketch/releases/tag/v0.2.17)。
 - 本次 About 功能由用户确认测试正常，用户未报告宿主版本。最终 0.2.17 在隔离 Zotero 10.0.3 中仅观察到启动完成；computer use 无法可靠区分并行实例，未完成最终提交的 UI 验收。此前 Zotero 7.0.30 的 UI 观察低于插件最低支持版本 9.0，仅作补充证据。启动时附件图标 redraw 触发的 itemTree 未就绪异常已记入 L0O-46，待独立复现；这些限制不记作通过。
-- 第三项独立维护任务尚待选定并完成；完成后在这里更新计数及原任务链接，不把待验收任务计作成功样本。人工审查时间与模型成本未测量。
+- 第三项任务：[L0O-48](https://linear.app/l0o0/issue/L0O-48) / [PR 45](https://github.com/l0o0/scholar-sketch/pull/45)；后续引用侧栏优化：[L0O-49](https://linear.app/l0o0/issue/L0O-49) / [PR 46](https://github.com/l0o0/scholar-sketch/pull/46)、[PR 47](https://github.com/l0o0/scholar-sketch/pull/47)。最终提交 `2c33eb6ba8f5e06ee33630ba8bf8dc4cb05557b6` 的 [main CI](https://github.com/l0o0/scholar-sketch/actions/runs/40277435884) 通过，经用户授权由 [推广工作流](https://github.com/l0o0/scholar-sketch/actions/runs/40278440759) 发布 [v0.2.18](https://github.com/l0o0/scholar-sketch/releases/tag/v0.2.18)。已重新下载线上 XPI，SHA512 与验收候选一致；稳定及 beta 更新清单均指向 0.2.18，下载地址和哈希核对通过。
+- 最终候选原始 XPI 已在 macOS 27.0.1 / Zotero 10.0.3 安装，安装包 SHA512 核对一致，AddonManager 确认 `active=true`、`temporary=false` 及对应 XPI 路径，插件初始化成功。computer use 验证全部/文献/笔记/附件数量为 3/1/1/1、类型与作者信息、MD 双向引用定位、刷新保留展开、宽度 300→316→300、长摘录不重叠，以及 PDF 在同进程直接打开第 2 页。详细宿主证据见发布记录。
+- 候选验收先发现原生按钮高度导致摘录重叠、PDF 链接走系统外部路由两项问题，PR 47 修复并经独立审查；相关 27 项测试通过，其中 2 项确认修复前失败。最终 CI unit 为 1796 通过、7 跳过（1 项 macOS 专属、6 项未配置真实 translator），Fake Zotero 为 42 通过、无跳过。反复开发热安装曾残留旧面板 paneID，禁用后重新启用恢复正常；历史空白重复标签问题未独立修复。未测试 Windows、Zotero 9/11 或远端成功下载。人工审查时间与模型成本未测量。
 
 目前自动执行确定性检查，任务由维护者明确接受后交给 Agent。合并、宿主验收和正式发布保留维护者决策。尚未启用周期 AI 领取任务、自动合并或自动发布。
 
