@@ -13,6 +13,10 @@ import {
   type SlashQuery,
 } from "./slash-commands";
 import { tableInsertTemplate } from "../modules/markdown/insert-template";
+import {
+  wrapSelectionTransaction,
+  prefixLinesTransaction,
+} from "./format-commands";
 import { editorTableLabels } from "./table-config";
 import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
@@ -1580,17 +1584,9 @@ function wrapSelectionInView(
   after: string,
   query?: SlashQuery,
 ) {
-  const { from, to } = query ?? v.state.selection.main;
-  const selected = query ? "" : v.state.doc.sliceString(from, to);
-  const insert = before + selected + after;
-  const selection = selected
-    ? { anchor: from, head: from + insert.length }
-    : { anchor: from + before.length, head: from + before.length };
-  v.dispatch({
-    changes: { from, to, insert },
-    selection,
-    annotations: query ? isolateHistory.of("full") : undefined,
-  });
+  const transaction = wrapSelectionTransaction(v.state, before, after, query);
+  if (!transaction) return;
+  v.dispatch(transaction);
   v.focus();
 }
 
@@ -1614,19 +1610,9 @@ function insertTextInView(
 }
 
 function prefixLineInView(v: EditorView, prefix: string, query?: SlashQuery) {
-  const { from } = v.state.selection.main;
-  const line = v.state.doc.lineAt(from);
-  const text = query
-    ? line.text.slice(0, query.from - line.from) +
-      line.text.slice(query.to - line.from)
-    : line.text;
-  const stripped = text.replace(/^#{1,6}\s+/, "");
-  const newLine = prefix + stripped;
-  v.dispatch({
-    changes: { from: line.from, to: line.to, insert: newLine },
-    selection: { anchor: line.from + newLine.length },
-    annotations: query ? isolateHistory.of("full") : undefined,
-  });
+  const transaction = prefixLinesTransaction(v.state, prefix, query);
+  if (!transaction) return;
+  v.dispatch(transaction);
   v.focus();
 }
 

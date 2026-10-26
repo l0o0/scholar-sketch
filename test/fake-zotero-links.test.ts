@@ -1207,7 +1207,7 @@ test("right sidebar adapts to width, keeps the outline independent, and releases
   try {
     assert.equal(sidebar.hidden, false);
     assert.equal(toggle.getAttribute("aria-controls"), "references");
-    width = 900;
+    width = 760;
     onResize();
     assert.equal(sidebar.hidden, true);
     assert.equal(toggle.getAttribute("aria-expanded"), "false");
@@ -1233,6 +1233,43 @@ test("right sidebar adapts to width, keeps the outline independent, and releases
     dispose();
     browser.close();
   }
+});
+
+test("opening floating references from another control lets Escape close them immediately", (t) => {
+  const browser = new Window();
+  const doc = browser.document;
+  doc.body.innerHTML =
+    '<main><button id="toggle"></button><button id="status">Status details</button><aside></aside></main>';
+  const root = doc.querySelector("main")!;
+  const sidebar = doc.querySelector("aside")!;
+  const toggle = doc.querySelector<HTMLButtonElement>("#toggle")!;
+  const status = doc.querySelector<HTMLButtonElement>("#status")!;
+  root.getBoundingClientRect = () => ({ width: 620 }) as DOMRect;
+  const dispose = mountBacklinksSidebar(
+    root as unknown as HTMLElement,
+    sidebar as unknown as HTMLElement,
+    toggle as unknown as HTMLButtonElement,
+  );
+  t.after(() => {
+    dispose();
+    browser.close();
+  });
+  status.focus();
+  assert.ok(doc.activeElement === status);
+
+  toggle.click();
+  assert.equal(sidebar.hidden, false);
+  assert.equal(sidebar.classList.contains("is-floating"), true);
+  assert.ok(doc.activeElement === toggle, "opening focuses its trigger");
+  doc.activeElement!.dispatchEvent(
+    new browser.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(sidebar.hidden, true);
+  assert.ok(doc.activeElement === toggle);
 });
 
 test("right sidebar measures only docked occupancy changes and does not replay resize animations", () => {
@@ -1303,7 +1340,7 @@ test("right sidebar measures only docked occupancy changes and does not replay r
     width = 1200;
     resize();
     assert.equal(measures, 1);
-    width = 999;
+    width = 819;
     resize();
     assert.equal(sidebar.hidden, true);
     assert.equal(measures, 2, "auto-hide releases docked width once");
@@ -1343,7 +1380,7 @@ test("right sidebar measures only docked occupancy changes and does not replay r
     resize();
     assert.equal(animations[2].canceled, 0);
 
-    width = 1000;
+    width = 820;
     resize();
     assert.equal(
       sidebar.hidden,
@@ -1356,7 +1393,7 @@ test("right sidebar measures only docked occupancy changes and does not replay r
     assert.equal(animations.length, 3);
     resize();
     assert.equal(measures, 3);
-    width = 999;
+    width = 819;
     resize();
     assert.equal(sidebar.hidden, false);
     assert.equal(
@@ -1366,7 +1403,7 @@ test("right sidebar measures only docked occupancy changes and does not replay r
     );
     toggle.click();
     assert.equal(measures, 4);
-    width = 1000;
+    width = 820;
     resize();
     assert.equal(
       sidebar.hidden,
@@ -1444,7 +1481,7 @@ test("right sidebar width is keyboard adjustable, bounded, and released with the
     key("Enter");
     assert.equal(current(), initial, "Enter restores the initial width");
     const dockedWidth = sidebar.style.getPropertyValue("--zmd-backlinks-width");
-    width = 900;
+    width = 760;
     resize();
     toggle.click();
     assert.equal(sidebar.classList.contains("is-floating"), true);
@@ -1472,4 +1509,55 @@ test("right sidebar width is keyboard adjustable, bounded, and released with the
     dispose();
     browser.close();
   }
+});
+
+test("reference refresh restores the focused occurrence and falls back without stealing outside focus", async (t) => {
+  const { item, files } = fixtures(t);
+  const browser = new Window();
+  const doc = browser.document;
+  const source =
+    "First [[Research--MDNOTE02]]\n\nSecond [[Research--MDNOTE02]]";
+  files.set("MDNOTE01", source);
+  const dispose = mountNoteBacklinks(doc.body as any, item(3), browser as any);
+  t.after(() => {
+    dispose();
+    browser.close();
+  });
+  await until(
+    () => doc.querySelectorAll(".zmd-reference-occurrence").length === 2,
+  );
+  const group = doc.querySelector<HTMLDetailsElement>(".zmd-reference-group")!;
+  group.open = true;
+  let focused = group.querySelectorAll<HTMLButtonElement>(
+    ".zmd-reference-occurrence",
+  )[1];
+  focused.focus();
+  updateIndexedNote(item(2), source + "\nSaved");
+  await until(() => !focused.isConnected);
+  assert.equal(
+    (doc.activeElement as HTMLElement).dataset.position,
+    String(source.lastIndexOf("[[")),
+  );
+  focused = doc.activeElement as HTMLButtonElement;
+  updateIndexedNote(item(2), "Only [[Research--MDNOTE02]]");
+  await until(() => !focused.isConnected);
+  assert.equal(
+    doc.activeElement!.classList.contains("zmd-reference-open"),
+    true,
+    "group becoming a single reference focuses its opener",
+  );
+  const outside = doc.createElement("button");
+  doc.body.append(outside);
+  outside.focus();
+  const old = doc.querySelector(".zmd-reference-group")!;
+  updateIndexedNote(item(2), "Updated [[Research--MDNOTE02]]");
+  await until(() => !old.isConnected);
+  assert.equal(doc.activeElement, outside);
+  doc.querySelector<HTMLButtonElement>(".zmd-reference-open")!.focus();
+  updateIndexedNote(item(2), "No references");
+  await until(() => doc.querySelectorAll(".zmd-reference-group").length === 0);
+  assert.equal(
+    (doc.activeElement as HTMLElement).dataset.direction,
+    "incoming",
+  );
 });

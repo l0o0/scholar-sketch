@@ -733,7 +733,7 @@ describe("responsive Markdown toolbar", () => {
           node.name &&
           names.has(node.name.text),
       )
-      .map((node) => node.getText(source))
+      .map((node) => node.getText(source).replace(/^export\s+/, ""))
       .join("\n");
     let delegate = "";
     function findDelegate(node: ts.Node) {
@@ -761,6 +761,7 @@ describe("responsive Markdown toolbar", () => {
       root: f.root,
       session,
       responsiveToolbars: new WeakMap([[session, f.controller]]),
+      modeMenus: new WeakMap(),
       tablePickerAnchors: new WeakMap(),
       readOnlySessions: new WeakSet(),
       tableInsertTemplate,

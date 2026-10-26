@@ -301,7 +301,7 @@ test("slash commands use the real iframe editing and host message paths", async 
         ["italic", "**", 1],
         ["code", "``", 1],
         ["codeBlock", "```\n\n```", 4],
-        ["link", "[](url)", 1],
+        ["link", "[](url)", 6],
         ["divider", "---\n", 4],
       ] as const;
       for (const mode of ["source", "live"])
@@ -315,6 +315,15 @@ test("slash commands use the real iframe editing and host message paths", async 
             `${mode}: ${id}`,
           );
           assert.equal(view.state.selection.main.head, 11 + selection);
+          if (id === "link") {
+            assert.equal(
+              view.state.sliceDoc(
+                view.state.selection.main.from,
+                view.state.selection.main.to,
+              ),
+              "url",
+            );
+          }
           assert.equal(view.hasFocus, true);
         }
       const view = init();

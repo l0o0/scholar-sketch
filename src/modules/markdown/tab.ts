@@ -23,7 +23,6 @@ import {
   iconPanelRight,
   iconRedo,
   iconSave,
-  iconSource,
   iconTable,
   iconTask,
   iconUndo,
@@ -35,14 +34,17 @@ import {
 } from "./responsive-toolbar";
 import { tableInsertTemplate } from "./insert-template";
 import {
-  EDITOR_MODE_OPTIONS,
   EXPORT_OPTIONS,
   submenuPosition,
   MORE_MENU_SECTIONS,
   modeLabel,
   moreMenuLabel,
+  menuButtons,
+  focusMenuEntry,
   type MoreMenuAction,
 } from "./more-menu";
+import { mountModeMenu, type ModeMenuController } from "./mode-menu";
+import { moveMenuFocus } from "../../utils/menu-keyboard";
 import {
   activePreviewOutlineID,
   hydratePreviewImages,
@@ -117,6 +119,7 @@ import {
 } from "./shortcut";
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
+const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
 const tablePickerAnchors = new WeakMap<OpenSession, HTMLElement>();
 const readOnlySessions = new WeakSet<OpenSession>();
 const AUTOSAVE_MS = 800;
@@ -125,21 +128,6 @@ const metaUpdateTimers = new WeakMap<OpenSession, number>();
 const titleSaveOwners = new WeakMap<OpenSession, object>();
 // Downloads must finish before an explicit cleanup can remove unused assets.
 const imageOperations = new Map<number, { session: OpenSession }>();
-
-export function modeToggleState(mode: "live" | "source" | "preview") {
-  if (mode === "source" || mode === "preview") {
-    return {
-      target: "live" as const,
-      icon: iconLive(),
-      label: getString("tab-mode-toggle-live"),
-    };
-  }
-  return {
-    target: "source" as const,
-    icon: iconSource(),
-    label: getString("tab-mode-toggle-source"),
-  };
-}
 
 export function getSessionByTabID(tabID: string) {
   return sessionRegistry.get(tabID);
@@ -856,7 +844,14 @@ function mountEditorUI(
                                 attributes: {
                                   "data-table-rows": String(row),
                                   "data-table-columns": String(column),
-                                  "aria-label": `Insert ${column} by ${row} table`,
+                                  tabindex:
+                                    row === 3 && column === 3 ? "0" : "-1",
+                                  "aria-label": getString(
+                                    "tab-table-size-option",
+                                    {
+                                      args: { columns: column, rows: row },
+                                    },
+                                  ),
                                 },
                               };
                             }),
@@ -915,13 +910,14 @@ function mountEditorUI(
                     ],
                     properties: {
                       type: "button",
-                      innerHTML: iconOnlyButtonHtml(iconSource()),
+                      innerHTML: iconOnlyButtonHtml(iconLive()),
                     },
                     attributes: {
                       "data-action": "mode-toggle",
-                      title: getString("tab-mode-toggle-source"),
-                      "aria-label": getString("tab-mode-toggle-source"),
-                      "aria-pressed": "false",
+                      title: getString("tab-mode-live"),
+                      "aria-label": getString("tab-mode-live"),
+                      "aria-haspopup": "menu",
+                      "aria-expanded": "false",
                     },
                   },
                   {
@@ -1099,10 +1095,7 @@ function mountEditorUI(
     else if (action === "preview-retry") void showReadOnlyPreview(session);
     else if (isToolbarCommand(action))
       executeToolbarCommand(session, action, btn);
-    else if (action === "mode-toggle") {
-      const toggle = modeToggleState(session.mode);
-      setMode(session, toggle.target);
-    } else if (action === "more") {
+    else if (action === "more") {
       toggleMoreMenu(session);
     }
   });
@@ -1139,13 +1132,20 @@ function mountEditorUI(
     ) as HTMLElement,
   };
   session.view = view;
-  session.statusFeedback = createStatusFeedback(view.saveStatusEl);
+  session.statusFeedback = createStatusFeedback(view.saveStatusEl, {
+    labels: {
+      details: getString("status-details"),
+      close: getString("status-details-close"),
+      dismiss: getString("status-details-dismiss"),
+    },
+  });
   session.outlineSidebar = mountOutlineSidebar({
     root,
     sidebar: view.outlineSidebarEl,
     list: view.outlineListEl,
     toolbarToggle: view.outlineToggleEl,
     emptyLabel: getString("markdown-outline-empty"),
+    onLayoutChange: () => session.editor?.view.requestMeasure(),
     getExpanded: () => session.outlineExpanded !== false,
     onExpandedChange: (expanded) => {
       setOutlineExpanded(session, expanded);
@@ -1224,6 +1224,29 @@ function mountEditorUI(
   if (readOnly) readOnlySessions.add(session);
   bindTablePicker(session);
   mountMoreMenu(session);
+  modeMenus.set(
+    session,
+    mountModeMenu({
+      root,
+      button: root.querySelector<HTMLButtonElement>(
+        ".zotero-markdown-mode-toggle",
+      )!,
+      mode: session.mode,
+      labels: {
+        live: modeLabel("live"),
+        source: modeLabel("source"),
+        preview: modeLabel("preview"),
+      },
+      menuLabel: getString("more-mode"),
+      onSelect: (mode) => setMode(session, mode),
+      isComposing: () => !!session.editor?.isComposing(),
+      closeOtherMenus: () => {
+        closeToolbarMoreMenu(session);
+        session.closeTablePicker?.();
+        responsiveToolbars.get(session)?.close();
+      },
+    }),
+  );
   responsiveToolbars.set(
     session,
     mountResponsiveToolbar({
@@ -1240,6 +1263,7 @@ function mountEditorUI(
       closeOtherMenus: () => {
         closeToolbarMoreMenu(session);
         session.closeTablePicker?.();
+        modeMenus.get(session)?.close();
       },
     }),
   );
@@ -1526,7 +1550,7 @@ function closeToolbarMoreMenu(session: OpenSession) {
     ?.querySelector('[data-action="more"]')
     ?.setAttribute("aria-expanded", "false");
   for (const panel of root?.querySelectorAll<HTMLElement>(
-    ".zotero-markdown-mode-submenu, .zotero-markdown-export-submenu",
+    ".zotero-markdown-export-submenu",
   ) || [])
     panel.hidden = true;
   for (const trigger of menu?.querySelectorAll('[aria-haspopup="menu"]') || [])
@@ -1539,10 +1563,14 @@ export function mountMoreMenu(session: OpenSession) {
   const menu = root.querySelector(".zotero-markdown-more-menu") as HTMLElement;
   if (!menu) return;
 
+  session.closeMoreMenu?.();
   menu.replaceChildren();
+  menu.setAttribute("role", "menu");
   for (const action of ["save", "redo"] as const) {
     const button = menu.ownerDocument.createElement("button");
     button.type = "button";
+    button.tabIndex = -1;
+    button.setAttribute("role", "menuitem");
     button.className =
       "zotero-markdown-more-menu-item zotero-markdown-compact-action";
     button.dataset.menuAction = action;
@@ -1562,6 +1590,8 @@ export function mountMoreMenu(session: OpenSession) {
     for (const item of section) {
       const button = menu.ownerDocument.createElement("button");
       button.type = "button";
+      button.tabIndex = -1;
+      button.setAttribute("role", "menuitem");
       button.className = "zotero-markdown-more-menu-item";
       button.dataset.menuAction = item.action;
       button.append(
@@ -1586,9 +1616,7 @@ export function mountMoreMenu(session: OpenSession) {
         button.setAttribute("aria-haspopup", "menu");
       }
       menu.appendChild(button);
-      if (item.action === "mode") {
-        menu.appendChild(createModeSubmenu(menu.ownerDocument));
-      } else if (item.action === "export") {
+      if (item.action === "export") {
         const panel = menu.ownerDocument.createElement("div");
         panel.className = "zotero-markdown-export-submenu";
         panel.hidden = true;
@@ -1596,6 +1624,7 @@ export function mountMoreMenu(session: OpenSession) {
         for (const option of EXPORT_OPTIONS) {
           const entry = menu.ownerDocument.createElement("button");
           entry.type = "button";
+          entry.tabIndex = -1;
           entry.className = "zotero-markdown-more-menu-item";
           entry.dataset.menuAction = option.action;
           entry.textContent = option.label;
@@ -1607,35 +1636,28 @@ export function mountMoreMenu(session: OpenSession) {
     }
   });
 
-  const modeButton = menu.querySelector<HTMLElement>(
-    '[data-menu-action="mode"]',
-  );
-  const modeMenu = menu.querySelector<HTMLElement>(
-    ".zotero-markdown-mode-submenu",
-  );
-
   const exportMenu = menu.querySelector<HTMLElement>(
     ".zotero-markdown-export-submenu",
   );
   const exportButton = menu.querySelector<HTMLElement>(
     '[data-menu-action="export"]',
   );
-  const collapseModeMenu = () => {
-    if (modeMenu) modeMenu.hidden = true;
+  const collapseExportMenu = () => {
     if (exportMenu) exportMenu.hidden = true;
-    modeButton?.setAttribute("aria-expanded", "false");
     exportButton?.setAttribute("aria-expanded", "false");
   };
-  const openSubmenu = (action: "mode" | "export") => {
-    const panel = action === "mode" ? modeMenu : exportMenu;
-    const trigger = action === "mode" ? modeButton : exportButton;
+  const openSubmenu = () => {
+    const panel = exportMenu;
+    const trigger = exportButton;
     if (!panel || !trigger) return;
     const opening = panel.hidden;
-    collapseModeMenu();
-    if (!opening) return;
+    collapseExportMenu();
+    if (!opening) {
+      focusMenuEntry(menu, trigger as HTMLButtonElement);
+      return;
+    }
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
-    if (action === "mode") syncModeSubmenu(session, panel);
     const bounds = root.getBoundingClientRect();
     panel.style.maxHeight = `${Math.max(32, bounds.height - 8)}px`;
     panel.style.maxWidth = `${Math.max(32, bounds.width - 8)}px`;
@@ -1654,23 +1676,18 @@ export function mountMoreMenu(session: OpenSession) {
     ).top;
     panel.style.left = `${position.left}px`;
     panel.style.top = `${position.top}px`;
+    for (const button of menuButtons(menu)) button.tabIndex = -1;
+    focusMenuEntry(panel);
   };
   const close = () => {
     menu.hidden = true;
     root
       .querySelector('[data-action="more"]')
       ?.setAttribute("aria-expanded", "false");
-    collapseModeMenu();
+    collapseExportMenu();
   };
   const onMenuClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
-    const mode = target?.closest?.("[data-mode]")?.getAttribute("data-mode");
-    if (mode === "live" || mode === "source" || mode === "preview") {
-      setMode(session, mode);
-      close();
-      return;
-    }
-
     const action = target
       ?.closest?.("[data-menu-action]")
       ?.getAttribute("data-menu-action") as MoreMenuAction | null;
@@ -1690,17 +1707,12 @@ export function mountMoreMenu(session: OpenSession) {
       });
       return;
     }
-    if (action === "mode" || action === "export") {
-      openSubmenu(action);
+    if (action === "export") {
+      openSubmenu();
       return;
     }
     if (action === "find") {
       session.editor?.command("find");
-      close();
-      return;
-    }
-    if (action === "source") {
-      setMode(session, "source");
       close();
       return;
     }
@@ -1796,132 +1808,86 @@ export function mountMoreMenu(session: OpenSession) {
     }
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    if (menu.hidden) return;
+    if (menu.hidden || event.isComposing || event.keyCode === 229) return;
     const active = menu.ownerDocument.activeElement as HTMLElement | null;
-    const panel =
-      modeMenu && !modeMenu.hidden
-        ? modeMenu
-        : exportMenu && !exportMenu.hidden
-          ? exportMenu
-          : null;
+    const panel = exportMenu && !exportMenu.hidden ? exportMenu : null;
+    if (!active || !menu.contains(active)) return;
     if ((event.key === "Escape" || event.key === "ArrowLeft") && panel) {
       event.preventDefault();
-      const trigger = panel === modeMenu ? modeButton : exportButton;
-      collapseModeMenu();
-      trigger?.focus();
-    } else if (
-      event.key === "ArrowRight" &&
-      (active === modeButton || active === exportButton)
-    ) {
+      event.stopPropagation();
+      collapseExportMenu();
+      focusMenuEntry(menu, exportButton as HTMLButtonElement);
+    } else if (event.key === "ArrowRight" && active === exportButton) {
       event.preventDefault();
-      openSubmenu(active === modeButton ? "mode" : "export");
-      (active === modeButton ? modeMenu : exportMenu)
-        ?.querySelector<HTMLElement>("button")
-        ?.focus();
-    } else if (
-      (event.key === "ArrowDown" || event.key === "ArrowUp") &&
-      active &&
-      menu.contains(active)
-    ) {
-      event.preventDefault();
-      const buttons = [
-        ...(panel && panel.contains(active) ? panel : menu).children,
-      ].filter(
-        (el) =>
-          el.tagName.toLowerCase() === "button" &&
-          !(el as HTMLButtonElement).disabled &&
-          root.ownerDocument.defaultView?.getComputedStyle(el)?.display !==
-            "none",
-      ) as HTMLElement[];
-      const index = buttons.indexOf(active);
-      buttons[
-        (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
-          buttons.length
-      ]?.focus();
-    } else if (event.key === "Escape") {
+      if (panel) focusMenuEntry(panel);
+      else openSubmenu();
+    } else if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       close();
       root.querySelector<HTMLElement>('[data-action="more"]')?.focus();
+    } else {
+      moveMenuFocus(
+        event,
+        menuButtons(panel && panel.contains(active) ? panel : menu),
+      );
     }
   };
-  root.ownerDocument.defaultView?.addEventListener("resize", collapseModeMenu);
+  const onResize = () => {
+    const focused =
+      !menu.hidden && menu.contains(menu.ownerDocument.activeElement);
+    close();
+    if (focused)
+      root.querySelector<HTMLElement>('[data-action="more"]')?.focus();
+  };
+  const onFocusOut = (event: FocusEvent) => {
+    if (
+      event.relatedTarget !== root.querySelector('[data-action="more"]') &&
+      !menu.contains(event.relatedTarget as Node | null)
+    )
+      close();
+  };
+  root.ownerDocument.defaultView?.addEventListener("resize", onResize);
+  root.ownerDocument.defaultView?.addEventListener("blur", close);
   menu.addEventListener("click", onMenuClick);
+  menu.addEventListener("focusout", onFocusOut);
   root.ownerDocument.addEventListener("pointerdown", onPointerDown);
   root.ownerDocument.addEventListener("keydown", onKeyDown);
   session.closeMoreMenu = () => {
     close();
-    root.ownerDocument.defaultView?.removeEventListener(
-      "resize",
-      collapseModeMenu,
-    );
+    root.ownerDocument.defaultView?.removeEventListener("resize", onResize);
     menu.removeEventListener("click", onMenuClick);
+    menu.removeEventListener("focusout", onFocusOut);
+    root.ownerDocument.defaultView?.removeEventListener("blur", close);
     root.ownerDocument.removeEventListener("pointerdown", onPointerDown);
     root.ownerDocument.removeEventListener("keydown", onKeyDown);
   };
 }
 
-function createModeSubmenu(doc: Document) {
-  const submenu = doc.createElement("div");
-  submenu.className = "zotero-markdown-mode-submenu";
-  submenu.id = "zotero-markdown-mode-submenu";
-  submenu.hidden = true;
-  submenu.setAttribute("role", "menu");
-  for (const option of EDITOR_MODE_OPTIONS) {
-    const button = doc.createElement("button");
-    button.type = "button";
-    button.className = "zotero-markdown-more-menu-item";
-    button.dataset.mode = option.mode;
-    button.setAttribute("role", "menuitemradio");
-    const mark = doc.createElement("span");
-    mark.className = "zotero-markdown-mode-check";
-    mark.setAttribute("aria-hidden", "true");
-    const label = doc.createElement("span");
-    label.textContent = modeLabel(option.mode);
-    button.append(mark, label);
-    submenu.appendChild(button);
-  }
-  return submenu;
-}
-
-function syncModeSubmenu(session: OpenSession, submenu: HTMLElement) {
-  for (const button of submenu.querySelectorAll<HTMLElement>("[data-mode]")) {
-    const checked = button.dataset.mode === session.mode;
-    button.classList.toggle("is-checked", checked);
-    button.setAttribute("aria-checked", String(checked));
-  }
-}
-
-function toggleMoreMenu(session: OpenSession) {
+export function toggleMoreMenu(session: OpenSession) {
   const menu = session.view?.root?.querySelector(
     ".zotero-markdown-more-menu",
   ) as HTMLElement | undefined;
   if (!menu) return;
   session.closeTablePicker?.();
   responsiveToolbars.get(session)?.close();
+  modeMenus.get(session)?.close();
   const opening = menu.hidden;
   menu.hidden = !opening;
   session.view?.root
     .querySelector('[data-action="more"]')
     ?.setAttribute("aria-expanded", String(opening));
-  const modeMenu = menu.querySelector<HTMLElement>(
-    ".zotero-markdown-mode-submenu",
-  );
-  const modeButton = menu.querySelector<HTMLElement>(
-    '[data-menu-action="mode"]',
-  );
   for (const panel of menu.querySelectorAll<HTMLElement>(
-    ".zotero-markdown-mode-submenu, .zotero-markdown-export-submenu",
+    ".zotero-markdown-export-submenu",
   ))
     panel.hidden = true;
   for (const trigger of menu.querySelectorAll<HTMLElement>(
     '[aria-haspopup="menu"]',
   ))
     trigger.setAttribute("aria-expanded", "false");
-  if (opening) {
-    if (modeMenu) syncModeSubmenu(session, modeMenu);
-  } else if (modeMenu) {
-    modeMenu.hidden = true;
-    modeButton?.setAttribute("aria-expanded", "false");
-  }
+  if (opening) focusMenuEntry(menu);
 }
 
 function updateTablePickerSelection(
@@ -1937,6 +1903,11 @@ function updateTablePickerSelection(
       Number(cell.dataset.tableRows) <= rows &&
         Number(cell.dataset.tableColumns) <= columns,
     );
+    cell.tabIndex =
+      Number(cell.dataset.tableRows) === rows &&
+      Number(cell.dataset.tableColumns) === columns
+        ? 0
+        : -1;
   }
   const label = picker.querySelector<HTMLElement>(
     ".zotero-markdown-table-size",
@@ -1944,13 +1915,14 @@ function updateTablePickerSelection(
   if (label) label.textContent = `${columns} × ${rows}`;
 }
 
-function bindTablePicker(session: OpenSession) {
+export function bindTablePicker(session: OpenSession) {
   const root = session.view?.root;
   const picker = root?.querySelector<HTMLElement>(
     ".zotero-markdown-table-picker",
   );
   const trigger = root?.querySelector<HTMLElement>('[data-action="table"]');
   if (!root || !picker || !trigger) return;
+  session.unbindTablePicker?.();
   // Keep the shared picker outside the full-width-only table button wrapper.
   root.querySelector(".zotero-markdown-toolbar-inner")?.append(picker);
   updateTablePickerSelection(picker, 3, 3);
@@ -1963,7 +1935,7 @@ function bindTablePicker(session: OpenSession) {
     );
     tablePickerAnchors.delete(session);
   };
-  const onPointerOver = (event: PointerEvent) => {
+  const onCellHighlight = (event: Event) => {
     const cell = (event.target as Element | null)?.closest?.(
       "[data-table-rows][data-table-columns]",
     ) as HTMLElement | null;
@@ -1987,18 +1959,56 @@ function bindTablePicker(session: OpenSession) {
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (
-      !picker.hidden &&
-      event.key === "Escape" &&
-      !event.isComposing &&
-      event.keyCode !== 229
-    ) {
-      event.preventDefault();
+      picker.hidden ||
+      event.isComposing ||
+      event.keyCode === 229 ||
+      session.editor?.isComposing()
+    )
+      return;
+    const active = picker.ownerDocument.activeElement as HTMLElement | null;
+    if (!active || !picker.contains(active)) return;
+    if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       const anchor = tablePickerAnchors.get(session) || trigger;
       close();
-      if (!session.editor?.isComposing()) anchor.focus();
+      anchor.focus();
+      return;
     }
+    let row = Number(active.dataset.tableRows);
+    let column = Number(active.dataset.tableColumns);
+    if (!row || !column) return;
+    if (event.key === "ArrowUp") row = Math.max(1, row - 1);
+    else if (event.key === "ArrowDown") row = Math.min(8, row + 1);
+    else if (event.key === "ArrowLeft") column = Math.max(1, column - 1);
+    else if (event.key === "ArrowRight") column = Math.min(8, column + 1);
+    else if (event.key === "Home") {
+      column = 1;
+      if (event.ctrlKey || event.metaKey) row = 1;
+    } else if (event.key === "End") {
+      column = 8;
+      if (event.ctrlKey || event.metaKey) row = 8;
+    } else return;
+    event.preventDefault();
+    picker
+      .querySelector<HTMLElement>(
+        `[data-table-rows="${row}"][data-table-columns="${column}"]`,
+      )
+      ?.focus();
   };
-  picker.addEventListener("pointerover", onPointerOver);
+  const onFocusOut = (event: FocusEvent) => {
+    if (
+      event.relatedTarget !== (tablePickerAnchors.get(session) || trigger) &&
+      !picker.contains(event.relatedTarget as Node | null)
+    )
+      close();
+  };
+  picker.addEventListener("pointerover", onCellHighlight);
+  picker.addEventListener("focusin", onCellHighlight);
+  picker.addEventListener("focusout", onFocusOut);
+  root.ownerDocument.defaultView?.addEventListener("blur", close);
   root.ownerDocument.addEventListener("pointerdown", onPointerDown);
   root.ownerDocument.addEventListener("keydown", onKeyDown);
   session.closeTablePicker = () => {
@@ -2006,13 +2016,16 @@ function bindTablePicker(session: OpenSession) {
   };
   session.unbindTablePicker = () => {
     close();
-    picker.removeEventListener("pointerover", onPointerOver);
+    picker.removeEventListener("pointerover", onCellHighlight);
+    picker.removeEventListener("focusin", onCellHighlight);
+    picker.removeEventListener("focusout", onFocusOut);
+    root.ownerDocument.defaultView?.removeEventListener("blur", close);
     root.ownerDocument.removeEventListener("pointerdown", onPointerDown);
     root.ownerDocument.removeEventListener("keydown", onKeyDown);
   };
 }
 
-function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
+export function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
   const root = session.view?.root;
   const picker = root?.querySelector<HTMLElement>(
     ".zotero-markdown-table-picker",
@@ -2023,6 +2036,7 @@ function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
   const opening = picker.hidden;
   closeToolbarMoreMenu(session);
   responsiveToolbars.get(session)?.close();
+  modeMenus.get(session)?.close();
   if (!opening) {
     session.closeTablePicker?.();
     return;
@@ -2037,7 +2051,7 @@ function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
   picker.style.left = `${Math.max(bounds.left + 8, Math.min(anchorRect.left, bounds.right - rect.width - 8))}px`;
   picker.style.top = `${anchorRect.bottom + 8}px`;
   trigger.setAttribute("aria-expanded", "true");
-  picker.querySelector<HTMLButtonElement>("button")?.focus();
+  picker.querySelector<HTMLButtonElement>('button[tabindex="0"]')?.focus();
 }
 
 function showUnavailableAction(action: MoreMenuAction) {
@@ -2434,15 +2448,7 @@ async function refreshRepairedImageAssets(item: Zotero.Item) {
 }
 
 function updateModeToggle(session: OpenSession) {
-  const button = session.view?.root?.querySelector<HTMLButtonElement>(
-    ".zotero-markdown-mode-toggle",
-  );
-  if (!button) return;
-  const state = modeToggleState(session.mode);
-  button.innerHTML = iconOnlyButtonHtml(state.icon);
-  button.title = state.label;
-  button.setAttribute("aria-label", state.label);
-  button.setAttribute("aria-pressed", String(session.mode === "source"));
+  modeMenus.get(session)?.sync(session.mode);
 }
 
 function setMode(session: OpenSession, mode: "live" | "source" | "preview") {
@@ -3044,6 +3050,8 @@ export async function closeMarkdownSession(
     session.unbindFeatureUpdates?.();
     session.modal?.destroy();
     session.unbindTablePicker?.();
+    modeMenus.get(session)?.destroy();
+    modeMenus.delete(session);
     responsiveToolbars.get(session)?.destroy();
     responsiveToolbars.delete(session);
     if (session.autosaveTimer) {

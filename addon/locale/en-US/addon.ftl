@@ -925,3 +925,11 @@ feature-updates-reference-sidebar-title = A clearer two-way references sidebar
 feature-updates-reference-sidebar-body = Switch between outgoing links and backlinks, filter literature, notes, or files, and expand repeated references to navigate from their snippets. Drag the sidebar edge to resize it.
 feature-updates-reference-download-title = Download missing notes from references
 feature-updates-reference-download-body = Use Zotero file sync to download one or all missing attachments. See specific recovery guidance when a file cannot be retrieved; references update after downloads finish.
+
+# Markdown editing and navigation
+status-details = View status details
+status-details-close = Close
+status-details-dismiss = Dismiss
+markdown-outline-resize = Resize outline
+markdown-outline-resize-help = Use Left or Right to resize; Enter or double-click resets the width
+tab-table-size-option = Insert a { $columns } column by { $rows } row table

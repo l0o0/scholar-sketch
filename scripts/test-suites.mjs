@@ -67,6 +67,7 @@ export const testSuites = {
       "test/markdown-images.test.ts",
       "test/markdown-math.test.ts",
       "test/markdown-modal.test.ts",
+      "test/markdown-mode-menu.test.ts",
       "test/markdown-note-conversion.test.ts",
       "test/markdown-note-translator.test.ts",
       "test/markdown-outline-sidebar.test.ts",

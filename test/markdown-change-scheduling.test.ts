@@ -177,6 +177,7 @@ function executableScheduling() {
                 node.name.text === "metaUpdateTimers" ||
                 node.name.text === "titleSaveOwners" ||
                 node.name.text === "responsiveToolbars" ||
+                node.name.text === "modeMenus" ||
                 node.name.text === "readOnlySessions"),
           )
           .map((node) => `const ${node.getText(source)};`)
