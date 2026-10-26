@@ -14,7 +14,11 @@ export interface NoteReadFailure {
   title: string;
   reason: "not-downloaded" | "unavailable" | "read-error" | "index-error";
   stage: "path" | "stat" | "read" | "parse";
+  canDownload?: boolean;
 }
+
+export type NoteAttachmentDownloadResult =
+  "available" | "sync-unavailable" | "not-started" | "not-available";
 
 interface IndexedNoteDocument extends NoteDocument {
   readFailure?: NoteReadFailure;
@@ -32,6 +36,7 @@ interface LibraryCache {
 
 const libraries = new Map<number, LibraryCache>();
 const listeners = new Set<NoteListener>();
+const downloads = new Map<string, Promise<NoteAttachmentDownloadResult>>();
 let observerID: string | undefined;
 const windows = new Map<Window, { count: number; onFocus: () => void }>();
 
@@ -365,6 +370,7 @@ async function readDocument(
       ...(stable ? after : {}),
     };
   } catch (error) {
+    let canDownload = false;
     let reason: NoteReadFailure["reason"] =
       stage === "path"
         ? "unavailable"
@@ -373,14 +379,13 @@ async function readDocument(
           : "read-error";
     if (stage === "path") {
       try {
-        // Classify only unavailable stored files with a valid native path and
-        // a pending download. Never download attachments during indexing.
+        // A missing stored file can be downloaded even when sync state says
+        // in-sync (e.g. an earlier remote lookup found no file).
         const state = item.attachmentSyncState;
-        if (
-          item.isStoredFileAttachment?.() &&
-          item.getFilePath?.() &&
-          (state === 1 || state === 4)
-        )
+        canDownload = Boolean(
+          item.isStoredFileAttachment?.() && item.getFilePath?.(),
+        );
+        if (canDownload && (state === 1 || state === 4))
           reason = "not-downloaded";
       } catch {
         // Invalid or linked paths remain unavailable, without guessing why.
@@ -391,6 +396,7 @@ async function readDocument(
       title: metadata.title,
       reason,
       stage,
+      ...(canDownload ? { canDownload: true } : {}),
     };
     try {
       zotero()?.debug?.(
@@ -632,6 +638,44 @@ export function invalidateNoteLibrary(libraryID: number): void {
   notify(libraryID);
 }
 
+/** Restore a missing stored note through Zotero's configured file-sync service. */
+export function downloadNoteAttachment(
+  libraryID: number,
+  key: string,
+): Promise<NoteAttachmentDownloadResult> {
+  const identity = `${libraryID}/${key}`;
+  const pending = downloads.get(identity);
+  if (pending) return pending;
+  const epoch = lifecycle;
+  const operation = (async (): Promise<NoteAttachmentDownloadResult> => {
+    const item = Zotero.Items.getByLibraryAndKey(libraryID, key);
+    if (!item || !noteMetadata(item) || !item.isStoredFileAttachment())
+      return "not-available";
+    // Runner.downloadFile replaces existing local files. This action only
+    // restores missing files, including when another window just fetched one.
+    let available = Boolean(await item.getFilePathAsync());
+    if (epoch !== lifecycle) return "not-available";
+    if (!available) {
+      if (!item.getFilePath()) return "not-available";
+      if (!Zotero.Sync.Storage.Local.getEnabledForLibrary(libraryID))
+        return "sync-unavailable";
+      const result = await Zotero.Sync.Runner.downloadFile(item);
+      if (epoch !== lifecycle) return "not-available";
+      available = Boolean(await item.getFilePathAsync());
+      if (epoch !== lifecycle) return "not-available";
+      if (!available) return result === false ? "not-started" : "not-available";
+    }
+    // Native results describe sync changes, not file availability. Downloads
+    // save with skipAll, so refresh our index only after confirming the file.
+    invalidateNoteLibrary(libraryID);
+    return "available";
+  })().finally(() => {
+    if (downloads.get(identity) === operation) downloads.delete(identity);
+  });
+  downloads.set(identity, operation);
+  return operation;
+}
+
 /** Force a rebuild from source files, even if file timestamps were preserved. */
 export async function rebuildNoteLibrary(libraryID: number): Promise<void> {
   await readLibraryNotes(libraryID, { refresh: true });
@@ -645,6 +689,7 @@ export function subscribeNoteLibrary(listener: NoteListener): () => void {
 
 export function clearNoteLibraries(): void {
   lifecycle++;
+  downloads.clear();
   if (backgroundTimer !== undefined) clearTimeout(backgroundTimer);
   backgroundTimer = undefined;
   pendingLibraries.clear();
