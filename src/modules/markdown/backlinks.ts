@@ -1,5 +1,8 @@
 import { getString } from "../../utils/locale";
-import { openDocumentLink } from "./document-links";
+import {
+  chooseDocumentLinkCandidate,
+  openDocumentLink,
+} from "./document-links";
 import {
   getNoteBacklinks,
   downloadNoteAttachment,
@@ -11,6 +14,12 @@ import {
 } from "./note-library";
 import type { PortableNote } from "./note-links";
 import { createSidebarMotion } from "./sidebar-motion";
+import {
+  getOutgoingNoteReferences,
+  type NoteReference,
+} from "./note-references";
+
+let referencePanelID = 0;
 
 /** Keep sidebar visibility independent from the currently displayed note. */
 export function mountBacklinksSidebar(
@@ -24,12 +33,96 @@ export function mountBacklinksSidebar(
   let narrow: boolean | undefined;
   let previousWidth: number | undefined;
   const motion = createSidebarMotion(sidebar, toggle, "right");
+  const resize = root.ownerDocument.createElement("div");
+  resize.className = "zmd-backlinks-resize";
+  resize.tabIndex = 0;
+  resize.setAttribute("role", "separator");
+  resize.setAttribute("aria-orientation", "vertical");
+  resize.setAttribute("aria-label", getString("note-references-resize"));
+  resize.title = getString("note-references-resize-help");
+  sidebar.prepend(resize);
+  const minWidth = 240;
+  const defaultWidth = 300;
+  let requestedWidth = defaultWidth;
+  let maxWidth = 440;
+  let actualWidth = defaultWidth;
+  let drag: { pointerID: number; x: number; width: number } | undefined;
+  const applyWidth = () => {
+    actualWidth = Math.max(minWidth, Math.min(maxWidth, requestedWidth));
+    sidebar.style.setProperty("--zmd-backlinks-width", `${actualWidth}px`);
+    resize.setAttribute("aria-valuemin", String(minWidth));
+    resize.setAttribute("aria-valuemax", String(maxWidth));
+    resize.setAttribute("aria-valuenow", String(Math.round(actualWidth)));
+  };
+  const setWidth = (width: number) => {
+    motion.finish();
+    requestedWidth = Math.max(minWidth, Math.min(maxWidth, width));
+    applyWidth();
+    onLayoutChange?.();
+  };
+  const finishDrag = () => {
+    if (!drag) return;
+    const pointerID = drag.pointerID;
+    drag = undefined;
+    sidebar.classList.remove("is-resizing");
+    if (resize.hasPointerCapture(pointerID))
+      resize.releasePointerCapture(pointerID);
+  };
+  const startDrag = (event: PointerEvent) => {
+    if (event.button !== 0 || narrow || !visible) return;
+    event.preventDefault();
+    motion.finish();
+    resize.focus();
+    drag = { pointerID: event.pointerId, x: event.clientX, width: actualWidth };
+    resize.setPointerCapture(event.pointerId);
+    sidebar.classList.add("is-resizing");
+  };
+  const moveDrag = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerID) return;
+    setWidth(drag.width + drag.x - event.clientX);
+  };
+  const resizeKey = (event: KeyboardEvent) => {
+    if (narrow || !visible) return;
+    const step = event.shiftKey ? 40 : 16;
+    const width =
+      event.key === "ArrowLeft"
+        ? actualWidth + step
+        : event.key === "ArrowRight"
+          ? actualWidth - step
+          : event.key === "Home"
+            ? minWidth
+            : event.key === "End"
+              ? maxWidth
+              : event.key === "Enter"
+                ? defaultWidth
+                : undefined;
+    if (width === undefined) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setWidth(width);
+  };
+  const resetWidth = () => setWidth(defaultWidth);
+  resize.addEventListener("pointerdown", startDrag);
+  resize.addEventListener("pointermove", moveDrag);
+  resize.addEventListener("pointerup", finishDrag);
+  resize.addEventListener("pointercancel", finishDrag);
+  resize.addEventListener("lostpointercapture", finishDrag);
+  resize.addEventListener("keydown", resizeKey);
+  resize.addEventListener("dblclick", resetWidth);
+  root.ownerDocument.defaultView?.addEventListener("blur", finishDrag);
   const sync = (animate = false) => {
     const width = root.getBoundingClientRect().width || root.clientWidth;
     const widthChanged = previousWidth !== width;
     previousWidth = width;
     const nextNarrow = width > 0 && width < 1000;
     const nextVisible = expanded ?? !nextNarrow;
+    maxWidth = Math.max(
+      minWidth,
+      Math.min(440, Math.floor((width || 1280) * 0.45)),
+    );
+    applyWidth();
+    resize.hidden = nextNarrow || !nextVisible;
+    if (resize.hidden) finishDrag();
     if (nextVisible === visible && nextNarrow === narrow) {
       if (widthChanged) motion.finish();
       return;
@@ -71,6 +164,17 @@ export function mountBacklinksSidebar(
   return () => {
     observer?.disconnect();
     motion.destroy();
+    finishDrag();
+    resize.removeEventListener("pointerdown", startDrag);
+    resize.removeEventListener("pointermove", moveDrag);
+    resize.removeEventListener("pointerup", finishDrag);
+    resize.removeEventListener("pointercancel", finishDrag);
+    resize.removeEventListener("lostpointercapture", finishDrag);
+    resize.removeEventListener("keydown", resizeKey);
+    resize.removeEventListener("dblclick", resetWidth);
+    root.ownerDocument.defaultView?.removeEventListener("blur", finishDrag);
+    resize.remove();
+    sidebar.style.removeProperty("--zmd-backlinks-width");
     toggle.removeEventListener("click", onToggle);
     sidebar.removeEventListener("keydown", onKeyDown);
   };
@@ -112,6 +216,18 @@ export function mountNoteBacklinks(
       downloadSyncUnavailable?: string;
       downloadNotStarted?: string;
       downloadRetry?: string;
+      referencesTitle?: string;
+      outgoing?: string;
+      incoming?: string;
+      all?: string;
+      literature?: string;
+      notes?: string;
+      attachments?: string;
+      emptyOutgoing?: string;
+      emptyFilter?: string;
+      pendingReference?: string;
+      unavailableReference?: string;
+      referenceOccurrences?: string;
     };
   } = {},
 ): () => void {
@@ -123,7 +239,45 @@ export function mountNoteBacklinks(
     incomplete: getString("note-backlinks-incomplete"),
     failed: getString("note-backlinks-failed"),
   };
+  const referenceLabels = {
+    title: labels.referencesTitle ?? getString("note-references-title"),
+    outgoing: labels.outgoing ?? getString("note-references-outgoing"),
+    incoming: labels.incoming ?? getString("note-references-incoming"),
+    all: labels.all ?? getString("note-references-all"),
+    literature: labels.literature ?? getString("note-references-literature"),
+    note: labels.notes ?? getString("note-references-notes"),
+    attachment: labels.attachments ?? getString("note-references-attachments"),
+    emptyOutgoing:
+      labels.emptyOutgoing ?? getString("note-references-empty-outgoing"),
+    emptyFilter:
+      labels.emptyFilter ?? getString("note-references-empty-filter"),
+    pending: labels.pendingReference ?? getString("note-references-pending"),
+    unavailable:
+      labels.unavailableReference ?? getString("note-references-unavailable"),
+    occurrences:
+      labels.referenceOccurrences ?? getString("note-references-occurrences"),
+  };
   const doc = parent.ownerDocument;
+  const icon = (path: string) => {
+    const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [key, value] of Object.entries({
+      viewBox: "0 0 24 24",
+      width: "16",
+      height: "16",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.7",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      "aria-hidden": "true",
+      focusable: "false",
+    }))
+      svg.setAttribute(key, value);
+    const shape = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+    shape.setAttribute("d", path);
+    svg.append(shape);
+    return svg;
+  };
   const panel = doc.createElement("details");
   panel.className = "zmd-backlinks";
   panel.open = true;
@@ -136,19 +290,79 @@ export function mountNoteBacklinks(
   }
   const summary = doc.createElement("summary");
   const heading = doc.createElement("span");
-  heading.textContent = labels.title;
+  heading.textContent = referenceLabels.title;
   const count = doc.createElement("span");
   count.className = "zmd-backlinks-count";
   summary.append(heading, count);
   summary.style.cursor = "pointer";
   const refresh = doc.createElement("button");
   refresh.type = "button";
-  refresh.textContent = labels.refresh;
+  refresh.title = labels.refresh;
+  refresh.setAttribute("aria-label", labels.refresh);
+  refresh.append(
+    icon(
+      "M20 7v5h-5M4 17v-5h5M6.2 7a7 7 0 0 1 11.5-2L20 8M4 16l2.3 3A7 7 0 0 0 17.8 17",
+    ),
+  );
   refresh.className = "zmd-backlinks-refresh";
   summary.append(refresh);
   const status = doc.createElement("p");
+  status.className = "zmd-backlinks-status";
   status.setAttribute("role", "status");
   status.style.cssText = "font-size:12px;white-space:pre-wrap";
+  type Direction = "incoming" | "outgoing";
+  type Filter = "all" | Exclude<NoteReference["category"], "unresolved">;
+  let direction: Direction = "incoming";
+  let filter: Filter = "all";
+  let entries: NoteReference[] = [];
+  const expandedGroups = new Set<string>();
+  const controls = doc.createElement("div");
+  controls.className = "zmd-reference-controls";
+  controls.setAttribute("role", "tablist");
+  controls.setAttribute("aria-label", referenceLabels.title);
+  const directionButtons = new Map<Direction, HTMLButtonElement>();
+  const panelID = `zmd-references-${++referencePanelID}`;
+  for (const value of ["outgoing", "incoming"] as const) {
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.dataset.direction = value;
+    button.setAttribute("role", "tab");
+    button.id = `${panelID}-${value}`;
+    button.setAttribute("aria-controls", panelID);
+    button.textContent = referenceLabels[value];
+    directionButtons.set(value, button);
+    controls.append(button);
+    button.onclick = () => setDirection(value);
+    button.onkeydown = (event) => {
+      if (downloading) return;
+      const next =
+        event.key === "ArrowLeft" || event.key === "Home"
+          ? "outgoing"
+          : event.key === "ArrowRight" || event.key === "End"
+            ? "incoming"
+            : undefined;
+      if (!next) return;
+      event.preventDefault();
+      directionButtons.get(next)!.focus();
+      setDirection(next);
+    };
+  }
+  const filters = doc.createElement("div");
+  filters.className = "zmd-reference-filters";
+  filters.setAttribute("role", "group");
+  filters.setAttribute("aria-label", getString("note-references-filter"));
+  const filterButtons = new Map<Filter, HTMLButtonElement>();
+  for (const value of ["all", "literature", "note", "attachment"] as const) {
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.dataset.filter = value;
+    filterButtons.set(value, button);
+    filters.append(button);
+    button.onclick = () => {
+      filter = value;
+      renderEntries();
+    };
+  }
   const failures = doc.createElement("details");
   failures.className = "zmd-backlinks-failures";
   failures.hidden = true;
@@ -160,14 +374,17 @@ export function mountNoteBacklinks(
   downloadAll.type = "button";
   downloadAll.className = "zmd-backlinks-download-all";
   downloadAll.hidden = true;
-  failures.append(failureSummary, downloadAll, failureList);
   const downloadStatus = doc.createElement("p");
   downloadStatus.className = "zmd-backlinks-download-status";
   downloadStatus.setAttribute("role", "status");
   downloadStatus.setAttribute("aria-atomic", "true");
   downloadStatus.hidden = true;
   const list = doc.createElement("div");
-  panel.append(summary, status, downloadStatus, failures, list);
+  list.className = "zmd-reference-list";
+  list.id = panelID;
+  list.setAttribute("role", "tabpanel");
+  failures.append(failureSummary, downloadStatus, downloadAll, failureList);
+  panel.append(summary, controls, filters, status, list, failures);
   parent.append(panel);
   let disposed = false;
   let generation = 0;
@@ -313,6 +530,7 @@ export function mountNoteBacklinks(
     const targets = values.filter((failure) => failure.canDownload);
     if (!targets.length) return;
     downloading = true;
+    syncControls();
     refresh.disabled = true;
     downloadStatus.hidden = false;
     downloadStatus.classList.remove("is-error");
@@ -360,59 +578,235 @@ export function mountNoteBacklinks(
   }
   downloadAll.onclick = () => void downloadNotes(currentFailures);
 
+  function syncControls() {
+    for (const [value, button] of directionButtons) {
+      button.disabled = downloading;
+      button.setAttribute("aria-selected", String(direction === value));
+      button.tabIndex = direction === value ? 0 : -1;
+    }
+    filters.hidden = direction !== "outgoing";
+    list.setAttribute("aria-labelledby", directionButtons.get(direction)!.id);
+  }
+
+  function setDirection(value: Direction) {
+    if (disposed || downloading || direction === value) return;
+    clearRenderedEntries();
+    direction = value;
+    entries = [];
+    count.textContent = "";
+    renderFailures([]);
+    downloadStatus.hidden = true;
+    void render();
+  }
+
+  function navigate(
+    occurrence: NoteReference["occurrences"][number],
+    from: Direction,
+  ) {
+    const current = generation;
+    let choiceCancelled = false;
+    void openDocumentLink(occurrence.href, {
+      currentItem: item,
+      win,
+      ...(from === "incoming" ? { position: occurrence.position } : {}),
+      onNavigateNote: options.onNavigateNote,
+      chooseCandidate: async (candidates) => {
+        const selected = await chooseDocumentLinkCandidate(candidates, win);
+        choiceCancelled = !selected;
+        return selected;
+      },
+    })
+      .then((result) => {
+        if (disposed || current !== generation || choiceCancelled) return;
+        if (
+          result.status !== "opened" &&
+          !(from === "outgoing" && result.status === "external")
+        )
+          status.textContent = labels.failed;
+      })
+      .catch(() => {
+        if (!disposed && current === generation)
+          status.textContent = labels.failed;
+      });
+  }
+
+  function clearRenderedEntries() {
+    for (const row of list.querySelectorAll<HTMLDetailsElement>(
+      "details[data-reference-id]",
+    )) {
+      const key = `${direction}:${row.dataset.referenceId}`;
+      if (row.open) expandedGroups.add(key);
+      else expandedGroups.delete(key);
+    }
+    list.replaceChildren();
+  }
+
+  function renderEntries() {
+    clearRenderedEntries();
+    const visible =
+      direction === "incoming" || filter === "all"
+        ? entries
+        : entries.filter((entry) => entry.category === filter);
+    count.textContent = `(${visible.length})`;
+    for (const [value, button] of filterButtons) {
+      const total =
+        value === "all"
+          ? entries.length
+          : entries.filter((entry) => entry.category === value).length;
+      button.textContent = `${referenceLabels[value]} ${total}`;
+      button.setAttribute("aria-pressed", String(filter === value));
+    }
+    status.textContent = visible.length
+      ? ""
+      : direction === "incoming"
+        ? labels.empty
+        : filter !== "all" && entries.length
+          ? referenceLabels.emptyFilter
+          : referenceLabels.emptyOutgoing;
+    const from = direction;
+    for (const entry of visible) {
+      const multiple = entry.occurrences.length > 1;
+      const row = doc.createElement(multiple ? "details" : "article");
+      row.className = "zmd-reference-group";
+      row.dataset.referenceId = entry.id;
+      if (multiple)
+        (row as HTMLDetailsElement).open = expandedGroups.has(
+          `${from}:${entry.id}`,
+        );
+      const header = doc.createElement(multiple ? "summary" : "button");
+      header.className = "zmd-reference-open";
+      if (!multiple) {
+        const button = header as HTMLButtonElement;
+        button.type = "button";
+        button.onclick = () => navigate(entry.occurrences[0], from);
+      }
+      const titleRow = doc.createElement("span");
+      titleRow.className = "zmd-reference-heading";
+      if (entry.candidate?.icon) {
+        const image = doc.createElement("img");
+        image.src = entry.candidate.icon;
+        image.alt = "";
+        image.width = image.height = 16;
+        titleRow.append(image);
+      } else {
+        titleRow.append(
+          icon(
+            entry.category === "unresolved"
+              ? "M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7 7l2-2"
+              : "M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6",
+          ),
+        );
+      }
+      const title = doc.createElement("span");
+      title.className = "zmd-reference-title";
+      title.textContent = entry.title || referenceLabels.unavailable;
+      title.title = title.textContent;
+      titleRow.append(title);
+      const meta = doc.createElement("span");
+      meta.className = "zmd-reference-meta";
+      meta.textContent = [
+        entry.status === "pending"
+          ? referenceLabels.pending
+          : entry.status === "unavailable"
+            ? referenceLabels.unavailable
+            : entry.candidate?.kindLabel || "Markdown",
+        entry.candidate?.author,
+        multiple
+          ? `${entry.occurrences.length} ${referenceLabels.occurrences}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const excerpt = doc.createElement("span");
+      excerpt.className = "zmd-reference-excerpt";
+      excerpt.textContent = entry.occurrences[0]?.excerpt || "";
+      header.append(titleRow, meta, excerpt);
+      row.append(header);
+      if (multiple) {
+        const occurrences = doc.createElement("div");
+        occurrences.className = "zmd-reference-occurrences";
+        for (const [index, occurrence] of entry.occurrences.entries()) {
+          const button = doc.createElement("button");
+          button.type = "button";
+          button.className = "zmd-reference-occurrence";
+          button.dataset.position = String(occurrence.position);
+          const ordinal = doc.createElement("span");
+          ordinal.className = "zmd-reference-ordinal";
+          ordinal.textContent = String(index + 1);
+          const text = doc.createElement("span");
+          text.textContent =
+            occurrence.excerpt || entry.title || referenceLabels.pending;
+          button.append(ordinal, text);
+          button.onclick = () => navigate(occurrence, from);
+          occurrences.append(button);
+        }
+        row.append(occurrences);
+      }
+      list.append(row);
+    }
+  }
+
   async function render() {
     const current = ++generation;
     refresh.disabled = true;
+    for (const button of filterButtons.values()) button.disabled = true;
+    syncControls();
+    list.setAttribute("aria-busy", "true");
     status.textContent = labels.loading;
     try {
-      const result = await getNoteBacklinks(item);
-      if (disposed || current !== generation) return;
-      list.replaceChildren();
-      renderFailures(result.failures);
-      count.textContent = `(${result.entries.length})`;
-      status.textContent = result.unreadable
-        ? `${labels.incomplete} (${result.unreadable})`
-        : result.entries.length
-          ? ""
-          : labels.empty;
-      for (const entry of result.entries) {
-        const button = doc.createElement("button");
-        button.type = "button";
-        button.title = entry.filename;
-        button.style.cssText =
-          "display:block;width:100%;text-align:start;padding:8px 0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;overflow-wrap:anywhere";
-        const title = doc.createElement("strong");
-        title.textContent = entry.title;
-        const excerpt = doc.createElement("span");
-        excerpt.textContent = entry.excerpt;
-        excerpt.style.cssText = "display:block;font-size:12px;opacity:.75";
-        button.append(title, excerpt);
-        button.onclick = () => {
-          void openDocumentLink(entry.href, {
-            currentItem: item,
-            win,
+      let nextEntries: NoteReference[];
+      let nextFailures: NoteReadFailure[];
+      if (direction === "outgoing") {
+        const result = await getOutgoingNoteReferences(item);
+        nextEntries = result.entries;
+        nextFailures = result.failure ? [result.failure] : [];
+      } else {
+        const result = await getNoteBacklinks(item);
+        const groups = new Map<string, NoteReference>();
+        for (const entry of result.entries) {
+          const id = `${entry.libraryID}/${entry.key}`;
+          let group = groups.get(id);
+          if (!group) {
+            group = {
+              id,
+              title: entry.title,
+              category: "note",
+              status: "resolved",
+              occurrences: [],
+            };
+            groups.set(id, group);
+          }
+          group.occurrences.push({
+            href: entry.href,
             position: entry.position,
-            onNavigateNote: options.onNavigateNote,
-          })
-            .then((result) => {
-              if (!disposed && result.status !== "opened")
-                status.textContent = labels.failed;
-            })
-            .catch((error) => {
-              if (!disposed)
-                status.textContent = `${labels.failed}: ${String(error)}`;
-            });
-        };
-        list.append(button);
+            excerpt: entry.excerpt,
+          });
+        }
+        nextEntries = [...groups.values()];
+        nextFailures = result.failures;
       }
+      if (disposed || current !== generation) return;
+      entries = nextEntries;
+      renderFailures(nextFailures);
+      renderEntries();
     } catch (error) {
       if (!disposed && current === generation) {
-        list.replaceChildren();
+        entries = [];
+        clearRenderedEntries();
+        count.textContent = "";
         renderFailures([]);
-        status.textContent = `${labels.failed}: ${String(error)}`;
+        status.textContent = labels.failed;
+        Zotero.logError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
     } finally {
-      if (!disposed && current === generation) refresh.disabled = downloading;
+      if (!disposed && current === generation) {
+        list.setAttribute("aria-busy", "false");
+        refresh.disabled = downloading;
+        for (const button of filterButtons.values()) button.disabled = false;
+        syncControls();
+      }
     }
   }
   const unbindWindow = bindNoteLibraryWindow(win);
@@ -423,9 +817,16 @@ export function mountNoteBacklinks(
     event.preventDefault();
     event.stopPropagation();
     if (disposed || downloading) return;
+    downloadProblems.clear();
+    downloadStatus.hidden = true;
+    if (direction === "outgoing") {
+      void render();
+      return;
+    }
+    const current = generation;
     refresh.disabled = true;
     void rebuildNoteLibrary(item.libraryID).catch((error) => {
-      if (!disposed) {
+      if (!disposed && current === generation) {
         status.textContent = `${labels.failed}: ${String(error)}`;
         refresh.disabled = false;
       }

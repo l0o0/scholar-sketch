@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
 import { EditorView } from "@codemirror/view";
-import { createFakeZotero } from "../packages/fake-zotero/dist/index.js";
+import {
+  createFakeZotero,
+  type FakeItemData,
+} from "../packages/fake-zotero/dist/index.js";
 import { createMarkdownEditor } from "../src/modules/markdown/editor.ts";
 import { searchDocumentLinks } from "../src/modules/markdown/document-links.ts";
 import {
@@ -20,7 +23,11 @@ import {
 } from "../src/modules/markdown/editor-protocol.ts";
 import { ensureDOMGlobals } from "../src/utils/dom.ts";
 
-function fixtures(t: TestContext, extraAttachments = 0) {
+function fixtures(
+  t: TestContext,
+  extraAttachments = 0,
+  extraItems: FakeItemData[] = [],
+) {
   const fake = createFakeZotero({
     items: [
       {
@@ -53,6 +60,7 @@ function fixtures(t: TestContext, extraAttachments = 0) {
         fields: { title: `Waiting ${index}` },
         attachmentContentType: "text/markdown",
       })),
+      ...extraItems,
     ],
   });
   const files = new Map([
@@ -256,8 +264,15 @@ test("real editor completion writes a portable attachment Wiki link and preserve
   assert.deepEqual(opened, [href], "indented code is not a navigation link");
 });
 
-test("backlinks panel uses saved fixture content, updates after save, and navigates to the source offset", async (t) => {
-  const { item } = fixtures(t);
+test("backlinks groups a source note while retaining every saved reference position", async (t) => {
+  const { item, files } = fixtures(t);
+  const source =
+    "# Findings\n\nFirst observation: [[Research--MDNOTE02|Other note]]\n\nSecond observation: [[Research--MDNOTE02|Other note]]";
+  files.set("MDNOTE01", source);
+  files.set(
+    "MDNOTE02",
+    "# Second note\n\n[[Research--MDNOTE01]]\n\n[[Research--MDNOTE01#Findings]]",
+  );
   const browser = new Window();
   const opened: unknown[] = [];
   const dispose = mountNoteBacklinks(
@@ -303,11 +318,69 @@ test("backlinks panel uses saved fixture content, updates after save, and naviga
   );
   assert.equal(browser.document.querySelector("details")!.open, true);
   await until(() => !(refresh as HTMLButtonElement).disabled);
-  (
-    browser.document.querySelector("strong")!.parentElement as HTMLButtonElement
-  ).click();
+  const groups = browser.document.querySelectorAll<HTMLDetailsElement>(
+    ".zmd-reference-group",
+  );
+  assert.equal(groups.length, 1, "count source notes, not individual links");
+  let group = groups[0];
+  assert.equal(group.tagName, "DETAILS");
+  group.querySelector("summary")!.click();
+  assert.equal(group.open, true);
+  updateIndexedNote(item(2), `${source}\n\nSaved edit.`);
+  await until(() => !group.isConnected);
+  group = browser.document.querySelector<HTMLDetailsElement>(
+    ".zmd-reference-group",
+  )!;
+  assert.equal(group.open, true, "saving preserves the expanded source group");
+  browser.document
+    .querySelector<HTMLButtonElement>('[data-direction="outgoing"]')!
+    .click();
+  await until(
+    () => !!browser.document.querySelector(".zmd-reference-occurrence"),
+  );
+  const outgoingGroup = browser.document.querySelector<HTMLDetailsElement>(
+    ".zmd-reference-group",
+  )!;
+  assert.equal(outgoingGroup.dataset.referenceId, group.dataset.referenceId);
+  assert.equal(
+    outgoingGroup.open,
+    false,
+    "the same item has independent expansion in each direction",
+  );
+  browser.document
+    .querySelector<HTMLButtonElement>('[data-direction="incoming"]')!
+    .click();
+  await until(
+    () => !!browser.document.querySelector(".zmd-reference-occurrence"),
+  );
+  group = browser.document.querySelector<HTMLDetailsElement>(
+    ".zmd-reference-group",
+  )!;
+  assert.equal(group.open, true, "switching directions retains expansion");
+  const occurrences = group.querySelectorAll<HTMLButtonElement>(
+    ".zmd-reference-occurrence",
+  );
+  assert.equal(occurrences.length, 2);
+  assert.match(occurrences[0].textContent, /First observation: Other note/);
+  assert.match(occurrences[1].textContent, /Second observation: Other note/);
+  assert.doesNotMatch(group.textContent, /\[\[|MDNOTE02/);
+  occurrences[0].click();
   await until(() => opened.length === 1);
-  assert.deepEqual(opened, [["MDNOTE01", 12]]);
+  occurrences[1].click();
+  await until(() => opened.length === 2);
+  assert.deepEqual(opened, [
+    ["MDNOTE01", source.indexOf("[[")],
+    ["MDNOTE01", source.lastIndexOf("[[")],
+  ]);
+  group.querySelector("summary")!.click();
+  updateIndexedNote(item(2), `${source}\n\nAnother saved edit.`);
+  await until(() => !group.isConnected);
+  assert.equal(
+    browser.document.querySelector<HTMLDetailsElement>(".zmd-reference-group")!
+      .open,
+    false,
+    "a closed group stays closed on the next save",
+  );
   updateIndexedNote(item(2), "# Findings\n\nNo outgoing link.");
   await until(
     () =>
@@ -318,6 +391,325 @@ test("backlinks panel uses saved fixture content, updates after save, and naviga
     browser.document.querySelector('[role="status"]')!.textContent,
     "Empty",
   );
+});
+
+test("outgoing title-only references offer the existing chooser for duplicate note titles", async (t) => {
+  const { item, files } = fixtures(t);
+  files.set(
+    "MDNOTE02",
+    "# Second note\n\nSee [[Research#Findings|The selected findings]].",
+  );
+  const browser = new Window();
+  const prompts: string[] = [];
+  const opened: unknown[] = [];
+  Object.assign(browser, {
+    prompt(message: string) {
+      prompts.push(message);
+      return prompts.length === 1
+        ? (/^([12])\. .*\[MDNOTE01\]$/m.exec(message)?.[1] ?? null)
+        : null;
+    },
+  });
+  const dispose = mountNoteBacklinks(
+    browser.document.body as any,
+    item(3),
+    browser as any,
+    {
+      onNavigateNote: (note, heading, position) => {
+        opened.push([note.key, heading, position]);
+        return true;
+      },
+    },
+  );
+  t.after(() => {
+    dispose();
+    browser.close();
+  });
+  await until(
+    () =>
+      browser.document.querySelector(".zmd-backlinks-count")?.textContent ===
+      "(1)",
+  );
+  browser.document
+    .querySelector<HTMLButtonElement>('[data-direction="outgoing"]')!
+    .click();
+  await until(
+    () =>
+      browser.document.querySelector(".zmd-reference-title")?.textContent ===
+      "The selected findings",
+  );
+  browser.document
+    .querySelector<HTMLButtonElement>(".zmd-reference-open")!
+    .click();
+  await until(() => opened.length === 1);
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0], /Research.*\[MDNOTE01\]/);
+  assert.match(prompts[0], /Research.*\[MDNOTE02\]/);
+  assert.deepEqual(opened, [["MDNOTE01", "Findings", undefined]]);
+  browser.document
+    .querySelector<HTMLButtonElement>(".zmd-reference-open")!
+    .click();
+  await until(() => prompts.length === 2);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(opened, [["MDNOTE01", "Findings", undefined]]);
+  assert.equal(
+    browser.document.querySelector(".zmd-backlinks-status")!.textContent,
+    "",
+    "cancelling the chooser does not report an opening failure",
+  );
+});
+
+test("outgoing references filter native types without rereading files and preserve PDF destinations", async (t) => {
+  const { fake, files, item } = fixtures(t, 0, [
+    {
+      id: 4,
+      key: "NATIVE01",
+      itemType: "note",
+      fields: { title: "Native lab note" },
+    },
+    {
+      id: 5,
+      key: "PDFNOTE1",
+      itemType: "attachment",
+      fields: { title: "Paper PDF" },
+      attachmentContentType: "application/pdf",
+    },
+    {
+      id: 6,
+      key: "ARTICLE1",
+      itemType: "journalArticle",
+      fields: { title: "Journal study" },
+    },
+  ]);
+  const source = [
+    "# Reading notes",
+    "[Study](zotero://select/library/items/ARTICLE1)",
+    "[[Research--MDNOTE01#Findings|Other Markdown]]",
+    "[Lab note](zotero://select/library/items/NATIVE01)",
+    "[First page](zotero://open-pdf/library/items/PDFNOTE1?page=2)",
+    "[Last page](zotero://open-pdf/library/items/PDFNOTE1?page=7)",
+    "[[Legacy note]]",
+  ].join("\n\n");
+  files.set("MDNOTE02", source);
+  const icon = "chrome://zotero/skin/item-type/24/journal-article.svg";
+  Object.assign(item(6), {
+    itemTypeID: 1,
+    getItemTypeIconName: () => "sidebar-journal-article",
+    getImageSrc: () => icon,
+    getCreators: () => [
+      { creatorTypeID: 1, firstName: "Jane", lastName: "Doe" },
+    ],
+  });
+  Object.assign(item(4), { itemTypeID: 2 });
+  Object.assign(item(5), { itemTypeID: 3 });
+  const launched: string[] = [];
+  const reads: string[] = [];
+  const typeLabels: Record<number, string> = {
+    1: "Journal article",
+    2: "Note",
+    3: "Attachment",
+  };
+  Object.assign(fake.Zotero, {
+    CreatorTypes: { getID: () => 1 },
+    ItemTypes: {
+      getLocalizedString: (id: number) => typeLabels[id],
+    },
+    launchURL: (href: string) => launched.push(href),
+    File: {
+      getContentsAsync: async (path: string) => {
+        reads.push(path);
+        return files.get(path);
+      },
+    },
+  });
+  const browser = new Window();
+  const doc = browser.document;
+  const openedNotes: unknown[] = [];
+  const dispose = mountNoteBacklinks(doc.body as any, item(3), browser as any, {
+    labels: {
+      title: "References",
+      refresh: "Refresh",
+      loading: "Loading",
+      empty: "No incoming references",
+      incomplete: "Incomplete",
+      failed: "Failed",
+      outgoing: "Outgoing",
+      incoming: "Incoming",
+      all: "All",
+      literature: "Literature",
+      notes: "Notes",
+      attachments: "Attachments",
+      emptyOutgoing: "No outgoing references",
+      emptyFilter: "No references in this category",
+      pendingReference: "Resolve on opening",
+      unavailableReference: "Reference unavailable",
+      referenceOccurrences: "mentions",
+    },
+    onNavigateNote: (note, heading, position) => {
+      openedNotes.push([note.key, heading, position]);
+      return true;
+    },
+  });
+  t.after(() => {
+    dispose();
+    browser.close();
+  });
+  const count = () => doc.querySelector(".zmd-backlinks-count")!.textContent;
+  const groups = () => doc.querySelectorAll(".zmd-reference-group");
+  await until(() => count() === "(1)");
+  const outgoing = doc.querySelector<HTMLButtonElement>(
+    '[data-direction="outgoing"]',
+  )!;
+  const incoming = doc.querySelector<HTMLButtonElement>(
+    '[data-direction="incoming"]',
+  )!;
+  assert.equal(incoming.getAttribute("aria-selected"), "true");
+  outgoing.click();
+  await until(() => count() === "(5)");
+  assert.equal(outgoing.getAttribute("aria-selected"), "true");
+  assert.equal(groups().length, 5);
+  assert.match(doc.body.textContent, /Legacy note/);
+  assert.match(doc.body.textContent, /Resolve on opening/);
+  const readsAfterLoad = [...reads];
+  const filter = (kind: string) =>
+    doc.querySelector<HTMLButtonElement>(`[data-filter="${kind}"]`)!;
+
+  filter("literature").click();
+  assert.equal(filter("literature").getAttribute("aria-pressed"), "true");
+  assert.equal(count(), "(1)");
+  assert.equal(groups().length, 1);
+  assert.match(groups()[0].textContent, /Journal study/);
+  assert.match(
+    groups()[0].querySelector(".zmd-reference-meta")!.textContent,
+    /Journal article.*Jane Doe/,
+  );
+  const nativeIcon = groups()[0].querySelector("img")!;
+  assert.equal(nativeIcon.getAttribute("src"), icon);
+  assert.equal(nativeIcon.getAttribute("alt"), "");
+
+  filter("note").click();
+  assert.equal(count(), "(2)");
+  assert.equal(
+    groups().length,
+    2,
+    "Markdown and native notes share the note filter",
+  );
+  assert.match(doc.body.textContent, /Native lab note/);
+  assert.doesNotMatch(doc.body.textContent, /Legacy note|Journal study/);
+  groups()[0].querySelector<HTMLButtonElement>(".zmd-reference-open")!.click();
+  await until(() => openedNotes.length === 1);
+  assert.deepEqual(
+    openedNotes,
+    [["MDNOTE01", "Findings", undefined]],
+    "outgoing navigation retains the target heading without applying the source offset",
+  );
+
+  filter("attachment").click();
+  assert.equal(count(), "(1)");
+  const pdf = groups()[0];
+  assert.match(pdf.textContent, /Paper PDF/);
+  pdf.querySelector("summary")!.click();
+  const pages = pdf.querySelectorAll<HTMLButtonElement>(
+    ".zmd-reference-occurrence",
+  );
+  assert.equal(
+    pages.length,
+    2,
+    "different pages stay within one attachment group",
+  );
+  pages[1].click();
+  await until(() => launched.length === 1);
+  assert.deepEqual(launched, [
+    "zotero://open-pdf/library/items/PDFNOTE1?page=7",
+  ]);
+  assert.doesNotMatch(
+    doc.querySelector(".zmd-backlinks-status")!.textContent,
+    /Failed/,
+  );
+  assert.deepEqual(
+    reads,
+    readsAfterLoad,
+    "filtering and a native PDF launch must not reread note bodies",
+  );
+
+  const withoutPDF = source
+    .split("\n\n")
+    .filter((line) => !line.includes("open-pdf"))
+    .join("\n\n");
+  files.set("MDNOTE02", withoutPDF);
+  updateIndexedNote(item(3), withoutPDF);
+  await until(() => count() === "(0)");
+  assert.equal(groups().length, 0);
+  assert.equal(
+    doc.querySelector(".zmd-backlinks-status")!.textContent,
+    "No references in this category",
+  );
+  outgoing.dispatchEvent(
+    new browser.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+  );
+  await until(
+    () =>
+      incoming.getAttribute("aria-selected") === "true" && count() === "(1)",
+  );
+  assert.equal(doc.activeElement, incoming);
+  assert.equal(
+    doc.querySelector<HTMLElement>(".zmd-reference-filters")!.hidden,
+    true,
+  );
+});
+
+test("changing reference direction hides old rows and disables filters until the new references load", async (t) => {
+  const { files, item } = fixtures(t);
+  files.set("MDNOTE02", "[Parent](zotero://select/library/items/PARENT01)");
+  const browser = new Window();
+  const doc = browser.document;
+  const dispose = mountNoteBacklinks(doc.body as any, item(3), browser as any);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  t.after(() => {
+    release();
+    dispose();
+    browser.close();
+  });
+  await until(
+    () => doc.querySelector(".zmd-backlinks-count")?.textContent === "(1)",
+  );
+  assert.match(
+    doc.querySelector(".zmd-reference-group")!.textContent,
+    /Research/,
+  );
+  let started = false;
+  Object.assign(item(3), {
+    getFilePathAsync: async () => {
+      started = true;
+      await gate;
+      return "MDNOTE02";
+    },
+  });
+  doc.querySelector<HTMLButtonElement>('[data-direction="outgoing"]')!.click();
+  await until(() => started);
+  assert.equal(doc.querySelectorAll(".zmd-reference-group").length, 0);
+  assert.equal(
+    doc.querySelector(".zmd-reference-list")!.getAttribute("aria-busy"),
+    "true",
+  );
+  const filters = doc.querySelectorAll<HTMLButtonElement>("[data-filter]");
+  assert.ok([...filters].every((button) => button.disabled));
+  release();
+  await until(
+    () =>
+      doc
+        .querySelector(".zmd-reference-group")
+        ?.textContent.includes("Parent") === true,
+  );
+  assert.equal(doc.querySelectorAll(".zmd-reference-group").length, 1);
+  assert.equal(
+    doc.querySelector(".zmd-reference-list")!.getAttribute("aria-busy"),
+    "false",
+  );
+  assert.ok([...filters].every((button) => !button.disabled));
 });
 
 test("backlinks exposes unavailable note titles in a collapsed list and only locates the item", async (t) => {
@@ -366,8 +758,9 @@ test("backlinks exposes unavailable note titles in a collapsed list and only loc
   });
   await until(
     () =>
-      browser.document.querySelector('[role="status"]')?.textContent ===
-      "Not indexed (1)",
+      !!browser.document.querySelector(
+        '.zmd-backlinks-failures button[data-note-key="MDNOTE01"]',
+      ),
   );
   assert.equal(
     browser.document.querySelector(".zmd-backlinks-count")!.textContent,
@@ -988,6 +1381,87 @@ test("right sidebar measures only docked occupancy changes and does not replay r
       measures,
       5,
       "destroyed controls do not request editor layout",
+    );
+  } finally {
+    dispose();
+    browser.close();
+  }
+});
+
+test("right sidebar width is keyboard adjustable, bounded, and released with the view", () => {
+  const browser = new Window();
+  const doc = browser.document;
+  doc.body.innerHTML =
+    '<button id="toggle"></button><main><aside id="references"><button>Refresh</button></aside></main>';
+  const root = doc.querySelector("main")!;
+  const sidebar = doc.querySelector("aside")!;
+  const toggle = doc.querySelector<HTMLButtonElement>("#toggle")!;
+  let width = 1280;
+  root.getBoundingClientRect = () => ({ width }) as DOMRect;
+  let resize = () => {};
+  browser.ResizeObserver = class {
+    constructor(callback: () => void) {
+      resize = callback;
+    }
+    observe() {}
+    disconnect() {}
+  } as unknown as typeof browser.ResizeObserver;
+  const dispose = mountBacklinksSidebar(
+    root as unknown as HTMLElement,
+    sidebar as unknown as HTMLElement,
+    toggle as unknown as HTMLButtonElement,
+  );
+  try {
+    const separator = sidebar.querySelector<HTMLElement>(
+      ".zmd-backlinks-resize",
+    )!;
+    assert.ok(separator);
+    assert.equal(separator.getAttribute("role"), "separator");
+    assert.equal(separator.getAttribute("aria-orientation"), "vertical");
+    assert.equal(separator.tabIndex, 0);
+    const initial = Number(separator.getAttribute("aria-valuenow"));
+    const current = () => Number(separator.getAttribute("aria-valuenow"));
+    const key = (value: string) =>
+      separator.dispatchEvent(
+        new browser.KeyboardEvent("keydown", { key: value, bubbles: true }),
+      );
+    key("ArrowLeft");
+    assert.ok(
+      current() > initial,
+      "moving the right panel's separator left widens the panel",
+    );
+    key("ArrowRight");
+    assert.equal(current(), initial);
+    for (let i = 0; i < 50; i++) key("ArrowLeft");
+    assert.equal(current(), 440);
+    for (let i = 0; i < 50; i++) key("ArrowRight");
+    assert.equal(current(), 240);
+    key("Enter");
+    assert.equal(current(), initial, "Enter restores the initial width");
+    const dockedWidth = sidebar.style.getPropertyValue("--zmd-backlinks-width");
+    width = 900;
+    resize();
+    toggle.click();
+    assert.equal(sidebar.classList.contains("is-floating"), true);
+    assert.equal(
+      separator.hidden,
+      true,
+      "floating panels use the constrained overlay width",
+    );
+    key("ArrowLeft");
+    assert.equal(
+      sidebar.style.getPropertyValue("--zmd-backlinks-width"),
+      dockedWidth,
+    );
+    dispose();
+    assert.equal(sidebar.querySelector(".zmd-backlinks-resize"), null);
+    const disposedWidth = sidebar.style.getPropertyValue(
+      "--zmd-backlinks-width",
+    );
+    key("ArrowLeft");
+    assert.equal(
+      sidebar.style.getPropertyValue("--zmd-backlinks-width"),
+      disposedWidth,
     );
   } finally {
     dispose();

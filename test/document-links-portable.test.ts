@@ -7,6 +7,8 @@ import {
   noteHeadingPosition,
   noteHeadings,
   noteIgnoredRanges,
+  noteLinkExcerpt,
+  noteLinkLabel,
   parseNoteLink,
   portableNoteFilename,
   resolveNoteLink,
@@ -185,6 +187,61 @@ test("finds headings outside frontmatter and code, including slug anchors", () =
   assert.equal(
     noteHeadingPosition(source, "visible-heading-1"),
     source.lastIndexOf("# Visible Heading"),
+  );
+});
+
+test("reference labels keep aliases and hide portable storage identifiers", () => {
+  const links = extractNoteLinks(
+    "[[folder/zmd-Research%20Notes--AB12CD34.md#Results]] " +
+      "[[Research--AB12CD34|**Preferred** label]] " +
+      "[Paper **title**](zotero://select/library/items/CD34EF56) " +
+      "[zotero://select/library/items/CD34EF56](zotero://select/library/items/CD34EF56) " +
+      "[[#Methods]]",
+  );
+  assert.deepEqual(links.map(noteLinkLabel), [
+    "Research Notes › Results",
+    "Preferred label",
+    "Paper title",
+    "",
+    "Methods",
+  ]);
+});
+
+test("reference excerpts stay centered on a late mention and hide nearby link destinations", () => {
+  const source =
+    "前文".repeat(200) +
+    " 参见 [[zmd-Related--CD34EF56|相关笔记]]，本节讨论 " +
+    "[[zmd-Research--AB12CD34.md#Results]] 与 " +
+    "[论文 **分析**](zotero://select/library/items/EF56GH78) 的联系。" +
+    "后文".repeat(200);
+  const links = extractNoteLinks(source);
+  const originalPosition = links[1].from;
+  const excerpt = noteLinkExcerpt(source, links[1], links);
+  assert.match(
+    excerpt,
+    /相关笔记，本节讨论 Research › Results 与 论文 分析 的联系/,
+  );
+  assert.doesNotMatch(
+    excerpt,
+    /\[\[|\]\]|zmd-|AB12CD34|CD34EF56|EF56GH78|zotero:\/\/|\*\*/,
+  );
+  assert.equal(excerpt.startsWith("…"), true);
+  assert.equal(excerpt.endsWith("…"), true);
+  assert.ok(Array.from(excerpt).length <= 240);
+  assert.equal(links[1].from, originalPosition);
+  assert.equal(
+    source.slice(links[1].from, links[1].to),
+    "[[zmd-Research--AB12CD34.md#Results]]",
+  );
+});
+
+test("reference excerpts preserve readable Markdown and an alias without adding unrelated lines", () => {
+  const source =
+    "Previous line is unrelated\n**See [[Research--AB12CD34|this result]]** and `x + y`.\nNext line";
+  const links = extractNoteLinks(source);
+  assert.equal(
+    noteLinkExcerpt(source, links[0], links),
+    "See this result and x + y.",
   );
 });
 
