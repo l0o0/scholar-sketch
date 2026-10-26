@@ -1,5 +1,7 @@
 # Unified Academic Note and Templates Design
 
+> Storage revision (2026-10-26): the SyncedSettings design below is superseded. Zotero rejects custom setting keys; templates now use local plugin preferences, with existing templates transferred before the old setting is removed. See [current architecture](../../architecture.md#note-templates) and [migration safety](../../file-safety.md#旧版同步设置迁移). The remaining card/template design is unchanged.
+
 - Date: 2026-09-06
 - Status: Confirmed
 - Scope: Simplify academic authoring objects and add reusable Note templates

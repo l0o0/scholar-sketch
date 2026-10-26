@@ -1,48 +1,53 @@
 import {
-  canvasDocumentToFile,
   parseStoredCanvas,
   serializeCanvasDocument,
 } from "../../../packages/whiteboard/src/model/canvas-file";
 import type { CanvasDocument } from "./snapshot";
 import { parseCanvasDocument } from "../../../packages/whiteboard/src/model/document";
-import { markdownApi } from "../markdown/api";
+import { getPref, setPref } from "../../utils/prefs";
 import { createMarkdownAttachment } from "../markdown/create";
 import { canvasApi } from "./api";
 import { createWhiteboardAttachment } from "./create";
 import {
   findTutorialAttachment,
   markTutorialAttachment,
-  resolveTutorialMarkdown,
+  resolveTutorialAttachment,
   type TutorialKind,
 } from "./tutorial-discovery";
+
+/** Increment only when the bundled tutorial content changes, not every release. */
+export const TUTORIAL_VERSION = 1;
+
+export interface TutorialAttachmentRecord {
+  key: string;
+  version: number;
+}
+export type TutorialAttachmentState = Partial<
+  Record<TutorialKind, TutorialAttachmentRecord>
+>;
+export type TutorialAttachmentResult =
+  { canvas: Zotero.Item; created: boolean } | { deleted: true };
 
 export interface TutorialAttachmentDependencies {
   find(
     kind: TutorialKind,
     titles: readonly string[],
   ): Promise<Zotero.Item | null>;
-  resolveMarkdown(key: string): Promise<Zotero.Item | null>;
+  resolve(kind: TutorialKind, key: string): Promise<Zotero.Item | null>;
+  state(): TutorialAttachmentState;
+  remember(state: TutorialAttachmentState): void;
   mark(item: Zotero.Item, kind: TutorialKind): Promise<void>;
   read(item: Zotero.Item): Promise<string | null>;
-  fingerprint(content: string): string;
-  baseline(item: Zotero.Item): unknown;
-  remember(item: Zotero.Item, fingerprint: string): Promise<void>;
   createMarkdown(content: string, title: string): Promise<Zotero.Item | null>;
   createCanvas(
     document: CanvasDocument,
     title: string,
   ): Promise<Zotero.Item | null>;
-  updateMarkdown(
-    item: Zotero.Item,
-    content: string,
-    revision: string,
-  ): Promise<void>;
   updateCanvas(
     item: Zotero.Item,
     document: CanvasDocument,
     revision: string,
   ): Promise<void>;
-  log(message: string, error?: unknown): void;
 }
 
 const markdownTitles = ["开始写作.md", "Start writing.md"];
@@ -53,31 +58,37 @@ const canvasTitles = ["Scholar Sketch", "Scholar Canvas", "Bamboo"].flatMap(
   ],
 );
 
-/** Normalize viewing state, timestamps, and equivalent editor defaults. */
-function canvasContent(document: CanvasDocument): string {
-  return JSON.stringify(
-    canvasDocumentToFile(
-      {
-        ...document,
-        viewport: { x: 0, y: 0, zoom: 1 },
-        metadata: { ...document.metadata, createdAt: "" },
-        connections: document.connections.map((connection) => ({
-          ...connection,
-          sourceHandle: connection.sourceHandle ?? "right",
-          targetHandle: connection.targetHandle ?? "left",
-          dashed: connection.dashed ?? false,
-        })),
-      },
-      { now: "" },
-    ),
-  );
+export function parseTutorialAttachmentState(
+  value: unknown,
+): TutorialAttachmentState {
+  if (value === undefined || value === null || value === "") return {};
+  const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("Invalid tutorial attachment configuration");
+  const result: TutorialAttachmentState = {};
+  for (const kind of ["markdown", "canvas"] as const) {
+    const record = (parsed as Record<string, unknown>)[kind];
+    if (record === undefined) continue;
+    if (!record || typeof record !== "object" || Array.isArray(record))
+      throw new Error("Invalid tutorial attachment record");
+    const { key, version } = record as Record<string, unknown>;
+    if (
+      typeof key !== "string" ||
+      !/^[A-Z0-9]{8}$/.test(key) ||
+      typeof version !== "number" ||
+      !Number.isSafeInteger(version) ||
+      version < 1
+    )
+      throw new Error("Invalid tutorial attachment key or version");
+    result[kind] = { key, version };
+  }
+  return result;
 }
 
 function attachmentNode(document: CanvasDocument) {
   const node = document.nodes.find((node) => node.id === "tutorial-attachment");
   return node?.kind === "attachment" ? node : undefined;
 }
-
 function isTutorial(document: CanvasDocument): boolean {
   return (
     document.nodes.some((node) => node.id === "tutorial-welcome") &&
@@ -85,159 +96,204 @@ function isTutorial(document: CanvasDocument): boolean {
   );
 }
 
-/** Reconcile both assets before opening; a partial creation is reused on retry. */
+/** Missing saved items are user deletions; check existence before version. */
+export async function tutorialStartupIsCurrent(
+  completed: boolean,
+  deps: TutorialAttachmentDependencies = productionDependencies(),
+  version = TUTORIAL_VERSION,
+): Promise<boolean> {
+  const state = deps.state();
+  if (state.canvas) {
+    if (!(await deps.resolve("canvas", state.canvas.key))) return true;
+    if (state.markdown && !(await deps.resolve("markdown", state.markdown.key)))
+      return true;
+    return (
+      state.canvas.version >= version &&
+      (!state.markdown || state.markdown.version >= version)
+    );
+  }
+  // A partial first creation must finish even if the old completion marker was set.
+  if (state.markdown) {
+    return !(await deps.resolve("markdown", state.markdown.key));
+  }
+  // Older installations stored only a completion flag. Adopt a surviving tutorial,
+  // but do not resurrect a guide the user already removed.
+  return completed && !(await deps.find("canvas", canvasTitles));
+}
+
+/** Reuse current tutorials; newer content creates a separate pair without overwriting edits. */
 export async function ensureTutorialAttachments(
   document: CanvasDocument,
   filename: string,
   deps: TutorialAttachmentDependencies = productionDependencies(),
-): Promise<Zotero.Item> {
+  version = TUTORIAL_VERSION,
+  mode: "startup" | "manual" = "startup",
+): Promise<TutorialAttachmentResult> {
   const desired = parseCanvasDocument(document).document;
   const demo = attachmentNode(desired);
   if (!demo || typeof demo.data.preview !== "string")
     throw new Error("Missing tutorial Markdown content");
-
-  // Search errors must abort, not turn into an apparent empty library.
-  const [markdownCandidate, existingCanvas] = await Promise.all([
-    deps.find("markdown", [...markdownTitles, demo.data.title]),
-    deps.find("canvas", [...canvasTitles, filename]),
-  ]);
-  let existingMarkdown = markdownCandidate;
-  const canvasSource = existingCanvas ? await deps.read(existingCanvas) : null;
-  if (existingCanvas && canvasSource === null && !existingMarkdown) {
-    throw new Error(
-      "Download the existing tutorial canvas before resolving its Markdown partner",
-    );
+  const state = deps.state();
+  const foundCanvas = state.canvas
+    ? await deps.resolve("canvas", state.canvas.key)
+    : // An MD-only record belongs to a pair whose Canvas creation has not finished.
+      state.markdown
+      ? null
+      : await deps.find("canvas", [...canvasTitles, filename]);
+  let markdown = state.markdown
+    ? await deps.resolve("markdown", state.markdown.key)
+    : await deps.find("markdown", [...markdownTitles, demo.data.title]);
+  // Recheck after onboarding's sample selection: a user may delete a tutorial
+  // while those asynchronous reads are in progress.
+  if (
+    mode === "startup" &&
+    ((state.canvas && !foundCanvas) || (state.markdown && !markdown))
+  ) {
+    return { deleted: true };
   }
-  if (canvasSource !== null) {
-    const parsed = parseStoredCanvas(canvasSource);
-    if (!parsed.issues.length && isTutorial(parsed.document)) {
-      const source = attachmentNode(parsed.document)?.data.source;
-      if (source?.library.type === "user") {
-        // A linked starter may have been renamed before it acquired a role tag.
-        existingMarkdown =
-          (await deps.resolveMarkdown(source.attachmentKey)) ??
-          existingMarkdown;
-      }
-    } else if (!existingMarkdown) {
+
+  let canvasSource: string | null = null;
+  let missingLinkedKey: string | undefined;
+  if (foundCanvas && (!state.canvas || !state.markdown)) {
+    canvasSource = await deps.read(foundCanvas);
+    if (canvasSource === null && !markdown) {
       throw new Error(
-        "Cannot resolve the Markdown partner of a malformed tutorial canvas",
+        "Download the existing tutorial canvas before resolving its Markdown partner",
       );
     }
+    if (canvasSource !== null) {
+      const parsed = parseStoredCanvas(canvasSource);
+      if (!parsed.issues.length && isTutorial(parsed.document)) {
+        const source = attachmentNode(parsed.document)?.data.source;
+        if (source?.library.type === "user") {
+          markdown = await deps.resolve("markdown", source.attachmentKey);
+          if (!markdown) missingLinkedKey = source.attachmentKey;
+        }
+      } else if (!markdown) {
+        throw new Error(
+          "Cannot resolve the Markdown partner of a malformed tutorial canvas",
+        );
+      }
+    }
   }
-  const markdown =
-    existingMarkdown ??
-    (await deps.createMarkdown(demo.data.preview, demo.data.title));
-  if (!markdown) throw new Error("Could not create tutorial Markdown");
-  await deps.mark(markdown, "markdown");
-  if (existingMarkdown) {
-    await refreshMarkdown(markdown, demo.data.preview, demo.data.title, deps);
-  } else {
-    await deps.remember(markdown, deps.fingerprint(demo.data.preview));
+  // Legacy records cannot tell whether a missing local-ID target was deliberately
+  // deleted. Adopt the surviving Canvas and let Help explicitly restore a pair.
+  if (foundCanvas && !markdown && mode === "startup") {
+    deps.remember({
+      canvas: { key: foundCanvas.key, version },
+      ...(missingLinkedKey
+        ? { markdown: { key: missingLinkedKey, version } }
+        : {}),
+    });
+    return { canvas: foundCanvas, created: false };
   }
 
-  // Runtime item IDs belong to one database. The user-library key survives sync.
+  const upgrading = Boolean(
+    foundCanvas && state.canvas && state.canvas.version < version,
+  );
+  let existingCanvas = upgrading || !markdown ? null : foundCanvas;
+  if (
+    (upgrading && (!state.markdown || state.markdown.version < version)) ||
+    (markdown && state.markdown && state.markdown.version < version)
+  ) {
+    markdown = null;
+    existingCanvas = null;
+  }
+  if (existingCanvas && markdown) {
+    await deps.mark(markdown, "markdown");
+    await deps.mark(existingCanvas, "canvas");
+    // Complete compatibility repair before recording adoption. A failed write
+    // leaves discovery eligible for retry, with both original files preserved.
+    if (canvasSource !== null)
+      await repairLegacyLink(
+        existingCanvas,
+        markdown,
+        desired,
+        canvasSource,
+        deps,
+      );
+    deps.remember({
+      markdown: {
+        key: markdown.key,
+        version:
+          state.markdown?.key === markdown.key
+            ? state.markdown.version
+            : version,
+      },
+      canvas: {
+        key: existingCanvas.key,
+        version:
+          state.canvas?.key === existingCanvas.key
+            ? state.canvas.version
+            : version,
+      },
+    });
+    return { canvas: existingCanvas, created: false };
+  }
+
+  markdown ??= await deps.createMarkdown(demo.data.preview, demo.data.title);
+  if (!markdown) throw new Error("Could not create tutorial Markdown");
+  const markdownRecord = {
+    key: markdown.key,
+    version:
+      state.markdown?.key === markdown.key
+        ? Math.max(version, state.markdown.version)
+        : version,
+  };
+  // Replace the old pair atomically with its new MD identity. If Canvas creation
+  // fails, the MD-only record resumes this pair instead of reusing the old Canvas.
+  deps.remember({ markdown: markdownRecord });
+  await deps.mark(markdown, "markdown");
   demo.data.source = { library: { type: "user" }, attachmentKey: markdown.key };
   delete demo.data.attachmentID;
-  const canvas = existingCanvas ?? (await deps.createCanvas(desired, filename));
+  const canvas = await deps.createCanvas(desired, filename);
   if (!canvas) throw new Error("Could not create tutorial whiteboard");
+  deps.remember({
+    markdown: markdownRecord,
+    canvas: { key: canvas.key, version },
+  });
   await deps.mark(canvas, "canvas");
-  if (existingCanvas) {
-    await refreshCanvas(canvas, desired, canvasSource, deps);
-  } else {
-    await deps.remember(canvas, deps.fingerprint(canvasContent(desired)));
-  }
-  return canvas;
+  return { canvas, created: true };
 }
 
-async function refreshMarkdown(
+async function repairLegacyLink(
   item: Zotero.Item,
-  desired: string,
-  title: string,
-  deps: TutorialAttachmentDependencies,
-) {
-  const generatedTitles = [...markdownTitles, title].flatMap((value) => [
-    value,
-    value.replace(/\.md$/i, ""),
-  ]);
-  // The editor save path syncs the title from H1. A rename is user customization
-  // too; leave that note alone rather than restoring a template heading/title.
-  if (!generatedTitles.includes(String(item.getField("title")))) return;
-  const current = await deps.read(item);
-  if (current === null) return; // Synced metadata can precede file download.
-  const fingerprint = deps.fingerprint(current);
-  // An unmarked legacy document is only a safe baseline if it matches our template.
-  if (current !== desired && fingerprint !== deps.baseline(item)) return;
-  if (current !== desired) {
-    await deps.updateMarkdown(item, desired, current);
-  }
-  await deps.remember(item, deps.fingerprint(desired));
-}
-
-async function refreshCanvas(
-  item: Zotero.Item,
+  markdown: Zotero.Item,
   desired: CanvasDocument,
-  current: string | null,
+  current: string,
   deps: TutorialAttachmentDependencies,
 ) {
-  if (current === null) return;
   const parsed = parseStoredCanvas(current);
-  if (parsed.issues.length) {
-    deps.log("Tutorial canvas has parse issues; preserving existing content");
-    return;
-  }
-  const currentContent = canvasContent(parsed.document);
-  const desiredContent = canvasContent(desired);
-  const managed = deps.fingerprint(currentContent) === deps.baseline(item);
-  if (currentContent === desiredContent || managed) {
-    if (currentContent !== desiredContent) {
-      await deps.updateCanvas(
-        item,
-        {
-          ...desired,
-          viewport: parsed.document.viewport,
-          metadata: {
-            ...desired.metadata,
-            createdAt: parsed.document.metadata?.createdAt,
-          },
-        },
-        current,
-      );
-    }
-    await deps.remember(item, deps.fingerprint(desiredContent));
-    return;
-  }
-
-  // Legacy tutorials have no baseline. Keep every card/edit, repairing only the
-  // original demo's machine-local link. An explicit portable link is user-owned.
+  if (parsed.issues.length || !isTutorial(parsed.document)) return;
   const oldDemo = attachmentNode(parsed.document);
   const newDemo = attachmentNode(desired)!;
   if (
     oldDemo &&
     !oldDemo.data.source &&
-    [...markdownTitles, newDemo.data.title].includes(oldDemo.data.title) &&
-    isTutorial(parsed.document)
+    [...markdownTitles, newDemo.data.title].includes(oldDemo.data.title)
   ) {
-    oldDemo.data.source = newDemo.data.source;
+    oldDemo.data.source = {
+      library: { type: "user" },
+      attachmentKey: markdown.key,
+    };
     delete oldDemo.data.attachmentID;
     await deps.updateCanvas(item, parsed.document, current);
-    // Do not bless a previously edited tutorial as a pristine generated baseline.
   }
 }
 
 function productionDependencies(): TutorialAttachmentDependencies {
   const libraryID = Zotero.Libraries.userLibraryID;
-  const settings = (
-    Zotero as typeof Zotero & {
-      SyncedSettings: {
-        get(libraryID: number, name: string): unknown;
-        set(libraryID: number, name: string, value: string): Promise<unknown>;
-      };
-    }
-  ).SyncedSettings;
-  const setting = (item: Zotero.Item) => `bamboo.tutorialBaseline.${item.key}`;
+  const state = () =>
+    parseTutorialAttachmentState(getPref("tutorialAttachments"));
   return {
     find: findTutorialAttachment,
-    resolveMarkdown: resolveTutorialMarkdown,
+    resolve: resolveTutorialAttachment,
+    state,
+    remember: (next) => {
+      const serialized = JSON.stringify(next);
+      if (JSON.stringify(state()) !== serialized)
+        setPref("tutorialAttachments", serialized);
+    },
     mark: markTutorialAttachment,
     read: async (item) => {
       const path = await item.getFilePathAsync();
@@ -252,11 +308,6 @@ function productionDependencies(): TutorialAttachmentDependencies {
         );
         return null;
       }
-    },
-    fingerprint: (content) => Zotero.Utilities.Internal.md5(content),
-    baseline: (item) => settings.get(libraryID, setting(item)),
-    remember: async (item, value) => {
-      await settings.set(libraryID, setting(item), value);
     },
     createMarkdown: (content, title) =>
       createMarkdownAttachment(null, {
@@ -276,18 +327,10 @@ function productionDependencies(): TutorialAttachmentDependencies {
         select: false,
         reportError: false,
       }),
-    updateMarkdown: async (item, content, expectedRevision) => {
-      await markdownApi.update(item.id, {
-        content,
-        expectedRevision,
-        cleanupImages: false,
-      });
-    },
     updateCanvas: async (item, document, expectedRevision) => {
       await canvasApi.update(item.id, serializeCanvasDocument(document), {
         expectedRevision,
       });
     },
-    log: (message, error) => ztoolkit.log(message, error),
   };
 }

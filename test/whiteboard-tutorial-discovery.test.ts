@@ -3,7 +3,7 @@ import test, { type TestContext } from "node:test";
 import {
   findTutorialAttachment,
   markTutorialAttachment,
-  resolveTutorialMarkdown,
+  resolveTutorialAttachment,
 } from "../src/modules/whiteboard/tutorial-discovery.ts";
 
 interface Tag {
@@ -284,16 +284,22 @@ test("identity persistence failure propagates to the tutorial workflow", async (
 test("a portable Canvas link resolves renamed Markdown without reading its file", async (t) => {
   const item = attachment(2, "Renamed reading practice", "my-practice.md");
   host(t, [item]);
-  assert.equal(await resolveTutorialMarkdown(item.key), item);
+  assert.equal(await resolveTutorialAttachment("markdown", item.key), item);
 });
 
 test("portable resolution rejects invalid keys and propagates lookup failures", async (t) => {
   const item = attachment(2, "note", "note.md");
   const fixture = host(t, [item]);
-  await assert.rejects(resolveTutorialMarkdown("../../note.md"), /Invalid/);
+  await assert.rejects(
+    resolveTutorialAttachment("markdown", "../../note.md"),
+    /Invalid/,
+  );
   const failure = new Error("item lookup unavailable");
   fixture.failLoad(failure);
-  await assert.rejects(resolveTutorialMarkdown(item.key), failure);
+  await assert.rejects(
+    resolveTutorialAttachment("markdown", item.key),
+    failure,
+  );
 });
 
 test("portable resolution excludes deleted and other-library items, wrong types and web links", async (t) => {
@@ -309,7 +315,26 @@ test("portable resolution excludes deleted and other-library items, wrong types 
   const items = [deleted, foreign, regular, url, pdf];
   host(t, items);
   for (const item of items) {
-    assert.equal(await resolveTutorialMarkdown(item.key), null);
+    assert.equal(await resolveTutorialAttachment("markdown", item.key), null);
   }
-  assert.equal(await resolveTutorialMarkdown("ABSENT23"), null);
+  assert.equal(await resolveTutorialAttachment("markdown", "ABSENT23"), null);
 });
+
+for (const kind of ["markdown", "canvas"] as const) {
+  test(`saved ${kind} identities resolve from metadata and reject the other type`, async (t) => {
+    const item = attachment(
+      2,
+      "Renamed guide",
+      `guide.${kind === "markdown" ? "md" : "canvas"}`,
+    );
+    host(t, [item]);
+    assert.equal(await resolveTutorialAttachment(kind, item.key), item);
+    assert.equal(
+      await resolveTutorialAttachment(
+        kind === "markdown" ? "canvas" : "markdown",
+        item.key,
+      ),
+      null,
+    );
+  });
+}

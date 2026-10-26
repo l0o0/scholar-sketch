@@ -177,7 +177,6 @@ const hostKeys = [
   "whiteboard-rename-template",
   "whiteboard-duplicate-template",
   "whiteboard-delete-template",
-  "whiteboard-template-conflict-copy",
   "whiteboard-kind-frame",
   "whiteboard-annotation-color",
   "whiteboard-annotations",

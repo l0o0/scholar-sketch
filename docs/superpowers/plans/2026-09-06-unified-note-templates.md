@@ -1,5 +1,7 @@
 # Unified Note Templates Implementation Plan
 
+> Storage revision (2026-10-26): the SyncedSettings design below is superseded. Zotero rejects custom setting keys; templates now use local plugin preferences, with existing templates transferred before the old setting is removed. See [current architecture](../../architecture.md#note-templates) and [migration safety](../../file-safety.md#旧版同步设置迁移). The remaining card/template design is unchanged.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace persisted Question and Claim nodes with styled Note templates, add reusable custom Note templates, and synchronize the custom template registry through Zotero.

@@ -146,40 +146,39 @@ Saving serializes only the canonical schema-v2 canvas.
 
 ## First-run tutorial
 
-After locale, menus, windows, and the sidebar are initialized, startup
-schedules a one-time tutorial without waiting for it. The host inspects a
-bounded set of recent Regular Items from the user library, while the pure
-whiteboard model builds the canonical tutorial document from localized labels
-and an optional validated sample.
+After locale, menus, windows, and the sidebar are initialized, startup checks
+local tutorial records without waiting for them. The host inspects a bounded set
+of recent Regular Items from the user library, while the pure whiteboard model
+builds the tutorial from localized labels and an optional validated sample.
 
 The tutorial consists of ordinary Markdown and Canvas attachments in the
-user-library root. Automatic initialization and the Help menu share an in-flight
-operation and reconcile both assets through `Zotero.Search` before creating
-anything. Synced automatic tags identify each role across profiles and renames;
-older installations fall back to exact Chinese/English tutorial titles, including
-previous product names. A recognized Canvas's portable Markdown reference takes
-precedence over an independent title match, preserving pairs after renames.
-A matching item waiting for file download is still reused.
-An unsuccessful search aborts creation. If only one asset exists, only its missing
-partner is created; a successful partial creation remains available for retry.
+user-library root. The local `tutorialAttachments` preference stores only each
+asset's item key and tutorial version. `TUTORIAL_VERSION` changes when the bundled
+tutorial changes, independently of the plugin version. Resolve the saved key in
+the personal library first: deleted or missing items are not automatically
+recreated. If both assets still exist, reuse the same or newer version; a known
+older version creates a new pair and preserves the old content. Attachment
+metadata awaiting file download is not considered deleted.
 
-Per-item content fingerprints in `Zotero.SyncedSettings` allow an unchanged
-generated example to be updated through the regular, revision-checked file APIs.
-Edited or unverified legacy content, including renamed Markdown, is preserved.
-Canvas comparison normalizes serialization timestamps, viewport and equivalent
-default connection properties; updates preserve the saved viewport.
-The demo Markdown link uses a portable item key. Legacy tutorials can repair that
-link without replacing their cards or granting edited contents a clean baseline.
-Existing duplicates are not deleted or merged automatically. When multiple search
-matches exist, tagged items take priority, then the oldest local item ID is reused.
+Automatic initialization and the Help menu share an in-flight operation.
+Without local records, `Zotero.Search` discovers examples by automatic tags, then
+exact Chinese/English titles including previous product names. A recognized
+Canvas's portable Markdown reference takes precedence over a title match.
+Unknown-version examples are adopted unchanged at the current tutorial version.
+An unsuccessful search aborts creation. Each successfully created asset's key is
+remembered before the next asynchronous step, so a partial retry can reuse it.
+A legacy machine-local Markdown link may be repaired through the revision-checked
+Canvas API without replacing the remaining cards. Existing duplicates are never
+automatically deleted or merged.
 
-The local completion marker is written after reconciliation succeeds and before
-opening. It still prevents repeated onboarding on the same profile, including
-recreation after the user deletes a tutorial. The Help command can explicitly
-reconcile/open it again. On another computer, sync the library metadata before
-installation: local search cannot discover items that have not arrived yet, or
-coordinate simultaneous first creation on offline computers. Sample discovery
-never mutates source literature Items.
+The legacy `whiteboardTutorialCreated` marker prevents recreating deleted
+examples from older installations. The Help command explicitly restores or opens
+the tutorial; startup opens only newly created examples. On another computer,
+sync library metadata before installation: local search cannot discover items
+that have not arrived yet or coordinate offline first creation. Sample discovery
+never mutates source literature Items. Tutorial state is local, not a Zotero
+synchronized setting; obsolete fingerprints are disposable and are removed as
+specified in [file safety](file-safety.md#旧版同步设置迁移).
 
 ## Note templates
 
@@ -195,9 +194,14 @@ style, dimensions, and optional starter body. Applying a custom template is a
 one-time action, not an ongoing binding, and never replaces existing body text.
 
 The iframe owns selection and editing UI, while a host repository stores custom
-templates in the current Zotero user library through `SyncedSettings`. Template
-messages cross the validated version-2 protocol. Open sessions subscribe to the
-shared repository and release that subscription when closed.
+templates as JSON in the local `noteTemplates` plugin preference. These templates
+do not sync across computers. Template messages cross the validated version-2
+protocol. Open sessions subscribe to the shared repository and release that
+subscription when closed. The startup migration completes before any template
+consumer initializes. It transfers existing custom templates into local preferences
+and verifies the saved value before removing the unsupported legacy synced setting.
+On failure the original templates remain available for a retry; an error notification
+is shown while Markdown and Canvas initialization continues.
 
 Canvas nodes never reference the registry at render time: creation and Apply
 template both materialize final values into canvas JSON. Applying a template is
