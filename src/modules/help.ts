@@ -1,15 +1,21 @@
+export const GITHUB_URL = "https://github.com/l0o0/scholar-sketch";
 export const USER_GUIDE_URL =
   "https://zotero-chinese.com/user-guide/plugins/scholar-sketch";
 export const USER_GUIDE_FALLBACK_URL =
   "https://github.com/l0o0/wiki/blob/e6255094a830193881a96e38e925b81183500598/user-guide/plugins/scholar-sketch.md";
+export const USER_GUIDE_ENGLISH_URL = `${GITHUB_URL}/blob/main/docs/user-guide.en.md`;
 
 let guideAvailable = false;
 let openingGuide: Promise<void> | undefined;
 
-/** Check only on an explicit click, while the Wiki contribution is awaiting publication. */
+/** Resolve the guide on an explicit click; only the Chinese Wiki needs a publication check. */
 export function openUserGuide(): Promise<void> {
   if (openingGuide) return openingGuide;
   openingGuide = (async () => {
+    if (!Zotero.locale.startsWith("zh")) {
+      Zotero.launchURL(USER_GUIDE_ENGLISH_URL);
+      return;
+    }
     if (!guideAvailable) {
       try {
         const response = await Zotero.HTTP.request("HEAD", USER_GUIDE_URL, {
@@ -33,6 +39,10 @@ export function openUserGuide(): Promise<void> {
 
 export function openReleaseNotes(): void {
   Zotero.launchURL(
-    `https://github.com/l0o0/scholar-sketch/releases/tag/v${encodeURIComponent(__buildVersion__)}`,
+    `${GITHUB_URL}/releases/tag/v${encodeURIComponent(__buildVersion__)}`,
   );
+}
+
+export function openProjectRepository(): void {
+  Zotero.launchURL(GITHUB_URL);
 }
