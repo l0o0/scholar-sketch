@@ -921,3 +921,7 @@ feature-updates-about-settings-title = 关于页汇总更新与帮助
 feature-updates-about-settings-body = 在 Markdown 和白板设置的「关于」页查看版本更新摘要，打开完整日志、使用指南与 GitHub 项目主页。
 feature-updates-guide-language-title = 使用指南跟随界面语言
 feature-updates-guide-language-body = 中文界面打开中文指南，其他语言打开英文指南，查阅操作说明更方便。
+feature-updates-reference-sidebar-title = 更清晰的双向引用侧栏
+feature-updates-reference-sidebar-body = 切换本文引用与引用本文，按文献、笔记、附件筛选；展开重复引用查看片段并跳转，拖动侧栏边缘调整宽度。
+feature-updates-reference-download-title = 在引用侧栏下载缺失笔记
+feature-updates-reference-download-body = 通过 Zotero 原生文件同步下载单个或全部缺失附件。未取回文件时显示具体处理建议，下载后自动更新引用结果。

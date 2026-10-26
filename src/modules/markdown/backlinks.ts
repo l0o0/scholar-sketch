@@ -299,11 +299,11 @@ export function mountNoteBacklinks(
   refresh.type = "button";
   refresh.title = labels.refresh;
   refresh.setAttribute("aria-label", labels.refresh);
-  refresh.append(
-    icon(
-      "M20 7v5h-5M4 17v-5h5M6.2 7a7 7 0 0 1 11.5-2L20 8M4 16l2.3 3A7 7 0 0 0 17.8 17",
-    ),
-  );
+  const refreshIcon = doc.createElement("img");
+  refreshIcon.src = "chrome://zotero/skin/16/universal/refresh.svg";
+  refreshIcon.alt = "";
+  refreshIcon.width = refreshIcon.height = 16;
+  refresh.append(refreshIcon);
   refresh.className = "zmd-backlinks-refresh";
   summary.append(refresh);
   const status = doc.createElement("p");

@@ -380,6 +380,7 @@ export function backlinksSidebarCSS(): string {
 }
 .zmd-backlinks-count { color: var(--zmd-text-muted); font-weight: 400; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
 .zmd-backlinks-refresh { float: inline-end; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; padding: 4px; margin-block: -3px; background: transparent; color: var(--zmd-text-muted); cursor: pointer; }
+.zmd-backlinks-refresh > img { display: block; -moz-context-properties: fill; fill: currentColor; }
 .zmd-reference-controls { display: flex; gap: 4px; padding-block: 12px 8px; }
 .zmd-reference-controls button { flex: 1 1 0; min-inline-size: 0; border: 1px solid transparent; border-radius: 7px; padding: 6px 4px; font: inherit; font-size: 12px; color: var(--zmd-text-muted); background: transparent; cursor: pointer; }
 .zmd-reference-controls button[aria-selected="true"] { color: var(--zmd-text); background: var(--zmd-surface); border-color: var(--zmd-border); font-weight: 600; }

@@ -921,3 +921,7 @@ feature-updates-about-settings-title = Updates and help in About
 feature-updates-about-settings-body = View release highlights in the shared Markdown and canvas settings, with links to full release notes, the user guide, and GitHub.
 feature-updates-guide-language-title = A guide in your interface language
 feature-updates-guide-language-body = Chinese interfaces open the Chinese guide; other interface languages open the English guide.
+feature-updates-reference-sidebar-title = A clearer two-way references sidebar
+feature-updates-reference-sidebar-body = Switch between outgoing links and backlinks, filter literature, notes, or files, and expand repeated references to navigate from their snippets. Drag the sidebar edge to resize it.
+feature-updates-reference-download-title = Download missing notes from references
+feature-updates-reference-download-body = Use Zotero file sync to download one or all missing attachments. See specific recovery guidance when a file cannot be retrieved; references update after downloads finish.
