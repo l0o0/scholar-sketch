@@ -183,6 +183,7 @@ test("backlink failures distinguish pending downloads and read exceptions withou
       title: "Waiting",
       reason: "not-downloaded",
       stage: "path",
+      canDownload: true,
     },
     { key: "MISSING1", title: "Missing", reason: "unavailable", stage: "path" },
     { key: "DENIED01", title: "Denied", reason: "read-error", stage: "read" },
@@ -200,10 +201,9 @@ test("backlink failures distinguish pending downloads and read exceptions withou
   );
   pending.attachmentSyncState = 2;
   invalidateNoteLibrary(1);
-  assert.equal(
-    (await getNoteBacklinks(items[1])).failures[0].reason,
-    "unavailable",
-  );
+  const syncedButMissing = (await getNoteBacklinks(items[1])).failures[0];
+  assert.equal(syncedButMissing.reason, "unavailable");
+  assert.equal(syncedButMissing.canDownload, true);
 });
 
 test("an invalidated scan follows the new cache and preserves a scanned path", async (t) => {

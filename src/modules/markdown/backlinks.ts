@@ -2,6 +2,7 @@ import { getString } from "../../utils/locale";
 import { openDocumentLink } from "./document-links";
 import {
   getNoteBacklinks,
+  downloadNoteAttachment,
   bindNoteLibraryWindow,
   rebuildNoteLibrary,
   subscribeNoteLibrary,
@@ -100,6 +101,11 @@ export function mountNoteBacklinks(
       indexError?: string;
       locateNote?: string;
       moreFailures?: string;
+      download?: string;
+      downloadAll?: string;
+      downloading?: string;
+      downloadComplete?: string;
+      downloadFailed?: string;
     };
   } = {},
 ): () => void {
@@ -144,12 +150,34 @@ export function mountNoteBacklinks(
   const failureSummary = doc.createElement("summary");
   const failureList = doc.createElement("ul");
   failureList.style.cssText = "list-style:none;padding:0;margin:8px 0";
-  failures.append(failureSummary, failureList);
+  const downloadAll = doc.createElement("button");
+  downloadAll.type = "button";
+  downloadAll.className = "zmd-backlinks-download-all";
+  downloadAll.hidden = true;
+  failures.append(failureSummary, downloadAll, failureList);
+  const downloadStatus = doc.createElement("p");
+  downloadStatus.className = "zmd-backlinks-download-status";
+  downloadStatus.setAttribute("role", "status");
+  downloadStatus.setAttribute("aria-atomic", "true");
+  downloadStatus.hidden = true;
   const list = doc.createElement("div");
-  panel.append(summary, status, failures, list);
+  panel.append(summary, status, downloadStatus, failures, list);
   parent.append(panel);
   let disposed = false;
   let generation = 0;
+  let currentFailures: readonly NoteReadFailure[] = [];
+  let downloading = false;
+  let downloadingKey: string | undefined;
+  const failedDownloads = new Set<string>();
+  const downloadLabels = {
+    download: labels.download ?? getString("note-backlinks-download"),
+    all: labels.downloadAll ?? getString("note-backlinks-download-all"),
+    busy: labels.downloading ?? getString("note-backlinks-downloading"),
+    complete:
+      labels.downloadComplete ?? getString("note-backlinks-download-complete"),
+    failed:
+      labels.downloadFailed ?? getString("note-backlinks-download-failed"),
+  };
 
   const failureLabel = (reason: NoteReadFailure["reason"]) => {
     if (reason === "not-downloaded")
@@ -162,6 +190,11 @@ export function mountNoteBacklinks(
   };
 
   const renderFailures = (values: readonly NoteReadFailure[]) => {
+    currentFailures = values;
+    const downloadable = values.filter((failure) => failure.canDownload);
+    downloadAll.hidden = downloadable.length === 0;
+    downloadAll.disabled = downloading;
+    downloadAll.textContent = `${downloadLabels.all} (${downloadable.length})`;
     failures.hidden = values.length === 0;
     failureList.replaceChildren();
     failureSummary.textContent = `${
@@ -200,11 +233,44 @@ export function mountNoteBacklinks(
           });
         };
       }
+      const detail = doc.createElement("div");
+      detail.className = "zmd-backlinks-failure-detail";
       const reason = doc.createElement("span");
-      reason.style.cssText =
-        "display:block;color:var(--zmd-text-muted);margin-top:2px";
-      reason.textContent = failureLabel(failure.reason);
-      row.append(title, reason);
+      reason.className = "zmd-backlinks-failure-reason";
+      reason.textContent = failedDownloads.has(failure.key)
+        ? downloadLabels.failed
+        : failureLabel(failure.reason);
+      detail.append(reason);
+      if (failure.canDownload) {
+        const download = doc.createElement("button");
+        download.type = "button";
+        download.className = "zmd-backlinks-download";
+        download.dataset.downloadKey = failure.key;
+        download.disabled = downloading;
+        const icon = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("width", "14");
+        icon.setAttribute("height", "14");
+        icon.setAttribute("fill", "none");
+        icon.setAttribute("stroke", "currentColor");
+        icon.setAttribute("stroke-width", "1.8");
+        icon.setAttribute("stroke-linecap", "round");
+        icon.setAttribute("stroke-linejoin", "round");
+        icon.setAttribute("aria-hidden", "true");
+        icon.setAttribute("focusable", "false");
+        const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4");
+        icon.append(path);
+        const label = doc.createElement("span");
+        label.textContent =
+          downloadingKey === failure.key
+            ? downloadLabels.busy
+            : downloadLabels.download;
+        download.append(icon, label);
+        download.onclick = () => void downloadNotes([failure]);
+        detail.append(download);
+      }
+      row.append(title, detail);
       failureList.append(row);
     }
     if (values.length > 10) {
@@ -213,6 +279,55 @@ export function mountNoteBacklinks(
       failureList.append(more);
     }
   };
+
+  async function downloadNotes(values: readonly NoteReadFailure[]) {
+    if (disposed || downloading) return;
+    const targets = values.filter((failure) => failure.canDownload);
+    if (!targets.length) return;
+    downloading = true;
+    refresh.disabled = true;
+    downloadStatus.hidden = false;
+    downloadStatus.classList.remove("is-error");
+    for (const target of targets) failedDownloads.delete(target.key);
+    let completed = 0;
+    let failed = 0;
+    try {
+      for (const [index, target] of targets.entries()) {
+        if (disposed) break;
+        downloadingKey = target.key;
+        downloadStatus.textContent = `${downloadLabels.busy} (${index + 1}/${targets.length})`;
+        renderFailures(currentFailures);
+        let available = false;
+        try {
+          available = await downloadNoteAttachment(item.libraryID, target.key);
+        } catch (error) {
+          Zotero.logError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
+        if (disposed) break;
+        if (available) completed++;
+        else {
+          failed++;
+          failedDownloads.add(target.key);
+        }
+      }
+    } finally {
+      downloading = false;
+      downloadingKey = undefined;
+      if (!disposed) {
+        downloadStatus.classList.toggle("is-error", failed > 0);
+        downloadStatus.textContent = [
+          completed ? `${downloadLabels.complete} (${completed})` : "",
+          failed ? `${downloadLabels.failed} (${failed})` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        await render();
+      }
+    }
+  }
+  downloadAll.onclick = () => void downloadNotes(currentFailures);
 
   async function render() {
     const current = ++generation;
@@ -266,7 +381,7 @@ export function mountNoteBacklinks(
         status.textContent = `${labels.failed}: ${String(error)}`;
       }
     } finally {
-      if (!disposed && current === generation) refresh.disabled = false;
+      if (!disposed && current === generation) refresh.disabled = downloading;
     }
   }
   const unbindWindow = bindNoteLibraryWindow(win);
@@ -276,6 +391,7 @@ export function mountNoteBacklinks(
   refresh.onclick = (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (disposed || downloading) return;
     refresh.disabled = true;
     void rebuildNoteLibrary(item.libraryID).catch((error) => {
       if (!disposed) {

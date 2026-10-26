@@ -397,6 +397,50 @@ export function backlinksSidebarCSS(): string {
   color: var(--zmd-text-muted);
   line-height: 1.6;
 }
+.zmd-backlinks-download-all,
+.zmd-backlinks-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--zmd-border, #d8dee8);
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: transparent;
+  color: var(--zmd-text-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.zmd-backlinks-download-all { margin-block-start: 8px; }
+.zmd-backlinks-download { flex: 0 0 auto; }
+.zmd-backlinks-download-all[hidden] { display: none; }
+.zmd-backlinks-download-all:hover:not(:disabled),
+.zmd-backlinks-download:hover:not(:disabled) {
+  background: var(--zmd-surface);
+  color: var(--zmd-text);
+}
+.zmd-backlinks-download-all:focus-visible,
+.zmd-backlinks-download:focus-visible {
+  outline: 2px solid var(--zmd-accent);
+  outline-offset: 2px;
+}
+.zmd-backlinks-download-all:disabled,
+.zmd-backlinks-download:disabled { opacity: 0.6; cursor: default; }
+.zmd-backlinks-failure-detail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-block-start: 4px;
+}
+.zmd-backlinks-failure-reason { color: var(--zmd-text-muted); }
+.zmd-backlinks-download-status {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.zmd-backlinks > .zmd-backlinks-download-status.is-error { color: var(--zmd-danger, #b45309); }
 .zotero-markdown-backlinks-sidebar[hidden] {
   display: none;
 }
