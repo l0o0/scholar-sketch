@@ -376,6 +376,23 @@ test("narrow outline opens as an overlay on request and Escape restores toolbar 
   );
 });
 
+test("opening the floating outline from another control lets Escape close it immediately", (t) => {
+  const ui = outlineFixture(t, 620);
+  const status = ui.doc.createElement("button");
+  status.textContent = "Status details";
+  ui.root.append(status);
+  status.focus();
+  assert.ok(ui.doc.activeElement === status);
+
+  ui.toggle.click();
+  assert.equal(ui.handle.isVisible(), true);
+  assert.equal(ui.sidebar.classList.contains("is-floating"), true);
+  assert.ok(ui.doc.activeElement === ui.toggle, "opening focuses its trigger");
+  ui.key("Escape");
+  assert.equal(ui.handle.isVisible(), false);
+  assert.ok(ui.doc.activeElement === ui.toggle);
+});
+
 test("outline tree has one Tab entry, supports hierarchy keys, and keeps collapsed sections on update", (t) => {
   const ui = outlineFixture(t);
   assert.equal(ui.list.querySelectorAll('[tabindex="0"]').length, 1);

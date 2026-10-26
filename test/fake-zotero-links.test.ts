@@ -1235,6 +1235,43 @@ test("right sidebar adapts to width, keeps the outline independent, and releases
   }
 });
 
+test("opening floating references from another control lets Escape close them immediately", (t) => {
+  const browser = new Window();
+  const doc = browser.document;
+  doc.body.innerHTML =
+    '<main><button id="toggle"></button><button id="status">Status details</button><aside></aside></main>';
+  const root = doc.querySelector("main")!;
+  const sidebar = doc.querySelector("aside")!;
+  const toggle = doc.querySelector<HTMLButtonElement>("#toggle")!;
+  const status = doc.querySelector<HTMLButtonElement>("#status")!;
+  root.getBoundingClientRect = () => ({ width: 620 }) as DOMRect;
+  const dispose = mountBacklinksSidebar(
+    root as unknown as HTMLElement,
+    sidebar as unknown as HTMLElement,
+    toggle as unknown as HTMLButtonElement,
+  );
+  t.after(() => {
+    dispose();
+    browser.close();
+  });
+  status.focus();
+  assert.ok(doc.activeElement === status);
+
+  toggle.click();
+  assert.equal(sidebar.hidden, false);
+  assert.equal(sidebar.classList.contains("is-floating"), true);
+  assert.ok(doc.activeElement === toggle, "opening focuses its trigger");
+  doc.activeElement!.dispatchEvent(
+    new browser.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(sidebar.hidden, true);
+  assert.ok(doc.activeElement === toggle);
+});
+
 test("right sidebar measures only docked occupancy changes and does not replay resize animations", () => {
   const browser = new Window();
   const doc = browser.document;

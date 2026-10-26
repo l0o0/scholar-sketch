@@ -326,7 +326,11 @@ export function mountOutlineSidebar(options: {
       syncTabStop();
     }
   };
-  const onToolbarToggle = () => onExpandedChange(!visible);
+  const onToolbarToggle = () => {
+    onExpandedChange(!visible);
+    if (visible && sidebar.classList.contains("is-floating"))
+      toolbarToggle.focus({ preventScroll: true });
+  };
   const onEscape = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
     onExpandedChange(false);

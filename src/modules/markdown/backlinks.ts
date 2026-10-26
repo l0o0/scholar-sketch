@@ -76,6 +76,8 @@ export function mountBacklinksSidebar(
   const onToggle = () => {
     expanded = !visible;
     layout?.sync(true);
+    if (visible && sidebar.classList.contains("is-floating"))
+      toggle.focus({ preventScroll: true });
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
