@@ -891,3 +891,8 @@ feature-updates-quote-details-body = 集中查看来源、批注内容和状态�
 feature-updates-note-conversion-fix-title = 原生笔记转换修复
 
 feature-updates-note-conversion-fix-body = 修复原生笔记转换和 MD 导入时 URL 参数缺失导致的失败。转换后保留当前选择，只提示结果，不自动打开新笔记。
+
+feature-updates-about-settings-title = 关于页汇总更新与帮助
+feature-updates-about-settings-body = 在 Markdown 和白板设置的「关于」页查看版本更新摘要，打开完整日志、使用指南与 GitHub 项目主页。
+feature-updates-guide-language-title = 使用指南跟随界面语言
+feature-updates-guide-language-body = 中文界面打开中文指南，其他语言打开英文指南，查阅操作说明更方便。

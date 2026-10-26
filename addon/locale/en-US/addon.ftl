@@ -891,3 +891,8 @@ feature-updates-quote-details-body = View the source, annotation content and sta
 feature-updates-note-conversion-fix-title = Native Note conversion fix
 
 feature-updates-note-conversion-fix-body = Fix a missing URL parameter that prevented native Note conversion and Markdown import. Conversion keeps your current selection and reports results without opening the new note.
+
+feature-updates-about-settings-title = Updates and help in About
+feature-updates-about-settings-body = View release highlights in the shared Markdown and canvas settings, with links to full release notes, the user guide, and GitHub.
+feature-updates-guide-language-title = A guide in your interface language
+feature-updates-guide-language-body = Chinese interfaces open the Chinese guide; other interface languages open the English guide.
