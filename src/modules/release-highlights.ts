@@ -15,6 +15,49 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.19",
+    features: [
+      {
+        title: "feature-updates-md-formatting-title",
+        body: "feature-updates-md-formatting-body",
+      },
+      {
+        title: "feature-updates-md-navigation-title",
+        body: "feature-updates-md-navigation-body",
+      },
+      {
+        title: "feature-updates-md-feedback-title",
+        body: "feature-updates-md-feedback-body",
+      },
+    ],
+  },
+  {
+    version: "0.2.18",
+    features: [
+      {
+        title: "feature-updates-reference-sidebar-title",
+        body: "feature-updates-reference-sidebar-body",
+      },
+      {
+        title: "feature-updates-reference-download-title",
+        body: "feature-updates-reference-download-body",
+      },
+    ],
+  },
+  {
+    version: "0.2.17",
+    features: [
+      {
+        title: "feature-updates-about-settings-title",
+        body: "feature-updates-about-settings-body",
+      },
+      {
+        title: "feature-updates-guide-language-title",
+        body: "feature-updates-guide-language-body",
+      },
+    ],
+  },
+  {
     version: "0.2.16",
     features: [
       {

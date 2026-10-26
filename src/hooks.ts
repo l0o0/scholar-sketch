@@ -184,13 +184,23 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
   await disposeSidebarForWindow(_win);
 }
 
-async function onShutdown(): Promise<void> {
+async function onShutdown(isAppShutdown = false): Promise<void> {
   settingsPhase = "stopped";
   // Zotero continues unloading after a rejected shutdown, removing native
   // sections while our sandbox registrations and singleton would remain.
   // Keep each cleanup independent without forcing unsaved editors closed.
   const reportError = (step: string, error: unknown) =>
     ztoolkit.log(`Shutdown cleanup failed (${step})`, error);
+  const noteIndexSteps = [
+    ["noteLibraries", clearNoteLibraries],
+    ["noteIndex", closeNoteIndex],
+  ] as const;
+  if (isAppShutdown) {
+    // Windows may already be destroyed. Release background resources without
+    // waiting for editor snapshots or timers owned by those windows.
+    await runShutdownSteps(noteIndexSteps, reportError);
+    return;
+  }
   await runShutdownSteps(
     [
       ["retainWorkspace", retainWorkspaceOnShutdown],
@@ -232,8 +242,7 @@ async function onShutdown(): Promise<void> {
       ],
       ["markdownSidebar", unregisterSidebarSection],
       ["markdownRenderer", disposeMarkdownRenderer],
-      ["noteLibraries", clearNoteLibraries],
-      ["noteIndex", closeNoteIndex],
+      ...noteIndexSteps,
       ["markdownFileHandler", unregisterFileOpenInterceptor],
       ["whiteboardFileHandler", unregisterWhiteboardFileOpenInterceptor],
       [

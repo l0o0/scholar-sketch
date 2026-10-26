@@ -391,6 +391,5 @@ export function noteIndex(): NoteIndex {
 }
 
 export async function closeNoteIndex(): Promise<void> {
-  const current = index;
-  await current?.close();
+  await noteIndex().close();
 }

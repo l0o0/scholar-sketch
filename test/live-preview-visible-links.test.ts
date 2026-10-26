@@ -113,6 +113,9 @@ test("scroll updates only the link plugin and reuses cached line parsing", async
   const source =
     "[First](https://one.test)\n\nPlain **bold** paragraph\n\n[Last](https://two.test)\n\nEnd";
   const { api, view } = await fixture(t, source);
+  // Scroll/cache assertions start after parsing; initial parsing has a time
+  // budget and may stop before the last link when the suite is under load.
+  assert.ok(forceParsing(view, view.state.doc.length, 1000));
   let visible = visibleLine(view.state, 1);
   Object.defineProperty(view, "visibleRanges", {
     configurable: true,

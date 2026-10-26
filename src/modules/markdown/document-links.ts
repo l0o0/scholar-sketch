@@ -77,12 +77,19 @@ export type DocumentLinkSearchResult =
 export type DocumentLinkOpenResult =
   | { status: "opened"; candidate?: DocumentLinkCandidate }
   | { status: "external" }
+  /** Passed to Zotero's asynchronous URI handler, not proof the file opened. */
+  | { status: "dispatched" }
   | { status: "ambiguous"; candidates: DocumentLinkCandidate[] }
   | { status: "unresolved" }
   | { status: "unsupported" };
 
 function reportDocumentLinkResult(result: DocumentLinkOpenResult): void {
-  if (result.status === "opened" || result.status === "external") return;
+  if (
+    result.status === "opened" ||
+    result.status === "external" ||
+    result.status === "dispatched"
+  )
+    return;
   const text =
     result.status === "ambiguous"
       ? getString("document-link-ambiguous", {
@@ -512,6 +519,34 @@ async function loadLinkItems(ids: readonly number[]): Promise<Zotero.Item[]> {
     }
   }
   return items;
+}
+
+/** Describe only explicitly referenced items, without searching or reading bodies. */
+export async function describeDocumentLinkTargets(
+  targets: readonly { libraryID: number; key: string }[],
+): Promise<DocumentLinkCandidate[]> {
+  const ids = new Set<number>();
+  for (const target of targets) {
+    const id = Zotero.Items.getIDFromLibraryAndKey(
+      target.libraryID,
+      target.key,
+    );
+    if (id) ids.add(id);
+  }
+  const selected = [...ids];
+  const candidates: DocumentLinkCandidate[] = [];
+  for (let offset = 0; offset < selected.length; offset += 48) {
+    const items = await loadLinkItems(selected.slice(offset, offset + 48));
+    await loadCandidateCreators(items);
+    for (const item of items) {
+      const candidate = candidateFromItem(item);
+      if (!candidate) continue;
+      const author = firstAuthor(item);
+      if (author) candidate.author = author;
+      candidates.push(candidate);
+    }
+  }
+  return candidates;
 }
 
 function candidateMatchesQuery(
@@ -964,7 +999,21 @@ export async function openDocumentLink(
   // may still be normalized the same way the native launcher handles them.
   const value = typeof href === "string" ? href : "";
   const externalValue = value.trim();
-  if (externalLink(externalValue) || isPdfDocumentLink(value)) {
+  if (isPdfDocumentLink(value)) {
+    try {
+      const pane =
+        (options.win as _ZoteroTypes.MainWindow | undefined)?.ZoteroPane ||
+        Zotero.getMainWindow?.()?.ZoteroPane;
+      if (!pane) return { status: "unsupported" };
+      // Native loadURI dispatches zotero: inside this process. launchURL sends
+      // it to the OS, which may prompt or open a different Zotero profile.
+      pane.loadURI(value);
+      return { status: "dispatched" };
+    } catch {
+      return { status: "unsupported" };
+    }
+  }
+  if (externalLink(externalValue)) {
     try {
       Zotero.launchURL(externalValue);
       return { status: "external" };

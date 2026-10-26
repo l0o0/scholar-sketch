@@ -113,11 +113,11 @@ The text after `|` is the displayed label. Markdown note links inserted from the
 
 ## Choose an editing mode
 
-The editor has three modes. Switch using the toolbar or **More → Mode**.
+The toolbar mode button shows the current mode. Click it to choose **Live**, **Source**, or **Read-only preview**.
 
-The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find modes, exports, local history, and settings.
+The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find exports, local history, and settings.
 
-![Markdown editor's More menu, with mode, export, local history, and settings actions](screenshots/editor-more-menu.webp)
+Use arrow keys to choose a menu option, Enter to activate it, and Escape to return to the trigger.
 
 | Mode              | Best for                                                                        |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -126,6 +126,8 @@ The **More actions** button (the three dots at the right end of the editor toolb
 | Read-only preview | Reading a whole note and clicking links or footnotes directly                   |
 
 In Live mode, the content being edited reveals the Markdown markup you need. Formatting returns when the cursor moves away. When the toolbar is narrow, some actions move into **Headings**, **Text formatting**, and **Insert** menus.
+
+Bold, italic, and inline code toggle on or off for the selection. With an empty selection inside formatting, the command removes the enclosing format. A nonempty selection affects only the selected text and preserves other nested formats. List, task, and heading commands apply to all selected lines and preserve the selection, blank lines, and indentation. Inserting a regular link selects its address placeholder so you can paste a URL immediately.
 
 Common default shortcuts include:
 
@@ -152,7 +154,7 @@ Use the local-image shortcut inside an editable Markdown editor, including Sourc
 
 ### Edit tables
 
-Click **Insert table** on the toolbar, or type a Markdown table directly. In Live mode, click a cell to edit its contents.
+Click **Insert table** on the toolbar, or type a Markdown table directly. In Live mode, long cell contents wrap naturally; click a cell to edit it. The table-size picker supports all four arrow keys to choose rows and columns, Enter to insert, and Escape to return to the toolbar.
 
 - `Tab` moves to the next cell; `Shift + Tab` moves to the previous cell.
 - Press `Tab` in the last cell to add another row.
@@ -161,6 +163,8 @@ Click **Insert table** on the toolbar, or type a Markdown table directly. In Liv
 - Use the row and column handles to select entire rows or columns, and drag them to change their order.
 
 **To remove a row you just added**, right-click a cell in that row and choose **Delete row**. If you have selected an entire row or column, use **Delete selected row** or **Delete selected column**. **Clear selected cells** removes the contents while keeping the table structure.
+
+The bottom-right status area reports saves and operations such as image downloads. Success notices disappear automatically; warnings and failures remain until another operation starts or you dismiss them. Click the status to read the full message. Save failures always take priority and cannot be cleared by dismissing an operation notice.
 
 ### Insert and manage images
 
@@ -219,15 +223,28 @@ Diagrams support light and dark appearances. Rendering is bundled with the plugi
 
 The outline on the left is generated from headings in the note. Click a heading to jump to it. If the outline is empty, add headings with `#`, `##`, and `###`.
 
-The left and right sidebar buttons on the toolbar control the outline and backlinks panels independently. In a narrow window, collapse a sidebar to leave more room for the note.
+The left and right toolbar buttons control the outline and reference panels independently. On narrow windows, the outline starts collapsed but can still be opened as an overlay. Panels use overlays when there is not enough room to dock them beside a readable document.
 
-### See which notes link to the current note
+Collapse outline sections or drag the edge to resize the outline. Use Up/Down or Home/End to focus headings, Left/Right to collapse or expand a section, and Enter to jump. Escape closes the overlay and returns focus to its toolbar button. You can also use its close button or click the document to dismiss it.
 
-The **Linked mentions** panel on the right lists other Markdown notes in the current library that link to the current note, together with a snippet of the reference. Click a result to return to that location.
+### Explore outgoing links and backlinks
 
-Backlinks are built from **saved notes**. After adding a link in another note, save it first, then check the panel or click **Refresh links**.
+The **References** panel offers two directions and initially shows **Links to here**:
 
-If a message says some notes have not been indexed and the results are incomplete, click it to see the affected notes and reasons, such as an attachment that has not been downloaded or a read error. Download or restore the relevant attachments in Zotero, then refresh the links. This message alone does not mean that the current note is damaged.
+- **Links from here** lists notes and Zotero items linked in the current Markdown note. Filter by **All**, **Literature**, **Notes**, or **Files**. Literature includes regular items such as journal articles and theses; Notes includes Markdown and native Zotero notes; Files includes PDFs, canvases, and other attachments. Rows show a type icon, type name, and the first creator when available. Ordinary web links and images are omitted.
+- **Links to here** lists other Markdown notes in the current library that link to this note. It does not currently index references inside native notes, bibliographic metadata, or canvases, so it has no category filter.
+
+Repeated references to the same item form one group; counts indicate distinct targets or sources. Expand a group to see and open each reference separately. Outgoing links retain target headings or PDF page numbers; incoming links return to the reference location in the source note. Older title-only links appear under **All** and resolve on click, with a chooser for ambiguous titles. Changing a category only filters the loaded results and does not rescan the library.
+
+In a wide window, drag the sidebar's left edge to resize it. You can also focus the separator and use the left and right arrow keys; press Enter or double-click to restore the default width. In a narrow window, the sidebar appears as an overlay.
+
+When attachments are missing locally, **Links to here** shows **Incomplete results** below the references. Expand it and choose **Download attachment** for one note, or **Download all** for every downloadable missing attachment in that list, including entries beyond the visible preview. Downloads use Zotero's file-sync configuration: Zotero Storage or WebDAV for your personal library, and Zotero Storage for group libraries. The panel refreshes after files become available, without opening attachments or downloading over existing local files. Closing the note stops queued batch items; Zotero continues any native download already started.
+
+If an attachment is not retrieved, the panel shows a compact count and guidance below the affected note. Check Zotero sync settings if file sync is disabled or not ready; check your connection and Zotero sync errors if the download did not start or failed. When a native download finishes but the file remains unavailable locally, it may not have been uploaded: complete file sync on the device holding the original file, then retry. This does not confirm that the remote file was deleted. Linked files and other read errors require locating and fixing the item.
+
+Both directions update from **saved notes**. After adding a link, save it first, then check the panel or click **Refresh links**.
+
+**Incomplete results** also explains other read errors. Restore the affected attachment, then refresh the links. This message alone does not mean that the current note is damaged.
 
 ### Search Markdown notes across your library
 
@@ -396,17 +413,17 @@ Local history contains versions from before saves, drafts preserved during sync,
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
 
-Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shows the plugin version and build information.
+Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
 ![Markdown settings for opening attachments, YAML frontmatter, font size, font, and background color](screenshots/settings-markdown.webp)
 
 ## Find help and discover new features
 
-In Zotero Settings, select **Scholar Sketch** and click **User guide** to open the guide, or **What’s new** to revisit the current version's feature highlights. The **General** page in the Markdown editor's settings also has an **Open user guide** button. The in-app guide link currently opens the Chinese guide. Find this complete English guide under **Documentation** in the [project README](../README.md#documentation), and use the language links at the top of the repository guides to switch languages.
+In Zotero Settings, select **Scholar Sketch** and click **User guide** to open the guide, or **What’s new** to revisit the current version's feature highlights. The **General** and **About** pages in the editor settings also provide a user guide button. The guide follows Zotero's interface language: Chinese interfaces open the Chinese guide, and other languages open this English guide. Use the language links at the top of the repository guides to switch languages.
 
 ![General settings with appearance options and the Open user guide button](screenshots/settings-general.webp)
 
-After an update, feature highlights appear once when a Markdown note or whiteboard is first successfully opened and displayed. They do not take editing focus or block your work. Once dismissed, the highlights for that version do not reappear every time you open a document. You can still view them again through **What’s new** in Zotero Settings.
+After an update, feature highlights appear once when a Markdown note or whiteboard is first successfully opened and displayed. Both editors share the seen-version record: viewing the highlights in a whiteboard means they will not appear again when you open Markdown, and vice versa. They do not take editing focus or block your work. You can revisit the summary and full release notes on the editor settings' **About** page, or reopen the highlights through **What’s new** in Zotero Settings.
 
 ## Frequently asked questions
 

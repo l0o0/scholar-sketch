@@ -1,4 +1,4 @@
-import { parseDocumentLink } from "./document-link-shared";
+import { isPdfDocumentLink, parseDocumentLink } from "./document-link-shared";
 import { GFM, parser as markdownParser } from "@lezer/markdown";
 import MarkdownIt from "markdown-it";
 
@@ -557,6 +557,87 @@ export function extractNoteLinks(content: string): ExtractedNoteLink[] {
   return links.sort((a, b) => a.from - b.from);
 }
 
+function inlineText(value: string): string {
+  const tokens = INLINE_MARKDOWN.parseInline(value, {});
+  let text = "";
+  for (const token of tokens[0]?.children || []) {
+    if (
+      token.type === "text" ||
+      token.type === "code_inline" ||
+      token.type === "image"
+    ) {
+      text += token.content;
+    } else if (token.type === "softbreak" || token.type === "hardbreak") {
+      text += " ";
+    }
+  }
+  return text;
+}
+
+/** Display spelling only; raw Zotero URIs need a host-resolved title. */
+export function noteLinkLabel(link: ExtractedNoteLink): string {
+  const note = parseNoteLink(link.href);
+  if (note?.syntax === "wiki" && note.label !== undefined)
+    return inlineText(note.label).trim();
+  if (link.syntax === "markdown" && link.label.trim()) {
+    const label = inlineText(link.label).trim();
+    return parseDocumentLink(label) || isPdfDocumentLink(label) ? "" : label;
+  }
+  if (note) {
+    const target = (decodeURIValue(note.target) ?? note.target)
+      .split(/[\\/]/)
+      .at(-1)!
+      .replace(/^(?:zmd-)+/i, "")
+      .replace(MARKDOWN_EXT, "")
+      .replace(/--[A-Za-z0-9]{8}$/, "");
+    return [target, note.heading].filter(Boolean).join(" › ");
+  }
+  const label = inlineText(link.label).trim();
+  return parseDocumentLink(label) || isPdfDocumentLink(label) ? "" : label;
+}
+
+/** Keep the actual mention visible without changing its source navigation offset. */
+export function noteLinkExcerpt(
+  content: string,
+  link: ExtractedNoteLink,
+  links: readonly ExtractedNoteLink[],
+): string {
+  const lineStart = content.lastIndexOf("\n", link.from - 1) + 1;
+  const newline = content.indexOf("\n", link.to);
+  const lineEnd = newline < 0 ? content.length : newline;
+  let start = Math.max(lineStart, link.from - 120);
+  let end = Math.min(lineEnd, link.to + 120);
+  // Do not cut another link in half and expose its destination or storage key.
+  const nearby = links.filter(
+    (entry) => entry.from < lineEnd && entry.to > lineStart,
+  );
+  for (const entry of nearby) {
+    if (entry.from < start && entry.to > start) start = entry.from;
+    if (entry.from < end && entry.to > end) end = entry.to;
+  }
+  const displayRange = (from: number, to: number) => {
+    const parts: string[] = [];
+    let cursor = from;
+    for (const entry of nearby) {
+      if (entry.from < from || entry.to > to) continue;
+      parts.push(content.slice(cursor, entry.from), noteLinkLabel(entry));
+      cursor = entry.to;
+    }
+    parts.push(content.slice(cursor, to));
+    return parts.join("");
+  };
+  const before = displayRange(start, link.from);
+  const raw = before + noteLinkLabel(link) + displayRange(link.to, end);
+  const text = Array.from(inlineText(raw).replace(/\s+/g, " "));
+  const anchor = Array.from(inlineText(before).replace(/\s+/g, " ")).length;
+  const from = Math.max(0, anchor - 80);
+  const to = from + 238;
+  const snippet = text.slice(from, to).join("").trim();
+  return `${start > lineStart || from > 0 ? "…" : ""}${snippet}${
+    end < lineEnd || to < text.length ? "…" : ""
+  }`;
+}
+
 function headingText(raw: string, setext = false): string {
   let value = raw;
   if (setext) {
@@ -575,18 +656,7 @@ function headingText(raw: string, setext = false): string {
     .replace(/^ {0,3}#{1,6}[ \t]+/, "")
     .replace(/[ \t]+#+[ \t]*$/, "")
     .trim();
-  const tokens = INLINE_MARKDOWN.parseInline(value, {});
-  let text = "";
-  for (const token of tokens[0]?.children || []) {
-    if (token.type === "text" || token.type === "code_inline") {
-      text += token.content;
-    } else if (token.type === "image") {
-      text += token.content;
-    } else if (token.type === "softbreak" || token.type === "hardbreak") {
-      text += " ";
-    }
-  }
-  return text.trim();
+  return inlineText(value).trim();
 }
 
 export function noteHeadings(

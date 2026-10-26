@@ -4,7 +4,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 
-function fixture(request: () => Promise<{ status: number }>) {
+function fixture(request: () => Promise<{ status: number }>, locale = "zh-CN") {
   const launched: string[] = [];
   let requests = 0;
   const api = {} as typeof import("../src/modules/help.ts");
@@ -22,6 +22,7 @@ function fixture(request: () => Promise<{ status: number }>) {
     __buildVersion__: "0.2.10",
     ztoolkit: { log() {} },
     Zotero: {
+      locale,
       HTTP: {
         request: async (
           method: string,
@@ -91,5 +92,32 @@ test("release notes target the installed version", () => {
   assert.deepEqual(f.launched, [
     "https://github.com/l0o0/scholar-sketch/releases/tag/v0.2.10",
   ]);
+  assert.equal(f.requests(), 0);
+});
+
+test("non-Chinese interfaces open the English guide without probing the Wiki", async () => {
+  for (const locale of ["en-US", "fr-FR"]) {
+    const f = fixture(async () => ({ status: 200 }), locale);
+    assert.equal(f.requests(), 0);
+    assert.equal(f.launched.length, 0);
+    await f.api.openUserGuide();
+    assert.deepEqual(f.launched, [
+      "https://github.com/l0o0/scholar-sketch/blob/main/docs/user-guide.en.md",
+    ]);
+    assert.equal(f.requests(), 0);
+  }
+});
+
+test("Chinese variants retain the Chinese guide", async () => {
+  const f = fixture(async () => ({ status: 200 }), "zh-TW");
+  await f.api.openUserGuide();
+  assert.deepEqual(f.launched, [f.api.USER_GUIDE_URL]);
+  assert.equal(f.requests(), 1);
+});
+
+test("the repository action opens the project without a network probe", () => {
+  const f = fixture(async () => ({ status: 200 }));
+  f.api.openProjectRepository();
+  assert.deepEqual(f.launched, ["https://github.com/l0o0/scholar-sketch"]);
   assert.equal(f.requests(), 0);
 });

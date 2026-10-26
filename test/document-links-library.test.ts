@@ -5,6 +5,7 @@ import {
   getNoteBacklinks,
   invalidateNoteLibrary,
   readLibraryNotes,
+  readSavedNote,
   updateIndexedNote,
   clearNoteLibraries,
 } from "../src/modules/markdown/note-library.ts";
@@ -84,9 +85,89 @@ test("loads note files, keeps saves in the index, and reports backlinks", async 
   assert.equal(links.entries.length, 1);
   assert.equal(links.entries[0].key, "NOTE0001");
   assert.equal(links.entries[0].position, notes[0].content.indexOf("[[Two"));
+  assert.equal(links.entries[0].excerpt, "Two › Details");
 
   updateIndexedNote(items[1], "# Changed");
   assert.equal((await readLibraryNotes(1))[1].content, "# Changed");
+});
+
+test("reading one saved note does not scan its library or change its cached snapshot", async (t) => {
+  const { items, files } = installNotes(t);
+  const cached = await readLibraryNotes(1, { refresh: true });
+  const api = (globalThis as any).Zotero;
+  api.Search = class {
+    constructor() {
+      throw new Error("A single saved note must not scan the library");
+    }
+  };
+  api.Items.getAll = () => {
+    throw new Error("A single saved note must not load all items");
+  };
+  const reads: string[] = [];
+  api.File.getContentsAsync = async (path: string) => {
+    reads.push(path);
+    return files.get(path);
+  };
+  const next = "Updated saved body [[Two--NOTE0002|Two]]";
+  files.set("/notes/one.md", next);
+  const saved = await readSavedNote(items[0]);
+  assert.equal(saved?.content, next);
+  assert.equal(saved?.links?.length, 1);
+  assert.deepEqual(reads, ["/notes/one.md"]);
+  assert.equal((await readLibraryNotes(1))[0].content, cached[0].content);
+  assert.notEqual(cached[0].content, next);
+});
+
+test("a single saved-note read distinguishes invalid items, missing files and read failures", async (t) => {
+  const { items, files } = installNotes(t);
+  const deleted = { ...items[0], deleted: true };
+  assert.equal(await readSavedNote(deleted), null);
+  assert.equal(
+    await readSavedNote({
+      ...items[0],
+      attachmentFilename: "Paper.pdf",
+      attachmentContentType: "application/pdf",
+    }),
+    null,
+  );
+  Object.assign(items[0], {
+    attachmentSyncState: 1,
+    isStoredFileAttachment: () => true,
+    getFilePath: () => "/notes/one.md",
+    getFilePathAsync: async () => false,
+  });
+  assert.deepEqual((await readSavedNote(items[0]))?.readFailure, {
+    key: "NOTE0001",
+    title: "One",
+    reason: "not-downloaded",
+    stage: "path",
+    canDownload: true,
+  });
+  files.delete("/notes/two.md");
+  assert.deepEqual((await readSavedNote(items[1]))?.readFailure, {
+    key: "NOTE0002",
+    title: "Two",
+    reason: "read-error",
+    stage: "read",
+  });
+});
+
+test("backlink excerpts improve presentation while preserving every source occurrence", async (t) => {
+  const { items, files } = installNotes(t);
+  const body =
+    "Opening ".repeat(60) +
+    "[[Two--NOTE0002.md#Details]]\nAgain [[Two--NOTE0002|the result]].";
+  files.set("/notes/one.md", body);
+  const result = await getNoteBacklinks(items[1]);
+  assert.equal(result.entries.length, 2);
+  assert.deepEqual(
+    result.entries.map((entry) => entry.position),
+    [body.indexOf("[[Two"), body.lastIndexOf("[[Two")],
+  );
+  assert.match(result.entries[0].excerpt, /Two › Details/);
+  assert.equal(result.entries[1].excerpt, "Again the result.");
+  assert.equal(result.entries[0].href, result.entries[1].href);
+  assert.equal(result.entries[0].key, result.entries[1].key);
 });
 
 test("search returns a portable filename and heading when indexed content matches", async (t) => {
@@ -183,6 +264,7 @@ test("backlink failures distinguish pending downloads and read exceptions withou
       title: "Waiting",
       reason: "not-downloaded",
       stage: "path",
+      canDownload: true,
     },
     { key: "MISSING1", title: "Missing", reason: "unavailable", stage: "path" },
     { key: "DENIED01", title: "Denied", reason: "read-error", stage: "read" },
@@ -200,10 +282,9 @@ test("backlink failures distinguish pending downloads and read exceptions withou
   );
   pending.attachmentSyncState = 2;
   invalidateNoteLibrary(1);
-  assert.equal(
-    (await getNoteBacklinks(items[1])).failures[0].reason,
-    "unavailable",
-  );
+  const syncedButMissing = (await getNoteBacklinks(items[1])).failures[0];
+  assert.equal(syncedButMissing.reason, "unavailable");
+  assert.equal(syncedButMissing.canDownload, true);
 });
 
 test("an invalidated scan follows the new cache and preserves a scanned path", async (t) => {
