@@ -224,6 +224,14 @@ class ImageControls {
         this.view.focus();
       }
     } else if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      !event.isComposing &&
+      (target === this.image || this.frame.contains(target))
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.deleteSelectedImage();
+    } else if (
       (event.key === "Enter" || event.key === " ") &&
       target.matches(".zmd-lp-image img")
     ) {
@@ -289,6 +297,21 @@ class ImageControls {
       userEvent: "input.image.resize",
     });
     this.measure();
+  }
+
+  private deleteSelectedImage() {
+    if (this.view.state.readOnly) return;
+    const reference = this.reference();
+    if (!reference) return;
+    // Release selection before the edit can map it onto an adjacent image.
+    this.clear();
+    this.view.dispatch({
+      changes: { from: reference.from, to: reference.to, insert: "" },
+      selection: { anchor: reference.from },
+      annotations: isolateHistory.of("full"),
+      userEvent: "delete.image",
+    });
+    this.view.focus();
   }
 
   private openOriginal() {

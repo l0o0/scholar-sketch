@@ -172,6 +172,8 @@ Use **Insert image** on the toolbar, paste an image from the clipboard, or drag 
 
 Select an image to adjust its display width or view the original. Image files are stored in the Markdown stored attachment's `assets/` directory and referenced by relative paths in the note.
 
+In Live Preview, click an image to select it, then press `Delete` or `Backspace` (`⌫` on a Mac keyboard) to remove that image reference. Press `Ctrl/Cmd + Z` to undo. Deletion keys in the width input continue to edit the number.
+
 When a note opens or an image loads, the plugin uses the saved Markdown references to silently restore images that were misplaced beside the Markdown file because of malformed sync paths. For example, if the note refers to `assets/image.png` but the actual file is named `assetsimage.png`, the plugin restores the directory and filename and marks the attachment for upload again. Healthy images are left alone. Repairs are skipped when there are conflicting files with different contents, missing originals, read-only attachments, or unsaved drafts; the plugin does not force a save or overwrite files.
 
 The **More** menu also provides these actions:
