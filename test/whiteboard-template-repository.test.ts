@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
+import * as noteTemplateModel from "../packages/whiteboard/src/model/note-template.ts";
 import test from "node:test";
 import {
-  NOTE_TEMPLATE_SETTING,
+  NOTE_TEMPLATE_PREF,
   createNoteTemplateRepository,
-  mergeTemplateRegistries,
-  type SyncedSettingsPort,
+  parseTemplateRegistry,
+  type TemplatePreferencesPort,
 } from "../src/modules/whiteboard/template-repository.ts";
 import type { NoteTemplate } from "../packages/whiteboard/src/model/note-template.ts";
 
@@ -12,160 +16,190 @@ function template(id: string, name: string, updatedAt: string): NoteTemplate {
   return { id, name, style: {}, updatedAt };
 }
 
-function fakeSettings(initial: unknown = null) {
+function fakePreferences(initial?: string) {
   let value = initial;
-  let listener:
-    | ((oldValue: unknown, newValue: unknown, conflict: boolean) => void)
-    | undefined;
-  const writes: unknown[] = [];
-  const port: SyncedSettingsPort = {
-    get: () => value,
-    async set(_libraryID, _setting, next) {
+  const writes: string[] = [];
+  const port: TemplatePreferencesPort = {
+    get(key, global) {
+      assert.equal(key, NOTE_TEMPLATE_PREF);
+      assert.equal(global, true);
+      return value;
+    },
+    set(key, next, global) {
+      assert.equal(key, NOTE_TEMPLATE_PREF);
+      assert.equal(global, true);
       value = next;
       writes.push(next);
-      return true;
-    },
-    onSyncDownload: {
-      addListener(_libraryID, _setting, next) {
-        listener = next;
-      },
     },
   };
-  return {
-    port,
-    writes,
-    trigger(oldValue: unknown, newValue: unknown, conflict: boolean) {
-      value = newValue;
-      return listener?.(oldValue, newValue, conflict);
-    },
-  };
+  return { port, writes };
 }
 
-test("repository saves, lists, and tombstones custom templates", async () => {
-  const settings = fakeSettings();
+test("repository persists local JSON and reloads templates and tombstones", async () => {
+  const preferences = fakePreferences();
   const repository = createNoteTemplateRepository({
-    libraryID: 1,
-    settings: settings.port,
+    preferences: preferences.port,
     now: () => "2026-09-06T03:00:00.000Z",
   });
   await repository.save(
     template("custom-1", "Question", "2026-09-06T01:00:00.000Z"),
   );
+  const reopened = createNoteTemplateRepository({
+    preferences: preferences.port,
+  });
   assert.deepEqual(
-    repository.list().map((item) => item.id),
+    reopened.list().map((item) => item.id),
     ["custom-1"],
   );
-
   await repository.remove("custom-1");
-  assert.deepEqual(repository.list(), []);
-  assert.equal(settings.writes.length, 2);
-  assert.match(JSON.stringify(settings.writes[1]), /deletedAt/);
-  assert.equal(NOTE_TEMPLATE_SETTING, "bamboo.noteTemplates.v1");
+  assert.deepEqual(reopened.list(), []);
+  assert.equal(preferences.writes.length, 2);
+  assert.equal(
+    JSON.parse(preferences.writes[1]).records["custom-1"].deletedAt,
+    "2026-09-06T03:00:00.000Z",
+  );
+  assert.equal(NOTE_TEMPLATE_PREF, "extensions.zotero.bamboo.noteTemplates");
 });
 
-test("repository ignores malformed synchronized records", () => {
-  const settings = fakeSettings({
+test("legacy parsing retains valid records for migration", () => {
+  const registry = parseTemplateRegistry({
     version: 1,
     records: {
-      good: {
-        template: template("good", "Good", "2026-09-06T01:00:00.000Z"),
-      },
+      good: { template: template("good", "Good", "2026-09-06T01:00:00.000Z") },
       bad: { template: { id: "", name: "Bad", style: {} } },
     },
   });
+  assert.deepEqual(Object.keys(registry.records), ["good"]);
+});
+
+test("local writes notify open views and unsubscribe releases each listener", async () => {
+  const preferences = fakePreferences();
   const repository = createNoteTemplateRepository({
-    libraryID: 1,
-    settings: settings.port,
+    preferences: preferences.port,
   });
-  assert.deepEqual(
-    repository.list().map((item) => item.id),
-    ["good"],
+  const seen: string[][] = [];
+  let secondNotifications = 0;
+  const stopFirst = repository.subscribe(() =>
+    seen.push(repository.list().map((item) => item.name)),
   );
+  const stopSecond = repository.subscribe(() => secondNotifications++);
+  try {
+    await repository.save(template("one", "First", "2026-09-06T01:00:00.000Z"));
+    stopSecond();
+    await repository.remove("one");
+    assert.deepEqual(seen, [["First"], []]);
+    assert.equal(secondNotifications, 1);
+  } finally {
+    stopFirst();
+    stopSecond();
+  }
 });
 
-test("registry merge keeps independent IDs and the newer same-ID record", () => {
-  const merged = mergeTemplateRegistries(
-    {
-      version: 1,
-      records: {
-        one: {
-          template: template("one", "Old", "2026-09-06T01:00:00.000Z"),
-        },
-        local: {
-          template: template("local", "Local", "2026-09-06T01:00:00.000Z"),
-        },
-      },
-    },
-    {
-      version: 1,
-      records: {
-        one: {
-          template: template("one", "New", "2026-09-06T02:00:00.000Z"),
-        },
-        remote: {
-          template: template("remote", "Remote", "2026-09-06T01:00:00.000Z"),
-        },
-      },
-    },
-  );
-
-  assert.equal(merged.records.one?.template?.name, "New");
-  assert.ok(merged.records.local);
-  assert.ok(merged.records.remote);
-});
-
-test("equal-time divergent edits preserve a deterministic conflict copy", () => {
-  const at = "2026-09-06T02:00:00.000Z";
-  const merged = mergeTemplateRegistries(
-    {
-      version: 1,
-      records: { one: { template: template("one", "Local", at) } },
-    },
-    {
-      version: 1,
-      records: { one: { template: template("one", "Remote", at) } },
-    },
-    "Conflict copy",
-  );
-  const templates = Object.values(merged.records)
-    .map((record) => record.template)
-    .filter(Boolean);
-  assert.equal(templates.length, 2);
-  assert.ok(templates.some((item) => item?.name === "Remote"));
-  assert.ok(templates.some((item) => item?.name === "Local (Conflict copy)"));
-});
-
-test("sync download notifies subscribers and merges an actual conflict", async () => {
-  const local = {
-    version: 1 as const,
+test("local preference failures preserve prior templates and do not report a save", async () => {
+  const raw = JSON.stringify({
+    version: 1,
     records: {
-      local: {
-        template: template("local", "Local", "2026-09-06T01:00:00.000Z"),
+      one: {
+        template: template("one", "Original", "2026-09-06T01:00:00.000Z"),
       },
     },
+  });
+  const preferences = fakePreferences(raw);
+  preferences.port.set = () => {
+    throw new Error("Preference write failed");
   };
-  const remote = {
-    version: 1 as const,
-    records: {
-      remote: {
-        template: template("remote", "Remote", "2026-09-06T01:00:00.000Z"),
-      },
-    },
-  };
-  const settings = fakeSettings(local);
   const repository = createNoteTemplateRepository({
-    libraryID: 1,
-    settings: settings.port,
+    preferences: preferences.port,
   });
   let notifications = 0;
-  repository.subscribe(() => notifications++);
+  const stop = repository.subscribe(() => notifications++);
+  try {
+    await assert.rejects(
+      repository.save(template("two", "New", "2026-09-06T01:00:00.000Z")),
+      /Preference write failed/,
+    );
+    await assert.rejects(repository.remove("one"), /Preference write failed/);
+    assert.deepEqual(
+      repository.list().map((item) => item.name),
+      ["Original"],
+    );
+    assert.equal(notifications, 0);
+    assert.equal(preferences.writes.length, 0);
+  } finally {
+    stop();
+  }
+});
 
-  await settings.trigger(local, remote, true);
+test("malformed local JSON or unknown schema is not silently overwritten", async () => {
+  for (const raw of [
+    "{broken",
+    "null",
+    JSON.stringify({ version: 2, records: {} }),
+    JSON.stringify({
+      version: 1,
+      records: { bad: { template: { id: "", name: "Bad", style: {} } } },
+    }),
+  ]) {
+    const preferences = fakePreferences(raw);
+    const repository = createNoteTemplateRepository({
+      preferences: preferences.port,
+    });
+    assert.throws(() => repository.list());
+    await assert.rejects(
+      repository.save(template("one", "New", "2026-09-06T01:00:00.000Z")),
+    );
+    assert.equal(preferences.writes.length, 0);
+  }
+});
 
-  assert.deepEqual(
-    repository.list().map((item) => item.id),
-    ["local", "remote"],
+test("production repository writes only plugin preferences, never synchronized settings", async () => {
+  const preferences = fakePreferences();
+  const module = {
+    exports:
+      {} as typeof import("../src/modules/whiteboard/template-repository.ts"),
+  };
+  const source = readFileSync(
+    new URL(
+      "../src/modules/whiteboard/template-repository.ts",
+      import.meta.url,
+    ),
+    "utf8",
   );
-  assert.equal(notifications, 1);
-  assert.equal(settings.writes.length, 1);
+  const compiled = transpileModule(source, {
+    compilerOptions: {
+      module: ModuleKind.CommonJS,
+      target: ScriptTarget.ES2022,
+    },
+  }).outputText;
+  runInNewContext(compiled, {
+    module,
+    exports: module.exports,
+    require: (path: string) => {
+      if (path === "../../../package.json")
+        return { config: { prefsPrefix: "extensions.zotero.bamboo" } };
+      if (path === "../../../packages/whiteboard/src/model/note-template")
+        return noteTemplateModel;
+      throw new Error(`Unexpected dependency: ${path}`);
+    },
+    Zotero: {
+      Prefs: preferences.port,
+      Libraries: { userLibraryID: 1 },
+      SyncedSettings: {
+        get: () => null,
+        set: () => {
+          throw new Error("Invalid setting bamboo.noteTemplates.v1");
+        },
+        onSyncDownload: { addListener: () => {} },
+      },
+    },
+  });
+  const repository = module.exports.getZoteroNoteTemplateRepository();
+  assert.equal(module.exports.getZoteroNoteTemplateRepository(), repository);
+  await repository.save(
+    template("one", "Saved locally", "2026-09-06T01:00:00.000Z"),
+  );
+  assert.equal(
+    JSON.parse(preferences.writes[0]).records.one.template.name,
+    "Saved locally",
+  );
 });

@@ -16,6 +16,8 @@ export const testSuites = {
       "test/attachment-icons.test.ts",
       "test/attachment-sync.test.ts",
       "test/attachment-zip-compat.test.ts",
+      "test/synced-settings-migration.test.ts",
+      "test/synced-settings-startup.test.ts",
       "test/bamboo-branding.test.ts",
       "test/creation-toolbar.test.ts",
       "test/document-link-filters.test.ts",

@@ -79,6 +79,7 @@ function setup(
     addon,
     Zotero,
     tutorialStartup: options.tutorial,
+    settingsPhase: "ready",
     runShutdownSteps,
     unregisterWhiteboardMenus: (win: object) => {
       calls.push("unregisterWhiteboardMenus");
@@ -138,6 +139,7 @@ test("ADDON_DISABLE waits for saving before unregistering editors and bootstrap 
   const closing = fixture.bootstrapShutdown(ADDON_DISABLE);
   try {
     await setImmediate();
+    assert.equal(fixture.context.settingsPhase, "stopped");
     assert.deepEqual(
       fixture.calls,
       operations.slice(0, operations.indexOf("flushAllWhiteboards") + 1),
@@ -171,6 +173,7 @@ test("APP_SHUTDOWN calls the hook and waits for index close without destructing 
   });
   try {
     await setImmediate();
+    assert.equal(fixture.context.settingsPhase, "stopped");
     assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
     assert.equal(completed, false);
     assert.equal(fixture.context.chromeHandle, chromeHandle);

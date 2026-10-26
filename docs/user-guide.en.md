@@ -48,7 +48,7 @@ Click the same Scholar Sketch button and choose **New Whiteboard…**. Whiteboar
 
 To try the whiteboard controls, choose **Help → Scholar Sketch: Create Example Whiteboard**. Follow the example's prompts to add papers, write cards, and connect them.
 
-Both initialization and this menu action first search your personal library for the example Markdown note and whiteboard. Existing examples are reused, and only missing examples are created. Recognized examples that you have not edited can be updated; your edits are preserved. Older examples are also preserved when the plugin cannot establish whether they have been edited. An attachment that has not yet been downloaded does not cause a duplicate to be created. Existing duplicates are not automatically deleted or merged. Before installing on a new computer, complete Zotero library sync so the plugin can find your existing examples.
+The plugin records each example's item key and tutorial version in local preferences. At startup it checks that the items still exist before comparing versions. The same version is reused; a newer tutorial creates a separate copy and preserves the original content. Ordinary plugin updates do not create more examples. Deleted examples stay deleted unless you restore them through the Help menu. Without local records, the plugin first searches for existing examples and adopts those with an unknown version unchanged. Files awaiting download do not cause duplicates, and existing duplicates are not automatically deleted or merged. Before installing on a new computer, complete Zotero library sync so the plugin can find your existing examples.
 
 ![Research whiteboard connecting papers, annotations, questions, viewpoints, and summaries](screenshots/research-whiteboard.jpg)
 
@@ -320,7 +320,7 @@ Open the **Note** menu at the top, choose **Note**, **Question**, **Viewpoint**,
 
 Double-click the body or choose **Edit body** to change a card's contents. Card bodies support Markdown headings, emphasis, lists, code, links, formulas, and footnotes. While editing the body, `Ctrl/Cmd + Enter` applies the edit and `Esc` cancels it.
 
-Titles are optional. Select a card to change its type, or save, apply, and manage custom templates. Cards created from Zotero notes support **Refresh from Zotero**. If a card has local edits, you will be asked to confirm before the refresh replaces them.
+Titles are optional. Select a card to change its type, or save, apply, and manage custom templates. Custom templates are stored in local plugin preferences and do not sync across computers through Zotero. Cards created from Zotero notes support **Refresh from Zotero**. If a card has local edits, you will be asked to confirm before the refresh replaces them.
 
 ### Add images, files, and shapes
 

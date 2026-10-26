@@ -11,11 +11,11 @@ import {
   type TutorialCanvasLabels,
 } from "../packages/whiteboard/src/model/tutorial.ts";
 import {
-  canvasDocumentToFlow,
-  flowToCanvasDocument,
-} from "../packages/whiteboard/src/whiteboard/document.ts";
-import {
   ensureTutorialAttachments,
+  tutorialStartupIsCurrent,
+  parseTutorialAttachmentState,
+  TUTORIAL_VERSION,
+  type TutorialAttachmentState,
   type TutorialAttachmentDependencies,
 } from "../src/modules/whiteboard/tutorial-attachments.ts";
 import type { TutorialKind } from "../src/modules/whiteboard/tutorial-discovery.ts";
@@ -78,69 +78,50 @@ function welcomeNode(document: CanvasDocument) {
 
 function fixture() {
   const items = new Map<TutorialKind, Zotero.Item>();
-  const resolvable = new Map<string, Zotero.Item>();
+  const resolvable = new Map<
+    string,
+    { kind: TutorialKind; item: Zotero.Item }
+  >();
   const files = new Map<number, string | null>();
-  const baselines = new Map<number, string>();
-  const searches: Array<{ kind: TutorialKind; titles: readonly string[] }> = [];
+  const state: TutorialAttachmentState = {};
+  const searches: TutorialKind[] = [];
   const marks: Array<{ id: number; kind: TutorialKind }> = [];
   const created: TutorialKind[] = [];
   const writes: Array<{ id: number; revision: string }> = [];
-  const remembered: Array<{ id: number; fingerprint: string }> = [];
-  const logs: string[] = [];
-  const resolvedKeys: string[] = [];
+  const resolved: Array<{ kind: TutorialKind; key: string }> = [];
+  const reads: number[] = [];
   let nextID = 40;
   const add = (kind: TutorialKind, content: string | null) => {
     const id = nextID++;
-    let title = kind === "markdown" ? labels.attachmentTitle : labels.title;
-    const item = {
-      id,
-      key: `START${id + 222}`,
-      getField(field: string) {
-        assert.equal(field, "title");
-        return title;
-      },
-      setField(field: string, value: unknown) {
-        assert.equal(field, "title");
-        title = String(value);
-        return true;
-      },
-    } as Zotero.Item;
+    const item = { id, key: `START${id + 222}` } as Zotero.Item;
     items.set(kind, item);
-    if (kind === "markdown") resolvable.set(item.key, item);
+    resolvable.set(item.key, { item, kind });
     files.set(id, content);
     return item;
   };
-  const write = (item: Zotero.Item, content: string, revision: string) => {
-    assert.equal(
-      files.get(item.id),
-      revision,
-      "a stale revision must not write",
-    );
-    files.set(item.id, content);
-    writes.push({ id: item.id, revision });
-  };
   const deps: TutorialAttachmentDependencies = {
-    find: async (kind, titles) => {
-      searches.push({ kind, titles });
+    find: async (kind) => {
+      searches.push(kind);
       return items.get(kind) ?? null;
     },
-    resolveMarkdown: async (key) => {
-      assert.match(key, /^[A-Z2-9]{8}$/);
-      resolvedKeys.push(key);
-      return resolvable.get(key) ?? null;
+    resolve: async (kind, key) => {
+      resolved.push({ kind, key });
+      const value = resolvable.get(key);
+      return value?.kind === kind ? value.item : null;
+    },
+    state: () => structuredClone(state),
+    remember: (next) => {
+      delete state.markdown;
+      delete state.canvas;
+      Object.assign(state, structuredClone(next));
     },
     mark: async (item, kind) => {
       marks.push({ id: item.id, kind });
     },
     read: async (item) => {
+      reads.push(item.id);
       assert.ok(files.has(item.id));
       return files.get(item.id)!;
-    },
-    fingerprint: (content) => createHash("md5").update(content).digest("hex"),
-    baseline: (item) => baselines.get(item.id),
-    remember: async (item, fingerprint) => {
-      baselines.set(item.id, fingerprint);
-      remembered.push({ id: item.id, fingerprint });
     },
     createMarkdown: async (content, title) => {
       assert.equal(title, labels.attachmentTitle);
@@ -152,547 +133,569 @@ function fixture() {
       created.push("canvas");
       return add("canvas", serializeCanvasDocument(document));
     },
-    updateMarkdown: async (item, content, revision) =>
-      write(item, content, revision),
-    updateCanvas: async (item, document, revision) =>
-      write(item, serializeCanvasDocument(document), revision),
-    log: (message) => logs.push(message),
+    updateCanvas: async (item, document, revision) => {
+      assert.equal(
+        files.get(item.id),
+        revision,
+        "stale revisions must not write",
+      );
+      files.set(item.id, serializeCanvasDocument(document));
+      writes.push({ id: item.id, revision });
+    },
   };
-  const run = (document = example()) =>
-    ensureTutorialAttachments(document, labels.title, deps);
+  const run = async (document = example(), version = TUTORIAL_VERSION) => {
+    const result = await ensureTutorialAttachments(
+      document,
+      labels.title,
+      deps,
+      version,
+      "manual",
+    );
+    assert.ok(!("deleted" in result));
+    return result;
+  };
   const readCanvas = () => {
     const item = items.get("canvas")!;
     const parsed = parseStoredCanvas(files.get(item.id));
     assert.deepEqual(parsed.issues, []);
     return parsed.document;
   };
+  const contents = () =>
+    [...files].map(([id, text]) => [
+      id,
+      createHash("sha256")
+        .update(text ?? "")
+        .digest("hex"),
+    ]);
   return {
     items,
     resolvable,
     files,
-    baselines,
+    state,
     searches,
     marks,
     created,
     writes,
-    remembered,
-    logs,
-    resolvedKeys,
+    resolved,
+    reads,
     add,
     deps,
     run,
     readCanvas,
+    contents,
   };
 }
 
-test("repeated onboarding searches reuse the same pair without a local completion marker", async () => {
+test("first creation records a portable pair locally and subsequent calls reuse it", async () => {
   const host = fixture();
   const source = example();
   attachmentNode(source).data.attachmentID = 912;
   const original = structuredClone(source);
   const first = await host.run(source);
   const markdown = host.items.get("markdown")!;
-  const firstFiles = new Map(host.files);
-
-  assert.equal(await host.run(source), first);
-  assert.equal(await host.run(source), first);
-
+  const before = host.contents();
+  assert.equal(first.created, true);
+  assert.deepEqual(await host.run(), { canvas: first.canvas, created: false });
   assert.deepEqual(host.created, ["markdown", "canvas"]);
-  assert.equal(host.items.size, 2);
-  assert.deepEqual(host.files, firstFiles);
+  assert.deepEqual(host.contents(), before);
   assert.deepEqual(host.writes, []);
-  assert.equal(host.searches.length, 6);
+  assert.deepEqual(host.searches, ["canvas", "markdown"]);
+  assert.deepEqual(host.state, {
+    markdown: { key: markdown.key, version: TUTORIAL_VERSION },
+    canvas: { key: first.canvas.key, version: TUTORIAL_VERSION },
+  });
   assert.deepEqual(attachmentNode(host.readCanvas()).data.source, {
     library: { type: "user" },
     attachmentKey: markdown.key,
   });
   assert.equal(attachmentNode(host.readCanvas()).data.attachmentID, undefined);
-  assert.deepEqual(source, original, "the caller's document is not mutated");
-  assert.equal(
-    host.baselines.get(markdown.id),
-    host.deps.fingerprint(labels.attachmentContent),
-  );
+  assert.deepEqual(source, original);
 });
 
-test("existing Markdown and Canvas keep their IDs and contents while establishing a safe baseline", async () => {
+test("same tutorial version preserves generated content when labels change", async () => {
   const host = fixture();
-  const markdown = host.add("markdown", labels.attachmentContent);
-  const document = example();
+  await host.run();
+  const before = host.contents();
+  await host.run(example({ welcomeBody: "Changed without a version bump" }));
+  assert.deepEqual(host.contents(), before);
+  assert.deepEqual(host.writes, []);
+});
+
+test("legacy existing tutorials are adopted without overwriting user text", async () => {
+  const host = fixture();
+  const markdown = host.add("markdown", "# My research\n\nKeep my writing.");
+  const document = example({ welcomeBody: "My own canvas note" });
   attachmentNode(document).data.source = {
     library: { type: "user" },
     attachmentKey: markdown.key,
   };
   const canvas = host.add("canvas", serializeCanvasDocument(document));
-  const files = new Map(host.files);
-
-  assert.equal(await host.run(), canvas);
-  assert.deepEqual(host.created, []);
-  assert.deepEqual(host.files, files);
-  assert.deepEqual(host.writes, []);
-  assert.ok(host.baselines.has(markdown.id));
-  assert.ok(host.baselines.has(canvas.id));
-});
-
-test("an existing Markdown is reused when only its Canvas partner is missing", async () => {
-  const host = fixture();
-  const markdown = host.add("markdown", "# My notes\n\nKeep this text.");
-
-  await host.run();
-
-  assert.deepEqual(host.created, ["canvas"]);
-  assert.equal(host.files.get(markdown.id), "# My notes\n\nKeep this text.");
-  assert.equal(
-    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
-    markdown.key,
-  );
-  assert.equal(host.baselines.has(markdown.id), false);
-});
-
-test("a missing Markdown partner is recreated and linked from the existing managed Canvas", async () => {
-  const host = fixture();
-  const canvas = await host.run();
-  const oldMarkdown = host.items.get("markdown")!;
-  host.items.delete("markdown");
-  host.resolvable.delete(oldMarkdown.key);
-  host.files.delete(oldMarkdown.id);
-
-  assert.equal(await host.run(), canvas);
-
-  const markdown = host.items.get("markdown")!;
-  assert.notEqual(markdown.id, oldMarkdown.id);
-  assert.deepEqual(host.created, ["markdown", "canvas", "markdown"]);
-  assert.equal(
-    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
-    markdown.key,
-  );
-  assert.equal(host.writes.length, 1);
-  assert.equal(host.writes[0].id, canvas.id);
-});
-
-test("a Canvas creation failure leaves the created Markdown available for retry", async () => {
-  const host = fixture();
-  const createCanvas = host.deps.createCanvas;
-  host.deps.createCanvas = async () => null;
-
-  await assert.rejects(host.run(), /Could not create tutorial whiteboard/);
-  const markdown = host.items.get("markdown")!;
-  assert.ok(markdown);
-  assert.equal(host.files.get(markdown.id), labels.attachmentContent);
-  host.deps.createCanvas = createCanvas;
-
-  await host.run();
-
-  assert.equal(host.items.get("markdown"), markdown);
-  assert.deepEqual(host.created, ["markdown", "canvas"]);
-  assert.equal(
-    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
-    markdown.key,
-  );
-});
-
-for (const kind of ["markdown", "canvas"] as const) {
-  test(`${kind} search failure aborts before creating or changing either attachment`, async () => {
-    const host = fixture();
-    const find = host.deps.find;
-    const failure = new Error("Zotero search unavailable");
-    host.deps.find = async (requested, titles) => {
-      if (requested === kind) throw failure;
-      return find(requested, titles);
-    };
-
-    await assert.rejects(host.run(), failure);
-
-    assert.deepEqual(host.created, []);
-    assert.deepEqual(host.marks, []);
-    assert.deepEqual(host.writes, []);
-    assert.equal(host.files.size, 0);
-  });
-}
-
-test("synced attachments with unavailable local files are reused without writes or new baselines", async () => {
-  const host = fixture();
-  const markdown = host.add("markdown", null);
-  const canvas = host.add("canvas", null);
-
-  assert.equal(await host.run(), canvas);
-  assert.equal(await host.run(), canvas);
-
+  const before = host.contents();
+  assert.deepEqual(await host.run(), { canvas, created: false });
+  assert.deepEqual(host.contents(), before);
   assert.deepEqual(host.created, []);
   assert.deepEqual(host.writes, []);
-  assert.deepEqual(host.remembered, []);
-  assert.equal(host.files.get(markdown.id), null);
-  assert.equal(host.files.get(canvas.id), null);
+  assert.equal(host.state.canvas?.version, TUTORIAL_VERSION);
+  assert.equal(host.state.markdown?.key, markdown.key);
 });
 
-test("a renamed Markdown absent from title search is reused through its existing Canvas key", async () => {
+test("a renamed Markdown is found through the portable link before a title match", async () => {
   const host = fixture();
-  const markdown = host.add(
-    "markdown",
-    "# Renamed research notes\n\nKeep these edits.",
-  );
-  markdown.setField("title", "Renamed research notes");
-  host.items.delete("markdown");
+  const markdown = host.add("markdown", "# Renamed reading practice");
   const document = example();
   attachmentNode(document).data.source = {
     library: { type: "user" },
     attachmentKey: markdown.key,
-  };
-  welcomeNode(document).content = "My edited tutorial";
-  const canvas = host.add("canvas", serializeCanvasDocument(document));
-  const before = new Map(host.files);
-
-  assert.equal(await host.run(), canvas);
-
-  assert.deepEqual(host.resolvedKeys, [markdown.key]);
-  assert.deepEqual(host.created, []);
-  assert.deepEqual(host.files, before);
-  assert.deepEqual(host.writes, []);
-  assert.deepEqual(host.marks, [
-    { id: markdown.id, kind: "markdown" },
-    { id: canvas.id, kind: "canvas" },
-  ]);
-});
-
-test("the existing Canvas link takes priority over a separate same-title Markdown match", async () => {
-  const host = fixture();
-  const original = host.add(
-    "markdown",
-    "# Original renamed tutorial\n\nUser content.",
-  );
-  original.setField("title", "Original renamed tutorial");
-  const unrelated = host.add(
-    "markdown",
-    "# Unrelated document with the same title",
-  );
-  const document = example();
-  attachmentNode(document).data.source = {
-    library: { type: "user" },
-    attachmentKey: original.key,
-  };
-  const canvas = host.add("canvas", serializeCanvasDocument(document));
-  const before = new Map(host.files);
-
-  assert.equal(await host.run(), canvas);
-
-  assert.deepEqual(host.resolvedKeys, [original.key]);
-  assert.deepEqual(host.created, []);
-  assert.deepEqual(host.files, before);
-  assert.ok(host.marks.some((entry) => entry.id === original.id));
-  assert.equal(
-    host.marks.some((entry) => entry.id === unrelated.id),
-    false,
-  );
-  assert.equal(host.baselines.has(unrelated.id), false);
-  assert.equal(
-    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
-    original.key,
-  );
-});
-
-test("a linked Markdown lookup failure aborts before creating or modifying attachments", async () => {
-  const host = fixture();
-  const document = example();
-  attachmentNode(document).data.source = {
-    library: { type: "user" },
-    attachmentKey: "ABCD2345",
   };
   host.add("canvas", serializeCanvasDocument(document));
-  const before = new Map(host.files);
-  const failure = new Error("Linked item lookup unavailable");
-  host.deps.resolveMarkdown = async () => {
-    throw failure;
-  };
-
-  await assert.rejects(host.run(), failure);
-
+  const unrelated = host.add("markdown", "# Separate same-title match");
+  const before = host.contents();
+  await host.run();
+  assert.equal(host.state.markdown?.key, markdown.key);
+  assert.notEqual(host.state.markdown?.key, unrelated.key);
+  assert.deepEqual(host.contents(), before);
   assert.deepEqual(host.created, []);
-  assert.deepEqual(host.files, before);
-  assert.deepEqual(host.writes, []);
-  assert.deepEqual(host.marks, []);
-  assert.deepEqual(host.remembered, []);
 });
 
-test("an unavailable Canvas file defers Markdown creation until its existing link can be inspected", async () => {
+test("a current tutorial resolves its saved keys without title searches or local file reads", async () => {
   const host = fixture();
+  const first = await host.run();
+  host.searches.length = 0;
+  host.items.clear();
+  for (const id of host.files.keys()) host.files.set(id, null);
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), true);
+  assert.deepEqual(await host.run(), { canvas: first.canvas, created: false });
+  assert.deepEqual(host.searches, []);
+  assert.deepEqual(host.reads, []);
+  assert.deepEqual(host.created, ["markdown", "canvas"]);
+});
+
+test("existing undistributed files are reused, while an unknown missing partner waits for download", async () => {
+  const host = fixture();
+  host.add("markdown", null);
   const canvas = host.add("canvas", null);
-
-  await assert.rejects(host.run());
-
+  assert.deepEqual(await host.run(), { canvas, created: false });
   assert.deepEqual(host.created, []);
-  assert.equal(host.files.get(canvas.id), null);
-  assert.equal(host.items.has("markdown"), false);
   assert.deepEqual(host.writes, []);
-  assert.deepEqual(host.remembered, []);
+  delete host.state.markdown;
+  delete host.state.canvas;
+  host.items.delete("markdown");
+  await assert.rejects(host.run(), /Download the existing tutorial canvas/);
+  assert.deepEqual(host.created, []);
 });
 
-test("an untouched generated pair updates in place while preserving Canvas viewing state", async () => {
+test("a newer tutorial version creates a separate pair and preserves every old file", async () => {
   const host = fixture();
-  const canvas = await host.run();
-  const markdown = host.items.get("markdown")!;
-  const viewed = host.readCanvas();
-  const viewport = { x: 184, y: -252, zoom: 0.8 };
-  viewed.viewport = viewport;
-  const createdAt = viewed.metadata?.createdAt;
-  host.files.set(
-    canvas.id,
-    serializeCanvasDocument(viewed, { now: "2026-10-22T08:00:00Z" }),
-  );
+  const first = await host.run();
+  const oldMarkdown = host.items.get("markdown")!;
+  host.files.set(oldMarkdown.id, "# My edited research");
+  const oldDocument = host.readCanvas();
+  welcomeNode(oldDocument).content = "My edited Canvas";
+  host.files.set(first.canvas.id, serializeCanvasDocument(oldDocument));
   const before = new Map(host.files);
-  const revised = example({
-    welcomeBody: "New whiteboard instructions",
-    attachmentContent: "# Start writing\n\nNew Markdown instructions",
-  });
-
-  assert.equal(await host.run(revised), canvas);
-
-  assert.deepEqual(host.created, ["markdown", "canvas"]);
-  assert.equal(host.items.get("markdown"), markdown);
-  assert.equal(
-    host.files.get(markdown.id),
-    attachmentNode(revised).data.preview,
+  const upgraded = await host.run(
+    example({ welcomeBody: "Version 2" }),
+    TUTORIAL_VERSION + 1,
   );
-  const updated = host.readCanvas();
-  assert.equal(welcomeNode(updated).content, "New whiteboard instructions");
-  assert.deepEqual(updated.viewport, viewport);
-  assert.equal(updated.metadata?.createdAt, createdAt);
-  assert.deepEqual(host.writes, [
-    { id: markdown.id, revision: before.get(markdown.id) },
-    { id: canvas.id, revision: before.get(canvas.id) },
-  ]);
-  const written = new Map(host.files);
-  await host.run(revised);
-  assert.deepEqual(host.files, written);
-  assert.equal(
-    host.writes.length,
-    2,
-    "a second refresh has no redundant writes",
-  );
-});
-
-test("saving an unchanged Canvas through the real editor preserves eligibility for tutorial updates", async () => {
-  const host = fixture();
-  const canvas = await host.run();
-  const flow = canvasDocumentToFlow(host.readCanvas());
-  const viewport = { x: 196, y: -142, zoom: 0.9 };
-  const viewed = flowToCanvasDocument(
-    flow.nodes,
-    flow.edges,
-    viewport,
-    flow.shell,
-  );
-  const saved = serializeCanvasDocument(viewed);
-  host.files.set(canvas.id, saved);
-
-  assert.equal(
-    await host.run(example({ welcomeBody: "Updated after viewing" })),
-    canvas,
-  );
-
-  const updated = host.readCanvas();
-  assert.equal(welcomeNode(updated).content, "Updated after viewing");
-  assert.deepEqual(updated.viewport, viewport);
-  assert.deepEqual(host.writes, [{ id: canvas.id, revision: saved }]);
-  assert.deepEqual(host.created, ["markdown", "canvas"]);
-});
-
-test("a custom connection handle saved by the editor remains a user edit", async () => {
-  const host = fixture();
-  const canvas = await host.run();
-  const baseline = host.baselines.get(canvas.id);
-  const flow = canvasDocumentToFlow(host.readCanvas());
-  assert.ok(flow.edges.length > 0);
-  flow.edges[0].sourceHandle = "top";
-  const edited = flowToCanvasDocument(
-    flow.nodes,
-    flow.edges,
-    { x: 0, y: 0, zoom: 1 },
-    flow.shell,
-  );
-  const saved = serializeCanvasDocument(edited);
-  host.files.set(canvas.id, saved);
-
-  assert.equal(
-    await host.run(
-      example({ welcomeBody: "New guide should not replace this" }),
-    ),
-    canvas,
-  );
-
-  assert.equal(host.files.get(canvas.id), saved);
-  assert.equal(host.readCanvas().connections[0].sourceHandle, "top");
-  assert.equal(host.baselines.get(canvas.id), baseline);
+  assert.notEqual(upgraded.canvas.id, first.canvas.id);
+  assert.equal(upgraded.created, true);
+  assert.deepEqual(host.created, ["markdown", "canvas", "markdown", "canvas"]);
+  for (const [id, text] of before) assert.equal(host.files.get(id), text);
   assert.deepEqual(host.writes, []);
+  assert.equal(host.state.canvas?.version, TUTORIAL_VERSION + 1);
+  assert.equal(host.state.markdown?.version, TUTORIAL_VERSION + 1);
+  assert.equal(welcomeNode(host.readCanvas()).content, "Version 2");
+  assert.equal(
+    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+    host.state.markdown?.key,
+  );
 });
 
-test("renaming a pristine Markdown preserves its body, title, and baseline on template refresh", async () => {
-  const host = fixture();
-  const canvas = await host.run();
-  const markdown = host.items.get("markdown")!;
-  const originalBody = host.files.get(markdown.id);
-  const baseline = host.baselines.get(markdown.id);
-  const remembered = host.remembered.filter(
-    (entry) => entry.id === markdown.id,
-  ).length;
-  markdown.setField("title", "My reading notebook");
-
-  assert.equal(
-    await host.run(
-      example({ attachmentContent: "# Updated starter instructions" }),
-    ),
-    canvas,
-  );
-
-  assert.equal(markdown.getField("title"), "My reading notebook");
-  assert.equal(host.files.get(markdown.id), originalBody);
-  assert.equal(host.baselines.get(markdown.id), baseline);
-  assert.equal(
-    host.remembered.filter((entry) => entry.id === markdown.id).length,
-    remembered,
-  );
-  assert.equal(
-    host.writes.some((entry) => entry.id === markdown.id),
-    false,
-  );
-  assert.deepEqual(host.created, ["markdown", "canvas"]);
-});
-
-test("user edits to either generated attachment survive later template changes", async () => {
-  const host = fixture();
-  const canvas = await host.run();
-  const markdown = host.items.get("markdown")!;
-  host.files.set(markdown.id, "# Personal research\n\nDo not replace me.");
-  const edited = host.readCanvas();
-  welcomeNode(edited).content = "My own explanation";
-  edited.viewport = { x: -120, y: 64, zoom: 0.6 };
-  edited.nodes.push({
-    ...structuredClone(edited.nodes[0]),
-    id: "user-added-card",
-  });
-  host.files.set(canvas.id, serializeCanvasDocument(edited));
-  const before = new Map(host.files);
-  const baselines = new Map(host.baselines);
-  const remembered = host.remembered.length;
-
-  assert.equal(
-    await host.run(
-      example({
-        welcomeBody: "Updated guide",
-        attachmentContent: "# Updated starter note",
-      }),
-    ),
-    canvas,
-  );
-
-  assert.deepEqual(host.files, before);
-  assert.deepEqual(host.baselines, baselines);
-  assert.equal(host.remembered.length, remembered);
-  assert.deepEqual(host.writes, []);
-  assert.deepEqual(host.created, ["markdown", "canvas"]);
-});
-
-for (const kind of ["markdown", "canvas"] as const) {
-  test(`a stale ${kind} update preserves the external edit and does not advance its baseline`, async () => {
+for (const upgrading of [false, true]) {
+  test(`${upgrading ? "upgrade" : "first creation"} retries reuse the Markdown created before Canvas failure`, async () => {
     const host = fixture();
-    await host.run();
-    const item = host.items.get(kind)!;
-    const oldBaseline = host.baselines.get(item.id);
-    const failure = new Error("Attachment changed after reading");
-    const external =
-      kind === "markdown"
-        ? "# External Markdown edit"
-        : serializeCanvasDocument(
-            example({ welcomeBody: "External Canvas edit" }),
-          );
-    if (kind === "markdown") {
-      host.deps.updateMarkdown = async () => {
-        host.files.set(item.id, external);
-        throw failure;
-      };
-    } else {
-      host.deps.updateCanvas = async () => {
-        host.files.set(item.id, external);
-        throw failure;
-      };
-    }
-    const remembersBefore = host.remembered.filter(
-      (entry) => entry.id === item.id,
-    ).length;
-
+    if (upgrading) await host.run();
+    const version = TUTORIAL_VERSION + Number(upgrading);
+    const createCanvas = host.deps.createCanvas;
+    host.deps.createCanvas = async () => null;
     await assert.rejects(
-      host.run(
-        example({
-          welcomeBody: "Updated Canvas guide",
-          attachmentContent: "# Updated Markdown guide",
-        }),
-      ),
-      failure,
+      host.run(example(), version),
+      /Could not create tutorial whiteboard/,
     );
-
-    assert.equal(host.files.get(item.id), external);
-    assert.equal(host.baselines.get(item.id), oldBaseline);
+    const partialMarkdown = host.state.markdown!;
+    assert.equal(partialMarkdown.version, version);
     assert.equal(
-      host.remembered.filter((entry) => entry.id === item.id).length,
-      remembersBefore,
+      await tutorialStartupIsCurrent(true, host.deps, version),
+      false,
     );
-    assert.deepEqual(host.created, ["markdown", "canvas"]);
+    host.deps.createCanvas = createCanvas;
+    await host.run(example(), version);
+    assert.deepEqual(host.state.markdown, partialMarkdown);
+    assert.equal(
+      host.created.filter((kind) => kind === "markdown").length,
+      upgrading ? 2 : 1,
+    );
+    assert.equal(
+      attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+      partialMarkdown.key,
+    );
   });
 }
 
-test("legacy Canvas migration repairs only its machine-local Markdown link and keeps edits", async () => {
+for (const kind of ["markdown", "canvas"] as const) {
+  test(`a deleted recorded ${kind} prevents automatic recreation even when the tutorial version increases`, async () => {
+    const host = fixture();
+    await host.run();
+    host.resolvable.delete(host.state[kind]!.key);
+    const before = host.contents();
+    assert.equal(
+      await tutorialStartupIsCurrent(true, host.deps, TUTORIAL_VERSION + 1),
+      true,
+    );
+    assert.deepEqual(host.contents(), before);
+    assert.equal(host.created.length, 2);
+  });
+  test(`${kind} discovery failures abort without producing duplicate tutorials`, async () => {
+    const host = fixture();
+    const find = host.deps.find;
+    host.deps.find = async (requested, titles) => {
+      if (requested === kind) throw new Error("search unavailable");
+      return find(requested, titles);
+    };
+    await assert.rejects(host.run(), /search unavailable/);
+    assert.deepEqual(host.created, []);
+    assert.deepEqual(host.state, {});
+  });
+}
+
+test("explicit recovery of a deleted Markdown creates a linked pair and keeps the original Canvas intact", async () => {
   const host = fixture();
-  const markdown = host.add("markdown", "# My changed starter note");
-  const legacy = example();
-  welcomeNode(legacy).content = "A user's edited welcome card";
-  legacy.viewport = { x: 77, y: -330, zoom: 1.25 };
-  attachmentNode(legacy).data.attachmentID = 8901;
-  legacy.nodes.push({ ...structuredClone(legacy.nodes[0]), id: "user-note" });
-  const originalFile = serializeCanvasDocument(legacy);
-  const canvas = host.add("canvas", originalFile);
-  const expected = parseStoredCanvas(originalFile).document;
+  const first = await host.run();
+  const oldCanvasText = host.files.get(first.canvas.id);
+  const oldMarkdown = host.state.markdown!.key;
+  host.resolvable.delete(oldMarkdown);
+  host.items.delete("markdown");
+  const restored = await host.run();
+  assert.notEqual(restored.canvas.id, first.canvas.id);
+  assert.notEqual(host.state.markdown?.key, oldMarkdown);
+  assert.equal(host.files.get(first.canvas.id), oldCanvasText);
+  assert.equal(
+    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+    host.state.markdown?.key,
+  );
+  assert.deepEqual(host.writes, []);
+});
+
+test("explicit recovery of a deleted Canvas reuses the surviving current Markdown", async () => {
+  const host = fixture();
+  await host.run();
+  const markdown = host.state.markdown!.key;
+  const canvas = host.state.canvas!.key;
+  host.resolvable.delete(canvas);
+  host.items.delete("canvas");
+  await host.run();
+  assert.equal(host.state.markdown?.key, markdown);
+  assert.notEqual(host.state.canvas?.key, canvas);
+  assert.deepEqual(host.created, ["markdown", "canvas", "canvas"]);
+});
+
+test("legacy completion prevents resurrecting a removed tutorial but adopts a surviving Canvas", async () => {
+  const host = fixture();
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), true);
+  assert.equal(await tutorialStartupIsCurrent(false, host.deps), false);
+  host.add("canvas", null);
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), false);
+  assert.deepEqual(host.created, []);
+});
+
+test("future tutorial versions are reused without being downgraded", async () => {
+  const host = fixture();
+  await host.run(example(), TUTORIAL_VERSION + 1);
+  const before = host.contents();
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), true);
+  await host.run();
+  assert.equal(host.state.canvas?.version, TUTORIAL_VERSION + 1);
+  assert.equal(host.state.markdown?.version, TUTORIAL_VERSION + 1);
+  assert.deepEqual(host.contents(), before);
+});
+
+test("saved identity lookup failure is not treated as deletion", async () => {
+  const host = fixture();
+  await host.run();
+  host.deps.resolve = async () => {
+    throw new Error("metadata unavailable");
+  };
+  await assert.rejects(
+    tutorialStartupIsCurrent(true, host.deps),
+    /metadata unavailable/,
+  );
+  await assert.rejects(host.run(), /metadata unavailable/);
+  assert.equal(host.created.length, 2);
+});
+
+test("legacy local-ID migration changes only the demo link and preserves user content", async () => {
+  const host = fixture();
+  const document = example({ welcomeBody: "My custom body" });
+  attachmentNode(document).data.attachmentID = 913;
+  host.add("canvas", serializeCanvasDocument(document));
+  host.add("markdown", "# Existing practice");
+  await host.run();
+  const markdown = host.items.get("markdown")!;
+  const expected = structuredClone(document);
   attachmentNode(expected).data.source = {
     library: { type: "user" },
     attachmentKey: markdown.key,
   };
   delete attachmentNode(expected).data.attachmentID;
-
-  assert.equal(await host.run(), canvas);
-
-  assert.deepEqual(host.created, []);
-  assert.equal(host.files.get(markdown.id), "# My changed starter note");
-  // Saving legitimately changes updatedAt; every other persisted field stays intact.
-  assert.equal(
-    serializeCanvasDocument(host.readCanvas(), { now: "2026-10-22T00:00:00Z" }),
-    serializeCanvasDocument(expected, { now: "2026-10-22T00:00:00Z" }),
-  );
-  assert.deepEqual(host.writes, [{ id: canvas.id, revision: originalFile }]);
-  assert.deepEqual(
-    host.remembered,
-    [],
-    "edited legacy content is never made a generated baseline",
-  );
-  const migrated = host.files.get(canvas.id);
-  await host.run();
-  assert.equal(host.files.get(canvas.id), migrated);
+  const actual = host.readCanvas();
+  delete actual.metadata;
+  assert.deepEqual(actual, expected);
   assert.equal(host.writes.length, 1);
 });
 
-test("legacy canvases with a user-selected portable link retain it", async () => {
+test("a stale legacy-link update keeps the external edit and does not retry blindly", async () => {
   const host = fixture();
-  host.add("markdown", labels.attachmentContent);
-  const legacy = example();
-  const source = {
-    library: { type: "user" as const },
-    attachmentKey: "ABCD2345",
+  const canvas = host.add("canvas", serializeCanvasDocument(example()));
+  host.add("markdown", "# Existing practice");
+  host.deps.updateCanvas = async () => {
+    host.files.set(canvas.id, "External edit");
+    throw new Error("stale revision");
   };
-  attachmentNode(legacy).data.source = source;
-  welcomeNode(legacy).content = "Edited guide";
-  const content = serializeCanvasDocument(legacy);
-  const canvas = host.add("canvas", content);
+  await assert.rejects(host.run(), /stale revision/);
+  assert.equal(host.files.get(canvas.id), "External edit");
+  assert.deepEqual(host.created, []);
+  assert.deepEqual(host.state, {});
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), false);
+});
 
-  assert.equal(await host.run(), canvas);
+test("portable lookup failure aborts adoption without creating or modifying files", async () => {
+  const host = fixture();
+  const document = example();
+  attachmentNode(document).data.source = {
+    library: { type: "user" },
+    attachmentKey: "RENAMED2",
+  };
+  host.add("canvas", serializeCanvasDocument(document));
+  host.deps.resolve = async () => {
+    throw new Error("portable lookup failed");
+  };
+  const before = host.contents();
+  await assert.rejects(host.run(), /portable lookup failed/);
+  assert.deepEqual(host.contents(), before);
+  assert.deepEqual(host.created, []);
+});
 
-  assert.equal(host.files.get(canvas.id), content);
-  assert.deepEqual(attachmentNode(host.readCanvas()).data.source, source);
-  assert.deepEqual(host.writes, []);
-  assert.equal(host.baselines.has(canvas.id), false);
+test("local tutorial preference validates keys and versions without accepting malformed records", () => {
+  assert.deepEqual(parseTutorialAttachmentState(""), {});
+  assert.deepEqual(parseTutorialAttachmentState(undefined), {});
+  const state = {
+    markdown: { key: "START267", version: 1 },
+    canvas: { key: "START268", version: 2 },
+  };
+  assert.deepEqual(parseTutorialAttachmentState(JSON.stringify(state)), state);
+  for (const invalid of [
+    "{bad",
+    "null",
+    "[]",
+    { canvas: { key: "../x", version: 1 } },
+    { markdown: { key: "START267", version: 0 } },
+    { canvas: { key: "START268", version: 1.5 } },
+  ]) {
+    assert.throws(() => parseTutorialAttachmentState(invalid));
+  }
+});
+
+test("restoring a deleted Markdown retries the new Canvas after a partial failure", async () => {
+  const host = fixture();
+  const first = await host.run();
+  const oldCanvasText = host.files.get(first.canvas.id);
+  host.resolvable.delete(host.state.markdown!.key);
+  const createCanvas = host.deps.createCanvas;
+  host.deps.createCanvas = async () => null;
+  await assert.rejects(host.run(), /Could not create tutorial whiteboard/);
+  const newMarkdown = host.state.markdown!.key;
+  assert.equal(host.state.canvas, undefined);
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), false);
+  host.deps.createCanvas = createCanvas;
+  const result = await ensureTutorialAttachments(
+    example(),
+    labels.title,
+    host.deps,
+  );
+  assert.ok(!("deleted" in result));
+  assert.notEqual(result.canvas.id, first.canvas.id);
+  assert.equal(host.files.get(first.canvas.id), oldCanvasText);
+  assert.equal(
+    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+    newMarkdown,
+  );
+  assert.deepEqual(host.created, ["markdown", "canvas", "markdown", "canvas"]);
+});
+
+for (const portable of [false, true]) {
+  test(`automatic legacy adoption never recreates a missing ${portable ? "portable" : "machine-local"} Markdown target`, async () => {
+    const host = fixture();
+    const document = example();
+    if (portable)
+      attachmentNode(document).data.source = {
+        library: { type: "user" },
+        attachmentKey: "DELETED2",
+      };
+    else attachmentNode(document).data.attachmentID = 77;
+    const canvas = host.add("canvas", serializeCanvasDocument(document));
+    if (portable) host.add("markdown", "# An unrelated same-title note");
+    const before = host.contents();
+    const result = await ensureTutorialAttachments(
+      example(),
+      labels.title,
+      host.deps,
+    );
+    assert.deepEqual(result, { canvas, created: false });
+    assert.deepEqual(host.created, []);
+    assert.deepEqual(host.contents(), before);
+    assert.equal(await tutorialStartupIsCurrent(true, host.deps), true);
+    if (portable) assert.equal(host.state.markdown?.key, "DELETED2");
+    await host.run();
+    assert.equal(host.created.filter((kind) => kind === "canvas").length, 1);
+    assert.equal(
+      attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+      host.state.markdown?.key,
+    );
+  });
+}
+
+test("automatic creation rechecks deletion after the initial startup check", async () => {
+  const host = fixture();
+  await host.run();
+  assert.equal(
+    await tutorialStartupIsCurrent(true, host.deps, TUTORIAL_VERSION + 1),
+    false,
+  );
+  host.resolvable.delete(host.state.canvas!.key);
+  const before = host.contents();
+  assert.deepEqual(
+    await ensureTutorialAttachments(
+      example(),
+      labels.title,
+      host.deps,
+      TUTORIAL_VERSION + 1,
+    ),
+    { deleted: true },
+  );
+  assert.deepEqual(host.contents(), before);
+  assert.deepEqual(host.created, ["markdown", "canvas"]);
+});
+
+test("legacy link repair retries after an IO failure before recording the pair as current", async () => {
+  const host = fixture();
+  const markdown = host.add("markdown", "# Existing notes");
+  const document = example();
+  attachmentNode(document).data.attachmentID = 99;
+  const canvas = host.add("canvas", serializeCanvasDocument(document));
+  const before = host.contents();
+  const update = host.deps.updateCanvas;
+  host.deps.updateCanvas = async () => {
+    throw new Error("Disk write failed");
+  };
+  await assert.rejects(host.run(), /Disk write failed/);
+  assert.deepEqual(host.state, {});
+  assert.deepEqual(host.contents(), before);
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), false);
+  host.deps.updateCanvas = update;
+  assert.deepEqual(await host.run(), { canvas, created: false });
+  assert.equal(
+    attachmentNode(host.readCanvas()).data.source?.attachmentKey,
+    markdown.key,
+  );
+  assert.equal(await tutorialStartupIsCurrent(true, host.deps), true);
+  assert.deepEqual(host.created, []);
+});
+
+test("production adoption writes local preferences and never calls SyncedSettings", async (t) => {
+  const host = fixture();
+  const markdown = host.add("markdown", "# Existing notes");
+  const document = example();
+  attachmentNode(document).data.source = {
+    library: { type: "user" },
+    attachmentKey: markdown.key,
+  };
+  const canvas = host.add("canvas", serializeCanvasDocument(document));
+  const items = [markdown, canvas];
+  for (const item of items) {
+    Object.assign(item, {
+      libraryID: 1,
+      deleted: false,
+      attachmentFilename: item === markdown ? "note.md" : "board.canvas",
+      attachmentContentType: "",
+      attachmentLinkMode: 0,
+      isAttachment: () => true,
+      getFilePathAsync: async () => String(item.id),
+      hasTag: () => true,
+    });
+  }
+  let pref = "";
+  let writes = 0;
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Libraries: { userLibraryID: 1 },
+      Attachments: { LINK_MODE_LINKED_URL: 3 },
+      Utilities: {
+        isValidObjectKey: (key: string) => /^[A-Z0-9]{8}$/.test(key),
+      },
+      Prefs: {
+        get(key: string, global: boolean) {
+          assert.equal(key, "extensions.zotero.bamboo.tutorialAttachments");
+          assert.equal(global, true);
+          return pref;
+        },
+        set(key: string, value: string, global: boolean) {
+          assert.equal(key, "extensions.zotero.bamboo.tutorialAttachments");
+          assert.equal(global, true);
+          pref = value;
+          writes++;
+        },
+      },
+      get SyncedSettings() {
+        assert.fail("Tutorial configuration must not access synced settings");
+      },
+      Search: class {
+        addCondition() {}
+        async search() {
+          return items.map((item) => item.id);
+        }
+      },
+      Items: {
+        getAsync: async (ids: number[]) =>
+          items.filter((item) => ids.includes(item.id)),
+        getByLibraryAndKeyAsync: async (_library: number, key: string) =>
+          items.find((item) => item.key === key) ?? null,
+        loadDataTypes: async () => {},
+      },
+      File: {
+        getContentsAsync: async (path: string) => host.files.get(Number(path)),
+      },
+    },
+  });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  assert.deepEqual(await ensureTutorialAttachments(example(), labels.title), {
+    canvas,
+    created: false,
+  });
+  assert.deepEqual(JSON.parse(pref), {
+    markdown: { key: markdown.key, version: TUTORIAL_VERSION },
+    canvas: { key: canvas.key, version: TUTORIAL_VERSION },
+  });
+  assert.equal(writes, 1);
+  assert.equal(await tutorialStartupIsCurrent(true), true);
+  await ensureTutorialAttachments(example(), labels.title);
+  assert.equal(
+    writes,
+    1,
+    "unchanged local preferences do not need another write",
+  );
 });
