@@ -6,6 +6,7 @@ import {
   bindNoteLibraryWindow,
   rebuildNoteLibrary,
   subscribeNoteLibrary,
+  type NoteAttachmentDownloadResult,
   type NoteReadFailure,
 } from "./note-library";
 import type { PortableNote } from "./note-links";
@@ -106,6 +107,11 @@ export function mountNoteBacklinks(
       downloading?: string;
       downloadComplete?: string;
       downloadFailed?: string;
+      downloadPending?: string;
+      downloadUnavailable?: string;
+      downloadSyncUnavailable?: string;
+      downloadNotStarted?: string;
+      downloadRetry?: string;
     };
   } = {},
 ): () => void {
@@ -168,7 +174,9 @@ export function mountNoteBacklinks(
   let currentFailures: readonly NoteReadFailure[] = [];
   let downloading = false;
   let downloadingKey: string | undefined;
-  const failedDownloads = new Set<string>();
+  type DownloadProblem =
+    Exclude<NoteAttachmentDownloadResult, "available"> | "error";
+  const downloadProblems = new Map<string, DownloadProblem>();
   const downloadLabels = {
     download: labels.download ?? getString("note-backlinks-download"),
     all: labels.downloadAll ?? getString("note-backlinks-download-all"),
@@ -177,6 +185,20 @@ export function mountNoteBacklinks(
       labels.downloadComplete ?? getString("note-backlinks-download-complete"),
     failed:
       labels.downloadFailed ?? getString("note-backlinks-download-failed"),
+    pending:
+      labels.downloadPending ?? getString("note-backlinks-download-pending"),
+    retry: labels.downloadRetry ?? getString("note-backlinks-download-retry"),
+    problems: {
+      "not-available":
+        labels.downloadUnavailable ??
+        getString("note-backlinks-download-unavailable"),
+      "sync-unavailable":
+        labels.downloadSyncUnavailable ??
+        getString("note-backlinks-download-sync-unavailable"),
+      "not-started":
+        labels.downloadNotStarted ??
+        getString("note-backlinks-download-not-started"),
+    },
   };
 
   const failureLabel = (reason: NoteReadFailure["reason"]) => {
@@ -237,9 +259,13 @@ export function mountNoteBacklinks(
       detail.className = "zmd-backlinks-failure-detail";
       const reason = doc.createElement("span");
       reason.className = "zmd-backlinks-failure-reason";
-      reason.textContent = failedDownloads.has(failure.key)
-        ? downloadLabels.failed
-        : failureLabel(failure.reason);
+      const problem = downloadProblems.get(failure.key);
+      reason.textContent =
+        problem === "error"
+          ? downloadLabels.failed
+          : problem
+            ? downloadLabels.problems[problem]
+            : failureLabel(failure.reason);
       detail.append(reason);
       if (failure.canDownload) {
         const download = doc.createElement("button");
@@ -265,7 +291,9 @@ export function mountNoteBacklinks(
         label.textContent =
           downloadingKey === failure.key
             ? downloadLabels.busy
-            : downloadLabels.download;
+            : problem
+              ? downloadLabels.retry
+              : downloadLabels.download;
         download.append(icon, label);
         download.onclick = () => void downloadNotes([failure]);
         detail.append(download);
@@ -288,38 +316,41 @@ export function mountNoteBacklinks(
     refresh.disabled = true;
     downloadStatus.hidden = false;
     downloadStatus.classList.remove("is-error");
-    for (const target of targets) failedDownloads.delete(target.key);
+    for (const target of targets) downloadProblems.delete(target.key);
     let completed = 0;
     let failed = 0;
+    let hasError = false;
     try {
       for (const [index, target] of targets.entries()) {
         if (disposed) break;
         downloadingKey = target.key;
         downloadStatus.textContent = `${downloadLabels.busy} (${index + 1}/${targets.length})`;
         renderFailures(currentFailures);
-        let available = false;
+        let result: NoteAttachmentDownloadResult | "error";
         try {
-          available = await downloadNoteAttachment(item.libraryID, target.key);
+          result = await downloadNoteAttachment(item.libraryID, target.key);
         } catch (error) {
+          result = "error";
           Zotero.logError(
             error instanceof Error ? error : new Error(String(error)),
           );
         }
         if (disposed) break;
-        if (available) completed++;
+        if (result === "available") completed++;
         else {
           failed++;
-          failedDownloads.add(target.key);
+          hasError ||= result === "error";
+          downloadProblems.set(target.key, result);
         }
       }
     } finally {
       downloading = false;
       downloadingKey = undefined;
       if (!disposed) {
-        downloadStatus.classList.toggle("is-error", failed > 0);
+        downloadStatus.classList.toggle("is-error", hasError);
         downloadStatus.textContent = [
           completed ? `${downloadLabels.complete} (${completed})` : "",
-          failed ? `${downloadLabels.failed} (${failed})` : "",
+          failed ? `${downloadLabels.pending} (${failed})` : "",
         ]
           .filter(Boolean)
           .join(" · ");

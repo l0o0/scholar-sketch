@@ -17,6 +17,9 @@ export interface NoteReadFailure {
   canDownload?: boolean;
 }
 
+export type NoteAttachmentDownloadResult =
+  "available" | "sync-unavailable" | "not-started" | "not-available";
+
 interface IndexedNoteDocument extends NoteDocument {
   readFailure?: NoteReadFailure;
 }
@@ -33,7 +36,7 @@ interface LibraryCache {
 
 const libraries = new Map<number, LibraryCache>();
 const listeners = new Set<NoteListener>();
-const downloads = new Map<string, Promise<boolean>>();
+const downloads = new Map<string, Promise<NoteAttachmentDownloadResult>>();
 let observerID: string | undefined;
 const windows = new Map<Window, { count: number; onFocus: () => void }>();
 
@@ -639,32 +642,33 @@ export function invalidateNoteLibrary(libraryID: number): void {
 export function downloadNoteAttachment(
   libraryID: number,
   key: string,
-): Promise<boolean> {
+): Promise<NoteAttachmentDownloadResult> {
   const identity = `${libraryID}/${key}`;
   const pending = downloads.get(identity);
   if (pending) return pending;
   const epoch = lifecycle;
-  const operation = (async () => {
+  const operation = (async (): Promise<NoteAttachmentDownloadResult> => {
     const item = Zotero.Items.getByLibraryAndKey(libraryID, key);
     if (!item || !noteMetadata(item) || !item.isStoredFileAttachment())
-      return false;
+      return "not-available";
     // Runner.downloadFile replaces existing local files. This action only
     // restores missing files, including when another window just fetched one.
     let available = Boolean(await item.getFilePathAsync());
-    if (epoch !== lifecycle) return false;
+    if (epoch !== lifecycle) return "not-available";
     if (!available) {
-      if (
-        !item.getFilePath() ||
-        !Zotero.Sync.Storage.Local.getEnabledForLibrary(libraryID)
-      )
-        return false;
-      await Zotero.Sync.Runner.downloadFile(item);
+      if (!item.getFilePath()) return "not-available";
+      if (!Zotero.Sync.Storage.Local.getEnabledForLibrary(libraryID))
+        return "sync-unavailable";
+      const result = await Zotero.Sync.Runner.downloadFile(item);
+      if (epoch !== lifecycle) return "not-available";
       available = Boolean(await item.getFilePathAsync());
+      if (epoch !== lifecycle) return "not-available";
+      if (!available) return result === false ? "not-started" : "not-available";
     }
-    // A native download may return an empty result for a remote 404 and uses
-    // skipAll when saving. Verify the file and explicitly refresh our index.
-    if (available && epoch === lifecycle) invalidateNoteLibrary(libraryID);
-    return available;
+    // Native results describe sync changes, not file availability. Downloads
+    // save with skipAll, so refresh our index only after confirming the file.
+    invalidateNoteLibrary(libraryID);
+    return "available";
   })().finally(() => {
     if (downloads.get(identity) === operation) downloads.delete(identity);
   });

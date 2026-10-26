@@ -514,7 +514,16 @@ function downloadFixtures(t: TestContext, sourceCount = 1) {
         downloadAll: "Download all",
         downloading: "Downloading",
         downloadComplete: "Download complete",
-        downloadFailed: "Download failed; check file sync and retry",
+        downloadPending: "Attachments not retrieved",
+        downloadUnavailable:
+          "File not retrieved. It may not have been uploaded; sync the device holding the original file and retry.",
+        downloadSyncUnavailable:
+          "File sync is disabled or not ready. Check Zotero sync settings.",
+        downloadNotStarted:
+          "Download did not start. Check the network and Zotero sync settings.",
+        downloadRetry: "Retry download",
+        downloadFailed:
+          "Download failed. Check the network and Zotero sync errors before retrying.",
       },
     });
     disposers.push(dispose);
@@ -592,7 +601,7 @@ test("download all includes hidden diagnostic rows and excludes linked files and
   assert.equal(parent.querySelectorAll(".zmd-backlinks-download").length, 0);
 });
 
-test("missing remote files and network errors stay failed and can be retried", async (t) => {
+test("a completed native request without a file shows recovery guidance instead of a network error", async (t) => {
   const { runner, sources, files, body, mount } = downloadFixtures(t);
   let attempts = 0;
   runner.downloadFile = async () => {
@@ -604,10 +613,18 @@ test("missing remote files and network errors stay failed and can be retried", a
   const { parent } = mount();
   await until(() => !!parent.querySelector(".zmd-backlinks-download"));
   parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!.click();
-  await until(() =>
-    parent
-      .querySelector(".zmd-backlinks-download-status")!
-      .textContent!.includes("Download failed"),
+  await until(
+    () =>
+      attempts === 1 &&
+      !parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!
+        .disabled,
+  );
+  const status = parent.querySelector(".zmd-backlinks-download-status")!;
+  assert.equal(status.textContent, "Attachments not retrieved (1)");
+  assert.equal(status.classList.contains("is-error"), false);
+  assert.match(
+    parent.querySelector(".zmd-backlinks-failure-reason")!.textContent!,
+    /may not have been uploaded; sync the device holding the original file/,
   );
   assert.equal(
     parent.querySelector(".zmd-backlinks-count")!.textContent,
@@ -616,15 +633,16 @@ test("missing remote files and network errors stay failed and can be retried", a
   const retry = parent.querySelector<HTMLButtonElement>(
     ".zmd-backlinks-download",
   )!;
+  assert.equal(retry.textContent, "Retry download");
   assert.equal(retry.disabled, false);
   retry.click();
-  await until(
-    () =>
-      attempts === 2 &&
-      parent
-        .querySelector(".zmd-backlinks-download-status")!
-        .textContent!.includes("Download failed"),
+  await until(() =>
+    parent
+      .querySelector(".zmd-backlinks-failure-reason")!
+      .textContent!.includes("Check the network and Zotero sync errors"),
   );
+  assert.equal(attempts, 2);
+  assert.equal(status.textContent, "Attachments not retrieved (1)");
   parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!.click();
   await until(
     () => parent.querySelector(".zmd-backlinks-count")!.textContent === "(1)",
@@ -632,12 +650,47 @@ test("missing remote files and network errors stay failed and can be retried", a
   assert.equal(attempts, 3);
 });
 
-test("a library with file sync disabled does not start a native download", async (t) => {
-  const { fake, sources, downloaded, files } = downloadFixtures(t);
+test("a native false result reports that download did not start instead of implying a missing remote file", async (t) => {
+  const { runner, mount } = downloadFixtures(t);
+  runner.downloadFile = async () => false;
+  const { parent } = mount();
+  await until(() => !!parent.querySelector(".zmd-backlinks-download"));
+  parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!.click();
+  await until(() =>
+    parent
+      .querySelector(".zmd-backlinks-failure-reason")!
+      .textContent!.includes("Download did not start"),
+  );
+  assert.doesNotMatch(parent.textContent!, /may not have been uploaded/);
+  assert.equal(
+    parent.querySelector(".zmd-backlinks-download-status")!.textContent,
+    "Attachments not retrieved (1)",
+  );
+  assert.equal(
+    parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!
+      .disabled,
+    false,
+  );
+});
+
+test("a library without ready file sync offers a setting hint without starting a native download", async (t) => {
+  const { fake, sources, downloaded, files, mount } = downloadFixtures(t);
   (fake.Zotero as any).Sync.Storage.Local.getEnabledForLibrary = () => false;
   assert.equal(
     await downloadNoteAttachment(sources[0].libraryID, sources[0].key),
-    false,
+    "sync-unavailable",
+  );
+  const { parent } = mount();
+  await until(() => !!parent.querySelector(".zmd-backlinks-download"));
+  parent.querySelector<HTMLButtonElement>(".zmd-backlinks-download")!.click();
+  await until(() =>
+    parent
+      .querySelector(".zmd-backlinks-failure-reason")!
+      .textContent!.includes("File sync is disabled or not ready"),
+  );
+  assert.equal(
+    parent.querySelector(".zmd-backlinks-download-status")!.textContent,
+    "Attachments not retrieved (1)",
   );
   assert.deepEqual(downloaded, []);
   assert.equal(files.has(sources[0].key), false);
@@ -669,7 +722,7 @@ test("closing the panel stops the remaining batch without cancelling the native 
   const previousStatus = status.textContent;
   dispose();
   finishDownload();
-  assert.equal(await pending, true);
+  assert.equal(await pending, "available");
   assert.deepEqual(downloaded, [sources[0].key]);
   assert.equal(files.has(sources[0].key), true);
   assert.equal(parent.children.length, 0);
@@ -721,7 +774,7 @@ test("two panels share a pending download and an already-local file is never dow
   files.set(sources[0].key, "Local edits must be preserved.");
   assert.equal(
     await downloadNoteAttachment(sources[0].libraryID, sources[0].key),
-    true,
+    "available",
   );
   assert.deepEqual(downloaded, [sources[0].key]);
   assert.equal(files.get(sources[0].key), "Local edits must be preserved.");
