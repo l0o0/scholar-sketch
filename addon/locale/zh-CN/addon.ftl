@@ -926,6 +926,13 @@ feature-updates-reference-sidebar-body = 切换本文引用与引用本文，按
 feature-updates-reference-download-title = 在引用侧栏下载缺失笔记
 feature-updates-reference-download-body = 通过 Zotero 原生文件同步下载单个或全部缺失附件。未取回文件时显示具体处理建议，下载后自动更新引用结果。
 
+feature-updates-md-formatting-title = 更顺手的格式与表格编辑
+feature-updates-md-formatting-body = 粗体、斜体与行内代码支持取消格式，多行列表、任务和标题保留选区；表格长内容自动换行，尺寸选择器支持键盘操作。
+feature-updates-md-navigation-title = 目录与模式菜单更易导航
+feature-updates-md-navigation-body = 目录支持章节折叠和键盘跳转；工具栏可直接选择实时预览、源码或只读预览，模式与更多菜单支持方向键、Enter 和 Esc。
+feature-updates-md-feedback-title = 更清晰的侧栏与操作反馈
+feature-updates-md-feedback-body = 拖动边缘握柄调整侧栏宽度，窄窗口以浮层展开。操作警告和失败提示可查看详情，并保留至下一次操作或手动关闭；保存失败优先显示。
+
 # Markdown editing and navigation
 status-details = 查看状态详情
 status-details-close = 关闭

@@ -15,6 +15,23 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.19",
+    features: [
+      {
+        title: "feature-updates-md-formatting-title",
+        body: "feature-updates-md-formatting-body",
+      },
+      {
+        title: "feature-updates-md-navigation-title",
+        body: "feature-updates-md-navigation-body",
+      },
+      {
+        title: "feature-updates-md-feedback-title",
+        body: "feature-updates-md-feedback-body",
+      },
+    ],
+  },
+  {
     version: "0.2.18",
     features: [
       {

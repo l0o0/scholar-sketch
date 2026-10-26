@@ -926,6 +926,13 @@ feature-updates-reference-sidebar-body = Switch between outgoing links and backl
 feature-updates-reference-download-title = Download missing notes from references
 feature-updates-reference-download-body = Use Zotero file sync to download one or all missing attachments. See specific recovery guidance when a file cannot be retrieved; references update after downloads finish.
 
+feature-updates-md-formatting-title = Smoother formatting and table editing
+feature-updates-md-formatting-body = Apply or remove bold, italic and inline code, preserve selections when formatting multiple lines, and wrap long table cells. Choose table dimensions with the keyboard.
+feature-updates-md-navigation-title = Easier outline and mode navigation
+feature-updates-md-navigation-body = Collapse outline sections and navigate headings with the keyboard. Choose Live, Source or read-only preview from the toolbar; mode and More menus support arrow keys, Enter and Escape.
+feature-updates-md-feedback-title = Clearer sidebars and operation feedback
+feature-updates-md-feedback-body = Resize sidebars with edge handles and open overlays in narrow windows. Operation warnings and failures offer details and remain until another operation starts or you dismiss them; save failures take priority.
+
 # Markdown editing and navigation
 status-details = View status details
 status-details-close = Close
