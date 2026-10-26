@@ -113,11 +113,11 @@ The text after `|` is the displayed label. Markdown note links inserted from the
 
 ## Choose an editing mode
 
-The editor has three modes. Switch using the toolbar or **More → Mode**.
+The toolbar mode button shows the current mode. Click it to choose **Live**, **Source**, or **Read-only preview**.
 
-The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find modes, exports, local history, and settings.
+The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find exports, local history, and settings.
 
-![Markdown editor's More menu, with mode, export, local history, and settings actions](screenshots/editor-more-menu.webp)
+Use arrow keys to choose a menu option, Enter to activate it, and Escape to return to the trigger.
 
 | Mode              | Best for                                                                        |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -126,6 +126,8 @@ The **More actions** button (the three dots at the right end of the editor toolb
 | Read-only preview | Reading a whole note and clicking links or footnotes directly                   |
 
 In Live mode, the content being edited reveals the Markdown markup you need. Formatting returns when the cursor moves away. When the toolbar is narrow, some actions move into **Headings**, **Text formatting**, and **Insert** menus.
+
+Bold, italic, and inline code toggle on or off for the selection. With an empty selection inside formatting, the command removes the enclosing format. A nonempty selection affects only the selected text and preserves other nested formats. List, task, and heading commands apply to all selected lines and preserve the selection, blank lines, and indentation. Inserting a regular link selects its address placeholder so you can paste a URL immediately.
 
 Common default shortcuts include:
 
@@ -152,7 +154,7 @@ Use the local-image shortcut inside an editable Markdown editor, including Sourc
 
 ### Edit tables
 
-Click **Insert table** on the toolbar, or type a Markdown table directly. In Live mode, click a cell to edit its contents.
+Click **Insert table** on the toolbar, or type a Markdown table directly. In Live mode, long cell contents wrap naturally; click a cell to edit it. The table-size picker supports all four arrow keys to choose rows and columns, Enter to insert, and Escape to return to the toolbar.
 
 - `Tab` moves to the next cell; `Shift + Tab` moves to the previous cell.
 - Press `Tab` in the last cell to add another row.
@@ -161,6 +163,8 @@ Click **Insert table** on the toolbar, or type a Markdown table directly. In Liv
 - Use the row and column handles to select entire rows or columns, and drag them to change their order.
 
 **To remove a row you just added**, right-click a cell in that row and choose **Delete row**. If you have selected an entire row or column, use **Delete selected row** or **Delete selected column**. **Clear selected cells** removes the contents while keeping the table structure.
+
+The bottom-right status area reports saves and operations such as image downloads. Success notices disappear automatically; warnings and failures remain until another operation starts or you dismiss them. Click the status to read the full message. Save failures always take priority and cannot be cleared by dismissing an operation notice.
 
 ### Insert and manage images
 
@@ -219,7 +223,9 @@ Diagrams support light and dark appearances. Rendering is bundled with the plugi
 
 The outline on the left is generated from headings in the note. Click a heading to jump to it. If the outline is empty, add headings with `#`, `##`, and `###`.
 
-The left and right sidebar buttons on the toolbar control the outline and backlinks panels independently. In a narrow window, collapse a sidebar to leave more room for the note.
+The left and right toolbar buttons control the outline and reference panels independently. On narrow windows, the outline starts collapsed but can still be opened as an overlay. Panels use overlays when there is not enough room to dock them beside a readable document.
+
+Collapse outline sections or drag the edge to resize the outline. Use Up/Down or Home/End to focus headings, Left/Right to collapse or expand a section, and Enter to jump. Escape closes the overlay and returns focus to its toolbar button. You can also use its close button or click the document to dismiss it.
 
 ### Explore outgoing links and backlinks
 

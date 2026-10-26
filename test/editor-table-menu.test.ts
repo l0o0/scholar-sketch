@@ -172,3 +172,51 @@ describe("table context menu state", () => {
     );
   });
 });
+
+it("context menu starts on an enabled action and supports keyboard navigation and return focus", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createTableContextMenu } =
+    await import("../src/editor/table-menu.ts");
+  const win = new Window();
+  t.after(() => win.happyDOM.close());
+  const origin = win.document.createElement("button");
+  win.document.body.append(origin);
+  origin.focus();
+  const actions: string[] = [];
+  const menu = createTableContextMenu({
+    document: win.document as unknown as Document,
+    parent: win.document.body as unknown as HTMLElement,
+    onAction: (action) => actions.push(action),
+  });
+  menu.open(100, 100, tableMenuItems(target({ rowIndex: 0 }), false));
+  const enabled = [
+    ...menu.element.querySelectorAll<HTMLButtonElement>(
+      "button:not(:disabled)",
+    ),
+  ];
+  assert.ok(win.document.activeElement === enabled[0]);
+  const press = (key: string) =>
+    win.document.activeElement?.dispatchEvent(
+      new win.KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  press("End");
+  assert.ok(win.document.activeElement === enabled.at(-1));
+  press("ArrowDown");
+  assert.ok(win.document.activeElement === enabled[0]);
+  press("ArrowDown");
+  assert.ok(win.document.activeElement === enabled[1]);
+  press("Escape");
+  assert.equal(menu.element.hidden, true);
+  assert.ok(win.document.activeElement === origin);
+  menu.open(100, 100, tableMenuItems(target(), false));
+  press("Tab");
+  assert.equal(menu.element.hidden, true);
+  assert.ok(win.document.activeElement === origin);
+  menu.destroy();
+  assert.deepEqual(actions, []);
+  await win.happyDOM.close();
+});

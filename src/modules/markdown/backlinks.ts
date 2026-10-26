@@ -14,6 +14,8 @@ import {
 } from "./note-library";
 import type { PortableNote } from "./note-links";
 import { createSidebarMotion } from "./sidebar-motion";
+import { registerSidebarLayout, bindSidebarDismiss } from "./sidebar-layout";
+import { mountSidebarResize } from "./sidebar-resize";
 import {
   getOutgoingNoteReferences,
   type NoteReference,
@@ -29,152 +31,79 @@ export function mountBacklinksSidebar(
   onLayoutChange?: () => void,
 ): () => void {
   let expanded: boolean | undefined;
-  let visible: boolean | undefined;
-  let narrow: boolean | undefined;
+  let visible = false;
+  let occupiedWidth = 0;
   let previousWidth: number | undefined;
+  let disposed = false;
   const motion = createSidebarMotion(sidebar, toggle, "right");
-  const resize = root.ownerDocument.createElement("div");
-  resize.className = "zmd-backlinks-resize";
-  resize.tabIndex = 0;
-  resize.setAttribute("role", "separator");
-  resize.setAttribute("aria-orientation", "vertical");
-  resize.setAttribute("aria-label", getString("note-references-resize"));
-  resize.title = getString("note-references-resize-help");
-  sidebar.prepend(resize);
-  const minWidth = 240;
-  const defaultWidth = 300;
-  let requestedWidth = defaultWidth;
-  let maxWidth = 440;
-  let actualWidth = defaultWidth;
-  let drag: { pointerID: number; x: number; width: number } | undefined;
-  const applyWidth = () => {
-    actualWidth = Math.max(minWidth, Math.min(maxWidth, requestedWidth));
-    sidebar.style.setProperty("--zmd-backlinks-width", `${actualWidth}px`);
-    resize.setAttribute("aria-valuemin", String(minWidth));
-    resize.setAttribute("aria-valuemax", String(maxWidth));
-    resize.setAttribute("aria-valuenow", String(Math.round(actualWidth)));
-  };
-  const setWidth = (width: number) => {
-    motion.finish();
-    requestedWidth = Math.max(minWidth, Math.min(maxWidth, width));
-    applyWidth();
-    onLayoutChange?.();
-  };
-  const finishDrag = () => {
-    if (!drag) return;
-    const pointerID = drag.pointerID;
-    drag = undefined;
-    sidebar.classList.remove("is-resizing");
-    if (resize.hasPointerCapture(pointerID))
-      resize.releasePointerCapture(pointerID);
-  };
-  const startDrag = (event: PointerEvent) => {
-    if (event.button !== 0 || narrow || !visible) return;
-    event.preventDefault();
-    motion.finish();
-    resize.focus();
-    drag = { pointerID: event.pointerId, x: event.clientX, width: actualWidth };
-    resize.setPointerCapture(event.pointerId);
-    sidebar.classList.add("is-resizing");
-  };
-  const moveDrag = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointerID) return;
-    setWidth(drag.width + drag.x - event.clientX);
-  };
-  const resizeKey = (event: KeyboardEvent) => {
-    if (narrow || !visible) return;
-    const step = event.shiftKey ? 40 : 16;
-    const width =
-      event.key === "ArrowLeft"
-        ? actualWidth + step
-        : event.key === "ArrowRight"
-          ? actualWidth - step
-          : event.key === "Home"
-            ? minWidth
-            : event.key === "End"
-              ? maxWidth
-              : event.key === "Enter"
-                ? defaultWidth
-                : undefined;
-    if (width === undefined) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setWidth(width);
-  };
-  const resetWidth = () => setWidth(defaultWidth);
-  resize.addEventListener("pointerdown", startDrag);
-  resize.addEventListener("pointermove", moveDrag);
-  resize.addEventListener("pointerup", finishDrag);
-  resize.addEventListener("pointercancel", finishDrag);
-  resize.addEventListener("lostpointercapture", finishDrag);
-  resize.addEventListener("keydown", resizeKey);
-  resize.addEventListener("dblclick", resetWidth);
-  root.ownerDocument.defaultView?.addEventListener("blur", finishDrag);
-  const sync = (animate = false) => {
-    const width = root.getBoundingClientRect().width || root.clientWidth;
-    const widthChanged = previousWidth !== width;
-    previousWidth = width;
-    const nextNarrow = width > 0 && width < 1000;
-    const nextVisible = expanded ?? !nextNarrow;
-    maxWidth = Math.max(
-      minWidth,
-      Math.min(440, Math.floor((width || 1280) * 0.45)),
-    );
-    applyWidth();
-    resize.hidden = nextNarrow || !nextVisible;
-    if (resize.hidden) finishDrag();
-    if (nextVisible === visible && nextNarrow === narrow) {
-      if (widthChanged) motion.finish();
-      return;
-    }
-    const wasDocked = visible === true && narrow === false;
-    visible = nextVisible;
-    narrow = nextNarrow;
-    motion.update(
-      visible,
-      () => {
-        sidebar.hidden = !nextVisible;
-        sidebar.classList.toggle("is-floating", nextNarrow);
-        toggle.setAttribute("aria-expanded", String(nextVisible));
-      },
-      animate,
-    );
-    if (wasDocked !== (visible && !narrow)) onLayoutChange?.();
-  };
+  const resize = mountSidebarResize(sidebar, {
+    edge: "right",
+    className: "zmd-backlinks-resize",
+    variable: "--zmd-backlinks-width",
+    min: 240,
+    max: 440,
+    initial: 300,
+    label: getString("note-references-resize"),
+    help: getString("note-references-resize-help"),
+    focusFallback: toggle,
+    beforeResize: () => motion.finish(),
+    onResize: () => layout.sync(),
+  });
+  const layout = registerSidebarLayout(root, "right", {
+    request(width) {
+      return { width: resize.width, visible: expanded ?? width >= 1000 };
+    },
+    apply(state, animate) {
+      if (previousWidth !== undefined && previousWidth !== state.rootWidth)
+        motion.finish();
+      previousWidth = state.rootWidth;
+      visible = state.visible;
+      resize.setEnabled(visible && !state.floating);
+      motion.update(
+        visible,
+        () => {
+          sidebar.hidden = !visible;
+          sidebar.classList.toggle("is-floating", state.floating);
+          toggle.setAttribute("aria-expanded", String(visible));
+        },
+        animate,
+      );
+      const nextOccupied = visible && !state.floating ? state.width : 0;
+      if (occupiedWidth !== nextOccupied) onLayoutChange?.();
+      occupiedWidth = nextOccupied;
+    },
+  });
   const onToggle = () => {
     expanded = !visible;
-    sync(true);
+    layout?.sync(true);
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
     expanded = false;
-    sync(true);
+    layout?.sync(true);
     toggle.focus();
     event.preventDefault();
+    event.stopPropagation();
   };
+  const unbindDismiss = bindSidebarDismiss(
+    sidebar,
+    toggle,
+    getString("modal-close"),
+    () => {
+      expanded = false;
+      layout.sync(true);
+    },
+  );
   if (sidebar.id) toggle.setAttribute("aria-controls", sidebar.id);
   toggle.addEventListener("click", onToggle);
   sidebar.addEventListener("keydown", onKeyDown);
-  const ResizeObserverCtor = root.ownerDocument.defaultView?.ResizeObserver;
-  const observer = ResizeObserverCtor
-    ? new ResizeObserverCtor(() => sync())
-    : null;
-  observer?.observe(root);
-  sync();
   return () => {
-    observer?.disconnect();
+    if (disposed) return;
+    disposed = true;
+    layout?.destroy();
     motion.destroy();
-    finishDrag();
-    resize.removeEventListener("pointerdown", startDrag);
-    resize.removeEventListener("pointermove", moveDrag);
-    resize.removeEventListener("pointerup", finishDrag);
-    resize.removeEventListener("pointercancel", finishDrag);
-    resize.removeEventListener("lostpointercapture", finishDrag);
-    resize.removeEventListener("keydown", resizeKey);
-    resize.removeEventListener("dblclick", resetWidth);
-    root.ownerDocument.defaultView?.removeEventListener("blur", finishDrag);
-    resize.remove();
-    sidebar.style.removeProperty("--zmd-backlinks-width");
+    resize.destroy();
+    unbindDismiss();
     toggle.removeEventListener("click", onToggle);
     sidebar.removeEventListener("keydown", onKeyDown);
   };
@@ -634,6 +563,25 @@ export function mountNoteBacklinks(
   }
 
   function clearRenderedEntries() {
+    const active = doc.activeElement as HTMLElement | null;
+    const groups = [
+      ...list.querySelectorAll<HTMLElement>("[data-reference-id]"),
+    ];
+    const group =
+      active && list.contains(active)
+        ? active.closest<HTMLElement>("[data-reference-id]")
+        : null;
+    const focus =
+      group && active
+        ? {
+            id: group.dataset.referenceId,
+            index: groups.indexOf(group),
+            position: active.dataset.position,
+            occurrence: [
+              ...group.querySelectorAll(".zmd-reference-occurrence"),
+            ].indexOf(active),
+          }
+        : undefined;
     for (const row of list.querySelectorAll<HTMLDetailsElement>(
       "details[data-reference-id]",
     )) {
@@ -642,10 +590,36 @@ export function mountNoteBacklinks(
       else expandedGroups.delete(key);
     }
     list.replaceChildren();
+    return focus;
+  }
+
+  function restoreReferenceFocus(
+    focus: ReturnType<typeof clearRenderedEntries>,
+  ) {
+    if (!focus) return;
+    const groups = [
+      ...list.querySelectorAll<HTMLElement>("[data-reference-id]"),
+    ];
+    const group =
+      groups.find((row) => row.dataset.referenceId === focus.id) ||
+      groups[Math.min(focus.index, groups.length - 1)];
+    const occurrences = group?.matches("details[open]")
+      ? [...group.querySelectorAll<HTMLElement>(".zmd-reference-occurrence")]
+      : [];
+    const occurrence =
+      focus.occurrence >= 0 && group?.dataset.referenceId === focus.id
+        ? occurrences.find((row) => row.dataset.position === focus.position) ||
+          occurrences[Math.min(focus.occurrence, occurrences.length - 1)]
+        : undefined;
+    const target =
+      occurrence ||
+      group?.querySelector<HTMLElement>(".zmd-reference-open") ||
+      (downloading ? summary : directionButtons.get(direction)!);
+    target.focus({ preventScroll: true });
   }
 
   function renderEntries() {
-    clearRenderedEntries();
+    const focus = clearRenderedEntries();
     const visible =
       direction === "incoming" || filter === "all"
         ? entries
@@ -747,6 +721,7 @@ export function mountNoteBacklinks(
       }
       list.append(row);
     }
+    restoreReferenceFocus(focus);
   }
 
   async function render() {
@@ -795,10 +770,11 @@ export function mountNoteBacklinks(
     } catch (error) {
       if (!disposed && current === generation) {
         entries = [];
-        clearRenderedEntries();
+        const focus = clearRenderedEntries();
         count.textContent = "";
         renderFailures([]);
         status.textContent = labels.failed;
+        restoreReferenceFocus(focus);
         Zotero.logError(
           error instanceof Error ? error : new Error(String(error)),
         );

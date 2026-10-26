@@ -59,25 +59,28 @@ function createLivePreviewStyles(
       fontSize: "1.75em",
       fontWeight: "700",
       lineHeight: "1.3",
-      paddingTop: "0.35em",
-      paddingBottom: "0.15em",
+      paddingTop: "0.65em",
+      paddingBottom: "0.35em",
     },
     ".cm-line.zmd-lp-h2": {
       fontSize: "1.4em",
       fontWeight: "650",
       lineHeight: "1.35",
-      paddingTop: "1.3em",
-      paddingBottom: "0.55em",
+      paddingTop: "0.8em",
+      paddingBottom: "0.35em",
     },
     ".cm-line.zmd-lp-h3": {
       fontSize: "1.2em",
       fontWeight: "600",
       lineHeight: "1.4",
-      paddingTop: "0.2em",
+      paddingTop: "0.65em",
+      paddingBottom: "0.25em",
     },
     ".cm-line.zmd-lp-h4, .cm-line.zmd-lp-h5, .cm-line.zmd-lp-h6": {
       fontSize: "1.05em",
       fontWeight: "600",
+      paddingTop: "0.5em",
+      paddingBottom: "0.2em",
     },
     // Lists keep the shared line inset (34px left): the marker's own min-width
     // provides the item indent, so bullets align with paragraph text.
@@ -159,8 +162,9 @@ function createLivePreviewStyles(
       lineHeight: "1.7",
       padding: "0.28em 0.65em",
       overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      fontVariantNumeric: "tabular-nums",
       backgroundColor: "var(--zmd-table-bg)",
       borderBottom: "1px solid var(--zmd-table-border)",
       borderRight: "1px solid var(--zmd-table-border)",
@@ -636,7 +640,9 @@ export function editorThemeExtension(
             backgroundColor: tokens.selection,
           },
         ".cm-activeLine": {
-          backgroundColor: tokens.activeLine,
+          backgroundColor: isLive
+            ? "rgba(255, 255, 255, 0.025)"
+            : tokens.activeLine,
         },
         ".cm-gutters": {
           backgroundColor: tokens.surface2,
@@ -732,7 +738,7 @@ export function editorThemeExtension(
         backgroundColor: tokens.selection,
       },
     ".cm-activeLine": {
-      backgroundColor: tokens.activeLine,
+      backgroundColor: isLive ? "rgba(37, 99, 235, 0.025)" : tokens.activeLine,
     },
     ".cm-gutters": {
       backgroundColor: tokens.surface2,

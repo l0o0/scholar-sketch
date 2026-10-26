@@ -925,3 +925,11 @@ feature-updates-reference-sidebar-title = 更清晰的双向引用侧栏
 feature-updates-reference-sidebar-body = 切换本文引用与引用本文，按文献、笔记、附件筛选；展开重复引用查看片段并跳转，拖动侧栏边缘调整宽度。
 feature-updates-reference-download-title = 在引用侧栏下载缺失笔记
 feature-updates-reference-download-body = 通过 Zotero 原生文件同步下载单个或全部缺失附件。未取回文件时显示具体处理建议，下载后自动更新引用结果。
+
+# Markdown editing and navigation
+status-details = 查看状态详情
+status-details-close = 关闭
+status-details-dismiss = 知道了
+markdown-outline-resize = 调整目录宽度
+markdown-outline-resize-help = 左右方向键调整宽度，Enter 恢复默认宽度，双击分隔线也可恢复
+tab-table-size-option = 插入 { $columns } 列 × { $rows } 行的表格

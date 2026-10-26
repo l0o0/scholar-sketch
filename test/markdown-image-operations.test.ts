@@ -5,6 +5,11 @@ import { runInNewContext } from "node:vm";
 import { Window } from "happy-dom";
 import * as ts from "typescript";
 import { createStatusFeedback } from "../src/modules/markdown/status-feedback.ts";
+import {
+  menuButtons,
+  focusMenuEntry,
+} from "../src/modules/markdown/more-menu.ts";
+import { moveMenuFocus } from "../src/utils/menu-keyboard.ts";
 
 const source = ts.createSourceFile(
   "tab.ts",
@@ -48,7 +53,9 @@ function fixture(t: TestContext) {
   const win = new Window();
   const element = win.document.createElement("span");
   win.document.body.append(element);
-  const feedback = createStatusFeedback(element as unknown as HTMLElement);
+  const feedback = createStatusFeedback(element as unknown as HTMLElement, {
+    labels: { details: "Details", close: "Close", dismiss: "Dismiss" },
+  });
   t.after(async () => {
     feedback.destroy();
     await win.happyDOM.close();
@@ -141,6 +148,9 @@ function fixture(t: TestContext) {
       },
       MORE_MENU_SECTIONS: [[{ action: "shortcuts" }, { action: "settings" }]],
       moreMenuLabel: (value: string) => value,
+      menuButtons,
+      focusMenuEntry,
+      moveMenuFocus,
     },
   ) as {
     importExternalImagesInSession(session: unknown): Promise<void>;
