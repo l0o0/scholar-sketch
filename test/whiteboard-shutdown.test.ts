@@ -28,6 +28,13 @@ const { outputText: shutdownCode } = transpileModule(shutdown.getText(source), {
   compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.ESNext },
 });
 
+const bootstrapCode = readFileSync(
+  new URL("../addon/bootstrap.js", import.meta.url),
+  "utf8",
+);
+const APP_SHUTDOWN = 2;
+const ADDON_DISABLE = 4;
+
 const operations = [
   "retainWorkspaceOnShutdown",
   "disposeFeatureUpdates",
@@ -98,29 +105,147 @@ function setup(
   const onShutdown = runInNewContext(
     `${shutdownCode}\nonShutdown;`,
     context,
-  ) as () => Promise<void>;
-  return { onShutdown, calls, menuWindows, reports, addon, Zotero, context };
+  ) as (isAppShutdown?: boolean) => Promise<void>;
+  Object.assign(addon, { hooks: { onShutdown } });
+  context.APP_SHUTDOWN = APP_SHUTDOWN;
+  const shutdownFromBootstrap = runInNewContext(
+    `${bootstrapCode.replaceAll("__addonInstance__", addon.data.config.addonInstance)}\nshutdown;`,
+    context,
+  ) as (data: object, reason: number) => Promise<void>;
+  context.chromeHandle = {
+    destruct: () => calls.push("chromeHandle.destruct"),
+  };
+  const bootstrapShutdown = (reason: number) =>
+    shutdownFromBootstrap({}, reason);
+  return {
+    onShutdown,
+    bootstrapShutdown,
+    calls,
+    menuWindows,
+    reports,
+    addon,
+    Zotero,
+    context,
+  };
 }
 
-test("shutdown waits for saving before unregistering and closing editors", async () => {
+test("ADDON_DISABLE waits for saving before unregistering editors and bootstrap chrome", async () => {
   let finish!: () => void;
   const saving = new Promise<void>((resolve) => {
     finish = resolve;
   });
   const fixture = setup({ flushAllWhiteboards: () => saving });
-  const closing = fixture.onShutdown();
-  await setImmediate();
-  assert.deepEqual(
-    fixture.calls,
-    operations.slice(0, operations.indexOf("flushAllWhiteboards") + 1),
-  );
-  assert.equal(fixture.Zotero.ScholarSketch, fixture.addon);
-  finish();
-  await closing;
-  assert.deepEqual(fixture.calls, [...operations, "unregisterAll"]);
+  const closing = fixture.bootstrapShutdown(ADDON_DISABLE);
+  try {
+    await setImmediate();
+    assert.deepEqual(
+      fixture.calls,
+      operations.slice(0, operations.indexOf("flushAllWhiteboards") + 1),
+    );
+    assert.equal(fixture.Zotero.ScholarSketch, fixture.addon);
+  } finally {
+    finish();
+    await closing;
+  }
+  assert.deepEqual(fixture.calls, [
+    ...operations,
+    "unregisterAll",
+    "chromeHandle.destruct",
+  ]);
+  assert.equal(fixture.context.chromeHandle, null);
   assert.deepEqual(fixture.reports, []);
   assert.equal(fixture.addon.data.alive, false);
   assert.equal(Object.hasOwn(fixture.Zotero, "ScholarSketch"), false);
+});
+
+test("APP_SHUTDOWN calls the hook and waits for index close without destructing chrome", async () => {
+  let finish!: () => void;
+  const indexClosing = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const fixture = setup({ closeNoteIndex: () => indexClosing });
+  const chromeHandle = fixture.context.chromeHandle;
+  let completed = false;
+  const closing = fixture.bootstrapShutdown(APP_SHUTDOWN).then(() => {
+    completed = true;
+  });
+  try {
+    await setImmediate();
+    assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
+    assert.equal(completed, false);
+    assert.equal(fixture.context.chromeHandle, chromeHandle);
+  } finally {
+    finish();
+    await closing;
+  }
+  assert.equal(completed, true);
+  assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
+  assert.equal(fixture.context.chromeHandle, chromeHandle);
+  assert.deepEqual(fixture.reports, []);
+});
+
+test("APP_SHUTDOWN still awaits index close when library cleanup fails", async () => {
+  const libraryError = new Error("library observer cleanup failed");
+  let finish!: () => void;
+  const indexClosing = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const fixture = setup({
+    clearNoteLibraries: () => {
+      throw libraryError;
+    },
+    closeNoteIndex: () => indexClosing,
+  });
+  let completed = false;
+  const closing = fixture.bootstrapShutdown(APP_SHUTDOWN).then(() => {
+    completed = true;
+  });
+  try {
+    await setImmediate();
+    assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
+    assert.equal(completed, false);
+    assert.deepEqual(fixture.reports, [
+      {
+        message: "Shutdown cleanup failed (noteLibraries)",
+        error: libraryError,
+      },
+    ]);
+  } finally {
+    finish();
+    await closing;
+  }
+  assert.equal(completed, true);
+  assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
+});
+
+test("APP_SHUTDOWN does not wait for tutorial or window snapshot responses", async () => {
+  let release!: () => void;
+  const unavailableWindow = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fixture = setup(
+    {
+      closeAllMarkdownWindows: () => unavailableWindow,
+      flushAllSessions: () => unavailableWindow,
+      flushAllWhiteboards: () => unavailableWindow,
+      closeAllWhiteboards: () => unavailableWindow,
+    },
+    { tutorial: unavailableWindow },
+  );
+  let completed = false;
+  const closing = fixture.bootstrapShutdown(APP_SHUTDOWN).then(() => {
+    completed = true;
+  });
+  try {
+    await setImmediate();
+    assert.equal(completed, true);
+    assert.deepEqual(fixture.calls, ["clearNoteLibraries", "closeNoteIndex"]);
+    assert.deepEqual(fixture.reports, []);
+  } finally {
+    // Release only for fixture cleanup if a regression entered the UI path.
+    release();
+    await closing;
+  }
 });
 
 test("snapshot and cleanup failures still remove every later registration and singleton", async () => {
@@ -192,9 +317,7 @@ test("toolkit and logging failures still permit bootstrap chrome cleanup", async
     },
     { logThrows: true },
   );
-  await fixture.onShutdown();
-  // bootstrap.js destructs its chromeHandle only after this await succeeds.
-  fixture.calls.push("chromeHandle.destruct");
+  await fixture.bootstrapShutdown(ADDON_DISABLE);
   assert.equal(fixture.calls.at(-1), "chromeHandle.destruct");
   assert.equal(fixture.reports.length, 2);
   assert.equal(fixture.addon.data.alive, false);
