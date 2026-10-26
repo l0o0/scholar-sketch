@@ -11,8 +11,6 @@ export type MoreMenuAction =
   | "rename"
   | "show-in-folder"
   | "find"
-  | "source"
-  | "mode"
   | "export"
   | "export-pdf"
   | "export-html"
@@ -52,8 +50,6 @@ export const MORE_MENU_SECTIONS: readonly (readonly MoreMenuItem[])[] = [
   [
     { action: "search-library" },
     { action: "find", shortcut: findShortcutLabel() },
-    { action: "source" },
-    { action: "mode", submenu: true },
   ],
   [{ action: "export", submenu: true }],
   [
@@ -85,6 +81,29 @@ export function modeLabelKey(
 
 export function modeLabel(mode: "live" | "source" | "preview"): string {
   return getString(modeLabelKey(mode));
+}
+
+/** Only direct entries participate in a menu's roving keyboard focus. */
+export function menuButtons(menu: HTMLElement): HTMLButtonElement[] {
+  return Array.from(menu.children).filter((element) => {
+    if (element.tagName.toLowerCase() !== "button") return false;
+    const button = element as HTMLButtonElement;
+    const style = menu.ownerDocument.defaultView?.getComputedStyle(button);
+    return (
+      !button.disabled &&
+      !button.hidden &&
+      style?.display !== "none" &&
+      style?.visibility !== "hidden"
+    );
+  }) as HTMLButtonElement[];
+}
+
+export function focusMenuEntry(menu: HTMLElement, entry?: HTMLButtonElement) {
+  const buttons = menuButtons(menu);
+  const target = entry && buttons.includes(entry) ? entry : buttons[0];
+  for (const button of menu.querySelectorAll<HTMLButtonElement>("button"))
+    button.tabIndex = button === target ? 0 : -1;
+  target?.focus();
 }
 
 export const EXPORT_OPTIONS = [

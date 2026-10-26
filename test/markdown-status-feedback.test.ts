@@ -9,8 +9,10 @@ function fixture() {
   element.className = "zotero-markdown-save-status is-saved";
   element.textContent = "Autosave on";
   win.document.body.append(element);
-  const feedback = createStatusFeedback(element as unknown as HTMLElement);
-  return { element, feedback };
+  const feedback = createStatusFeedback(element as unknown as HTMLElement, {
+    labels: { details: "Details", close: "Close", dismiss: "Dismiss" },
+  });
+  return { win, element, feedback };
 }
 
 test("status keeps a task visible through autosave and returns to the latest save state", (t) => {
@@ -67,7 +69,7 @@ test("old async work and old notice deadlines cannot replace a newer task", (t) 
   t.mock.timers.tick(5999);
   assert.equal(element.textContent, "2 downloaded, 1 failed");
   t.mock.timers.tick(1);
-  assert.equal(element.textContent, "Autosave on");
+  assert.equal(element.textContent, "2 downloaded, 1 failed");
   feedback.destroy();
 });
 
@@ -145,5 +147,85 @@ test("an expired result does not conceal a persistent save error", (t) => {
   assert.equal(element.textContent, "Save failed");
   feedback.setSave("saved", "Saved again");
   assert.equal(element.textContent, "Saved again");
+  feedback.destroy();
+});
+
+for (const result of ["warn", "fail"] as const) {
+  test(`task ${result} persists until another task starts`, (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const { element, feedback } = fixture();
+    feedback.begin("Working")[result]("Needs attention");
+    t.mock.timers.tick(60000);
+    feedback.setSave("saved", "Saved");
+    assert.equal(
+      element.querySelector(".zmd-status-text")?.textContent,
+      "Needs attention",
+    );
+    feedback.begin("Next task");
+    assert.equal(
+      element.querySelector(".zmd-status-text")?.textContent,
+      "Next task",
+    );
+    feedback.destroy();
+  });
+}
+
+test("status details are keyboard reachable, dismiss task failures but never save failures", () => {
+  const { win, element, feedback } = fixture();
+  feedback.begin("Checking").fail("A long error with recovery instructions");
+  const summary = element.querySelector<HTMLButtonElement>(
+    ".zmd-status-summary",
+  )!;
+  summary.click();
+  const panel = element.querySelector(".zmd-status-details")!;
+  assert.equal(
+    panel.querySelector("p")?.textContent,
+    "A long error with recovery instructions",
+  );
+  const buttons = panel.querySelectorAll<HTMLButtonElement>("button");
+  assert.equal(win.document.activeElement, buttons[1]);
+  buttons[1].dispatchEvent(
+    new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  assert.equal(win.document.activeElement, summary);
+  assert.equal(element.querySelector(".zmd-status-details"), null);
+  summary.click();
+  element
+    .querySelector<HTMLButtonElement>(".zmd-status-details button")!
+    .click();
+  assert.equal(
+    element.querySelector(".zmd-status-text")?.textContent,
+    "Autosave on",
+  );
+  feedback.setSave("error", "Save failed");
+  summary.click();
+  assert.equal(
+    element.querySelector<HTMLButtonElement>(".zmd-status-details button")!
+      .hidden,
+    true,
+  );
+  feedback.destroy();
+  summary.click();
+  assert.equal(element.querySelector(".zmd-status-details"), null);
+});
+
+test("status button names the current message and closes details when focus returns to the iframe", () => {
+  const { win, element, feedback } = fixture();
+  feedback.begin("Downloading").fail("Remote image unavailable");
+  const summary = element.querySelector<HTMLButtonElement>(
+    ".zmd-status-summary",
+  )!;
+  assert.equal(
+    summary.getAttribute("aria-label"),
+    "Details: Remote image unavailable",
+  );
+  summary.click();
+  assert.ok(element.querySelector(".zmd-status-details"));
+  win.dispatchEvent(new win.Event("blur"));
+  assert.equal(element.querySelector(".zmd-status-details"), null);
+  assert.equal(
+    element.querySelector(".zmd-status-text")?.textContent,
+    "Remote image unavailable",
+  );
   feedback.destroy();
 });

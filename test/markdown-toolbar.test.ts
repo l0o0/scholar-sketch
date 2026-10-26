@@ -11,7 +11,11 @@ import {
 import { iconH2, iconH3 } from "../src/modules/markdown/icons.ts";
 import * as icons from "../src/modules/markdown/icons.ts";
 import * as shortcuts from "../src/modules/markdown/shortcut.ts";
-import { modeToggleState } from "../src/modules/markdown/tab.ts";
+import {
+  bindTablePicker,
+  toggleTablePicker,
+} from "../src/modules/markdown/tab.ts";
+import { mountModeMenu } from "../src/modules/markdown/mode-menu.ts";
 import {
   responsiveToolbarSizingCSS,
   toolbarWidthAlignmentCSS,
@@ -89,23 +93,6 @@ describe("toolbar insert templates", () => {
     assert.match(css, /border-radius: 12px/);
   });
 
-  it("switches the toolbar icon and target with the current editor mode", () => {
-    const live = modeToggleState("live");
-    assert.equal(live.target, "source");
-    assert.match(live.icon, /content\/icons\/markdown\/source\.svg/);
-    // Localized labels resolve at runtime; without a Zotero window the
-    // prefixed Fluent id is returned.
-    assert.equal(live.label, "bamboo-tab-mode-toggle-source");
-
-    const source = modeToggleState("source");
-    assert.equal(source.target, "live");
-    assert.match(source.icon, /content\/icons\/markdown\/live\.svg/);
-    assert.equal(source.label, "bamboo-tab-mode-toggle-live");
-
-    const preview = modeToggleState("preview");
-    assert.equal(preview.target, "live");
-  });
-
   it("declares a mode toggle before the more menu", () => {
     const source = readFileSync(
       new URL("../src/modules/markdown/tab.ts", import.meta.url),
@@ -113,11 +100,11 @@ describe("toolbar insert templates", () => {
     );
     assert.match(source, /zotero-markdown-mode-toggle/);
     assert.match(source, /data-action.*mode-toggle/);
-    assert.match(source, /aria-pressed/);
+    assert.match(source, /mountModeMenu\(/);
     assert.match(source, /updateModeToggle\(session\)/);
   });
 
-  it("keeps the actual toolbar's trailing controls together and icon-only in all modes and sidebar states", async () => {
+  it("keeps current mode text bounded and trailing sidebar controls icon-only", async () => {
     const source = ts.createSourceFile(
       "tab.ts",
       readFileSync(
@@ -193,6 +180,23 @@ describe("toolbar insert templates", () => {
         window.document.body.append(root);
         const inner = root.querySelector(".zotero-markdown-toolbar-inner")!;
         const actions = root.querySelector(".zotero-markdown-toolbar-actions")!;
+        const modeLabels = {
+          live: "实时预览",
+          source: "Source",
+          preview: "Read-only preview",
+        };
+        const modeMenu = mountModeMenu({
+          root: root as unknown as HTMLElement,
+          button: root.querySelector<HTMLButtonElement>(
+            '[data-action="mode-toggle"]',
+          )! as unknown as HTMLButtonElement,
+          mode: "live",
+          labels: modeLabels,
+          menuLabel: "Mode",
+          onSelect() {},
+          closeOtherMenus() {},
+          isComposing: () => false,
+        });
         for (const [action, shortcut] of [
           [
             "h1",
@@ -236,8 +240,9 @@ describe("toolbar insert templates", () => {
           root.querySelector(".zotero-markdown-toolbar-spacer"),
           null,
         );
-        for (const mode of ["live", "source", "preview"])
+        for (const mode of ["live", "source", "preview"] as const)
           for (const collapsed of [false, true]) {
+            modeMenu.sync(mode);
             root.className = `zotero-markdown-root mode-${mode}${collapsed ? " is-outline-collapsed" : ""}`;
             assert.equal(window.getComputedStyle(actions).flexWrap, "nowrap");
             assert.equal(
@@ -245,6 +250,26 @@ describe("toolbar insert templates", () => {
               "auto",
             );
             for (const button of actions.children) {
+              if (button.classList.contains("zotero-markdown-mode-toggle")) {
+                assert.equal(
+                  button.querySelector(".zotero-markdown-mode-label")!
+                    .textContent,
+                  modeLabels[mode],
+                );
+                assert.equal(
+                  button.getAttribute("aria-label"),
+                  modeLabels[mode],
+                );
+                assert.equal(window.getComputedStyle(button).flexShrink, "1");
+                assert.equal(window.getComputedStyle(button).maxWidth, "144px");
+                assert.equal(
+                  window.getComputedStyle(
+                    button.querySelector(".zotero-markdown-mode-label")!,
+                  ).textOverflow,
+                  "ellipsis",
+                );
+                continue;
+              }
               button.setAttribute("aria-expanded", String(!collapsed));
               assert.equal(
                 button.textContent,
@@ -259,6 +284,97 @@ describe("toolbar insert templates", () => {
               );
             }
           }
+        // Drive the real picker binding on the production toolbar DOM.
+        const session: any = {
+          view: { root },
+          editor: { isComposing: () => false },
+        };
+        bindTablePicker(session);
+        const picker = root.querySelector<HTMLElement>(
+          ".zotero-markdown-table-picker",
+        )!;
+        const tableTrigger = root.querySelector<HTMLElement>(
+          '[data-action="table"]',
+        )!;
+        const key = (value: string, ctrlKey = false) => {
+          const event = new window.KeyboardEvent("keydown", {
+            key: value,
+            ctrlKey,
+            bubbles: true,
+            cancelable: true,
+          });
+          window.document.activeElement!.dispatchEvent(event);
+          return event;
+        };
+        const selectedCell = () => {
+          const active = window.document.activeElement as HTMLElement;
+          return [
+            Number(active.dataset.tableRows),
+            Number(active.dataset.tableColumns),
+          ];
+        };
+        toggleTablePicker(session);
+        assert.deepEqual(selectedCell(), [3, 3]);
+        assert.equal(picker.querySelectorAll('[tabindex="0"]').length, 1);
+        key("ArrowUp");
+        key("ArrowRight");
+        assert.deepEqual(selectedCell(), [2, 4]);
+        assert.equal(
+          picker.querySelector(".zotero-markdown-table-size")!.textContent,
+          "4 × 2",
+        );
+        assert.equal(picker.querySelectorAll(".is-selected").length, 8);
+        key("Home");
+        assert.deepEqual(selectedCell(), [2, 1]);
+        key("ArrowLeft");
+        assert.deepEqual(selectedCell(), [2, 1]);
+        key("End");
+        assert.deepEqual(selectedCell(), [2, 8]);
+        key("End", true);
+        key("ArrowDown");
+        assert.deepEqual(selectedCell(), [8, 8]);
+        key("Home", true);
+        assert.deepEqual(selectedCell(), [1, 1]);
+        assert.equal(picker.querySelectorAll('[tabindex="0"]').length, 1);
+        assert.equal(key("Escape").defaultPrevented, true);
+        assert.equal(picker.hidden, true);
+        assert.equal(window.document.activeElement, tableTrigger);
+        toggleTablePicker(session);
+        tableTrigger.focus();
+        toggleTablePicker(session);
+        assert.equal(
+          picker.hidden,
+          true,
+          "pointer focus before toggle must not reopen the picker",
+        );
+        toggleTablePicker(session);
+        assert.equal(key("Tab").defaultPrevented, false);
+        assert.equal(picker.hidden, true);
+        assert.equal(window.document.activeElement, tableTrigger);
+        toggleTablePicker(session);
+        root.querySelector<HTMLElement>('[data-action="more"]')!.focus();
+        assert.equal(
+          picker.hidden,
+          true,
+          "focus entering another control closes the picker",
+        );
+        toggleTablePicker(session);
+        window.dispatchEvent(new window.Event("blur"));
+        assert.equal(picker.hidden, true);
+        bindTablePicker(session);
+        toggleTablePicker(session);
+        key("ArrowDown");
+        assert.deepEqual(
+          selectedCell(),
+          [4, 3],
+          "rebinding must remove previous key handlers",
+        );
+        session.unbindTablePicker();
+        picker.hidden = false;
+        picker.querySelector<HTMLElement>('[tabindex="0"]')!.focus();
+        key("ArrowDown");
+        assert.deepEqual(selectedCell(), [4, 3]);
+        modeMenu.destroy();
         root.remove();
       }
     } finally {

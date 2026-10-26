@@ -1,3 +1,4 @@
+import { moveMenuFocus } from "../utils/menu-keyboard";
 import type {
   TableAction,
   TableTarget,
@@ -126,18 +127,42 @@ export function createTableContextMenu(
   menu.className = "zmd-table-context-menu";
   menu.hidden = true;
   menu.setAttribute("role", "menu");
+  let returnFocus: HTMLElement | null = null;
+  let positionFrame: number | undefined;
   const onPointerDown = (event: PointerEvent) => {
     if (!menu.contains(event.target as Node)) close();
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") close();
+    if (menu.hidden) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      const origin = returnFocus;
+      close();
+      if (origin?.isConnected) origin.focus();
+    } else if (menu.contains(options.document.activeElement)) {
+      moveMenuFocus(event, [
+        ...menu.querySelectorAll<HTMLElement>("button:not(:disabled)"),
+      ]);
+      if (event.key === "Tab") {
+        const origin = returnFocus;
+        close();
+        // Let the browser continue Tab traversal from the editor, not a removed menu item.
+        if (origin?.isConnected) origin.focus();
+      }
+    }
   };
   const close = () => {
+    if (positionFrame !== undefined)
+      options.document.defaultView?.cancelAnimationFrame(positionFrame);
+    positionFrame = undefined;
     menu.hidden = true;
     menu.replaceChildren();
   };
   const open = (x: number, y: number, groups: TableMenuGroups) => {
-    menu.replaceChildren();
+    if (menu.hidden)
+      returnFocus = options.document.activeElement as HTMLElement | null;
+    close();
     groups.forEach((group, groupIndex) => {
       if (groupIndex > 0) {
         const separator = options.document.createElement("div");
@@ -150,14 +175,15 @@ export function createTableContextMenu(
         button.className = "zmd-table-context-item";
         button.textContent = item.label;
         button.disabled = item.disabled;
+        button.tabIndex = -1;
         button.setAttribute("role", "menuitem");
         if (item.checked) {
           button.setAttribute("aria-checked", "true");
           button.classList.add("is-checked");
         }
         button.addEventListener("click", () => {
-          if (!item.disabled) options.onAction(item.action);
           close();
+          if (!item.disabled) options.onAction(item.action);
         });
         menu.appendChild(button);
       }
@@ -176,9 +202,19 @@ export function createTableContextMenu(
       menu.style.top = `${Math.max(4, Math.min(y, maxY))}px`;
     };
     if (options.document.defaultView) {
-      options.document.defaultView.requestAnimationFrame(position);
+      positionFrame = options.document.defaultView.requestAnimationFrame(() => {
+        positionFrame = undefined;
+        position();
+      });
     } else {
       position();
+    }
+    const first = menu.querySelector<HTMLButtonElement>(
+      "button:not(:disabled)",
+    );
+    if (first) {
+      first.tabIndex = 0;
+      first.focus();
     }
   };
   options.parent.appendChild(menu);

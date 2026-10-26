@@ -15,7 +15,7 @@ describe("more menu", () => {
       MORE_MENU_SECTIONS.map((section) => section.map((item) => item.action)),
       [
         ["document-info", "history", "rename", "show-in-folder", "open-window"],
-        ["search-library", "find", "source", "mode"],
+        ["search-library", "find"],
         ["export"],
         [
           "import-external-images",
@@ -65,46 +65,98 @@ it("positions flyouts to the right or flips left within the available surface", 
   );
 });
 
-it("opens one flyout at a time and returns focus on Escape", async () => {
+it("focuses eligible entries, navigates export and returns to its trigger", async (t) => {
   const { Window } = await import("happy-dom");
-  const { mountMoreMenu } = await import("../src/modules/markdown/tab.ts");
+  const { mountMoreMenu, toggleMoreMenu } =
+    await import("../src/modules/markdown/tab.ts");
   const window = new Window();
   window.document.body.innerHTML =
-    '<main><button data-action="more"></button><div class="zotero-markdown-more-menu"></div></main>';
+    '<main><button data-action="more"></button><div class="zotero-markdown-more-menu" hidden></div><button class="after"></button></main>';
   const root = window.document.querySelector("main")!;
   const session: any = { view: { root }, mode: "live", surface: "tab" };
   mountMoreMenu(session);
-  const mode = root.querySelector<HTMLButtonElement>(
-    '[data-menu-action="mode"]',
+  t.after(() => {
+    session.closeMoreMenu();
+    window.close();
+  });
+  const menu = root.querySelector<HTMLElement>(".zotero-markdown-more-menu")!;
+  const trigger = root.querySelector<HTMLButtonElement>(
+    '[data-action="more"]',
   )!;
+  const action = (name: string) =>
+    menu.querySelector<HTMLButtonElement>(`[data-menu-action="${name}"]`)!;
+  const key = (name: string, shiftKey = false) => {
+    const event = new window.KeyboardEvent("keydown", {
+      key: name,
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.document.activeElement!.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(action("mode"), null);
+  assert.equal(action("source"), null);
+  action("save").hidden = true;
+  action("redo").style.display = "none";
+  action("history").disabled = true;
+  toggleMoreMenu(session);
+  assert.equal(window.document.activeElement, action("document-info"));
+  key("ArrowDown");
+  assert.equal(window.document.activeElement, action("rename"));
+  key("End");
+  assert.equal(window.document.activeElement, action("settings"));
+  key("ArrowDown");
+  assert.equal(window.document.activeElement, action("document-info"));
+  key("Home");
+  assert.equal(menu.querySelectorAll('[tabindex="0"]').length, 1);
   const exporting = root.querySelector<HTMLButtonElement>(
     '[data-menu-action="export"]',
-  )!;
-  const modeMenu = root.querySelector<HTMLElement>(
-    ".zotero-markdown-mode-submenu",
   )!;
   const exportMenu = root.querySelector<HTMLElement>(
     ".zotero-markdown-export-submenu",
   )!;
-  mode.click();
-  assert.equal(modeMenu.hidden, false);
-  assert.equal(
-    modeMenu.querySelector('[data-mode="live"]')?.getAttribute("aria-checked"),
-    "true",
-  );
-  exporting.click();
-  assert.equal(modeMenu.hidden, true);
+  exporting.focus();
+  key("ArrowRight");
   assert.equal(exportMenu.hidden, false);
-  exportMenu.querySelector<HTMLButtonElement>("button")!.focus();
-  window.document.dispatchEvent(
-    new window.KeyboardEvent("keydown", { key: "Escape", cancelable: true }),
-  );
+  assert.equal(window.document.activeElement, action("export-pdf"));
+  key("End");
+  assert.equal(window.document.activeElement, action("export-markdown"));
+  assert.equal(menu.querySelectorAll('[tabindex="0"]').length, 1);
+  assert.equal(key("Escape").defaultPrevented, true);
   assert.equal(exportMenu.hidden, true);
   assert.equal(window.document.activeElement, exporting);
+  assert.equal(menu.hidden, false);
+  key("Escape");
+  assert.equal(menu.hidden, true);
+  assert.equal(window.document.activeElement, trigger);
+  toggleMoreMenu(session);
+  trigger.focus();
+  toggleMoreMenu(session);
   assert.equal(
-    root.querySelector<HTMLElement>(".zotero-markdown-more-menu")!.hidden,
-    false,
+    menu.hidden,
+    true,
+    "pointer focus before toggle must not reopen the menu",
   );
+  toggleMoreMenu(session);
+  assert.equal(key("Tab", true).defaultPrevented, false);
+  assert.equal(menu.hidden, true);
+  assert.equal(window.document.activeElement, trigger);
+  toggleMoreMenu(session);
+  root.querySelector<HTMLButtonElement>(".after")!.focus();
+  assert.equal(menu.hidden, true);
+  toggleMoreMenu(session);
+  window.dispatchEvent(new window.Event("blur"));
+  assert.equal(menu.hidden, true);
+  // Remounting must not leave a second key handler advancing two entries.
+  mountMoreMenu(session);
+  toggleMoreMenu(session);
+  assert.equal(window.document.activeElement, action("save"));
+  key("ArrowDown");
+  assert.equal(window.document.activeElement, action("redo"));
   session.closeMoreMenu();
-  window.close();
+  menu.hidden = false;
+  action("save").focus();
+  key("ArrowDown");
+  assert.equal(window.document.activeElement, action("save"));
 });

@@ -33,7 +33,10 @@ const iconPaths: Record<FeedbackState, string> = {
 /** A task owns its notice until completion; save failures always remain visible. */
 export function createStatusFeedback(
   element: HTMLElement,
-  options: { durationMs?: number } = {},
+  options: {
+    durationMs?: number;
+    labels: { details: string; close: string; dismiss: string };
+  },
 ): StatusFeedback {
   const doc = element.ownerDocument;
   const icon = doc.createElementNS(svgNamespace, "svg");
@@ -53,6 +56,35 @@ export function createStatusFeedback(
   const label = doc.createElementNS(htmlNamespace, "span");
   label.className = "zmd-status-text";
 
+  const summary = doc.createElementNS(
+    htmlNamespace,
+    "button",
+  ) as HTMLButtonElement;
+  summary.type = "button";
+  summary.className = "zmd-status-summary";
+  summary.setAttribute("aria-label", options.labels.details);
+  summary.setAttribute("aria-expanded", "false");
+  summary.append(icon, label);
+  const panel = doc.createElementNS(htmlNamespace, "div");
+  panel.className = "zmd-status-details";
+  panel.hidden = true;
+  const detail = doc.createElementNS(htmlNamespace, "p");
+  const actions = doc.createElementNS(htmlNamespace, "div");
+  const closeButton = doc.createElementNS(
+    htmlNamespace,
+    "button",
+  ) as HTMLButtonElement;
+  closeButton.type = "button";
+  closeButton.textContent = options.labels.close;
+  const dismissButton = doc.createElementNS(
+    htmlNamespace,
+    "button",
+  ) as HTMLButtonElement;
+  dismissButton.type = "button";
+  dismissButton.textContent = options.labels.dismiss;
+  actions.append(dismissButton, closeButton);
+  panel.append(detail, actions);
+
   let saved: Message = {
     state: element.classList.contains("is-error")
       ? "error"
@@ -71,7 +103,50 @@ export function createStatusFeedback(
   element.setAttribute("role", "status");
   element.setAttribute("aria-live", "polite");
   element.setAttribute("aria-atomic", "true");
-  element.replaceChildren(icon, label);
+  element.replaceChildren(summary);
+
+  function closeDetails(restoreFocus = false) {
+    panel.hidden = true;
+    panel.remove();
+    summary.setAttribute("aria-expanded", "false");
+    if (restoreFocus) summary.focus();
+  }
+  const onSummaryClick = () => {
+    if (!panel.hidden) return closeDetails(true);
+    element.append(panel);
+    panel.hidden = false;
+    summary.setAttribute("aria-expanded", "true");
+    render();
+    closeButton.focus();
+  };
+  const onClose = () => closeDetails(true);
+  const onDismiss = () => {
+    if (saved.state === "error") return;
+    generation++;
+    clearExpiry();
+    notice = undefined;
+    closeDetails(true);
+    render();
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && !panel.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeDetails(true);
+    }
+  };
+  const onOutsideFocus = (event: Event) => {
+    if (!panel.hidden && !element.contains(event.target as Node))
+      closeDetails();
+  };
+  summary.addEventListener("click", onSummaryClick);
+  closeButton.addEventListener("click", onClose);
+  dismissButton.addEventListener("click", onDismiss);
+  element.addEventListener("keydown", onKeyDown);
+  doc.addEventListener("pointerdown", onOutsideFocus);
+  doc.addEventListener("focusin", onOutsideFocus);
+  const onWindowBlur = () => closeDetails();
+  doc.defaultView?.addEventListener("blur", onWindowBlur);
 
   function clearExpiry() {
     if (expiry !== undefined) {
@@ -89,7 +164,17 @@ export function createStatusFeedback(
     element.dataset.statusState = current.state;
     element.dataset.statusSource = current === saved ? "save" : "task";
     element.title = current.text;
+    summary.setAttribute(
+      "aria-label",
+      `${options.labels.details}: ${current.text}`,
+    );
     path.setAttribute("d", iconPaths[current.state]);
+    if (!panel.hidden) {
+      detail.textContent = current.text;
+      dismissButton.hidden =
+        current !== notice ||
+        (current.state !== "warning" && current.state !== "error");
+    }
     // Avoid re-announcing an unchanged task when background saves complete.
     if (label.textContent !== current.text) label.textContent = current.text;
   }
@@ -108,6 +193,7 @@ export function createStatusFeedback(
       if (!destroyed) {
         clearExpiry();
         notice = { state: "busy", text };
+        closeDetails();
         render();
       }
 
@@ -120,6 +206,7 @@ export function createStatusFeedback(
         completed = true;
         notice = { state, text };
         render();
+        if (state !== "success") return;
         expiry = setTimeout(() => {
           expiry = undefined;
           if (!isCurrent()) return;
@@ -151,6 +238,14 @@ export function createStatusFeedback(
       generation++;
       clearExpiry();
       notice = undefined;
+      closeDetails();
+      summary.removeEventListener("click", onSummaryClick);
+      closeButton.removeEventListener("click", onClose);
+      dismissButton.removeEventListener("click", onDismiss);
+      element.removeEventListener("keydown", onKeyDown);
+      doc.removeEventListener("pointerdown", onOutsideFocus);
+      doc.removeEventListener("focusin", onOutsideFocus);
+      doc.defaultView?.removeEventListener("blur", onWindowBlur);
       element.removeAttribute("aria-live");
     },
   };
