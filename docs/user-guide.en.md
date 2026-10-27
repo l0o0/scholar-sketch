@@ -417,6 +417,8 @@ Local history contains versions from before saves, drafts preserved during sync,
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
 
+Under **Settings → Markdown**, turn off **Show top toolbar** to hide the editing toolbar in note tabs and standalone windows. Saving applies the choice immediately, including to notes opened later. Click **Show toolbar** in the bottom bar to restore it. Editing shortcuts remain available.
+
 Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
 ![Markdown settings for opening attachments, YAML frontmatter, font size, font, and background color](screenshots/settings-markdown.webp)

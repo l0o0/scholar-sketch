@@ -12,9 +12,12 @@ import { iconH2, iconH3 } from "../src/modules/markdown/icons.ts";
 import * as icons from "../src/modules/markdown/icons.ts";
 import * as shortcuts from "../src/modules/markdown/shortcut.ts";
 import {
+  applyMarkdownToolbarPreferences,
   bindTablePicker,
   toggleTablePicker,
 } from "../src/modules/markdown/tab.ts";
+import { sessionRegistry } from "../src/modules/markdown/session-registry.ts";
+import { setPref } from "../src/utils/prefs.ts";
 import { mountModeMenu } from "../src/modules/markdown/mode-menu.ts";
 import {
   responsiveToolbarSizingCSS,
@@ -23,6 +26,116 @@ import {
 } from "../src/modules/markdown/styles.ts";
 
 describe("toolbar insert templates", () => {
+  it("applies toolbar visibility across open tabs and windows without changing mode", async (t) => {
+    const stored = new Map<string, unknown>();
+    const previous = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      addon: { data: { config: { addonRef: "bamboo" } } },
+      Zotero: {
+        Prefs: {
+          get: (key: string) => stored.get(key),
+          set: (key: string, value: unknown) => stored.set(key, value),
+        },
+      },
+    })) {
+      previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, value });
+    }
+    const fixtures: {
+      win: Window;
+      session: any;
+      root: ReturnType<Window["document"]["createElement"]>;
+    }[] = [];
+    t.after(async () => {
+      for (const { session, win } of fixtures) {
+        sessionRegistry.unregister(session.tabID);
+        await win.happyDOM.close();
+      }
+      for (const [key, descriptor] of previous) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    });
+    for (const [surface, mode] of [
+      ["tab", "live"],
+      ["window", "preview"],
+    ] as const) {
+      const win = new Window();
+      const root = win.document.createElement("main");
+      root.className = `zotero-markdown-root mode-${mode}`;
+      root.innerHTML = `
+        <div class="zotero-markdown-toolbar">
+          <button data-action="more" aria-expanded="true">More</button>
+          <div class="zotero-markdown-more-menu">
+            <button aria-haspopup="menu" aria-expanded="true">Export</button>
+            <div class="zotero-markdown-export-submenu"></div>
+          </div>
+        </div>
+        <div class="zotero-markdown-statusbar">
+          <button class="zotero-markdown-toolbar-restore" data-action="show-toolbar" hidden>Show toolbar</button>
+        </div>`;
+      win.document.body.append(root);
+      injectMarkdownStyles(win as unknown as globalThis.Window);
+      const session: any = {
+        tabID: `toolbar-visibility-${surface}`,
+        surface,
+        mode,
+        win,
+        itemID: fixtures.length + 1,
+        view: { root },
+        editor: { view: { requestMeasure() {} } },
+      };
+      fixtures.push({ win, root, session });
+      sessionRegistry.register(session);
+    }
+    const toolbar = (f: (typeof fixtures)[number]) =>
+      f.root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
+    const restore = (f: (typeof fixtures)[number]) =>
+      f.root.querySelector<HTMLButtonElement>('[data-action="show-toolbar"]')!;
+    const more = (f: (typeof fixtures)[number]) =>
+      f.root.querySelector<HTMLButtonElement>('[data-action="more"]')!;
+    applyMarkdownToolbarPreferences();
+    for (const f of fixtures) {
+      assert.notEqual(
+        f.win.getComputedStyle(toolbar(f)).display,
+        "none",
+        "an unset preference keeps existing toolbars visible",
+      );
+      assert.equal(f.win.getComputedStyle(restore(f)).display, "none");
+      more(f).focus();
+    }
+    setPref("markdownToolbarVisible", false);
+    applyMarkdownToolbarPreferences();
+    for (const f of fixtures) {
+      assert.equal(f.win.getComputedStyle(toolbar(f)).display, "none");
+      assert.notEqual(f.win.getComputedStyle(restore(f)).display, "none");
+      assert.equal(f.win.document.activeElement, restore(f));
+      for (const selector of [
+        ".zotero-markdown-more-menu",
+        ".zotero-markdown-export-submenu",
+      ])
+        assert.equal(f.root.querySelector<HTMLElement>(selector)!.hidden, true);
+      assert.equal(more(f).getAttribute("aria-expanded"), "false");
+      assert.equal(
+        f.root
+          .querySelector('[aria-haspopup="menu"]')!
+          .getAttribute("aria-expanded"),
+        "false",
+      );
+    }
+    setPref("markdownToolbarVisible", true);
+    applyMarkdownToolbarPreferences();
+    for (const f of fixtures) {
+      assert.notEqual(f.win.getComputedStyle(toolbar(f)).display, "none");
+      assert.equal(f.win.getComputedStyle(restore(f)).display, "none");
+      assert.equal(f.win.document.activeElement, more(f));
+    }
+    assert.deepEqual(
+      fixtures.map((f) => f.session.mode),
+      ["live", "preview"],
+    );
+  });
+
   it("inserts a default 3 by 3 editable table template", () => {
     assert.deepEqual(tableInsertTemplate(), {
       text:

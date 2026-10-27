@@ -69,6 +69,7 @@ export interface SettingsModalData {
   theme: AppearanceTheme;
   markdownFontFamily: FontFamilyID;
   markdownBackgroundColor: string;
+  markdownToolbarVisible: boolean;
   markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
   whiteboardColorScheme: ColorSchemeID;
@@ -142,6 +143,7 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(getPref("theme")),
     markdownFontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
     markdownBackgroundColor: normalizeColor(getPref("markdownBackgroundColor")),
+    markdownToolbarVisible: getPref("markdownToolbarVisible") !== false,
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       getPref("markdownSlashSearchLanguage"),
     ),
@@ -162,6 +164,7 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(prefs.theme),
     markdownFontFamily: normalizeFontFamily(prefs.markdownFontFamily),
     markdownBackgroundColor: normalizeColor(prefs.markdownBackgroundColor),
+    markdownToolbarVisible: prefs.markdownToolbarVisible !== false,
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       prefs.markdownSlashSearchLanguage,
     ),
@@ -351,6 +354,9 @@ export function createMarkdownModalController(
       markdownBackgroundColor:
         payload.markdownBackgroundColor ??
         normalizeColor(getPref("markdownBackgroundColor")),
+      markdownToolbarVisible:
+        payload.markdownToolbarVisible ??
+        getPref("markdownToolbarVisible") !== false,
       markdownSlashSearchLanguage:
         payload.markdownSlashSearchLanguage ??
         normalizeSlashSearchLanguage(getPref("markdownSlashSearchLanguage")),
@@ -449,7 +455,10 @@ export function createMarkdownModalController(
 
     const renderEditor = () => {
       const heading = renderHeading(getString("settings-page-editor"));
-      const checkbox = (name: "enable" | "frontmatter", labelText: string) => {
+      const checkbox = (
+        name: "enable" | "frontmatter" | "markdownToolbarVisible",
+        labelText: string,
+      ) => {
         const label = doc.createElement("label");
         label.className = "zotero-markdown-settings-check-row";
         const input = doc.createElement("input");
@@ -464,6 +473,18 @@ export function createMarkdownModalController(
       };
       checkbox("enable", getString("settings-enable-editor"));
       checkbox("frontmatter", getString("settings-frontmatter"));
+      checkbox(
+        "markdownToolbarVisible",
+        getString("settings-markdown-toolbar"),
+      );
+      pageContent.appendChild(
+        textElement(
+          doc,
+          "p",
+          getString("settings-markdown-toolbar-description"),
+          "zotero-markdown-settings-description",
+        ),
+      );
       const row = doc.createElement("label");
       row.className = "zotero-markdown-settings-row";
       row.appendChild(
@@ -1359,6 +1380,7 @@ export function applySettings(settings: SettingsModalData) {
   setPref("theme", values.theme);
   setPref("markdownFontFamily", values.markdownFontFamily);
   setPref("markdownBackgroundColor", values.markdownBackgroundColor);
+  setPref("markdownToolbarVisible", values.markdownToolbarVisible);
   setPref("markdownSlashSearchLanguage", values.markdownSlashSearchLanguage);
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);
   setPref("whiteboardColorScheme", values.whiteboardColorScheme);

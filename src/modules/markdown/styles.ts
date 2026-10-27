@@ -1309,6 +1309,9 @@ ${responsiveToolbarSizingCSS()}
   width: 100%;
 }
 
+.zotero-markdown-toolbar[hidden],
+button.zotero-markdown-toolbar-restore[hidden] { display: none; }
+
 ${toolbarWidthAlignmentCSS()}
 
 .zotero-markdown-fmt,
@@ -1934,7 +1937,8 @@ ${previewDocumentCss()}
   text-overflow: ellipsis;
 }
 
-button.zmd-status-summary {
+button.zmd-status-summary,
+button.zotero-markdown-toolbar-restore {
   appearance: none;
   height: auto;
   min-height: 0;
@@ -1955,8 +1959,15 @@ button.zmd-status-summary {
   text-align: start;
   cursor: pointer;
 }
-button.zmd-status-summary:hover { background: var(--zmd-toolbar-hover-bg); }
-button.zmd-status-summary:focus-visible {
+button.zotero-markdown-toolbar-restore {
+  width: auto;
+  flex: 0 0 auto;
+  padding-inline: 6px;
+}
+button.zmd-status-summary:hover,
+button.zotero-markdown-toolbar-restore:hover { background: var(--zmd-toolbar-hover-bg); }
+button.zmd-status-summary:focus-visible,
+button.zotero-markdown-toolbar-restore:focus-visible {
   outline: 2px solid var(--zmd-accent);
   outline-offset: 2px;
 }
