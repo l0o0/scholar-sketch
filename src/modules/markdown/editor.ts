@@ -175,7 +175,7 @@ export function createMarkdownEditor(
     viewState?: DocumentViewState;
     onViewState?: (state: DocumentViewState) => void;
     readOnly?: boolean;
-    onChange?: (value: string) => void;
+    onChange?: (value: string, deletedImages?: string[]) => void;
     onCompositionChange?: (active: boolean) => void;
     onOutline?: (
       items: readonly EditorOutlineItem[],
@@ -575,7 +575,7 @@ export function createMarkdownEditor(
       case "change": {
         lastValue = applyDocChanges(lastValue, data.payload.changes);
         lastStats = undefined;
-        onChange?.(lastValue);
+        onChange?.(lastValue, data.payload.deletedImages);
         break;
       }
       case "applyResult": {

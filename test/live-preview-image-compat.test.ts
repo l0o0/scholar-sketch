@@ -6,7 +6,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { defaultKeymap, history, redo, undo } from "@codemirror/commands";
 import { GFM } from "@lezer/markdown";
-import { imageControls } from "../src/editor/image-controls.ts";
+import { deletedImage, imageControls } from "../src/editor/image-controls.ts";
 import { editorTableLabels } from "../src/editor/table-config.ts";
 
 const PNG = "data:image/png;base64,aGVsbG8=";
@@ -38,6 +38,7 @@ async function editor(t: TestContext, source: string) {
   win.document.body.append(host);
   const { livePreviewPlugin, setLiveImageAssets } =
     await import("../src/editor/live-preview/plugin.ts");
+  const deletedSources: string[] = [];
   const view = new EditorView({
     parent: host as unknown as HTMLElement,
     state: EditorState.create({
@@ -49,6 +50,12 @@ async function editor(t: TestContext, source: string) {
         keymap.of(defaultKeymap),
         livePreviewPlugin(),
         imageControls(),
+        EditorView.updateListener.of((update) => {
+          for (const transaction of update.transactions) {
+            const source = transaction.annotation(deletedImage);
+            if (source !== undefined) deletedSources.push(source);
+          }
+        }),
         editorTableLabels.of({ "append-column": "新增列测试" }),
       ],
     }),
@@ -61,7 +68,7 @@ async function editor(t: TestContext, source: string) {
       else Reflect.deleteProperty(globalThis, key);
     }
   });
-  return { view, win, setLiveImageAssets };
+  return { view, win, setLiveImageAssets, deletedSources };
 }
 
 function visibleImages(view: EditorView) {
@@ -91,7 +98,10 @@ for (const [reference, key, definition] of [
     const before = "Before ";
     const after = `![Other](assets/a.png) after${definition}\n\nEnd`;
     const source = before + reference + after;
-    const { view, win, setLiveImageAssets } = await editor(t, source);
+    const { view, win, setLiveImageAssets, deletedSources } = await editor(
+      t,
+      source,
+    );
     view.dispatch({
       effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
     });
@@ -106,6 +116,7 @@ for (const [reference, key, definition] of [
     image.dispatchEvent(event);
     assert.equal(event.defaultPrevented, true);
     assert.equal(view.state.doc.toString(), before + after);
+    assert.deepEqual(deletedSources, ["assets/a.png"]);
     assert.equal(view.state.selection.main.head, before.length);
     assert.equal(view.dom.ownerDocument.activeElement, view.contentDOM);
     assert.equal(
@@ -140,6 +151,10 @@ test("image selection does not take deletion keys from the width input or body",
   assert.equal(inputDelete.defaultPrevented, false);
   assert.equal(view.state.doc.toString(), source);
   view.focus();
+  assert.equal(
+    view.dom.querySelector<HTMLElement>(".zmd-image-controls")?.hidden,
+    true,
+  );
   view.contentDOM.dispatchEvent(
     new win.KeyboardEvent("keydown", {
       key: "Backspace",
@@ -240,7 +255,10 @@ test("Live reference definitions ignore frontmatter and preserve real document o
 test("resizing one reference-style occurrence leaves its shared definition and siblings intact", async (t) => {
   const source =
     "![First][ref]\n\n![Second][ref]\n\n[ref]: assets/a.png\n\nEnd";
-  const { view, win, setLiveImageAssets } = await editor(t, source);
+  const { view, win, setLiveImageAssets, deletedSources } = await editor(
+    t,
+    source,
+  );
   view.dispatch({
     effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
   });
@@ -252,6 +270,7 @@ test("resizing one reference-style occurrence leaves its shared definition and s
   );
   assert.ok(small);
   small.click();
+  assert.deepEqual(deletedSources, []);
   const result = view.state.doc.toString();
   assert.match(result, /^<img src="assets\/a.png" alt="First" width="240">/);
   assert.ok(result.includes("![Second][ref]"));

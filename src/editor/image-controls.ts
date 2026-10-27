@@ -1,4 +1,5 @@
 import { isolateHistory } from "@codemirror/commands";
+import { Annotation } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { EditorImageLabels } from "../modules/markdown/editor-protocol";
 import {
@@ -7,6 +8,8 @@ import {
   serializeImageReference,
 } from "../modules/markdown/images/model";
 import { showImageViewer } from "../modules/markdown/image-viewer";
+
+export const deletedImage = Annotation.define<string>();
 
 const defaultLabels: EditorImageLabels = {
   toolbar: "Image size",
@@ -198,6 +201,7 @@ class ImageControls {
     const target = event.target as HTMLElement;
     if (target.matches(".zmd-lp-image img"))
       this.select(target as HTMLImageElement);
+    else if (target === this.view.contentDOM) this.clear();
   };
   private onDoubleClick = (event: MouseEvent) => {
     if ((event.target as Element).closest(".zmd-lp-image")) this.clear();
@@ -308,7 +312,10 @@ class ImageControls {
     this.view.dispatch({
       changes: { from: reference.from, to: reference.to, insert: "" },
       selection: { anchor: reference.from },
-      annotations: isolateHistory.of("full"),
+      annotations: [
+        isolateHistory.of("full"),
+        deletedImage.of(reference.source),
+      ],
       userEvent: "delete.image",
     });
     this.view.focus();

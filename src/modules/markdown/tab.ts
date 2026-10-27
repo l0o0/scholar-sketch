@@ -94,6 +94,7 @@ import { createStatusFeedback, type StatusTask } from "./status-feedback";
 import { MARKDOWN_TAB_TYPE, resolveMarkdownTabTitle } from "./tabHooks";
 import { SaveCoordinator } from "./save-coordinator";
 import { persistMarkdownContent } from "./persist";
+import { acquireDeletedImageAssets } from "./images/deleted-assets";
 import {
   sessionRegistry,
   type OpenSession,
@@ -156,6 +157,7 @@ export function mountMarkdownEditorSurface(
     itemID: options.item.id,
     path: options.path,
     fileRevision: { content: options.content },
+    deletedImages: acquireDeletedImageAssets(options.item),
     mode: "live",
     previewRenderGeneration: 0,
     outlineItems: [],
@@ -203,6 +205,7 @@ export function mountMarkdownEditorSurface(
     return session;
   } catch (error) {
     sessionRegistry.unregister(options.sessionID);
+    void session.deletedImages?.release().catch((error) => ztoolkit.log(error));
     throw error;
   }
 }
@@ -1296,7 +1299,8 @@ function mountEditorUI(
         if (session.save.dirty) scheduleAutosave(session);
       }
     },
-    onChange: (value) => {
+    onChange: (value, deletedImages) => {
+      if (deletedImages?.length) session.deletedImages?.record(deletedImages);
       const appliedTitleSync = !!session.applyingTitleSync;
       session.applyingTitleSync = false;
       session.save.markChanged();
@@ -2929,6 +2933,14 @@ async function persistSession(
   const item = Zotero.Items.get(session.itemID);
   if (!item) throw new Error("Item gone");
   const { path, titleChanged } = await persistMarkdownContent(item, value, {
+    deletedImages: session.deletedImages,
+    canDeleteImages: () =>
+      !session.editor?.isComposing() &&
+      session.editor?.getValue() === value &&
+      !documentSyncRegistry.hasLocalWork(
+        session.itemID,
+        session.documentSyncSourceID,
+      ),
     cleanupImages: opts.cleanupImages,
     canCleanupImages: () =>
       !session.closing &&
@@ -3034,8 +3046,6 @@ export async function closeMarkdownSession(
     if (opts.flush) {
       // The same iframe channel applies this replace before the final snapshot.
       prepareSessionSave(session);
-      // Asset cleanup is explicit: another open view or an undo step can
-      // still reference images not present in this view's current buffer.
       if (opts.throwOnSaveError) {
         await session.save.request({ force: true });
       } else {
@@ -3082,6 +3092,12 @@ export async function closeMarkdownSession(
     session.unbindPreviewOutline?.();
     if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
     session.editor?.destroy();
+    await session.deletedImages
+      ?.release(session.save.dirty || !!session.save.lastError)
+      .catch((error) => {
+        // Recovery-cache cleanup must not reopen an already destroyed editor.
+        ztoolkit.log("Failed to release deleted image cache", error);
+      });
     sessionRegistry.unregister(tabID);
     if (!sessionRegistry.all().some((other) => other.itemID === session.itemID))
       forgetOpenDocument(session.itemID);

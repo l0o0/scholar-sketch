@@ -28,12 +28,16 @@ function fixture(
   const parent = window.document.createElement("div");
   window.document.body.append(parent);
   const changesSeen: string[] = [];
+  const imageDeletions: string[][] = [];
   const editor = createMarkdownEditor(parent as unknown as HTMLElement, {
     win: window as unknown as globalThis.Window,
     pageURL: "https://editor.test/page.html",
     channel: "stats-test",
     doc,
-    onChange: (value) => changesSeen.push(value),
+    onChange: (value, deletedImages) => {
+      changesSeen.push(value);
+      if (deletedImages?.length) imageDeletions.push(deletedImages);
+    },
     onSave,
   });
   const iframe = parent.querySelector("iframe")!;
@@ -80,8 +84,28 @@ function fixture(
       }
     }
   });
-  return { editor, window, posted, send, change, changesSeen };
+  return { editor, window, posted, send, change, changesSeen, imageDeletions };
 }
+
+test("host receives the image target together with the updated document", (context) => {
+  const source = "![Figure](assets/a.png)";
+  const { editor, send, changesSeen, imageDeletions } = fixture(
+    context,
+    source,
+  );
+  send({
+    source: EDITOR_MESSAGE_SOURCE,
+    type: "change",
+    payload: {
+      rev: 1,
+      changes: [{ from: 0, to: source.length, insert: "" }],
+      deletedImages: ["assets/a.png"],
+    },
+  });
+  assert.equal(editor.getValue(), "");
+  assert.deepEqual(changesSeen, [""]);
+  assert.deepEqual(imageDeletions, [["assets/a.png"]]);
+});
 
 test("statistics retain UTF-16 character counts, LF lines and the existing Chinese word rule", () => {
   for (const [text, expected] of [

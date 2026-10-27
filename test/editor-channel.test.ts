@@ -37,6 +37,32 @@ test("rejects unscoped editor messages when a channel is required", () => {
   );
 });
 
+test("image deletion metadata shares the document change and rejects invalid targets", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    channel: "images",
+    type: "change",
+    payload: {
+      rev: 1,
+      changes: [{ from: 0, to: 24, insert: "" }],
+      deletedImages: ["assets/a.png"],
+    },
+  };
+  assert.equal(isEditorProtocolMessageForChannel(message, "images"), true);
+  for (const deletedImages of [null, "assets/a.png", [123], [{}]]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        {
+          ...message,
+          payload: { ...message.payload, deletedImages },
+        },
+        "images",
+      ),
+      false,
+    );
+  }
+});
+
 test("composition messages require an actual boolean and the owning channel", () => {
   const message = {
     source: EDITOR_MESSAGE_SOURCE,

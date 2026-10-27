@@ -106,7 +106,7 @@ import {
 } from "./theme";
 import { resolveCodeMirrorLanguage } from "./code-languages";
 import { imageDebug } from "./image-debug";
-import { imageControls } from "./image-controls";
+import { deletedImage, imageControls } from "./image-controls";
 import { MAX_IMAGE_BYTES } from "../modules/markdown/images/model";
 import {
   livePreviewWhen,
@@ -1464,7 +1464,14 @@ function buildExtensions(
       });
       postToParent({
         type: "change",
-        payload: { rev: runtime.docRev, changes },
+        payload: {
+          rev: runtime.docRev,
+          changes,
+          deletedImages: update.transactions.flatMap((transaction) => {
+            const source = transaction.annotation(deletedImage);
+            return source === undefined ? [] : [source];
+          }),
+        },
       });
     }),
     EditorView.domEventHandlers({
