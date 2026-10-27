@@ -161,6 +161,7 @@ import {
 } from "./table-menu";
 
 const themeCompartment = new Compartment();
+const topInsetCompartment = new Compartment();
 const readOnlyCompartment = new Compartment();
 const editorEditableCompartment = new Compartment();
 const liveCompartment = new Compartment();
@@ -1271,6 +1272,17 @@ function modeUiForMode(mode: EditorMode): Extension {
   });
 }
 
+function topInsetExtension(topInset: number): Extension {
+  return [
+    EditorView.theme({
+      "&": { "--zmd-editor-top-inset": `${topInset}px` },
+    }),
+    // Content padding protects the first line; scroll margins also protect
+    // caret navigation, search results, and outline jumps later in the document.
+    EditorView.scrollMargins.of(() => ({ top: topInset })),
+  ];
+}
+
 function buildExtensions(
   init: EditorInitPayload,
   disableLivePreview = false,
@@ -1285,6 +1297,7 @@ function buildExtensions(
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
 
   return [
+    topInsetCompartment.of(topInsetExtension(init.topInset ?? 0)),
     guttersCompartment.of(guttersForMode(runtime.mode)),
     highlightActiveLine(),
     drawSelection(),
@@ -1958,6 +1971,13 @@ function handleParentMessage(data: ParentToEditorMessage) {
     case "requestMeasure":
       runtime.view?.requestMeasure();
       break;
+    case "setTopInset":
+      runtime.view?.dispatch({
+        effects: topInsetCompartment.reconfigure(
+          topInsetExtension(data.payload.topInset),
+        ),
+      });
+      break;
     case "setTheme": {
       if (!runtime.view) return;
       runtime.theme = data.payload.theme;
@@ -2145,6 +2165,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "revealPosition",
   "focus",
   "requestMeasure",
+  "setTopInset",
   "setTheme",
   "setFontSize",
   "setAppearance",

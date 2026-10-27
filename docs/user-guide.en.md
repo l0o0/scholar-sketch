@@ -116,6 +116,8 @@ The text after `|` is the displayed label. Markdown note links inserted from the
 
 ## Choose an editing mode
 
+In note tabs and standalone windows, the toolbar floats at the top center of the editor while the document scrolls beneath it, without reserving a separate row. Narrow windows group the controls into menus. You can still hide the toolbar in settings and restore it with the bottom-bar button.
+
 The toolbar mode button shows the current mode. Click it to choose **Live**, **Source**, or **Read-only preview**.
 
 The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find exports, local history, and settings.

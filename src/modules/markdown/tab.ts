@@ -1275,6 +1275,7 @@ function mountEditorUI(
     mountResponsiveToolbar({
       root,
       workspace: view.workspaceEl,
+      onTopInsetChange: (top) => session.editor?.setTopInset(top),
       labels: {
         heading: getString("tab-toolbar-heading"),
         format: getString("tab-toolbar-format"),
@@ -1295,6 +1296,10 @@ function mountEditorUI(
 
   session.editor = createMarkdownEditor(view.editorHost, {
     doc: content ?? "",
+    topInset:
+      Number.parseFloat(
+        view.workspaceEl.style.getPropertyValue("--zmd-toolbar-inset"),
+      ) || 0,
     viewState: documentWorkspace(session.itemID)?.view,
     onViewState: (view) => rememberDocument(session.itemID, { view }),
     readOnly,
@@ -1413,6 +1418,7 @@ function applyToolbarPreference(session: OpenSession) {
   }
   const active = root.ownerDocument.activeElement;
   toolbar.hidden = !visible;
+  responsiveToolbars.get(session)?.refresh();
   restore.hidden = visible;
   if (!visible && active && toolbar.contains(active)) restore.focus();
   else if (visible && active === restore)

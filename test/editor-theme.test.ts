@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Window } from "happy-dom";
+import { EditorView } from "@codemirror/view";
+import { ensureDOMGlobals } from "../src/utils/dom.ts";
+import { EDITOR_MESSAGE_SOURCE } from "../src/modules/markdown/editor-protocol.ts";
 import {
   appearanceTheme,
   liveEditorGeometry,
@@ -56,4 +60,97 @@ test("custom editor backgrounds choose readable theme tokens", () => {
   assert.equal(appearanceTheme("light", "#181818"), "dark");
   assert.equal(appearanceTheme("dark", ""), "dark");
   assert.equal(appearanceTheme("light", "invalid"), "light");
+});
+
+test("the real iframe keeps text and navigation clear of a floating toolbar", async (t) => {
+  const browser = new Window({ url: "https://editor.test/?channel=viewport" });
+  const globals = globalThis as any;
+  const previous = new Map(
+    Object.getOwnPropertyNames(globals).map((key) => [
+      key,
+      Object.getOwnPropertyDescriptor(globals, key)!,
+    ]),
+  );
+  globals.ztoolkit = { log() {} };
+  ensureDOMGlobals(browser as any);
+  globals.Window = browser.Window;
+  browser.document.body.innerHTML = '<div id="editor-root"></div>';
+  const messages: { type: string }[] = [];
+  browser.postMessage = (message: any) => messages.push(message);
+  const send = (type: string, payload?: unknown) =>
+    browser.dispatchEvent(
+      new browser.MessageEvent("message", {
+        source: browser,
+        data: {
+          source: EDITOR_MESSAGE_SOURCE,
+          channel: "viewport",
+          type,
+          payload,
+        },
+      }),
+    );
+  t.after(async () => {
+    send("destroy");
+    await browser.happyDOM.close();
+    for (const key of Object.getOwnPropertyNames(globals)) {
+      const descriptor = previous.get(key);
+      if (descriptor) Object.defineProperty(globals, key, descriptor);
+      else Reflect.deleteProperty(globals, key);
+    }
+  });
+  await import("../src/editor/bootstrap.ts");
+  browser.document.dispatchEvent(new browser.Event("DOMContentLoaded"));
+  send("init", {
+    doc: "# Heading\n\nBody",
+    readOnly: false,
+    fontSize: 14,
+    theme: "light",
+    mode: "live",
+    topInset: 66,
+  });
+  const view = EditorView.findFromDOM(
+    browser.document.querySelector(".cm-editor") as unknown as HTMLElement,
+  )!;
+  assert.ok(view);
+  const style = () => browser.getComputedStyle(view.contentDOM as any);
+  const topMargin = () =>
+    Math.max(
+      0,
+      ...view.state
+        .facet(EditorView.scrollMargins)
+        .map((margin) => margin(view)?.top ?? 0),
+    );
+  assert.equal(style().paddingTop, "calc(4px + 66px)");
+  assert.equal(topMargin(), 66);
+
+  send("setMode", { mode: "source" });
+  send("setTheme", { theme: "dark" });
+  assert.equal(style().paddingTop, "calc(14px + 66px)");
+  assert.equal(topMargin(), 66);
+  send("insertText", { text: "Edited " });
+  const edited = view.state.doc.toString();
+  const selection = view.state.selection;
+  messages.length = 0;
+  send("setTopInset", { topInset: 0 });
+  assert.equal(style().paddingTop, "calc(14px + 0px)");
+  assert.equal(topMargin(), 0);
+  assert.equal(view.state.doc.toString(), edited);
+  assert.ok(view.state.selection.eq(selection));
+  assert.equal(
+    messages.some((message) => message.type === "change"),
+    false,
+  );
+
+  send("setTopInset", { topInset: 54 });
+  send("setMode", { mode: "live" });
+  assert.equal(style().paddingTop, "calc(4px + 54px)");
+  assert.equal(topMargin(), 54);
+  send("command", { command: "undo" });
+  assert.equal(view.state.doc.toString(), "# Heading\n\nBody");
+  send("command", { command: "find" });
+  assert.ok(browser.document.querySelector(".cm-panels-bottom .cm-search"));
+  assert.equal(
+    browser.document.querySelector(".cm-panels-top .cm-search"),
+    null,
+  );
 });

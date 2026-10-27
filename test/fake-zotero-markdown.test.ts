@@ -243,6 +243,42 @@ test("editor keeps ordered edits queued before the iframe is ready", (t) => {
   });
 });
 
+test("editor applies only the latest pre-ready toolbar inset and clears it after hiding", (t) => {
+  const { editor, posted, ready } = editorHarness(t, { topInset: 66 });
+  editor.setTopInset(0);
+  editor.setTopInset(54);
+  editor.setTopInset(66);
+  ready();
+  assert.equal(
+    posted.find((message) => message.type === "init").payload.topInset,
+    66,
+  );
+  assert.deepEqual(
+    posted
+      .filter((message) => message.type === "setTopInset")
+      .map((message) => message.payload.topInset),
+    [66],
+  );
+  editor.setTopInset(0);
+  editor.setTopInset(0);
+  assert.deepEqual(
+    posted
+      .filter((message) => message.type === "setTopInset")
+      .map((message) => message.payload.topInset),
+    [66, 0],
+  );
+  assert.equal(editor.getValue(), "abc");
+});
+
+test("editors without a floating toolbar start with no viewport inset", (t) => {
+  const { posted, ready } = editorHarness(t, { surface: "sidebar" });
+  ready();
+  assert.equal(
+    posted.find((message) => message.type === "init").payload.topInset,
+    0,
+  );
+});
+
 test("editor setValue supersedes older pre-ready edits", (t) => {
   const { editor, posted, ready } = editorHarness(t);
   editor.replaceRange(0, 0, "stale");
