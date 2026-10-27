@@ -21,7 +21,7 @@ test("uses Scholar Sketch branding with stable Bamboo compatibility identifiers"
   assert.equal(pkg.homepage, "https://github.com/l0o0/scholar-sketch#readme");
 });
 
-test("uses packaged branding icons and a theme-aware Markdown sidebar icon", async () => {
+test("uses packaged Scholar Sketch branding icons", async () => {
   const [manifestText, hooks, ...sources] = await Promise.all([
     read("addon/manifest.json"),
     read("src/hooks.ts"),
@@ -40,10 +40,6 @@ test("uses packaged branding icons and a theme-aware Markdown sidebar icon", asy
   assert.match(hooks, /image:.*scholar-sketch-toolbar\.svg/);
   for (const source of sources) assert.match(source, /favicon\.png/);
   assert.doesNotMatch(combined, /favicon(?:\.svg|@0\.5x\.png)/);
-  const sidebar = await read("src/modules/markdown/sidebar.ts");
-  assert.match(sidebar, /sidebar-markdown/);
-  await access("addon/content/icons/sidebar-markdown.svg");
-  await access("addon/content/icons/sidebar-markdown-dark.svg");
 });
 
 test("does not register or document the legacy runtime namespace", async () => {

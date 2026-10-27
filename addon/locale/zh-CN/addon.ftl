@@ -948,3 +948,10 @@ status-details-dismiss = 知道了
 markdown-outline-resize = 调整目录宽度
 markdown-outline-resize-help = 左右方向键调整宽度，Enter 恢复默认宽度，双击分隔线也可恢复
 tab-table-size-option = 插入 { $columns } 列 × { $rows } 行的表格
+
+feature-updates-toolbar-choice-title = 更简洁的编辑空间
+feature-updates-toolbar-choice-body = 可在 Markdown 设置中隐藏顶部工具栏，从底部一键恢复。模式切换菜单也更紧凑，随文字内容调整宽度。
+feature-updates-reference-keys-title = 更顺手的文献引用
+feature-updates-reference-keys-body = 输入 [[ 后，可用左右键切换分类、上下键选择条目，Enter 插入引用。「已打开」会排除当前笔记，保留它的父文献。
+feature-updates-unified-pane-title = 统一的侧栏入口
+feature-updates-unified-pane-body = Zotero 侧栏中的 Markdown 和白板入口合并为 Scholar Sketch 图标。选中附件时自动显示对应内容，选中文献时可在面板内切换两类内容。

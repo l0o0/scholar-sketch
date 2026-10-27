@@ -948,3 +948,10 @@ status-details-dismiss = Dismiss
 markdown-outline-resize = Resize outline
 markdown-outline-resize-help = Use Left or Right to resize; Enter or double-click resets the width
 tab-table-size-option = Insert a { $columns } column by { $rows } row table
+
+feature-updates-toolbar-choice-title = A simpler editing space
+feature-updates-toolbar-choice-body = Hide the top toolbar in Markdown settings and restore it from the bottom bar. The mode menu now fits its labels with less empty space.
+feature-updates-reference-keys-title = Faster reference navigation
+feature-updates-reference-keys-body = After typing [[, use Left/Right to switch filters, Up/Down to choose an item, and Enter to insert it. Open tabs excludes the current note while keeping its parent item.
+feature-updates-unified-pane-title = One sidebar entry
+feature-updates-unified-pane-body = Markdown and whiteboard sidebar entries now share the Scholar Sketch icon. Selecting an attachment shows its content; selecting a paper lets you switch between Markdown and whiteboards in the panel.

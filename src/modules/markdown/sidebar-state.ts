@@ -1,5 +1,4 @@
 export type SidebarBodyState = "editor" | "hint" | "empty";
-export type SidebarLifecycleEvent = "init" | "itemChange" | "render" | "toggle";
 
 export class SidebarControllerRegistry<
   TWindow extends object,
@@ -104,11 +103,6 @@ export function childAttachmentIDs(item: {
   getAttachments(): number[];
 }): number[] {
   return item.isRegularItem() ? item.getAttachments() : [];
-}
-
-/** Zotero only permits section UI creation from the synchronous render hook. */
-export function shouldMountSidebarUI(event: SidebarLifecycleEvent): boolean {
-  return event === "render";
 }
 
 export function shouldUseSidebarFocusMode(

@@ -6,9 +6,11 @@ whiteboard-save = 保存
 menuitem-open-whiteboard = 打开白板
 
 sidebar-section-label =
-    .label = Markdown
+    .label = Scholar Sketch
 sidebar-section-tooltip =
-    .tooltiptext = Markdown 编辑器
+    .tooltiptext = Scholar Sketch
+sidebar-view-markdown = Markdown
+sidebar-view-whiteboard = 白板
 sidebar-new-md = 新建 Markdown…
 sidebar-trash = 移入回收站
 sidebar-switch-source = 切换到源码模式

@@ -40,6 +40,8 @@ Scholar Sketch 是 Zotero 的 Markdown 笔记与可视化白板插件。你可�
 
 Markdown 笔记以 `.md` 文件保存，与 Zotero 自带的富文本笔记是两种不同的内容。以后双击这个 `.md` 附件，就可以继续编辑；也可以在条目右侧的 Markdown 区域中编辑，并通过其菜单切换到标签页或独立窗口。
 
+Zotero 右侧侧栏使用统一的 **Scholar Sketch** 图标。直接选中 `.md` 或 `.canvas` 附件时显示对应内容；选中文献父条目时，可在面板内切换「Markdown」和「白板」，访问该文献下的两类附件。
+
 ![Markdown 编辑器：表格、笔记链接、目录与引用侧栏](screenshots/markdown-linked-notes.jpg)
 
 ### 创建白板

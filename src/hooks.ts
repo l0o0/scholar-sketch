@@ -1,8 +1,8 @@
 import {
-  registerWhiteboardSidebar,
-  unregisterWhiteboardSidebar,
-  disposeWhiteboardSidebarForWindow,
-} from "./modules/whiteboard/sidebar";
+  registerItemPane,
+  unregisterItemPane,
+  disposeItemPaneForWindow,
+} from "./modules/item-pane";
 import {
   retainWorkspaceOnShutdown,
   restoreWorkspace,
@@ -44,11 +44,6 @@ import {
 } from "./modules/whiteboard";
 import { canvasApi } from "./modules/whiteboard/api";
 import { markdownApi } from "./modules/markdown/api";
-import {
-  disposeSidebarForWindow,
-  registerSidebarSection,
-  unregisterSidebarSection,
-} from "./modules/markdown/sidebar";
 import { ensureDOMGlobals } from "./utils/dom";
 import { getString, initLocale } from "./utils/locale";
 import { bindMarkdownSettingsPreferencePane } from "./modules/markdown/settings";
@@ -110,8 +105,7 @@ async function onStartup() {
 
   if (stopped()) return;
   registerNoteLibraryObserver();
-  registerSidebarSection();
-  registerWhiteboardSidebar();
+  registerItemPane();
   tutorialStartup = ensureTutorialWhiteboard();
 
   addon.api = {
@@ -179,9 +173,8 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
   await flushSessionsForWindow(_win);
   unregisterItemContextMenu(_win);
   unregisterWhiteboardMenus(_win);
-  await disposeWhiteboardSidebarForWindow(_win);
+  await disposeItemPaneForWindow(_win);
   await closeWhiteboardsForWindow(_win);
-  await disposeSidebarForWindow(_win);
 }
 
 async function onShutdown(isAppShutdown = false): Promise<void> {
@@ -233,14 +226,13 @@ async function onShutdown(isAppShutdown = false): Promise<void> {
           await flushAllWhiteboards();
         },
       ],
-      ["whiteboardSidebar", unregisterWhiteboardSidebar],
+      ["itemPane", unregisterItemPane],
       [
         "whiteboardWindows",
         async () => {
           await closeAllWhiteboards();
         },
       ],
-      ["markdownSidebar", unregisterSidebarSection],
       ["markdownRenderer", disposeMarkdownRenderer],
       ...noteIndexSteps,
       ["markdownFileHandler", unregisterFileOpenInterceptor],

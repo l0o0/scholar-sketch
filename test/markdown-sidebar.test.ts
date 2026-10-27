@@ -7,7 +7,6 @@ import {
   planSidebarVisibility,
   sidebarFocusAction,
   SidebarControllerRegistry,
-  shouldMountSidebarUI,
   shouldUseSidebarFocusMode,
 } from "../src/modules/markdown/sidebar-state.ts";
 import { sidebarEditorGeometryCSS } from "../src/modules/markdown/styles.ts";
@@ -35,7 +34,7 @@ describe("Markdown sidebar state", () => {
       );
       assert.match(
         source,
-        /^sidebar-section-label\s*=\s*\n\s+\.label\s*=\s*Markdown\s*$/m,
+        /^sidebar-section-label\s*=\s*\n\s+\.label\s*=\s*Scholar Sketch\s*$/m,
       );
       assert.match(
         source,
@@ -84,13 +83,6 @@ describe("Markdown sidebar state", () => {
     assert.equal(canReuseSidebarEditor(true, 42, 42), true);
     assert.equal(canReuseSidebarEditor(true, 42, 43), false);
     assert.equal(canReuseSidebarEditor(false, 42, 42), false);
-  });
-
-  it("mounts the editor only during Zotero's render lifecycle", () => {
-    assert.equal(shouldMountSidebarUI("init"), false);
-    assert.equal(shouldMountSidebarUI("itemChange"), false);
-    assert.equal(shouldMountSidebarUI("toggle"), false);
-    assert.equal(shouldMountSidebarUI("render"), true);
   });
 
   it("uses fixed focus mode only for a directly selected Markdown attachment", () => {
@@ -309,37 +301,6 @@ describe("Markdown sidebar state", () => {
     assert.match(
       css,
       /\.zmd-sidebar-toolbar-button\s*\{[^}]*flex:\s*0 0 35px[^}]*width:\s*35px[^}]*height:\s*35px[^}]*min-height:\s*35px[^}]*max-height:\s*35px[^}]*margin:\s*0/s,
-    );
-  });
-
-  it("uses transparent theme-specific SVGs for native sidebar slots", () => {
-    const source = readFileSync(
-      new URL("../src/modules/markdown/sidebar.ts", import.meta.url),
-      "utf8",
-    );
-    assert.doesNotMatch(source, /favicon\.png/);
-    assert.equal(source.match(/darkIcon: sidebarIconURL\(true\)/g)?.length, 2);
-    for (const name of ["sidebar-markdown.svg", "sidebar-markdown-dark.svg"]) {
-      const svg = readFileSync(
-        new URL(`../addon/content/icons/${name}`, import.meta.url),
-        "utf8",
-      );
-      assert.match(svg, /width="16" height="16" viewBox="0 0 16 16"/);
-      assert.match(svg, /fill="none"/);
-      assert.doesNotMatch(svg, /<image|<rect|prefers-color-scheme/);
-    }
-  });
-
-  it("fits the native sidebar icons inside Zotero's fixed slots", () => {
-    const css = sidebarEditorGeometryCSS();
-
-    assert.match(
-      css,
-      /item-pane-sidenav\s+\.btn\[data-pane="zmd-markdown"\][^{]*\{[^}]*background-size:\s*20px\s+20px\s*!important[^}]*background-position:\s*center[^}]*background-repeat:\s*no-repeat/s,
-    );
-    assert.match(
-      css,
-      /item-pane-custom-section\[data-pane="zmd-markdown"\][^}]*\.title::before[^}]*\{[^}]*background-size:\s*16px\s+16px\s*!important[^}]*background-position:\s*center[^}]*background-repeat:\s*no-repeat/s,
     );
   });
 

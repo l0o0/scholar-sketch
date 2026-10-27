@@ -40,6 +40,8 @@ When a paper is selected, the new note becomes its attachment. With no paper sel
 
 Markdown notes are saved as `.md` files and are separate from Zotero's built-in rich-text notes. Double-click the `.md` attachment to continue editing. You can also edit in the Markdown section of Zotero's item pane, then use its menu to open the note in a tab or a standalone window.
 
+Zotero’s right sidebar uses one **Scholar Sketch** icon. Selecting a `.md` or `.canvas` attachment shows the corresponding content. When a parent paper is selected, switch between **Markdown** and **Whiteboard** inside the panel to access both kinds of attachments.
+
 ![Markdown editor with a table, note links, an outline, and a backlinks sidebar](screenshots/markdown-linked-notes.jpg)
 
 ### Create a whiteboard
