@@ -1622,7 +1622,7 @@ ${toolbarWidthAlignmentCSS()}
   position: fixed;
   z-index: 20;
   box-sizing: border-box;
-  width: 176px;
+  width: max-content;
   overflow: auto;
   padding: 4px;
   border: 1px solid var(--zmd-border);
@@ -1633,7 +1633,9 @@ ${toolbarWidthAlignmentCSS()}
 .zotero-markdown-mode-menu[hidden] { display: none; }
 .zotero-markdown-mode-menu .zotero-markdown-more-menu-item {
   position: relative;
-  padding-inline-start: 26px;
+  min-height: 30px;
+  padding-inline: 28px 12px;
+  white-space: nowrap;
 }
 .zotero-markdown-mode-menu [aria-checked="true"]::before {
   position: absolute;

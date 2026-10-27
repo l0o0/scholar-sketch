@@ -77,17 +77,18 @@ There are four filters at the top of the list:
 | Notes/attachments | Zotero notes, Markdown notes, whiteboards, PDFs, and other attachments                      |
 | Open tabs         | Attachments in all open tabs of the current Zotero window, together with their parent items |
 
-**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window, not just the active tab.
+**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window and excludes the note you are editing, while keeping its parent item. To link to a heading in the current note, use `#heading` under **All** or **Notes/attachments**.
 
 While the candidate list is open, you can use the keyboard:
 
-| Key           | Action                             |
-| ------------- | ---------------------------------- |
-| `Tab`         | Switch to the next filter          |
-| `Shift + Tab` | Switch to the previous filter      |
-| `↑` / `↓`     | Select the previous or next result |
-| `Enter`       | Insert the selected link           |
-| `Esc`         | Close the list                     |
+| Key           | Action                                |
+| ------------- | ------------------------------------- |
+| `Tab`         | Switch to the next filter             |
+| `Shift + Tab` | Switch to the previous filter         |
+| `←` / `→`     | Switch to the previous or next filter |
+| `↑` / `↓`     | Select the previous or next result    |
+| `Enter`       | Insert the selected link              |
+| `Esc`         | Close the list                        |
 
 After switching filters, continue typing without clicking the editor again. If you use an input method such as a Chinese IME, finish confirming the composed text before using these list controls.
 
