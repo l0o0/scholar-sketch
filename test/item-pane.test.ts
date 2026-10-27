@@ -321,3 +321,45 @@ test("switching views keeps the Markdown draft and native destruction remains aw
   assert.deepEqual(saved, ["# Unsaved draft"]);
   assert.deepEqual(findSidebarSessions(2), []);
 });
+
+test("an empty Markdown view hides retained references and restores them with the draft", async (t) => {
+  const f = fixture(t);
+  f.markdown.getFilePathAsync = async () => "/note.md";
+  t.mock.method(
+    SaveCoordinator.prototype,
+    "request",
+    async function (this: SaveCoordinator) {
+      this.adoptPersistedSnapshot();
+    },
+  );
+  const main = f.pane();
+  main.render(f.markdown, true);
+  await nextTurn();
+  const references = main.body.querySelector<HTMLElement>(".zmd-backlinks");
+  assert.ok(references);
+  assert.equal(references.hidden, false);
+  const session = findSidebarSessions(2)[0];
+  session.editor.setValue("# Retained draft");
+  session.save.markChanged();
+
+  main.render(f.canvas);
+  main.render({ ...f.parent, id: 4, getAttachments: () => [3] });
+  main.select("markdown");
+  assert.equal(main.panel("markdown")!.hidden, false);
+  assert.equal(
+    main.body.querySelector<HTMLElement>(".zmd-sidebar-empty")!.hidden,
+    false,
+  );
+  assert.equal(
+    references.hidden,
+    true,
+    "an unrelated empty view must not display the previous note's references",
+  );
+  assert.equal(findSidebarSessions(2)[0].editor, session.editor);
+  assert.equal(session.save.dirty, true);
+
+  main.render(f.markdown, true);
+  assert.equal(main.body.querySelector(".zmd-backlinks"), references);
+  assert.equal(references.hidden, false);
+  assert.equal(findSidebarSessions(2)[0].editor.getValue(), "# Retained draft");
+});

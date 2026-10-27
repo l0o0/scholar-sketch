@@ -555,20 +555,28 @@ class SidebarController {
     );
   }
 
+  private setEditorVisible(visible: boolean): void {
+    this.editorHost.hidden = !visible;
+    // Empty/loading views may retain the previous draft, but its references
+    // belong to that editor and must follow its visibility.
+    const references = this.root.querySelector<HTMLElement>(".zmd-backlinks");
+    if (references) references.hidden = !visible;
+  }
+
   private applyBodyState(state: SidebarBodyState): void {
     const visibility = planSidebarVisibility(
       state,
       this.hasParentAttachmentList(),
     );
     this.listEl.hidden = !visibility.list;
-    this.editorHost.hidden = !visibility.editor;
+    this.setEditorVisible(visibility.editor);
     this.hintEl.hidden = !visibility.hint;
     this.emptyEl.hidden = !visibility.empty;
   }
 
   private beginLoading(): void {
     this.listEl.hidden = !this.hasParentAttachmentList();
-    this.editorHost.hidden = true;
+    this.setEditorVisible(false);
     this.hintEl.hidden = true;
     this.emptyEl.hidden = true;
   }
@@ -889,7 +897,7 @@ class SidebarController {
     this.editor = null;
     this.save = null;
     this.itemID = null;
-    this.editorHost.hidden = true;
+    this.setEditorVisible(false);
     await deletedImages?.release(saveFailed).catch((error) => {
       ztoolkit.log("Failed to release deleted image cache", error);
     });
