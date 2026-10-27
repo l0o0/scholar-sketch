@@ -933,6 +933,11 @@ feature-updates-md-navigation-body = Collapse outline sections and navigate head
 feature-updates-md-feedback-title = Clearer sidebars and operation feedback
 feature-updates-md-feedback-body = Resize sidebars with edge handles and open overlays in narrow windows. Operation warnings and failures offer details and remain until another operation starts or you dismiss them; save failures take priority.
 
+feature-updates-image-delete-title = Delete and restore images
+feature-updates-image-delete-body = Select an image in Live Preview and press Delete or Backspace. Unused local image files are removed after saving; undo restores images while the editor remains open. Image size controls stay available.
+feature-updates-local-examples-title = Example notes and local templates
+feature-updates-local-examples-body = Deleted examples stay deleted and can be restored from the Help menu. Tutorial records and custom templates are stored locally; custom templates do not sync across computers through Zotero.
+
 # Markdown editing and navigation
 status-details = View status details
 status-details-close = Close
