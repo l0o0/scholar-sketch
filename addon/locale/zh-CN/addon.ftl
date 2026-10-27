@@ -933,6 +933,11 @@ feature-updates-md-navigation-body = 目录支持章节折叠和键盘跳转；�
 feature-updates-md-feedback-title = 更清晰的侧栏与操作反馈
 feature-updates-md-feedback-body = 拖动边缘握柄调整侧栏宽度，窄窗口以浮层展开。操作警告和失败提示可查看详情，并保留至下一次操作或手动关闭；保存失败优先显示。
 
+feature-updates-image-delete-title = 图片删除与撤销
+feature-updates-image-delete-body = 实时预览中选中图片，按 Delete 或 Backspace 删除。保存后清理不再引用的本地原图，当前编辑器中撤销可恢复；图片尺寸浮层与调整操作正常保留。
+feature-updates-local-examples-title = 示例教程与模板管理
+feature-updates-local-examples-body = 已删除的示例不会自动重建，可从帮助菜单恢复。教程记录与自定义模板保存在本机配置中，自定义模板不随 Zotero 跨设备同步。
+
 # Markdown editing and navigation
 status-details = 查看状态详情
 status-details-close = 关闭
