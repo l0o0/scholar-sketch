@@ -147,6 +147,9 @@ class ImageControls {
     }
     view.dom.append(this.frame, this.toolbar);
     view.dom.addEventListener("pointerdown", this.onPointerDown, true);
+    // Gecko can still focus the editable ancestor on mousedown after a
+    // cancelled pointerdown, which would clear the image selection.
+    view.dom.addEventListener("mousedown", this.onPointerDown, true);
     view.dom.addEventListener("focusin", this.onFocus);
     view.dom.addEventListener("dblclick", this.onDoubleClick, true);
     view.dom.addEventListener("keydown", this.onKeyDown, true);
@@ -188,7 +191,7 @@ class ImageControls {
     this.measure();
   }
 
-  private onPointerDown = (event: PointerEvent) => {
+  private onPointerDown = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     const image = target.closest<HTMLImageElement>(".zmd-lp-image img");
     if (!image || event.button !== 0) return;
@@ -411,6 +414,7 @@ class ImageControls {
     this.toolbar.remove();
     this.frame.remove();
     this.view.dom.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.view.dom.removeEventListener("mousedown", this.onPointerDown, true);
     this.view.dom.removeEventListener("focusin", this.onFocus);
     this.view.dom.removeEventListener("dblclick", this.onDoubleClick, true);
     this.view.dom.removeEventListener("keydown", this.onKeyDown, true);

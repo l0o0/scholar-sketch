@@ -84,7 +84,11 @@ function selectImage(image: HTMLImageElement, win: Window) {
     naturalHeight: { configurable: true, value: 480 },
   });
   image.dispatchEvent(
-    new win.PointerEvent("pointerdown", { button: 0, bubbles: true }),
+    new win.PointerEvent("pointerdown", {
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    }),
   );
 }
 
@@ -163,6 +167,42 @@ test("image selection does not take deletion keys from the width input or body",
     }),
   );
   assert.equal(view.state.doc.toString(), source.slice(0, -1));
+});
+
+test("image mousedown prevents Gecko from moving focus back into the document", async (t) => {
+  const source = '<img src="assets/a.png" alt="Figure" width="240">\n\nEnd';
+  const { view, win, setLiveImageAssets } = await editor(t, source);
+  view.dispatch({
+    selection: { anchor: source.indexOf("width") },
+    effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
+  });
+  view.focus();
+  const image = visibleImages(view)[0];
+  selectImage(image, win);
+  const mouseDown = new win.MouseEvent("mousedown", {
+    button: 0,
+    bubbles: true,
+    cancelable: true,
+  });
+  image.dispatchEvent(mouseDown);
+  // Gecko focuses the editable ancestor on mousedown even after a cancelled
+  // pointerdown. Model that browser default, which happy-dom does not perform.
+  if (!mouseDown.defaultPrevented) view.focus();
+  assert.equal(
+    view.dom.ownerDocument.activeElement === image,
+    true,
+    "the selected image keeps keyboard focus through mousedown",
+  );
+  view.dom.ownerDocument.activeElement!.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(view.state.doc.toString(), "\n\nEnd");
+  assert.ok(undo(view));
+  assert.equal(view.state.doc.toString(), source);
 });
 
 test("selected images in a read-only editor cannot be deleted", async (t) => {
