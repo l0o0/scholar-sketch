@@ -51,16 +51,65 @@ export function toolbarWidthAlignmentCSS(): string {
 
 export function sidebarEditorGeometryCSS(): string {
   return `
-item-pane-sidenav .btn[data-pane="zmd-markdown"] {
+item-pane-sidenav .btn[data-pane$="-scholar-sketch"] {
   background-size: 20px 20px !important;
   background-position: center;
   background-repeat: no-repeat;
 }
 
-item-pane-custom-section[data-pane="zmd-markdown"] > collapsible-section[data-pane="zmd-markdown"] > .head .title::before {
+item-pane-custom-section[data-pane$="-scholar-sketch"] > collapsible-section[data-pane$="-scholar-sketch"] > .head .title::before {
   background-size: 16px 16px !important;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.scholar-sketch-pane-switcher {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--fill-quinary, rgba(128, 128, 128, 0.1));
+}
+
+.scholar-sketch-pane-switcher[hidden],
+.scholar-sketch-pane-view[hidden] {
+  display: none !important;
+}
+
+.scholar-sketch-pane-switcher > button {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fill-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.scholar-sketch-pane-switcher > button:hover {
+  background: var(--fill-quinary, rgba(128, 128, 128, 0.1));
+}
+
+.scholar-sketch-pane-switcher > button[aria-selected="true"] {
+  background: var(--material-background, Canvas);
+  color: var(--fill-primary, CanvasText);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.scholar-sketch-pane-switcher > button:focus-visible {
+  outline: 2px solid var(--color-accent, Highlight);
+  outline-offset: -2px;
+}
+
+.zmd-sidebar-focus-section .scholar-sketch-pane-view:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
 }
 
 .zmd-sidebar {
@@ -1309,6 +1358,9 @@ ${responsiveToolbarSizingCSS()}
   width: 100%;
 }
 
+.zotero-markdown-toolbar[hidden],
+button.zotero-markdown-toolbar-restore[hidden] { display: none; }
+
 ${toolbarWidthAlignmentCSS()}
 
 .zotero-markdown-fmt,
@@ -1619,7 +1671,7 @@ ${toolbarWidthAlignmentCSS()}
   position: fixed;
   z-index: 20;
   box-sizing: border-box;
-  width: 176px;
+  width: max-content;
   overflow: auto;
   padding: 4px;
   border: 1px solid var(--zmd-border);
@@ -1630,7 +1682,9 @@ ${toolbarWidthAlignmentCSS()}
 .zotero-markdown-mode-menu[hidden] { display: none; }
 .zotero-markdown-mode-menu .zotero-markdown-more-menu-item {
   position: relative;
-  padding-inline-start: 26px;
+  min-height: 30px;
+  padding-inline: 28px 12px;
+  white-space: nowrap;
 }
 .zotero-markdown-mode-menu [aria-checked="true"]::before {
   position: absolute;
@@ -1934,7 +1988,8 @@ ${previewDocumentCss()}
   text-overflow: ellipsis;
 }
 
-button.zmd-status-summary {
+button.zmd-status-summary,
+button.zotero-markdown-toolbar-restore {
   appearance: none;
   height: auto;
   min-height: 0;
@@ -1955,8 +2010,15 @@ button.zmd-status-summary {
   text-align: start;
   cursor: pointer;
 }
-button.zmd-status-summary:hover { background: var(--zmd-toolbar-hover-bg); }
-button.zmd-status-summary:focus-visible {
+button.zotero-markdown-toolbar-restore {
+  width: auto;
+  flex: 0 0 auto;
+  padding-inline: 6px;
+}
+button.zmd-status-summary:hover,
+button.zotero-markdown-toolbar-restore:hover { background: var(--zmd-toolbar-hover-bg); }
+button.zmd-status-summary:focus-visible,
+button.zotero-markdown-toolbar-restore:focus-visible {
   outline: 2px solid var(--zmd-accent);
   outline-offset: 2px;
 }

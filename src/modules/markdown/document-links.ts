@@ -620,6 +620,7 @@ async function searchFilteredDocumentLinks(
       try {
         if (
           (filter !== "open" && item.libraryID !== currentItem.libraryID) ||
+          (filter === "open" && item.id === currentItem.id) ||
           !itemAvailable(item) ||
           !matchesFilter(item, filter) ||
           (headingQuery && !isMarkdownAttachment(item)) ||

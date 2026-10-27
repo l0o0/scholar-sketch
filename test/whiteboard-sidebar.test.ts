@@ -10,11 +10,7 @@ import {
   ScriptTarget,
   transpileModule,
 } from "typescript";
-import {
-  registerWhiteboardSidebar,
-  unregisterWhiteboardSidebar,
-  type WhiteboardSidebar,
-} from "../src/modules/whiteboard/sidebar.ts";
+import { WhiteboardSidebar } from "../src/modules/whiteboard/sidebar.ts";
 import {
   whiteboardRegistry,
   WhiteboardSessionRegistry,
@@ -24,7 +20,6 @@ test("sidebar initializes lazily, lists only Canvas attachments, and respects re
   const win = new Window();
   const body = win.document.createElement("div");
   win.document.body.append(body);
-  let hooks: any;
   const attachment = {
     id: 2,
     isAttachment: () => true,
@@ -50,13 +45,6 @@ test("sidebar initializes lazily, lists only Canvas attachments, and respects re
       Attachments: { LINK_MODE_LINKED_URL: 3 },
       Items: { get: (id: number) => (id === 2 ? attachment : pdf) },
       getMainWindows: () => [win],
-      ItemPaneManager: {
-        registerSection: (options: any) => {
-          hooks = options;
-          return "test-sidebar";
-        },
-        unregisterSection: () => {},
-      },
     },
   };
   for (const [key, value] of Object.entries(globals)) {
@@ -74,16 +62,10 @@ test("sidebar initializes lazily, lists only Canvas attachments, and respects re
   }
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
   let summary = "";
-  registerWhiteboardSidebar();
-  hooks.onInit({ doc: win.document, body });
+  const sidebar = new WhiteboardSidebar(win as never);
   assert.equal(body.children.length, 0);
-  hooks.onRender({
-    body,
-    item: parent,
-    editable: false,
-    setSectionSummary: (value: string) => {
-      summary = value;
-    },
+  sidebar.render(body as never, parent as never, false, (value) => {
+    summary = value;
   });
   await tick();
   assert.equal(body.querySelectorAll("option").length, 1);
@@ -100,17 +82,12 @@ test("sidebar initializes lazily, lists only Canvas attachments, and respects re
     title: "Research map",
     surface: "tab",
   });
-  hooks.onRender({
-    body,
-    item: parent,
-    editable: true,
-    setSectionSummary: () => {},
-  });
+  sidebar.render(body as never, parent as never, true, () => {});
   await tick();
   assert.equal(body.querySelector("button")?.disabled, false);
   assert.equal(body.querySelector("iframe"), null);
   assert.equal(whiteboardRegistry.findByItem(2)?.tabID, "other-tab");
-  await unregisterWhiteboardSidebar();
+  await sidebar.destroy();
   assert.equal(whiteboardRegistry.findByItem(2)?.tabID, "other-tab");
   whiteboardRegistry.unregister("other-tab");
   win.close();
@@ -200,6 +177,7 @@ test("closing another surface restores the same-item sidebar without a Zotero re
   }) as new (win: unknown) => {
     render: WhiteboardSidebar["render"];
     destroy: WhiteboardSidebar["destroy"];
+    setActive: WhiteboardSidebar["setActive"];
     pending: Promise<void>;
   };
   const sidebar = new Sidebar(win);
@@ -230,7 +208,16 @@ test("closing another surface restores the same-item sidebar without a Zotero re
     "Other attachments must not refresh this controller",
   );
 
+  sidebar.setActive(false);
   registry.unregister("native-window");
+  await settle();
+  assert.equal(
+    openCalls,
+    1,
+    "Hidden views must not reopen editors after a registry event",
+  );
+  sidebar.setActive(true);
+  sidebar.render(body as never, parent as never, true, () => {});
   await settle();
   assert.equal(openCalls, 2);
   assert.equal(registry.findByItem(42)?.tabID, "restored-sidebar");

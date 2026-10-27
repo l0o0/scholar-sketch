@@ -96,8 +96,7 @@ function host(
     "injectMarkdownStyles",
     "injectWhiteboardStyles",
     "registerNoteLibraryObserver",
-    "registerSidebarSection",
-    "registerWhiteboardSidebar",
+    "registerItemPane",
     "ensureTutorialWhiteboard",
     "restoreWorkspace",
   ]) {

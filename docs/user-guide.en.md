@@ -40,6 +40,8 @@ When a paper is selected, the new note becomes its attachment. With no paper sel
 
 Markdown notes are saved as `.md` files and are separate from Zotero's built-in rich-text notes. Double-click the `.md` attachment to continue editing. You can also edit in the Markdown section of Zotero's item pane, then use its menu to open the note in a tab or a standalone window.
 
+Zotero’s right sidebar uses one **Scholar Sketch** icon. Selecting a `.md` or `.canvas` attachment shows the corresponding content. When a parent paper is selected, switch between **Markdown** and **Whiteboard** inside the panel to access both kinds of attachments.
+
 ![Markdown editor with a table, note links, an outline, and a backlinks sidebar](screenshots/markdown-linked-notes.jpg)
 
 ### Create a whiteboard
@@ -77,17 +79,18 @@ There are four filters at the top of the list:
 | Notes/attachments | Zotero notes, Markdown notes, whiteboards, PDFs, and other attachments                      |
 | Open tabs         | Attachments in all open tabs of the current Zotero window, together with their parent items |
 
-**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window, not just the active tab.
+**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window and excludes the note you are editing, while keeping its parent item. To link to a heading in the current note, use `#heading` under **All** or **Notes/attachments**.
 
 While the candidate list is open, you can use the keyboard:
 
-| Key           | Action                             |
-| ------------- | ---------------------------------- |
-| `Tab`         | Switch to the next filter          |
-| `Shift + Tab` | Switch to the previous filter      |
-| `↑` / `↓`     | Select the previous or next result |
-| `Enter`       | Insert the selected link           |
-| `Esc`         | Close the list                     |
+| Key           | Action                                |
+| ------------- | ------------------------------------- |
+| `Tab`         | Switch to the next filter             |
+| `Shift + Tab` | Switch to the previous filter         |
+| `←` / `→`     | Switch to the previous or next filter |
+| `↑` / `↓`     | Select the previous or next result    |
+| `Enter`       | Insert the selected link              |
+| `Esc`         | Close the list                        |
 
 After switching filters, continue typing without clicking the editor again. If you use an input method such as a Chinese IME, finish confirming the composed text before using these list controls.
 
@@ -416,6 +419,8 @@ Local history contains versions from before saves, drafts preserved during sync,
 ## Customize appearance and shortcuts
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
+
+Under **Settings → Markdown**, turn off **Show top toolbar** to hide the editing toolbar in note tabs and standalone windows. Saving applies the choice immediately, including to notes opened later. Click **Show toolbar** in the bottom bar to restore it. Editing shortcuts remain available.
 
 Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 

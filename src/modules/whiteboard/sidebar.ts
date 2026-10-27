@@ -1,8 +1,5 @@
-import { getLocaleID, getString } from "../../utils/locale";
-import {
-  SidebarControllerRegistry,
-  childAttachmentIDs,
-} from "../markdown/sidebar-state";
+import { getString } from "../../utils/locale";
+import { childAttachmentIDs } from "../markdown/sidebar-state";
 import { isWhiteboardAttachment } from "./detect";
 import { createWhiteboardAttachment } from "./create";
 import { whiteboardRegistry } from "./session-registry";
@@ -11,13 +8,6 @@ import {
   openWhiteboardSidebar,
   openWhiteboardTab,
 } from "./tab";
-
-const controllers = new SidebarControllerRegistry<
-  Window,
-  HTMLElement,
-  WhiteboardSidebar
->();
-let sectionKey: string | null = null;
 
 export class WhiteboardSidebar {
   private host?: HTMLElement;
@@ -28,6 +18,7 @@ export class WhiteboardSidebar {
   private item?: Zotero.Item;
   private targetID?: number;
   private sessionID?: string;
+  private active = true;
   private editable = false;
   private disposed = false;
   private revision = 0;
@@ -40,13 +31,18 @@ export class WhiteboardSidebar {
     });
   }
 
+  setActive(active: boolean) {
+    this.active = active;
+    if (!active) ++this.revision;
+  }
+
   render(
     body: HTMLElement,
     item: Zotero.Item | null,
     editable: boolean,
     summary: (value: string) => void,
   ) {
-    if (this.disposed) return;
+    if (this.disposed || !this.active) return;
     if (!this.host) {
       const doc = body.ownerDocument;
       const toolbar = doc.createElement("div");
@@ -147,6 +143,7 @@ export class WhiteboardSidebar {
   }
 
   private schedule() {
+    if (!this.active || this.disposed) return;
     const revision = ++this.revision;
     this.pending = this.pending
       .then(async () => {
@@ -196,43 +193,4 @@ export class WhiteboardSidebar {
     await this.pending;
     if (this.sessionID) await closeWhiteboardSession(this.sessionID);
   }
-}
-
-export function registerWhiteboardSidebar() {
-  if (sectionKey || !Zotero.ItemPaneManager?.registerSection) return;
-  const icon = `chrome://${addon.data.config.addonRef}/content/icons/attachment-canvas.svg`;
-  const key = Zotero.ItemPaneManager.registerSection({
-    paneID: "scholar-sketch-whiteboard",
-    pluginID: addon.data.config.addonID,
-    header: { icon, l10nID: getLocaleID("whiteboard-sidebar-label") },
-    sidenav: { icon, l10nID: getLocaleID("whiteboard-sidebar-tooltip") },
-    onInit: ({ doc, body }) => {
-      const win = doc.defaultView as _ZoteroTypes.MainWindow | null;
-      if (!win) return;
-      void controllers.release(win, body)?.destroy();
-      controllers.bind(win, body, new WhiteboardSidebar(win));
-    },
-    onRender: ({ body, item, editable, setSectionSummary }) => {
-      controllers.get(body)?.render(body, item, editable, setSectionSummary);
-    },
-    onDestroy: ({ doc, body }) => {
-      if (doc.defaultView)
-        void controllers.release(doc.defaultView, body)?.destroy();
-    },
-  });
-  if (key !== false) sectionKey = key;
-}
-
-export async function disposeWhiteboardSidebarForWindow(win: Window) {
-  await Promise.all(
-    controllers.releaseWindow(win).map((controller) => controller.destroy()),
-  );
-}
-
-export async function unregisterWhiteboardSidebar() {
-  if (sectionKey) Zotero.ItemPaneManager?.unregisterSection(sectionKey);
-  sectionKey = null;
-  await Promise.all(
-    Zotero.getMainWindows().map(disposeWhiteboardSidebarForWindow),
-  );
 }

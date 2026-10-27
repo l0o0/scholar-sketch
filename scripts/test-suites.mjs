@@ -48,6 +48,7 @@ export const testSuites = {
       "test/help.test.ts",
       "test/image-asset-cache.test.ts",
       "test/image-import-safety.test.ts",
+      "test/item-pane.test.ts",
       "test/lezer-link-parser.test.ts",
       "test/live-preview-*.test.ts",
       "test/markdown-api-guards.test.ts",

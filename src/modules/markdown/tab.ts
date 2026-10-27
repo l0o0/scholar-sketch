@@ -103,6 +103,7 @@ import {
 } from "./session-registry";
 import { ensureDOMGlobals, getDOMDocument } from "../../utils/dom";
 import { getString } from "../../utils/locale";
+import { getPref, setPref } from "../../utils/prefs";
 import type { EditorOutlineItem, EditorTheme } from "./editor-protocol";
 import { mountOutlineSidebar } from "./outline-sidebar";
 import { documentSyncRegistry } from "./document-sync";
@@ -1035,6 +1036,16 @@ function mountEditorUI(
             properties: { innerText: "" },
           },
           {
+            tag: "button",
+            namespace: "html",
+            classList: ["zotero-markdown-toolbar-restore"],
+            properties: {
+              type: "button",
+              textContent: getString("markdown-toolbar-show"),
+            },
+            attributes: { "data-action": "show-toolbar", hidden: "true" },
+          },
+          {
             tag: "span",
             namespace: "html",
             classList: ["zotero-markdown-save-status", "is-saved"],
@@ -1095,7 +1106,10 @@ function mountEditorUI(
     if (!btn || !root.contains(btn)) return;
     const action = btn.getAttribute("data-action");
     if (action === "preview-back") setMode(session, "live");
-    else if (action === "preview-retry") void showReadOnlyPreview(session);
+    else if (action === "show-toolbar") {
+      setPref("markdownToolbarVisible", true);
+      applyMarkdownToolbarPreferences();
+    } else if (action === "preview-retry") void showReadOnlyPreview(session);
     else if (isToolbarCommand(action))
       executeToolbarCommand(session, action, btn);
     else if (action === "more") {
@@ -1198,6 +1212,12 @@ function mountEditorUI(
       onRename: (filename) => renameSessionAttachment(session, filename),
       onReveal: () => revealSessionFolder(session),
       onSettings: (settings) => saveModalSettings(settings),
+      onClose: () => {
+        if (toolbar?.hasAttribute("hidden"))
+          root
+            .querySelector<HTMLButtonElement>('[data-action="show-toolbar"]')!
+            .focus();
+      },
     },
     { mount: root, about: markdownSettingsAbout() },
   );
@@ -1358,6 +1378,7 @@ function mountEditorUI(
   });
   // Default iframe mode is live (init.mode)
   session.editor.setMode("live");
+  applyToolbarPreference(session);
   bindSessionDocumentSync(session);
   void refreshImageAssets(session);
 
@@ -1374,6 +1395,34 @@ function mountEditorUI(
   win.requestAnimationFrame(measure);
   win.setTimeout(measure, 50);
   win.setTimeout(measure, 200);
+}
+
+function applyToolbarPreference(session: OpenSession) {
+  const root = session.view?.root;
+  if (!root) return;
+  const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
+  const restore = root.querySelector<HTMLButtonElement>(
+    '[data-action="show-toolbar"]',
+  )!;
+  const visible = getPref("markdownToolbarVisible") !== false;
+  if (!visible) {
+    closeToolbarMoreMenu(session);
+    session.closeTablePicker?.();
+    modeMenus.get(session)?.close();
+    responsiveToolbars.get(session)?.close();
+  }
+  const active = root.ownerDocument.activeElement;
+  toolbar.hidden = !visible;
+  restore.hidden = visible;
+  if (!visible && active && toolbar.contains(active)) restore.focus();
+  else if (visible && active === restore)
+    root.querySelector<HTMLButtonElement>('[data-action="more"]')!.focus();
+  session.editor?.view.requestMeasure();
+}
+
+/** Tab and standalone-window toolbars share the same local preference. */
+export function applyMarkdownToolbarPreferences() {
+  for (const session of sessionRegistry.all()) applyToolbarPreference(session);
 }
 
 function setOutlineExpanded(session: OpenSession, expanded: boolean) {

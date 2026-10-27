@@ -44,9 +44,8 @@ const operations = [
   "closeAllMarkdownWindows",
   "flushAllSessions",
   "flushAllWhiteboards",
-  "unregisterWhiteboardSidebar",
+  "unregisterItemPane",
   "closeAllWhiteboards",
-  "unregisterSidebarSection",
   "disposeMarkdownRenderer",
   "clearNoteLibraries",
   "closeNoteIndex",
@@ -264,7 +263,7 @@ test("snapshot and cleanup failures still remove every later registration and si
     flushAllWhiteboards: async () => {
       throw saveError;
     },
-    unregisterWhiteboardSidebar: () => {
+    unregisterItemPane: () => {
       throw sidebarError;
     },
     closeAllWhiteboards: () => {
@@ -285,7 +284,7 @@ test("snapshot and cleanup failures still remove every later registration and si
     fixture.reports.map(({ message }) => message),
     [
       "Shutdown cleanup failed (whiteboardSave)",
-      "Shutdown cleanup failed (whiteboardSidebar)",
+      "Shutdown cleanup failed (itemPane)",
       "Shutdown cleanup failed (noteIndex)",
     ],
   );

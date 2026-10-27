@@ -6,9 +6,11 @@ whiteboard-save = Save
 menuitem-open-whiteboard = Open Whiteboard
 
 sidebar-section-label =
-    .label = Markdown
+    .label = Scholar Sketch
 sidebar-section-tooltip =
-    .tooltiptext = Markdown Editor
+    .tooltiptext = Scholar Sketch
+sidebar-view-markdown = Markdown
+sidebar-view-whiteboard = Whiteboard
 sidebar-new-md = New Markdown…
 sidebar-trash = Move to Trash
 sidebar-switch-source = Switch to Source mode

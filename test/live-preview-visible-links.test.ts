@@ -9,7 +9,11 @@ import {
 } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { GFM } from "@lezer/markdown";
-import { forceParsing, syntaxTree } from "@codemirror/language";
+import {
+  ensureSyntaxTree,
+  forceParsing,
+  syntaxTree,
+} from "@codemirror/language";
 import { cachedLineParse } from "../src/editor/live-preview/line-cache.ts";
 
 async function fixture(t: TestContext, doc: string) {
@@ -277,11 +281,17 @@ test("document and selection updates keep visible link paint equal to a fresh st
         anchor: index % 2 ? view.state.doc.line(3).from : view.state.doc.length,
       },
     });
-    const fresh = EditorState.create({
+    // Initial parsing is time-budgeted. Compare both states only after their
+    // syntax trees cover the document, including on a busy CI runner.
+    assert.ok(forceParsing(view, view.state.doc.length, 1000));
+    let fresh = EditorState.create({
       doc: view.state.doc,
       selection: view.state.selection,
       extensions: extensions(),
     });
+    assert.ok(ensureSyntaxTree(fresh, fresh.doc.length, 1000));
+    // Publish the completed parse into the state, as forceParsing does for views.
+    fresh = fresh.update({}).state;
     assert.deepEqual(
       snapshot(
         view.plugin(api.livePreviewVisibleLinks)!.decorations,

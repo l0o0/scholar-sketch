@@ -178,6 +178,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarVisible: true,
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -191,6 +192,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarVisible: true,
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -204,6 +206,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarVisible: true,
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -327,6 +330,66 @@ test("slash search segmented settings support keyboard selection, cancellation a
   stored.set("extensions.zotero.bamboo.markdownSlashSearchLanguage", "unknown");
   controller.open("settings", undefined, "editor");
   assertSelection("auto");
+});
+
+test("toolbar visibility defaults on and persists only after saving settings", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController, applySettings } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const stored = new Map<string, unknown>();
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    { onSettings: applySettings },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const checkbox = () =>
+    win.document.querySelector<HTMLInputElement>(
+      'input[name="markdownToolbarVisible"]',
+    )!;
+  const save = async () => {
+    win.document
+      .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  controller.open("settings", undefined, "editor");
+  assert.equal(checkbox().checked, true);
+  checkbox().click();
+  controller.close();
+  assert.equal(stored.size, 0);
+  controller.open("settings", undefined, "editor");
+  assert.equal(checkbox().checked, true);
+  checkbox().click();
+  await save();
+  assert.equal(
+    stored.get("extensions.zotero.bamboo.markdownToolbarVisible"),
+    false,
+  );
+  controller.open("settings", undefined, "editor");
+  assert.equal(checkbox().checked, false);
+  checkbox().click();
+  await save();
+  assert.equal(
+    stored.get("extensions.zotero.bamboo.markdownToolbarVisible"),
+    true,
+  );
 });
 
 test("provides stable modal titles via localized keys", () => {

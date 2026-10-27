@@ -15,6 +15,23 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.21",
+    features: [
+      {
+        title: "feature-updates-toolbar-choice-title",
+        body: "feature-updates-toolbar-choice-body",
+      },
+      {
+        title: "feature-updates-reference-keys-title",
+        body: "feature-updates-reference-keys-body",
+      },
+      {
+        title: "feature-updates-unified-pane-title",
+        body: "feature-updates-unified-pane-body",
+      },
+    ],
+  },
+  {
     version: "0.2.20",
     features: [
       {
