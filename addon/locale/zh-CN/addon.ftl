@@ -955,3 +955,6 @@ feature-updates-reference-keys-title = 更顺手的文献引用
 feature-updates-reference-keys-body = 输入 [[ 后，可用左右键切换分类、上下键选择条目，Enter 插入引用。「已打开」会排除当前笔记，保留它的父文献。
 feature-updates-unified-pane-title = 统一的侧栏入口
 feature-updates-unified-pane-body = Zotero 侧栏中的 Markdown 和白板入口合并为 Scholar Sketch 图标。选中附件时自动显示对应内容，选中文献时可在面板内切换两类内容。
+
+sidebar-view-markdown = Markdown
+sidebar-view-whiteboard = 白板
