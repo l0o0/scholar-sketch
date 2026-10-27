@@ -303,7 +303,11 @@ export type EditorToParentMessage = (
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "change";
-      payload: { rev: number; changes: EditorDocChange[] };
+      payload: {
+        rev: number;
+        changes: EditorDocChange[];
+        deletedImages?: string[];
+      };
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -373,6 +377,27 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "change") {
+    const payload = data.payload as Record<string, unknown> | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      Number.isInteger(payload.rev) &&
+      Array.isArray(payload.changes) &&
+      payload.changes.every(
+        (change) =>
+          change &&
+          Number.isInteger(change.from) &&
+          change.from >= 0 &&
+          Number.isInteger(change.to) &&
+          change.to >= change.from &&
+          typeof change.insert === "string",
+      ) &&
+      (payload.deletedImages === undefined ||
+        (Array.isArray(payload.deletedImages) &&
+          payload.deletedImages.every((source) => typeof source === "string")))
+    );
+  }
   if (data.type === "importImage") return data.payload === undefined;
   if (data.type === "applyIfUnchanged") {
     const payload = data.payload as Record<string, unknown> | null;

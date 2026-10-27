@@ -4,6 +4,7 @@ import type { OutlineSidebarHandle } from "./outline-sidebar";
 import type { SaveCoordinator } from "./save-coordinator";
 import type { MarkdownModalController } from "./modal";
 import type { StatusFeedback } from "./status-feedback";
+import type { DeletedImageAssets } from "./images/deleted-assets";
 
 export type SessionMode = "live" | "source" | "preview";
 export type SessionSurface = "tab" | "window";
@@ -42,6 +43,7 @@ export interface OpenSession {
   outlineExpanded?: boolean;
   outlineSidebar?: OutlineSidebarHandle;
   fileRevision?: { content: string };
+  deletedImages?: DeletedImageAssets;
   savedAt?: Date;
   autosaveTimer?: number;
   imageRefreshTimer?: number;

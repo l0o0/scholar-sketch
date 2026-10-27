@@ -84,6 +84,7 @@ export const testSuites = {
       "test/markdown-status.test.ts",
       "test/markdown-storage-filename.test.ts",
       "test/markdown-sync-persist.test.ts",
+      "test/markdown-deleted-image-assets.test.ts",
       "test/markdown-toolbar.test.ts",
       "test/markdown-transfer.test.ts",
       "test/markdown-window-registry.test.ts",

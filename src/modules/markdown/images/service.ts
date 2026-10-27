@@ -16,6 +16,7 @@ import { getString } from "../../../utils/locale";
 import { withAttachmentWrite } from "../../attachment-sync";
 import { ImageAssetCache } from "./asset-cache";
 import { autoRepairImageAssets } from "./auto-repair";
+import { getDeletedImageAssetPath } from "./deleted-assets";
 
 class ImageImportCancelledError extends Error {}
 
@@ -81,10 +82,12 @@ export async function resolveImageAsset(
 
   const root = storageRoot(item);
   const filename = normalized.slice("assets/".length);
-  const path = PathUtils.join(root, "assets", filename);
+  let path = PathUtils.join(root, "assets", filename);
   if (!(await IOUtils.exists(path))) {
     assetCache.delete(path);
-    throw new Error(getString("error-image-missing"));
+    const backup = getDeletedImageAssetPath(item, normalized);
+    if (!backup) throw new Error(getString("error-image-missing"));
+    path = backup;
   }
   const info = await IOUtils.stat(path);
   const revision = `${info.lastModified}:${info.size}`;

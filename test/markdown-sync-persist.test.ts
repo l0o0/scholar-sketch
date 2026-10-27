@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { readFileVersions } from "../src/modules/file-safety.ts";
 import { persistMarkdownContent } from "../src/modules/markdown/persist.ts";
-import { writeImageAsset } from "../src/modules/markdown/images/service.ts";
+import {
+  resolveImageAsset,
+  writeImageAsset,
+} from "../src/modules/markdown/images/service.ts";
+import {
+  acquireDeletedImageAssets,
+  type DeletedImageAssets,
+} from "../src/modules/markdown/images/deleted-assets.ts";
 import { SaveCoordinator } from "../src/modules/markdown/save-coordinator.ts";
 
 const TO_UPLOAD = 0;
@@ -34,8 +42,10 @@ async function setup(context: TestContext, state = IN_SYNC) {
   const storage = path.join(root, "storage", "ABCDEFGH");
   const assets = path.join(storage, "assets");
   const target = path.join(storage, "note.md");
+  const temporary = path.join(root, "tmp");
   const initial = `# Note\n\n![figure](assets/${usedFilename})\n`;
   await fs.mkdir(assets, { recursive: true });
+  await fs.mkdir(temporary);
   await fs.writeFile(target, initial);
   await fs.writeFile(path.join(assets, usedFilename), imageBytes);
   await fs.writeFile(path.join(assets, orphanFilename), imageBytes);
@@ -57,6 +67,7 @@ async function setup(context: TestContext, state = IN_SYNC) {
   const saveOptions: Record<string, unknown>[] = [];
   const touched: number[] = [];
   const removed: string[] = [];
+  const imageOwners: DeletedImageAssets[] = [];
 
   const io = {
     exists: (target: string) =>
@@ -70,6 +81,20 @@ async function setup(context: TestContext, state = IN_SYNC) {
     read: async (target: string) => Uint8Array.from(await fs.readFile(target)),
     makeDirectory: (target: string, _options?: unknown) =>
       fs.mkdir(target, { recursive: true }),
+    createUniqueDirectory: (parent: string, prefix: string) =>
+      fs.mkdtemp(path.join(parent, prefix)),
+    copy: async (
+      source: string,
+      target: string,
+      options: { noOverwrite?: boolean } = {},
+    ) => {
+      assert.equal(heldDelays, 1, "asset copies must hold the sync delay");
+      await fs.copyFile(
+        source,
+        target,
+        options.noOverwrite ? constants.COPYFILE_EXCL : 0,
+      );
+    },
     stat: async (target: string) => {
       const info = await fs.stat(target);
       return {
@@ -98,9 +123,14 @@ async function setup(context: TestContext, state = IN_SYNC) {
       assert.equal(heldDelays, 1, "image writes must hold the sync delay");
       await fs.writeFile(target, bytes);
     },
-    remove: async (target: string) => {
+    remove: async (
+      target: string,
+      options: { recursive?: boolean; ignoreAbsent?: boolean } = {},
+    ) => {
       removed.push(target);
-      if ((await fs.stat(target)).isDirectory()) await fs.rmdir(target);
+      if (options.recursive)
+        await fs.rm(target, { recursive: true, force: !!options.ignoreAbsent });
+      else if ((await fs.stat(target)).isDirectory()) await fs.rmdir(target);
       else await fs.unlink(target);
     },
   };
@@ -158,6 +188,7 @@ async function setup(context: TestContext, state = IN_SYNC) {
   Object.assign(globals, {
     IOUtils: io,
     PathUtils: {
+      tempDir: temporary,
       join: path.join,
       parent: path.dirname,
       filename: path.basename,
@@ -196,6 +227,7 @@ async function setup(context: TestContext, state = IN_SYNC) {
     },
   });
   context.after(async () => {
+    for (const owner of imageOwners) await owner.release();
     for (const [name, value] of previous) {
       if (value === undefined) delete globals[name];
       else globals[name] = value;
@@ -218,6 +250,11 @@ async function setup(context: TestContext, state = IN_SYNC) {
     saveOptions,
     touched,
     removed,
+    acquireDeletedImages() {
+      const owner = acquireDeletedImageAssets(item);
+      imageOwners.push(owner);
+      return owner;
+    },
     setBusy(value: boolean) {
       busy = value;
     },
@@ -405,6 +442,172 @@ test("ordinary saving preserves generated images even when the current text does
   assert.deepEqual(mock.removed, []);
 });
 
+test("selected-image deletion waits for saving and another open editor can undo and redo the saved deletion", async (context) => {
+  const mock = await setup(context);
+  const firstEditor = mock.acquireDeletedImages();
+  const secondEditor = mock.acquireDeletedImages();
+  const reference = `assets/${usedFilename}`;
+  const image = path.join(mock.assets, usedFilename);
+  const deleted = "# Note\n\n\n";
+  firstEditor.record([reference]);
+
+  assert.deepEqual(Uint8Array.from(await fs.readFile(image)), imageBytes);
+  assert.equal(await fs.readFile(mock.target, "utf8"), mock.initial);
+  await persistMarkdownContent(mock.item, deleted, {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages: firstEditor,
+    canDeleteImages: () => true,
+  });
+  assert.equal(await fs.readFile(mock.target, "utf8"), deleted);
+  assert.equal(await mock.io.exists(image), false);
+  assert.deepEqual(
+    Uint8Array.from(await fs.readFile(path.join(mock.assets, orphanFilename))),
+    imageBytes,
+  );
+  assert.equal(mock.item.attachmentSyncState, TO_UPLOAD);
+  assert.ok(
+    mock.touched.length > 0,
+    "sidecar deletion signals a changed package",
+  );
+
+  await firstEditor.release();
+  assert.equal(
+    await resolveImageAsset(mock.item, reference),
+    `data:image/png;base64,${Buffer.from(imageBytes).toString("base64")}`,
+    "undo can preview its image before its next save",
+  );
+  assert.equal(await mock.io.exists(image), false, "preview stays read-only");
+  await persistMarkdownContent(mock.item, mock.initial, {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages: secondEditor,
+    canDeleteImages: () => true,
+  });
+  assert.equal(await fs.readFile(mock.target, "utf8"), mock.initial);
+  assert.deepEqual(Uint8Array.from(await fs.readFile(image)), imageBytes);
+
+  await persistMarkdownContent(mock.item, deleted, {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages: secondEditor,
+    canDeleteImages: () => true,
+  });
+  assert.equal(await fs.readFile(mock.target, "utf8"), deleted);
+  assert.equal(await mock.io.exists(image), false);
+  assert.equal(
+    await mock.io.exists(path.join(mock.assets, orphanFilename)),
+    true,
+  );
+  assert.equal(mock.heldDelays, 0);
+});
+
+test("an unsaved peer defers selected-image deletion until a later safe save", async (context) => {
+  const mock = await setup(context);
+  const deletedImages = mock.acquireDeletedImages();
+  const image = path.join(mock.assets, usedFilename);
+  const value = "# Note without image\n";
+  deletedImages.record([`assets/${usedFilename}`]);
+  let peerHasLocalWork = true;
+  const options = {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages,
+    canDeleteImages: () => !peerHasLocalWork,
+  };
+
+  await persistMarkdownContent(mock.item, value, options);
+  assert.equal(await fs.readFile(mock.target, "utf8"), value);
+  assert.deepEqual(Uint8Array.from(await fs.readFile(image)), imageBytes);
+  assert.deepEqual(mock.removed, []);
+
+  peerHasLocalWork = false;
+  await persistMarkdownContent(mock.item, value, options);
+  assert.equal(await mock.io.exists(image), false);
+  assert.equal(
+    await mock.io.exists(path.join(mock.assets, orphanFilename)),
+    true,
+  );
+  assert.ok(
+    mock.touched.length > 0,
+    "unchanged text still uploads changed assets",
+  );
+});
+
+test("a partial image restore failure preserves restored bytes and marks the changed package for upload", async (context) => {
+  const mock = await setup(context);
+  const deletedImages = mock.acquireDeletedImages();
+  const original = `${mock.initial}\n![second](assets/${orphanFilename})\n`;
+  const deleted = "# Note without images\n";
+  const firstImage = path.join(mock.assets, usedFilename);
+  const secondImage = path.join(mock.assets, orphanFilename);
+  await fs.writeFile(mock.target, original);
+  mock.revision.content = original;
+  deletedImages.record([`assets/${usedFilename}`, `assets/${orphanFilename}`]);
+  const options = {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages,
+    canDeleteImages: () => true,
+  };
+  await persistMarkdownContent(mock.item, deleted, options);
+  assert.equal(await mock.io.exists(firstImage), false);
+  assert.equal(await mock.io.exists(secondImage), false);
+
+  mock.item.attachmentSyncState = IN_SYNC;
+  mock.touched.length = 0;
+  const previousMtime = (await fs.stat(mock.target)).mtimeMs;
+  const copy = mock.io.copy;
+  const restoreError = new Error("second image restore denied");
+  mock.io.copy = async (source, target, options) => {
+    if (target === secondImage) throw restoreError;
+    await copy(source, target, options);
+  };
+
+  await assert.rejects(
+    persistMarkdownContent(mock.item, original, options),
+    (error) => error === restoreError,
+  );
+  assert.deepEqual(Uint8Array.from(await fs.readFile(firstImage)), imageBytes);
+  assert.equal(await mock.io.exists(secondImage), false);
+  assert.equal(await fs.readFile(mock.target, "utf8"), deleted);
+  assert.equal(mock.revision.content, deleted);
+  assert.equal(mock.item.attachmentSyncState, TO_UPLOAD);
+  assert.ok(mock.touched[0] >= previousMtime + 2000);
+  assert.equal(mock.heldDelays, 0);
+});
+
+test("selected-image saving keeps shared references and never deletes files outside assets", async (context) => {
+  const mock = await setup(context);
+  const deletedImages = mock.acquireDeletedImages();
+  const reference = `assets/${usedFilename}`;
+  const outside = path.join(mock.root, "outside.png");
+  await fs.writeFile(outside, imageBytes);
+  const twoReferences = `${mock.initial}\n![second](${reference})\n`;
+  await fs.writeFile(mock.target, twoReferences);
+  mock.revision.content = twoReferences;
+  deletedImages.record([
+    reference,
+    "../../outside.png",
+    `file://${outside}`,
+    "https://example.org/outside.png",
+  ]);
+
+  await persistMarkdownContent(mock.item, mock.initial, {
+    revision: mock.revision,
+    syncFile: true,
+    deletedImages,
+    canDeleteImages: () => true,
+  });
+  assert.equal(await fs.readFile(mock.target, "utf8"), mock.initial);
+  assert.deepEqual(
+    Uint8Array.from(await fs.readFile(path.join(mock.assets, usedFilename))),
+    imageBytes,
+  );
+  assert.deepEqual(Uint8Array.from(await fs.readFile(outside)), imageBytes);
+  assert.deepEqual(mock.removed, []);
+});
+
 test("explicit image cleanup preserves referenced and custom images and signals a new package with unchanged text", async (context) => {
   const mock = await setup(context);
   const custom = path.join(mock.assets, "user-image.png");
@@ -475,6 +678,9 @@ test("protected Markdown writes use a hidden atomic temporary path inside storag
 
 test("a disk failure stays unsaved, retains recoverable text, and cannot report successful persistence", async (context) => {
   const mock = await setup(context);
+  const deletedImages = mock.acquireDeletedImages();
+  deletedImages.record([`assets/${usedFilename}`]);
+  const originalImages = await directorySnapshot(mock.assets);
   const original = mock.io.writeUTF8;
   const diskError = new Error("disk full");
   mock.io.writeUTF8 = async (...args) => {
@@ -488,6 +694,8 @@ test("a disk failure stays unsaved, retains recoverable text, and cannot report 
       await persistMarkdownContent(mock.item, value, {
         revision: mock.revision,
         syncFile: true,
+        deletedImages,
+        canDeleteImages: () => true,
       });
     },
   });
@@ -499,6 +707,8 @@ test("a disk failure stays unsaved, retains recoverable text, and cannot report 
   assert.equal(await fs.readFile(mock.target, "utf8"), mock.initial);
   assert.equal(mock.revision.content, mock.initial);
   assert.equal(mock.item.attachmentSyncState, IN_SYNC);
+  assert.deepEqual(await directorySnapshot(mock.assets), originalImages);
+  assert.deepEqual(mock.removed, []);
   assert.ok(
     (await readFileVersions(mock.item)).some(
       (v) => v.kind === "conflict" && v.content === value,

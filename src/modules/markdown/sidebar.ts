@@ -13,6 +13,10 @@ import { getLocaleID, getString } from "../../utils/locale";
 import { createMarkdownEditor, type MarkdownEditorHandle } from "./editor";
 import { SaveCoordinator } from "./save-coordinator";
 import { persistMarkdownContent } from "./persist";
+import {
+  acquireDeletedImageAssets,
+  type DeletedImageAssets,
+} from "./images/deleted-assets";
 import { isMarkdownAttachment } from "./detect";
 import { createMarkdownAttachment } from "./create";
 import { openMarkdownTab } from "./tab";
@@ -242,7 +246,7 @@ class SidebarController {
       this.autosaveTimer = null;
     }
     await this.save?.request({ force: true });
-    if (this.itemID === itemID) this.destroyEditor();
+    if (this.itemID === itemID) await this.destroyEditor();
     return true;
   }
 
@@ -278,6 +282,7 @@ class SidebarController {
   /** Monotonic render sequence; invalidates in-flight async renders. */
   private renderSeq = 0;
   private fileRevision = { content: "" };
+  private deletedImages: DeletedImageAssets | null = null;
 
   constructor(win: _ZoteroTypes.MainWindow) {
     this.win = win;
@@ -573,6 +578,8 @@ class SidebarController {
     }
     const editor = this.editor;
     const save = this.save;
+    const deletedImages = this.deletedImages;
+    this.deletedImages = null;
     const unbindDocumentSync = this.unbindDocumentSync;
     this.unbindDocumentSync = null;
     this.save = null;
@@ -594,6 +601,11 @@ class SidebarController {
         } finally {
           unbindDocumentSync?.();
           editor.destroy();
+          await deletedImages
+            ?.release(save.dirty || !!save.lastError)
+            .catch((error) => {
+              ztoolkit.log("Failed to release deleted image cache", error);
+            });
         }
       } else {
         unbindDocumentSync?.();
@@ -793,7 +805,7 @@ class SidebarController {
     if (this.editor) {
       await this.flush();
       if (seq !== this.renderSeq || this.destroyed) return;
-      this.destroyEditor();
+      await this.destroyEditor();
     }
     if (seq !== this.renderSeq || this.destroyed) return;
 
@@ -808,6 +820,8 @@ class SidebarController {
 
     this.fileRevision = { content };
     const fileRevision = this.fileRevision;
+    const deletedImages = acquireDeletedImageAssets(item);
+    this.deletedImages = deletedImages;
     this.itemID = item.id;
     const sourceID = `sidebar:${this.controllerID}:${item.id}`;
     this.documentSyncSourceID = sourceID;
@@ -849,7 +863,8 @@ class SidebarController {
       surface: "sidebar",
       doc: content,
       readOnly: !this.editable,
-      onChange: () => {
+      onChange: (_value, sources) => {
+        if (sources?.length) deletedImages.record(sources);
         this.save?.markChanged();
         documentSyncRegistry.markEdited(sourceID);
         this.scheduleAutosave();
@@ -904,6 +919,11 @@ class SidebarController {
       write: async (value, request) => {
         await persistMarkdownContent(item, value, {
           revision: fileRevision,
+          deletedImages,
+          canDeleteImages: () =>
+            !editor.isComposing() &&
+            editor.getValue() === value &&
+            !documentSyncRegistry.hasLocalWork(item.id, sourceID),
           cleanupImages: request.cleanupImages,
           syncTitle: true,
           syncFile: true,
@@ -922,7 +942,7 @@ class SidebarController {
     void this.refreshImages(item, content);
   }
 
-  private destroyEditor(): void {
+  private async destroyEditor(): Promise<void> {
     this.unbindBacklinks?.();
     this.unbindBacklinks = null;
     if (this.autosaveTimer != null) {
@@ -934,10 +954,16 @@ class SidebarController {
     this.documentSyncSourceID = null;
     this.documentSyncRefresh = null;
     this.editor?.destroy();
+    const deletedImages = this.deletedImages;
+    const saveFailed = !!this.save?.dirty || !!this.save?.lastError;
+    this.deletedImages = null;
     this.editor = null;
     this.save = null;
     this.itemID = null;
     this.editorHost.hidden = true;
+    await deletedImages?.release(saveFailed).catch((error) => {
+      ztoolkit.log("Failed to release deleted image cache", error);
+    });
   }
 
   private bindDocumentSync(
