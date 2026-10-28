@@ -44,6 +44,11 @@ import {
   type MoreMenuAction,
 } from "./more-menu";
 import { mountModeMenu, type ModeMenuController } from "./mode-menu";
+import {
+  mountToolbarVisibility,
+  type ToolbarVisibilityController,
+} from "./toolbar-visibility";
+import { resolveMarkdownToolbarMode } from "./preferences";
 import { moveMenuFocus } from "../../utils/menu-keyboard";
 import {
   activePreviewOutlineID,
@@ -122,6 +127,10 @@ import {
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
+const toolbarVisibilities = new WeakMap<
+  OpenSession,
+  ToolbarVisibilityController
+>();
 const tablePickerAnchors = new WeakMap<OpenSession, HTMLElement>();
 const readOnlySessions = new WeakSet<OpenSession>();
 const AUTOSAVE_MS = 800;
@@ -1107,8 +1116,15 @@ function mountEditorUI(
     const action = btn.getAttribute("data-action");
     if (action === "preview-back") setMode(session, "live");
     else if (action === "show-toolbar") {
-      setPref("markdownToolbarVisible", true);
-      applyMarkdownToolbarPreferences();
+      const mode = resolveMarkdownToolbarMode(
+        getPref("markdownToolbarMode"),
+        getPref("markdownToolbarVisible"),
+      );
+      if (mode === "auto") toolbarVisibilities.get(session)?.reveal();
+      else {
+        setPref("markdownToolbarMode", "always");
+        applyMarkdownToolbarPreferences();
+      }
     } else if (action === "preview-retry") void showReadOnlyPreview(session);
     else if (isToolbarCommand(action))
       executeToolbarCommand(session, action, btn);
@@ -1383,6 +1399,15 @@ function mountEditorUI(
   });
   // Default iframe mode is live (init.mode)
   session.editor.setMode("live");
+  toolbarVisibilities.set(
+    session,
+    mountToolbarVisibility({
+      root,
+      workspace: view.workspaceEl,
+      toolbar: root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!,
+      iframe: view.editorHost.querySelector<HTMLIFrameElement>("iframe")!,
+    }),
+  );
   applyToolbarPreference(session);
   bindSessionDocumentSync(session);
   void refreshImageAssets(session);
@@ -1409,19 +1434,26 @@ function applyToolbarPreference(session: OpenSession) {
   const restore = root.querySelector<HTMLButtonElement>(
     '[data-action="show-toolbar"]',
   )!;
-  const visible = getPref("markdownToolbarVisible") !== false;
-  if (!visible) {
+  const mode = resolveMarkdownToolbarMode(
+    getPref("markdownToolbarMode"),
+    getPref("markdownToolbarVisible"),
+  );
+  if (mode === "hidden") {
     closeToolbarMoreMenu(session);
     session.closeTablePicker?.();
     modeMenus.get(session)?.close();
     responsiveToolbars.get(session)?.close();
   }
   const active = root.ownerDocument.activeElement;
-  toolbar.hidden = !visible;
+  toolbar.hidden = mode === "hidden";
+  toolbarVisibilities.get(session)?.setMode(mode);
   responsiveToolbars.get(session)?.refresh();
-  restore.hidden = visible;
-  if (!visible && active && toolbar.contains(active)) restore.focus();
-  else if (visible && active === restore)
+  restore.hidden = mode === "always";
+  restore.textContent = getString(
+    mode === "auto" ? "markdown-toolbar-reveal" : "markdown-toolbar-show",
+  );
+  if (mode === "hidden" && active && toolbar.contains(active)) restore.focus();
+  else if (mode === "always" && active === restore)
     root.querySelector<HTMLButtonElement>('[data-action="more"]')!.focus();
   session.editor?.view.requestMeasure();
 }
@@ -3115,6 +3147,8 @@ export async function closeMarkdownSession(
     session.unbindFeatureUpdates?.();
     session.modal?.destroy();
     session.unbindTablePicker?.();
+    toolbarVisibilities.get(session)?.destroy();
+    toolbarVisibilities.delete(session);
     modeMenus.get(session)?.destroy();
     modeMenus.delete(session);
     responsiveToolbars.get(session)?.destroy();

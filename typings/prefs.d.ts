@@ -14,6 +14,7 @@ declare namespace _ZoteroTypes {
       "markdownFontFamily": string;
       "markdownBackgroundColor": string;
       "markdownToolbarVisible": boolean;
+      "markdownToolbarMode": string;
       "markdownSlashSearchLanguage": string;
       "whiteboardColorScheme": string;
       "whiteboardFontFamily": string;

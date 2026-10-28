@@ -6,7 +6,7 @@ import { mountModeMenu } from "../src/modules/markdown/mode-menu.ts";
 function fixture(t: TestContext) {
   const window = new Window();
   window.document.body.innerHTML =
-    '<main><button class="mode"></button><button class="after"></button></main>';
+    '<main><div class="zotero-markdown-toolbar-inner"><button class="mode"></button></div><button class="after"></button></main>';
   const root = window.document.querySelector("main")!;
   const button = root.querySelector<HTMLButtonElement>(".mode")!;
   const labels = {

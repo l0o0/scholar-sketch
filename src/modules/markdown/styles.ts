@@ -56,6 +56,24 @@ export function toolbarWidthAlignmentCSS(): string {
 
 .theme-dark .zotero-markdown-toolbar-inner {
   box-shadow: 0 4px 18px rgb(0 0 0 / 22%), 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.zotero-markdown-toolbar[data-toolbar-mode="auto"] {
+  transition: opacity 160ms ease;
+}
+
+.zotero-markdown-toolbar[data-toolbar-collapsed="true"] {
+  opacity: 0;
+}
+
+.zotero-markdown-toolbar[data-toolbar-collapsed="true"] .zotero-markdown-toolbar-inner {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zotero-markdown-toolbar[data-toolbar-mode="auto"] {
+    transition: none;
+  }
 }`;
 }
 
