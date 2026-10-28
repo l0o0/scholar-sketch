@@ -962,3 +962,8 @@ feature-updates-unified-pane-body = Zotero 侧栏中的 Markdown 和白板入口
 
 sidebar-view-markdown = Markdown
 sidebar-view-whiteboard = 白板
+
+feature-updates-floating-toolbar-title = 悬浮工具栏
+feature-updates-floating-toolbar-body = Markdown 工具栏悬浮于编辑区顶部，随左右侧栏变化保持居中。窄窗口自动收纳为分组菜单，为正文留出更多空间。
+feature-updates-toolbar-autohide-title = 按需显示工具栏
+feature-updates-toolbar-autohide-body = 在设置中选择始终显示、自动隐藏或始终隐藏。自动模式下，鼠标靠近顶部时淡入，离开后淡出；菜单打开或键盘操作时保持显示，正文位置不跳动。
