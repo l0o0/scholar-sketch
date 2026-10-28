@@ -75,6 +75,8 @@ export interface MarkdownEditorHandle {
   revealPosition: (position: number) => void;
   /** Push light/dark to the iframe CM theme (also auto-synced from OS/Zotero). */
   setTheme: (theme: EditorTheme) => void;
+  /** Reserve viewport space covered by the host's floating toolbar. */
+  setTopInset: (topInset: number) => void;
   applyPreferences: () => void;
   /** Switch Live Preview vs full Source mode inside the iframe. */
   setMode: (mode: EditorMode) => void;
@@ -122,6 +124,7 @@ type PendingCommand = Extract<
       | "revealPosition"
       | "focus"
       | "requestMeasure"
+      | "setTopInset"
       | "setTheme"
       | "setFontSize"
       | "setAppearance"
@@ -199,6 +202,7 @@ export function createMarkdownEditor(
     win?: Window;
     channel?: string;
     surface?: EditorSurface;
+    topInset?: number;
     /** Alternate browser page for development harnesses; defaults to chrome://. */
     pageURL?: string;
   } = {},
@@ -222,6 +226,7 @@ export function createMarkdownEditor(
     onOpenLink,
   } = options;
   let currentReadOnly = readOnly;
+  let currentTopInset = options.topInset ?? 0;
   const surface = options.surface ?? "default";
 
   const ownerWin =
@@ -413,6 +418,7 @@ export function createMarkdownEditor(
         }
       } else if (
         message.type === "setTheme" ||
+        message.type === "setTopInset" ||
         message.type === "setFontSize" ||
         message.type === "setAppearance" ||
         message.type === "setSlashSearchLanguage" ||
@@ -512,6 +518,7 @@ export function createMarkdownEditor(
             theme: currentTheme,
             mode: currentMode,
             surface,
+            topInset: currentTopInset,
             mermaidLabels: {
               loading: getString("mermaid-loading"),
               error: getString("mermaid-error"),
@@ -943,6 +950,15 @@ export function createMarkdownEditor(
     applyPreferences,
     setTheme: (theme: EditorTheme) => {
       applyTheme(theme);
+    },
+    setTopInset: (topInset: number) => {
+      if (destroyed || currentTopInset === topInset) return;
+      currentTopInset = topInset;
+      sendOrQueue({
+        source: EDITOR_MESSAGE_SOURCE,
+        type: "setTopInset",
+        payload: { topInset },
+      });
     },
     setMode: (mode: EditorMode) => {
       if (destroyed) return;

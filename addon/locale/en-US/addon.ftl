@@ -404,9 +404,13 @@ settings-shortcut-hint = Click a shortcut to edit it; changes apply immediately
 settings-shortcut-new-standalone = New standalone Markdown note
 settings-shortcut-surface = Shortcut set
 settings-shortcut-surface-markdown = Markdown
-settings-markdown-toolbar = Show top toolbar
-settings-markdown-toolbar-description = Applies to Markdown tabs and standalone windows. Restore it with “Show toolbar” in the bottom bar. Editing shortcuts remain available.
+settings-markdown-toolbar = Top toolbar
+settings-markdown-toolbar-always = Always show
+settings-markdown-toolbar-auto = Auto-hide
+settings-markdown-toolbar-hidden = Always hide
+settings-markdown-toolbar-description = Applies to Markdown tabs and standalone windows. Auto-hide reveals the toolbar when the pointer reaches the top of the editor and keeps it visible while a menu is open or a toolbar control has keyboard focus. Editing shortcuts remain available.
 markdown-toolbar-show = Show toolbar
+markdown-toolbar-reveal = Show toolbar temporarily
 settings-shortcut-surface-whiteboard = Whiteboard
 settings-shortcut-indent = Indent
 settings-shortcut-unindent = Unindent
@@ -958,3 +962,8 @@ feature-updates-unified-pane-body = Markdown and whiteboard sidebar entries now 
 
 sidebar-view-markdown = Markdown
 sidebar-view-whiteboard = Whiteboard
+
+feature-updates-floating-toolbar-title = Floating toolbar
+feature-updates-floating-toolbar-body = The Markdown toolbar floats above the editor and stays centered as sidebars change. Narrow windows group commands into menus, leaving more room for your document.
+feature-updates-toolbar-autohide-title = Show the toolbar when you need it
+feature-updates-toolbar-autohide-body = Choose Always show, Auto-hide, or Always hide in settings. Auto-hide fades in near the top and fades out when the pointer leaves. Open menus and keyboard focus keep it visible without shifting the document.

@@ -34,8 +34,12 @@ export function responsiveToolbarSizingCSS(): string {
 export function toolbarWidthAlignmentCSS(): string {
   return `
 .zotero-markdown-toolbar {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
   padding: 12px;
   box-sizing: border-box;
+  pointer-events: none;
 }
 
 .zotero-markdown-toolbar-inner {
@@ -46,6 +50,30 @@ export function toolbarWidthAlignmentCSS(): string {
   border: 1px solid var(--zmd-border);
   border-radius: 12px;
   background: var(--zmd-toolbar-bg, var(--zmd-surface));
+  box-shadow: 0 4px 18px rgb(0 0 0 / 7%), 0 1px 3px rgb(0 0 0 / 4%);
+  pointer-events: auto;
+}
+
+.theme-dark .zotero-markdown-toolbar-inner {
+  box-shadow: 0 4px 18px rgb(0 0 0 / 22%), 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.zotero-markdown-toolbar[data-toolbar-mode="auto"] {
+  transition: opacity 160ms ease;
+}
+
+.zotero-markdown-toolbar[data-toolbar-collapsed="true"] {
+  opacity: 0;
+}
+
+.zotero-markdown-toolbar[data-toolbar-collapsed="true"] .zotero-markdown-toolbar-inner {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zotero-markdown-toolbar[data-toolbar-mode="auto"] {
+    transition: none;
+  }
 }`;
 }
 
@@ -1793,12 +1821,13 @@ ${toolbarWidthAlignmentCSS()}
   display: none;
   overflow: auto;
   padding: 0;
+  scroll-padding-top: var(--zmd-toolbar-inset, 0px);
   box-sizing: border-box;
 }
 
 .zotero-markdown-preview-page {
   min-height: 100%;
-  padding: 16px 24px 40px;
+  padding: calc(16px + var(--zmd-toolbar-inset, 0px)) 24px 40px;
   box-sizing: border-box;
 }
 

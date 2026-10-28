@@ -87,6 +87,7 @@ export const testSuites = {
       "test/markdown-sync-persist.test.ts",
       "test/markdown-deleted-image-assets.test.ts",
       "test/markdown-toolbar.test.ts",
+      "test/markdown-toolbar-visibility.test.ts",
       "test/markdown-transfer.test.ts",
       "test/markdown-window-registry.test.ts",
       "test/markdown-window.test.ts",

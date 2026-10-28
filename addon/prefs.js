@@ -5,6 +5,8 @@ pref("theme", "system");
 pref("markdownFontFamily", "system");
 pref("markdownBackgroundColor", "");
 pref("markdownToolbarVisible", true);
+// Empty until a mode is saved, preserving the legacy visibility preference.
+pref("markdownToolbarMode", "");
 pref("markdownSlashSearchLanguage", "auto");
 pref("whiteboardColorScheme", "traditional");
 pref("whiteboardFontFamily", "system");

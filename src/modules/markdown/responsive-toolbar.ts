@@ -37,6 +37,7 @@ export function toolbarLayoutForWidth(
 
 export interface ResponsiveToolbar {
   close(restoreFocus?: boolean): void;
+  refresh(): void;
   updateMode(readOnly: boolean, canSave?: boolean): void;
   destroy(): void;
 }
@@ -48,6 +49,7 @@ export function mountResponsiveToolbar(options: {
   isComposing: () => boolean;
   onCommand: (command: ToolbarCommand, anchor: HTMLButtonElement) => void;
   closeOtherMenus: () => void;
+  onTopInsetChange?: (top: number) => void;
 }): ResponsiveToolbar {
   const { root, workspace, labels } = options;
   const doc = root.ownerDocument;
@@ -101,6 +103,7 @@ export function mountResponsiveToolbar(options: {
   let activeTrigger: HTMLButtonElement | null = null;
   let layout: ToolbarLayout | undefined;
   let previousWidth: number | undefined;
+  let topInset: number | undefined;
   let readOnly = false;
   let frame: number | null = null;
   let destroyed = false;
@@ -305,6 +308,16 @@ export function mountResponsiveToolbar(options: {
     const width =
       workspace.getBoundingClientRect().width || workspace.clientWidth;
     if (!width) return;
+    // The overlay includes its breathing room. Report geometry to both the
+    // iframe and host preview instead of shrinking the scrolling surface.
+    const nextInset = toolbar.hidden
+      ? 0
+      : Math.ceil(toolbar.getBoundingClientRect().height);
+    if (topInset !== nextInset) {
+      topInset = nextInset;
+      workspace.style.setProperty("--zmd-toolbar-inset", `${topInset}px`);
+      options.onTopInsetChange?.(topInset);
+    }
     const next = toolbarLayoutForWidth(width, layout);
     if (width === previousWidth && next === layout) return;
     previousWidth = width;
@@ -349,6 +362,7 @@ export function mountResponsiveToolbar(options: {
   };
   const observer = new win.ResizeObserver(schedule);
   observer.observe(workspace);
+  observer.observe(toolbar);
   win.addEventListener("resize", schedule);
   win.addEventListener("blur", onWindowBlur);
   doc.addEventListener("focusin", onFocusIn);
@@ -363,6 +377,10 @@ export function mountResponsiveToolbar(options: {
   measure();
   return {
     close,
+    refresh() {
+      if (frame !== null) win.cancelAnimationFrame(frame);
+      measure();
+    },
     updateMode(next, canSave = true) {
       if (readOnly !== next || originals.get("save")?.disabled !== !canSave)
         stopMotion();

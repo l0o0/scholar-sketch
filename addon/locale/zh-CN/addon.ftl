@@ -404,9 +404,13 @@ settings-shortcut-hint = 点击快捷键可进行修改，按下完成后立即�
 settings-shortcut-new-standalone = 新建独立 Markdown 笔记
 settings-shortcut-surface = 快捷键集合
 settings-shortcut-surface-markdown = Markdown
-settings-markdown-toolbar = 显示顶部工具栏
-settings-markdown-toolbar-description = 适用于 Markdown 标签页和独立窗口。隐藏后可从底部的“显示工具栏”按钮恢复，编辑快捷键仍可使用。
+settings-markdown-toolbar = 顶部工具栏
+settings-markdown-toolbar-always = 始终显示
+settings-markdown-toolbar-auto = 自动隐藏
+settings-markdown-toolbar-hidden = 始终隐藏
+settings-markdown-toolbar-description = 适用于 Markdown 标签页和独立窗口。自动隐藏时，鼠标移到编辑区顶部可显示；菜单打开或键盘焦点位于工具栏时保持显示。编辑快捷键仍可使用。
 markdown-toolbar-show = 显示工具栏
+markdown-toolbar-reveal = 临时显示工具栏
 settings-shortcut-surface-whiteboard = 白板
 settings-shortcut-indent = 缩进
 settings-shortcut-unindent = 取消缩进
@@ -958,3 +962,8 @@ feature-updates-unified-pane-body = Zotero 侧栏中的 Markdown 和白板入口
 
 sidebar-view-markdown = Markdown
 sidebar-view-whiteboard = 白板
+
+feature-updates-floating-toolbar-title = 悬浮工具栏
+feature-updates-floating-toolbar-body = Markdown 工具栏悬浮于编辑区顶部，随左右侧栏变化保持居中。窄窗口自动收纳为分组菜单，为正文留出更多空间。
+feature-updates-toolbar-autohide-title = 按需显示工具栏
+feature-updates-toolbar-autohide-body = 在设置中选择始终显示、自动隐藏或始终隐藏。自动模式下，鼠标靠近顶部时淡入，离开后淡出；菜单打开或键盘操作时保持显示，正文位置不跳动。

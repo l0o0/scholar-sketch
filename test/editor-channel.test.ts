@@ -37,6 +37,41 @@ test("rejects unscoped editor messages when a channel is required", () => {
   );
 });
 
+test("viewport insets accept only finite nonnegative CSS pixel values", () => {
+  for (const type of ["init", "setTopInset"]) {
+    const message = {
+      source: EDITOR_MESSAGE_SOURCE,
+      channel: "viewport",
+      type,
+    };
+    for (const topInset of [0, 66, 54.5]) {
+      assert.equal(
+        isEditorProtocolMessageForChannel(
+          { ...message, payload: { topInset } },
+          "viewport",
+        ),
+        true,
+      );
+    }
+    for (const topInset of [-1, NaN, Infinity, "66px", null]) {
+      assert.equal(
+        isEditorProtocolMessageForChannel(
+          { ...message, payload: { topInset } },
+          "viewport",
+        ),
+        false,
+      );
+    }
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: {} },
+        "viewport",
+      ),
+      type === "init",
+    );
+  }
+});
+
 test("image deletion metadata shares the document change and rejects invalid targets", () => {
   const message = {
     source: EDITOR_MESSAGE_SOURCE,

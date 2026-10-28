@@ -38,7 +38,9 @@ export function mountModeMenu(options: {
     panel.append(entry);
     return entry;
   });
-  root.append(panel);
+  root
+    .querySelector<HTMLElement>(".zotero-markdown-toolbar-inner")!
+    .append(panel);
   button.setAttribute("aria-haspopup", "menu");
   button.setAttribute("aria-expanded", "false");
   const icon = doc.createElement("span");

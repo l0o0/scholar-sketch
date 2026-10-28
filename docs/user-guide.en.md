@@ -116,6 +116,8 @@ The text after `|` is the displayed label. Markdown note links inserted from the
 
 ## Choose an editing mode
 
+In note tabs and standalone windows, the toolbar floats at the top center of the editor while the document scrolls beneath it, without reserving a separate row. Narrow windows group the controls into menus. Choose whether the toolbar stays visible, hides automatically, or stays hidden in [settings](#customize-appearance-and-shortcuts).
+
 The toolbar mode button shows the current mode. Click it to choose **Live**, **Source**, or **Read-only preview**.
 
 The **More actions** button (the three dots at the right end of the editor toolbar) opens the **More** menu, where you can find exports, local history, and settings.
@@ -420,7 +422,9 @@ Local history contains versions from before saves, drafts preserved during sync,
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
 
-Under **Settings → Markdown**, turn off **Show top toolbar** to hide the editing toolbar in note tabs and standalone windows. Saving applies the choice immediately, including to notes opened later. Click **Show toolbar** in the bottom bar to restore it. Editing shortcuts remain available.
+Under **Settings → Markdown → Top toolbar**, choose **Always show**, **Auto-hide**, or **Always hide** for note tabs and standalone windows. Saving applies the choice immediately, including to notes opened later. Your previous visibility choice is preserved until you change it.
+
+With **Auto-hide**, move the pointer to the top of the editor to fade the toolbar in; it fades out when you leave. It stays visible while a menu is open or a toolbar control has keyboard focus. The fade is disabled when your system requests reduced motion. Click **Show toolbar temporarily** in the bottom bar to reach the controls without changing Auto-hide. With **Always hide**, click **Show toolbar** in the bottom bar to return to Always show. Editing shortcuts remain available in all three modes.
 
 Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 

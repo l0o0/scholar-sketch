@@ -106,6 +106,8 @@ export interface EditorInitPayload {
   mode?: EditorMode;
   /** Layout density for the editor host. */
   surface?: EditorSurface;
+  /** Space covered by host controls above the editor viewport, in CSS pixels. */
+  topInset?: number;
   imageLabels?: EditorImageLabels;
   tableLabels?: EditorTableLabels;
   linkLabels?: EditorLinkLabels;
@@ -199,6 +201,11 @@ export type ParentToEditorMessage = (
     }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "focus" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "requestMeasure" }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setTopInset";
+      payload: { topInset: number };
+    }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setTheme";
@@ -377,6 +384,17 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "init" || data.type === "setTopInset") {
+    const payload = data.payload as { topInset?: unknown } | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      ((data.type === "init" && payload.topInset === undefined) ||
+        (typeof payload.topInset === "number" &&
+          Number.isFinite(payload.topInset) &&
+          payload.topInset >= 0))
+    );
+  }
   if (data.type === "change") {
     const payload = data.payload as Record<string, unknown> | null;
     return (
