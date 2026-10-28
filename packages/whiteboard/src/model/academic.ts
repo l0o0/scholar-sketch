@@ -298,12 +298,29 @@ export type NoteReference = {
 );
 
 export function noteReferenceHref(reference: NoteReference): string {
-  const library = reference.source.library;
   const key =
     reference.kind === "literature"
       ? reference.source.itemKey
       : reference.source.attachmentKey;
-  return `zotero://select/${library.type === "user" ? "library" : `groups/${library.groupID}`}/items/${encodeURIComponent(key)}`;
+  return sourceItemHref(reference.source.library, key, "select");
+}
+
+export function literatureSourceHref(source: LiteratureSource): string {
+  return sourceItemHref(source.library, source.itemKey, "select");
+}
+
+export function quoteSourceHref(source: QuoteSource): string {
+  // Zotero's open-pdf route also opens EPUB/HTML annotations by their native key.
+  // A displayed page label is not a PDF page index, so do not infer a page here.
+  return `${sourceItemHref(source.library, source.attachmentKey, "open-pdf")}?annotation=${encodeURIComponent(source.annotationKey)}`;
+}
+
+function sourceItemHref(
+  library: ZoteroLibraryRef,
+  key: string,
+  action: "select" | "open-pdf",
+): string {
+  return `zotero://${action}/${library.type === "user" ? "library" : `groups/${library.groupID}`}/items/${encodeURIComponent(key)}`;
 }
 
 export interface NoteNode extends CanvasNodeBase<"note"> {

@@ -116,7 +116,9 @@ export function searchCanvasNodes(
         node.kind === "note"
           ? [node.content, node.badge]
           : node.kind === "literature" || node.kind === "quote"
-            ? Object.values(node.snapshot)
+            ? Object.keys(node.snapshot)
+                .filter((key) => key !== "image")
+                .map((key) => node.snapshot[key as keyof typeof node.snapshot])
             : node.kind === "frame"
               ? [node.title]
               : Object.keys(node.data)

@@ -4,7 +4,6 @@ import {
   serializeSelection,
   parseSelection,
   layoutSelection,
-  searchCanvasNodes,
 } from "./selection";
 import { THEME_TOKENS, UI_METRICS } from "../../../../src/ui/theme";
 import { flushSync } from "react-dom";
@@ -131,6 +130,8 @@ import {
   existingAnnotationKeys,
   toggleAnnotationSelection,
 } from "../chrome/AnnotationBrowser";
+import { CanvasSearch } from "../chrome/CanvasSearch";
+import { MarkdownExportDialog } from "../chrome/MarkdownExportDialog";
 import { ShortcutsOverlay } from "../chrome/ShortcutsOverlay";
 import { BatchStyleMenu } from "../chrome/BatchStyleMenu";
 import { StyleBar } from "../chrome/StyleBar";
@@ -431,6 +432,26 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   fitView: "Fit view",
   autoLayout: "Auto layout",
   searchCanvas: "Search canvas",
+  annotationColorFilter: "Annotation color",
+  annotationAllColors: "All colors",
+  annotationSelectResults: "Select results",
+  annotationClearSelection: "Clear selection",
+  annotationSelectedCount: "Selected: {count}",
+  searchFilter: "Filter by type",
+  searchResults: "Search results",
+  searchEmpty: "No matching cards",
+  searchPrompt: "Enter keywords to find cards",
+  searchAll: "All",
+  exportScope: "Export range",
+  exportAll: "Entire canvas",
+  exportSelection: "Selected cards",
+  exportGroup: "Current group",
+  exportOrganization: "Content order",
+  exportByGroup: "By group and position",
+  exportByType: "By card type",
+  exportIncludeSources: "Keep literature and annotation source links",
+  exportConfirm: "Export",
+  exportUngrouped: "Ungrouped",
   duplicateSelection: "Duplicate selection",
   layoutAllConfirm:
     "No cards are selected. Arrange the entire canvas? This can be undone.",
@@ -1224,21 +1245,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchIndex, setSearchIndex] = useState(-1);
-  const searchResults = useMemo(
-    () =>
-      searchOpen && searchQuery.trim()
-        ? searchCanvasNodes(
-            nodes.map((node) => node.data.model),
-            searchQuery,
-          )
-        : [],
-    [nodes, searchOpen, searchQuery],
-  );
-  const focusSearchResult = (index: number) => {
-    const id = searchResults[index];
-    if (!id) return;
-    setSearchIndex(index);
+  const [markdownExportOpen, setMarkdownExportOpen] = useState(false);
+  const focusSearchNode = (id: string) => {
+    if (!nodesRef.current.some((node) => node.id === id)) return;
     setNodes((current) =>
       current.map((node) => ({ ...node, selected: node.id === id })),
     );
@@ -1341,6 +1350,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       imageViewer ||
       groupPicker ||
       searchOpen ||
+      markdownExportOpen ||
       (formatPainter &&
         !nodes.some((node) => node.id === formatPainter.sourceId))
     )
@@ -1354,6 +1364,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     imageViewer,
     groupPicker,
     searchOpen,
+    markdownExportOpen,
     nodes,
     formatPainter,
     cancelFormatPainter,
@@ -1455,6 +1466,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       setGroupPicker(null);
       setGroupPreviewId(null);
       setGroupFeedback(null);
+      setSearchOpen(false);
+      setSearchQuery("");
+      setMarkdownExportOpen(false);
       continuationRef.current = null;
       connectionCanceledRef.current = true;
       importGenerationRef.current += 1;
@@ -3775,17 +3789,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     (format: "png" | "svg" | "md", scale: PngScale = 2) => {
       if (exportBusyRef.current) return;
       setMenu(null);
-      const doc = snapshotWithDraft();
-      const requestId = `export-${Date.now().toString(36)}`;
       if (format === "md") {
-        propsRef.current.onExportFile({
-          requestId,
-          format,
-          mimeType: "text/markdown",
-          text: buildCanvasMarkdown(doc),
-        });
+        setMarkdownExportOpen(true);
         return;
       }
+      const doc = snapshotWithDraft();
+      const requestId = `export-${Date.now().toString(36)}`;
       if (format === "svg") {
         const svg = buildCanvasSvg(doc, labels, {
           theme,
@@ -3834,6 +3843,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (markdownExportOpen) return;
       if (formatPainterRef.current && event.key === "Escape") {
         event.preventDefault();
         cancelFormatPainter();
@@ -3935,6 +3945,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     editingEdge,
     imageViewer,
     groupPicker,
+    markdownExportOpen,
     cancelFormatPainter,
     closeGroupPicker,
     cancelDraw,
@@ -4192,6 +4203,21 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [currentSourceRequests, nodes, requestSources]);
 
   const selectedNodes = nodes.filter((node) => node.selected);
+  const selectedFrameIds = new Set(
+    selectedNodes.map(({ data: { model } }) =>
+      model.kind === "frame" ? model.id : model.frameId,
+    ),
+  );
+  const exportFrameNode =
+    selectedFrameIds.size === 1
+      ? nodes.find(
+          (node) =>
+            node.id === [...selectedFrameIds][0] &&
+            node.data.model.kind === "frame",
+        )?.data.model
+      : undefined;
+  const exportFrame =
+    exportFrameNode?.kind === "frame" ? exportFrameNode : undefined;
   const formatPainting = Boolean(
     formatPainter && editable && activeTool === "select",
   );
@@ -4616,62 +4642,83 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           aria-hidden="true"
         />
         {searchOpen ? (
-          <div
-            className="zmd-board-search"
-            role="search"
-            onKeyDown={(event) => {
-              event.stopPropagation();
-              if (event.key === "Escape") setSearchOpen(false);
-              if (event.key === "Enter" && searchResults.length) {
-                event.preventDefault();
-                focusSearchResult(
-                  searchIndex < 0
-                    ? event.shiftKey
-                      ? searchResults.length - 1
-                      : 0
-                    : (searchIndex +
-                        (event.shiftKey ? -1 : 1) +
-                        searchResults.length) %
-                        searchResults.length,
-                );
-              }
+          <CanvasSearch
+            nodes={nodes.map((node) => node.data.model)}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onFocusNode={focusSearchNode}
+            onClose={() => {
+              setSearchOpen(false);
+              canvasHostRef.current?.focus();
             }}
-          >
-            <input
-              autoFocus
-              aria-label={labels.searchCanvas ?? "Search canvas"}
-              placeholder={labels.searchCanvas ?? "Search canvas"}
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
-                setSearchIndex(-1);
-              }}
-            />
-            <span role="status">
-              {searchResults.length
-                ? `${Math.min(searchIndex + 1, searchResults.length)} / ${searchResults.length}`
-                : "0"}
-            </span>
-            <button
-              type="button"
-              disabled={!searchResults.length}
-              aria-label={labels.fitSelection ?? "Focus result"}
-              onClick={() =>
-                focusSearchResult(
-                  Math.max(0, searchIndex) % searchResults.length,
-                )
-              }
-            >
-              ↵
-            </button>
-            <button
-              type="button"
-              aria-label={labels.close ?? "Close"}
-              onClick={() => setSearchOpen(false)}
-            >
-              ×
-            </button>
-          </div>
+            labels={{
+              search: labels.searchCanvas ?? "Search canvas",
+              close: labels.close,
+              all: labels.searchAll ?? "All",
+              literature: labels.kindLiterature,
+              quote: labels.kindQuote,
+              note: labels.kindNote,
+              frame: labels.kindFrame,
+              other: labels.fileGeneric,
+              filter: labels.searchFilter ?? "Filter by type",
+              results: labels.searchResults ?? "Search results",
+              empty: labels.searchEmpty ?? "No matching cards",
+              prompt: labels.searchPrompt ?? "Enter keywords to find cards",
+            }}
+          />
+        ) : null}
+        {markdownExportOpen ? (
+          <MarkdownExportDialog
+            returnFocusRef={canvasHostRef}
+            labels={{
+              title: labels.exportMarkdown,
+              scope: labels.exportScope ?? "Export range",
+              all: labels.exportAll ?? "Entire canvas",
+              selection: labels.exportSelection ?? "Selected cards",
+              group: labels.exportGroup ?? "Current group",
+              organization: labels.exportOrganization ?? "Content order",
+              byGroup: labels.exportByGroup ?? "By group and position",
+              byType: labels.exportByType ?? "By card type",
+              includeSources:
+                labels.exportIncludeSources ??
+                "Keep literature and annotation source links",
+              confirm: labels.exportConfirm ?? "Export",
+              cancel: labels.cancel,
+            }}
+            selectionCount={selectedNodes.length}
+            groupTitle={
+              exportFrame?.title ||
+              (exportFrame
+                ? (labels.unnamedGroup ?? labels.kindFrame)
+                : undefined)
+            }
+            onClose={() => setMarkdownExportOpen(false)}
+            onExport={({ scope, organization }) => {
+              const snapshot = snapshotWithDraft();
+              const doc =
+                scope === "all"
+                  ? snapshot
+                  : selectedDocument(
+                      snapshot,
+                      scope === "group" && exportFrame
+                        ? [exportFrame.id]
+                        : selectedNodes.map((node) => node.id),
+                    );
+              propsRef.current.onExportFile({
+                requestId: `export-${Date.now().toString(36)}`,
+                format: "md",
+                mimeType: "text/markdown",
+                text: buildCanvasMarkdown(doc, {
+                  organization,
+                  labels: {
+                    source: labels.openSource,
+                    ungrouped: labels.exportUngrouped ?? "Ungrouped",
+                  },
+                }),
+              });
+              setMarkdownExportOpen(false);
+            }}
+          />
         ) : null}
         <div className="zmd-board-notice-stack">
           {exportStatus ? (
@@ -4806,6 +4853,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               tagFilter: labels.annotationTagFilter,
               allTypes: labels.annotationAllTypes,
               allTags: labels.annotationAllTags,
+              colorFilter: labels.annotationColorFilter,
+              allColors: labels.annotationAllColors,
+              selectResults: labels.annotationSelectResults,
+              clearSelection: labels.annotationClearSelection,
+              selectedCount: labels.annotationSelectedCount,
               noText: labels.annotationNoText,
               close: labels.close,
             }}
@@ -4831,6 +4883,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                       ),
                     }
                   : current,
+              )
+            }
+            onSelectionChange={(selectedKeys) =>
+              setAnnotationBrowser((current) =>
+                current ? { ...current, selectedKeys } : current,
               )
             }
             onClose={closeAnnotationBrowser}

@@ -297,7 +297,7 @@ test("selection toolbar opens scoped annotations once and Escape restores focus 
       assert.equal(rows().length, 1);
       assert.match(rows()[0].textContent ?? "", /Highlighted evidence/);
       const add = container.querySelector<DOMButton>(
-        ".zmd-board-annotation-browser footer button",
+        ".zmd-board-annotation-add",
       );
       assert.ok(add);
       assert.equal(

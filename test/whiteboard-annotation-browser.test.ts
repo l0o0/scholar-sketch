@@ -160,6 +160,7 @@ function browser(
     existingKeys: existingAnnotationKeys(document),
     returnFocusRef: { current: null },
     onQueryChange: () => undefined,
+    onSelectionChange: () => undefined,
     onToggle: () => undefined,
     onClose: () => undefined,
     onFocusExisting: () => undefined,

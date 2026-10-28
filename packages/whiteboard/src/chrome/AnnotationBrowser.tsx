@@ -38,6 +38,11 @@ export interface AnnotationBrowserLabels {
   allTypes?: string;
   allTags?: string;
   noText?: string;
+  colorFilter?: string;
+  allColors?: string;
+  selectResults?: string;
+  clearSelection?: string;
+  selectedCount?: string;
 }
 
 export type AnnotationBrowserState =
@@ -60,6 +65,7 @@ export function filterAnnotationCandidates(
   query: string,
   type: AnnotationType | "" = "",
   tag = "",
+  color = "",
 ): AnnotationCandidate[] {
   const needle = query.trim().toLocaleLowerCase();
   return candidates.filter(({ acquisition }) => {
@@ -67,6 +73,11 @@ export function filterAnnotationCandidates(
       acquisition.snapshot;
     if (type && annotationType !== type) return false;
     if (tag && !tags?.includes(tag)) return false;
+    if (
+      color &&
+      acquisition.snapshot.color?.trim().toLowerCase() !== color.toLowerCase()
+    )
+      return false;
     return (
       !needle ||
       [text, comment, pageLabel, ...(tags ?? [])].some((value) =>
@@ -128,12 +139,14 @@ export function AnnotationBrowser(props: {
   returnFocusRef: RefObject<{ focus(): void } | null>;
   onQueryChange: (query: string) => void;
   onToggle: (annotationKey: string, checked: boolean) => void;
+  onSelectionChange: (selection: Set<string>) => void;
   onClose: () => void;
   onFocusExisting: (annotationKey: string) => void;
   onAddSelected: () => void;
 }) {
   const [typeFilter, setTypeFilter] = useState<AnnotationType | "">("");
   const [tagFilter, setTagFilter] = useState("");
+  const [colorFilter, setColorFilter] = useState("");
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -222,6 +235,7 @@ export function AnnotationBrowser(props: {
           props.query,
           typeFilter,
           tagFilter,
+          colorFilter,
         )
       : [];
   const groups = groupAnnotationCandidates(candidates);
@@ -235,14 +249,31 @@ export function AnnotationBrowser(props: {
       ),
     ),
   ].sort((a, b) => a.localeCompare(b));
-  const hasEligibleSelection =
-    props.state.status === "ready" &&
-    props.state.candidates.some(({ acquisition }) => {
+  const availableColors = [
+    ...new Set(
+      availableCandidates.flatMap(({ acquisition }) => {
+        const color = acquisition.snapshot.color?.trim().toLowerCase();
+        return color ? [color] : [];
+      }),
+    ),
+  ];
+  const eligibleKeys = new Set(
+    candidates
+      .map(({ acquisition }) => nativeAnnotationIdentity(acquisition.source))
+      .filter((identity) => !props.existingKeys.has(identity)),
+  );
+  const selectedCount = new Set(
+    availableCandidates.flatMap(({ acquisition }) => {
       const identity = nativeAnnotationIdentity(acquisition.source);
-      return (
-        props.selectedKeys.has(identity) && !props.existingKeys.has(identity)
-      );
-    });
+      return props.selectedKeys.has(identity) &&
+        !props.existingKeys.has(identity)
+        ? [identity]
+        : [];
+    }),
+  ).size;
+  const hasUnselectedResult = [...eligibleKeys].some(
+    (identity) => !props.selectedKeys.has(identity),
+  );
 
   return (
     <div
@@ -346,24 +377,57 @@ export function AnnotationBrowser(props: {
           })}
         </div>
 
-        {availableTags.length ? (
+        {availableTags.length || availableColors.length ? (
           <div className="zmd-board-annotation-tools">
-            <label className="zmd-board-annotation-tag-filter">
-              <span>{props.labels.tagFilter ?? "Tag"}</span>
-              <select
-                aria-label={props.labels.tagFilter ?? "Tag"}
-                value={tagFilter}
-                disabled={props.state.status !== "ready"}
-                onChange={(event) => setTagFilter(event.currentTarget.value)}
+            {availableColors.length ? (
+              <div
+                className="zmd-board-annotation-color-filters"
+                role="group"
+                aria-label={props.labels.colorFilter ?? "Color"}
               >
-                <option value="">{props.labels.allTags ?? "All tags"}</option>
-                {availableTags.map((tag) => (
-                  <option key={tag} value={tag}>
-                    {tag}
-                  </option>
+                <button
+                  type="button"
+                  aria-pressed={!colorFilter}
+                  onClick={() => setColorFilter("")}
+                >
+                  {props.labels.allColors ?? "All colors"}
+                </button>
+                {availableColors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className="zmd-board-annotation-color-option"
+                    aria-label={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
+                    title={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
+                    aria-pressed={colorFilter === color}
+                    onClick={() => setColorFilter(color)}
+                  >
+                    <span
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
+                    />
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            ) : null}
+            {availableTags.length ? (
+              <label className="zmd-board-annotation-tag-filter">
+                <span>{props.labels.tagFilter ?? "Tag"}</span>
+                <select
+                  aria-label={props.labels.tagFilter ?? "Tag"}
+                  value={tagFilter}
+                  disabled={props.state.status !== "ready"}
+                  onChange={(event) => setTagFilter(event.currentTarget.value)}
+                >
+                  <option value="">{props.labels.allTags ?? "All tags"}</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
         ) : null}
 
@@ -510,10 +574,37 @@ export function AnnotationBrowser(props: {
         </div>
 
         <footer>
+          <span className="zmd-board-annotation-selected-count" role="status">
+            {(props.labels.selectedCount ?? "Selected: {count}").replace(
+              "{count}",
+              String(selectedCount),
+            )}
+          </span>
+          <div className="zmd-board-annotation-bulk-actions">
+            <button
+              type="button"
+              disabled={!hasUnselectedResult}
+              onClick={() =>
+                props.onSelectionChange(
+                  new Set([...props.selectedKeys, ...eligibleKeys]),
+                )
+              }
+            >
+              {props.labels.selectResults ?? "Select results"}
+            </button>
+            <button
+              type="button"
+              disabled={!props.selectedKeys.size}
+              onClick={() => props.onSelectionChange(new Set())}
+            >
+              {props.labels.clearSelection ?? "Clear selection"}
+            </button>
+          </div>
           <button
             type="button"
+            className="zmd-board-annotation-add"
             onClick={props.onAddSelected}
-            disabled={!hasEligibleSelection}
+            disabled={!selectedCount}
           >
             {props.labels.addSelected}
           </button>
