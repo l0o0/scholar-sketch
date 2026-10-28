@@ -635,7 +635,114 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
   assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 2);
 });
 
-test("color and text filters batch-select visible new annotations while preserving hidden selections", async (t) => {
+test("color popover dismisses outside and consumes Escape before the annotation dialog", async (t) => {
+  t.after(async () => {
+    await act(async () => root.unmount());
+  });
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  let closeCount = 0;
+
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+    return createElement(
+      "div",
+      null,
+      createElement(
+        "button",
+        { ref: triggerRef, id: "view-annotations" },
+        "View",
+      ),
+      open
+        ? createElement(AnnotationBrowser, {
+            labels,
+            state: {
+              status: "ready",
+              candidates: [
+                {
+                  ...candidate,
+                  acquisition: {
+                    ...candidate.acquisition,
+                    snapshot: { text: "Evidence", color: "#ffd400" },
+                  },
+                },
+              ],
+              failures: [],
+            },
+            query: "",
+            selectedKeys: new Set(),
+            existingKeys: new Set(),
+            returnFocusRef: triggerRef,
+            onQueryChange: () => undefined,
+            onSelectionChange: () => undefined,
+            onToggle: () => undefined,
+            onClose: () => {
+              closeCount += 1;
+              setOpen(false);
+            },
+            onFocusExisting: () => undefined,
+            onAddSelected: () => undefined,
+          })
+        : null,
+    );
+  }
+
+  await act(async () => root.render(createElement(Harness)));
+  const trigger = container.querySelector<HTMLButtonElement>(
+    '.zmd-board-annotation-color-trigger[aria-label="Annotation color"]',
+  );
+  const search = container.querySelector<HTMLInputElement>(
+    '[aria-label="Search annotations"]',
+  );
+  assert.ok(trigger);
+  assert.ok(search);
+  const palette = () =>
+    container.querySelector('[role="dialog"][aria-label="Annotation color"]');
+
+  await act(async () => trigger.click());
+  assert.ok(palette());
+  await act(async () => {
+    search.dispatchEvent(
+      new window.MouseEvent("pointerdown", { bubbles: true }),
+    );
+    search.focus();
+    search.click();
+  });
+  assert.equal(palette(), null);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(closeCount, 0, "outside the palette is still inside the dialog");
+  assert.equal(window.document.activeElement, search);
+
+  await act(async () => trigger.click());
+  const color = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-label="Annotation color #FFD400"]',
+  );
+  assert.ok(color);
+  color.focus();
+  await act(async () =>
+    color.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  assert.equal(palette(), null);
+  assert.equal(closeCount, 0);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(window.document.activeElement, trigger);
+
+  await act(async () =>
+    trigger.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  assert.equal(closeCount, 1);
+  assert.equal(container.querySelector('[role="dialog"]'), null);
+  assert.equal(window.document.activeElement?.id, "view-annotations");
+});
+
+test("multiple color and text filters batch-select visible new annotations while preserving hidden selections", async (t) => {
   t.after(async () => {
     await act(async () => root.unmount());
   });
@@ -714,15 +821,32 @@ test("color and text filters batch-select visible new annotations while preservi
     return button;
   };
   const results = () => container.querySelectorAll('input[type="checkbox"]');
+  const colorTrigger = getButton("Annotation color");
+  const openColors = async () => {
+    if (colorTrigger.getAttribute("aria-expanded") === "false") {
+      await act(async () => colorTrigger.click());
+    }
+  };
+  const palette = () =>
+    container.querySelector('[role="dialog"][aria-label="Annotation color"]');
+  assert.equal(colorTrigger.getAttribute("aria-expanded"), "false");
+  assert.equal(palette(), null, "colors are collapsed until requested");
+  await openColors();
   assert.equal(
-    container.querySelectorAll('[aria-label="Annotation color"] button').length,
+    palette()?.querySelectorAll("button").length,
     4,
     "the actual three colors are offered once, plus All colors",
   );
   await act(async () => getButton("highlight").click());
   assert.equal(results().length, 5);
+  await openColors();
   await act(async () => getButton("Annotation color #FFD400").click());
   assert.equal(results().length, 4);
+  assert.equal(colorTrigger.getAttribute("aria-expanded"), "true");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "true",
+  );
   const tag = container.querySelector<HTMLSelectElement>('[aria-label="Tag"]');
   assert.ok(tag);
   await act(async () => {
@@ -730,6 +854,18 @@ test("color and text filters batch-select visible new annotations while preservi
     tag.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
   assert.equal(results().length, 3);
+  await openColors();
+  await act(async () => getButton("Annotation color #A28AE5").click());
+  assert.equal(results().length, 4, "multiple colors are combined with OR");
+  assert.equal(colorTrigger.textContent?.trim(), "2");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    getButton("Annotation color #A28AE5").getAttribute("aria-pressed"),
+    "true",
+  );
   assert.equal(
     container.querySelector(".zmd-board-annotation-selected-count")
       ?.textContent,
@@ -737,12 +873,14 @@ test("color and text filters batch-select visible new annotations while preservi
     "hidden selected annotations still count",
   );
   await act(async () => getButton("Select results").click());
-  assert.deepEqual(changes, [[identity(0), identity(1), identity(2)]]);
+  assert.deepEqual(changes, [
+    [identity(0), identity(1), identity(2), identity(6)],
+  ]);
   assert.equal(getButton("Select results").disabled, true);
   assert.equal(
     container.querySelector(".zmd-board-annotation-selected-count")
       ?.textContent,
-    "Selected: 3",
+    "Selected: 4",
   );
   assert.equal(
     container.querySelectorAll('input[type="checkbox"]:disabled').length,
@@ -750,9 +888,27 @@ test("color and text filters batch-select visible new annotations while preservi
     "an already-added annotation stays unavailable for selection",
   );
   await act(async () => getButton("Add selected").click());
-  assert.deepEqual(submitted, [identity(0), identity(1), identity(2)]);
+  assert.deepEqual(submitted, [
+    identity(0),
+    identity(1),
+    identity(2),
+    identity(6),
+  ]);
+  await openColors();
+  await act(async () => getButton("All colors").click());
+  assert.equal(results().length, 4);
+  assert.equal(getButton("All colors").getAttribute("aria-pressed"), "true");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "false",
+  );
+  assert.equal(
+    getButton("Annotation color #A28AE5").getAttribute("aria-pressed"),
+    "false",
+  );
   await act(async () => getButton("Annotation color #2EA8E5").click());
   assert.equal(results().length, 0);
+  assert.equal(colorTrigger.textContent?.trim(), "1");
   assert.equal(getButton("Select results").disabled, true);
   assert.equal(getButton("Add selected").disabled, false);
   await act(async () => getButton("Clear selection").click());
