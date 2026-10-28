@@ -42,8 +42,3 @@ export {
   type SessionSummary,
   type MarkdownApiErrorCode,
 } from "./api";
-export {
-  registerSidebarSection,
-  unregisterSidebarSection,
-  disposeSidebarForWindow,
-} from "./sidebar";

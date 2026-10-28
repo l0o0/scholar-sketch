@@ -64,7 +64,7 @@ function dependencies(
     markCompleted: () => {},
     labels: () => labels,
     selectSample: async () => undefined,
-    create: async () => attachment,
+    create: async () => ({ canvas: attachment, created: true }),
     open: async () => true,
     log: () => {},
     ...overrides,
@@ -83,7 +83,7 @@ test("creates, marks, and opens the tutorial in lifecycle order", async () => {
       events.push("create");
       filename = value;
       assert.ok(document.nodes.length > 0);
-      return attachment;
+      return { canvas: attachment, created: true };
     },
     markCompleted: () => events.push("mark"),
     open: async () => events.push("open"),
@@ -107,7 +107,7 @@ test("an existing completion marker skips tutorial work", async () => {
       },
       create: async () => {
         createCalls += 1;
-        return attachment;
+        return { canvas: attachment, created: true };
       },
     }),
   );
@@ -127,7 +127,7 @@ test("manual example requests reconcile and open without changing onboarding com
     create: async (document) => {
       assert.ok(document.nodes.length > 0);
       events.push("create");
-      return attachment;
+      return { canvas: attachment, created: true };
     },
     open: async () => {
       events.push("open");
@@ -233,7 +233,7 @@ test("a malformed sample skips creation, completion, and opening", async () => {
         selectSample: async () => malformedSample,
         create: async () => {
           events.push("create");
-          return attachment;
+          return { canvas: attachment, created: true };
         },
         markCompleted: () => events.push("mark"),
         open: async () => events.push("open"),
@@ -256,7 +256,7 @@ test("an open exception resolves after completion is marked", async () => {
       dependencies({
         create: async () => {
           events.push("create");
-          return attachment;
+          return { canvas: attachment, created: true };
         },
         markCompleted: () => events.push("mark"),
         open: async () => {
@@ -289,7 +289,7 @@ test("a selection exception logs and falls back to a static tutorial", async () 
             document.nodes.filter((node) => "source" in node),
             [],
           );
-          return attachment;
+          return { canvas: attachment, created: true };
         },
         markCompleted: () => events.push("mark"),
         open: async () => events.push("open"),
@@ -313,7 +313,7 @@ test("a throwing logger cannot escape a selection failure", async () => {
         },
         create: async () => {
           createCalls += 1;
-          return attachment;
+          return { canvas: attachment, created: true };
         },
         log: () => {
           throw new Error("log failed");
@@ -393,7 +393,7 @@ test("simultaneous calls share one tutorial operation", async () => {
     create: async () => {
       createCalls += 1;
       await createPending;
-      return attachment;
+      return { canvas: attachment, created: true };
     },
     markCompleted: () => {
       markCalls += 1;
@@ -403,7 +403,7 @@ test("simultaneous calls share one tutorial operation", async () => {
   const first = ensureTutorialWhiteboard(deps);
   const second = ensureTutorialWhiteboard(deps);
   assert.equal(first, second);
-  await Promise.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(createCalls, 1);
   releaseCreate?.();
   await Promise.all([first, second]);
@@ -424,7 +424,7 @@ test("an in-flight call is returned before completion is read again", async () =
     },
     create: async () => {
       await createPending;
-      return attachment;
+      return { canvas: attachment, created: true };
     },
   });
 
@@ -449,7 +449,7 @@ test("manual and startup requests share one in-flight reconciliation", async () 
     create: async () => {
       calls++;
       await pending;
-      return attachment;
+      return { canvas: attachment, created: true };
     },
   });
   const startup = ensureTutorialWhiteboard(deps);
@@ -457,8 +457,80 @@ test("manual and startup requests share one in-flight reconciliation", async () 
   const secondManual = createExampleWhiteboard(deps);
   assert.equal(startup, manual);
   assert.equal(manual, secondManual);
-  await Promise.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(calls, 1);
   release();
   await startup;
+});
+
+test("adopting a current existing tutorial marks completion without automatically opening it", async () => {
+  const events: string[] = [];
+  await ensureTutorialWhiteboard(
+    dependencies({
+      completed: async () => false,
+      create: async () => ({ canvas: attachment, created: false }),
+      markCompleted: () => events.push("mark"),
+      open: async () => events.push("open"),
+    }),
+  );
+  assert.deepEqual(events, ["mark"]);
+});
+
+test("the Help command opens an existing tutorial without requiring a newly created copy", async () => {
+  let opened: Zotero.Item | undefined;
+  await createExampleWhiteboard(
+    dependencies({
+      create: async () => ({ canvas: attachment, created: false }),
+      open: async (item) => {
+        opened = item;
+      },
+    }),
+  );
+  assert.equal(opened, attachment);
+});
+
+test("asynchronous completion failure aborts tutorial creation and reports the error", async () => {
+  const error = new Error("lookup failed");
+  const logs: unknown[][] = [];
+  await ensureTutorialWhiteboard(
+    dependencies({
+      completed: async () => {
+        throw error;
+      },
+      create: async () => {
+        assert.fail("must not create after an uncertain lookup");
+      },
+      log: (...args) => {
+        logs.push(args);
+      },
+    }),
+  );
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][1], error);
+});
+
+test("startup and Help pass distinct restoration intent to the attachment lifecycle", async () => {
+  const intents: boolean[] = [];
+  const deps = dependencies({
+    create: async (_document, _filename, manual) => {
+      intents.push(manual);
+      return { canvas: attachment, created: false };
+    },
+  });
+  await ensureTutorialWhiteboard(deps);
+  await createExampleWhiteboard(deps);
+  assert.deepEqual(intents, [false, true]);
+});
+
+test("deletion detected during creation does not mark completion or open an attachment", async () => {
+  const events: string[] = [];
+  await ensureTutorialWhiteboard(
+    dependencies({
+      create: async () => ({ deleted: true }),
+      markCompleted: () => events.push("mark"),
+      open: async () => events.push("open"),
+      log: () => events.push("log"),
+    }),
+  );
+  assert.deepEqual(events, []);
 });

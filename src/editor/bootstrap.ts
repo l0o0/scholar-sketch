@@ -106,7 +106,7 @@ import {
 } from "./theme";
 import { resolveCodeMirrorLanguage } from "./code-languages";
 import { imageDebug } from "./image-debug";
-import { imageControls } from "./image-controls";
+import { deletedImage, imageControls } from "./image-controls";
 import { MAX_IMAGE_BYTES } from "../modules/markdown/images/model";
 import {
   livePreviewWhen,
@@ -161,6 +161,7 @@ import {
 } from "./table-menu";
 
 const themeCompartment = new Compartment();
+const topInsetCompartment = new Compartment();
 const readOnlyCompartment = new Compartment();
 const editorEditableCompartment = new Compartment();
 const liveCompartment = new Compartment();
@@ -1271,6 +1272,17 @@ function modeUiForMode(mode: EditorMode): Extension {
   });
 }
 
+function topInsetExtension(topInset: number): Extension {
+  return [
+    EditorView.theme({
+      "&": { "--zmd-editor-top-inset": `${topInset}px` },
+    }),
+    // Content padding protects the first line; scroll margins also protect
+    // caret navigation, search results, and outline jumps later in the document.
+    EditorView.scrollMargins.of(() => ({ top: topInset })),
+  ];
+}
+
 function buildExtensions(
   init: EditorInitPayload,
   disableLivePreview = false,
@@ -1285,6 +1297,7 @@ function buildExtensions(
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
 
   return [
+    topInsetCompartment.of(topInsetExtension(init.topInset ?? 0)),
     guttersCompartment.of(guttersForMode(runtime.mode)),
     highlightActiveLine(),
     drawSelection(),
@@ -1464,7 +1477,14 @@ function buildExtensions(
       });
       postToParent({
         type: "change",
-        payload: { rev: runtime.docRev, changes },
+        payload: {
+          rev: runtime.docRev,
+          changes,
+          deletedImages: update.transactions.flatMap((transaction) => {
+            const source = transaction.annotation(deletedImage);
+            return source === undefined ? [] : [source];
+          }),
+        },
       });
     }),
     EditorView.domEventHandlers({
@@ -1951,6 +1971,13 @@ function handleParentMessage(data: ParentToEditorMessage) {
     case "requestMeasure":
       runtime.view?.requestMeasure();
       break;
+    case "setTopInset":
+      runtime.view?.dispatch({
+        effects: topInsetCompartment.reconfigure(
+          topInsetExtension(data.payload.topInset),
+        ),
+      });
+      break;
     case "setTheme": {
       if (!runtime.view) return;
       runtime.theme = data.payload.theme;
@@ -2138,6 +2165,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "revealPosition",
   "focus",
   "requestMeasure",
+  "setTopInset",
   "setTheme",
   "setFontSize",
   "setAppearance",

@@ -43,8 +43,10 @@ import {
   normalizeColor,
   normalizeFontFamily,
   normalizeSlashSearchLanguage,
+  resolveMarkdownToolbarMode,
   type AppearanceTheme,
   type FontFamilyID,
+  type MarkdownToolbarMode,
   type SlashSearchLanguage,
 } from "./preferences";
 
@@ -69,6 +71,7 @@ export interface SettingsModalData {
   theme: AppearanceTheme;
   markdownFontFamily: FontFamilyID;
   markdownBackgroundColor: string;
+  markdownToolbarMode: MarkdownToolbarMode;
   markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
   whiteboardColorScheme: ColorSchemeID;
@@ -142,6 +145,10 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(getPref("theme")),
     markdownFontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
     markdownBackgroundColor: normalizeColor(getPref("markdownBackgroundColor")),
+    markdownToolbarMode: resolveMarkdownToolbarMode(
+      getPref("markdownToolbarMode"),
+      getPref("markdownToolbarVisible"),
+    ),
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       getPref("markdownSlashSearchLanguage"),
     ),
@@ -162,6 +169,10 @@ export function settingsFromPrefs(
     theme: normalizeAppearanceTheme(prefs.theme),
     markdownFontFamily: normalizeFontFamily(prefs.markdownFontFamily),
     markdownBackgroundColor: normalizeColor(prefs.markdownBackgroundColor),
+    markdownToolbarMode: resolveMarkdownToolbarMode(
+      prefs.markdownToolbarMode,
+      undefined,
+    ),
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       prefs.markdownSlashSearchLanguage,
     ),
@@ -351,6 +362,12 @@ export function createMarkdownModalController(
       markdownBackgroundColor:
         payload.markdownBackgroundColor ??
         normalizeColor(getPref("markdownBackgroundColor")),
+      markdownToolbarMode:
+        payload.markdownToolbarMode ??
+        resolveMarkdownToolbarMode(
+          getPref("markdownToolbarMode"),
+          getPref("markdownToolbarVisible"),
+        ),
       markdownSlashSearchLanguage:
         payload.markdownSlashSearchLanguage ??
         normalizeSlashSearchLanguage(getPref("markdownSlashSearchLanguage")),
@@ -464,6 +481,42 @@ export function createMarkdownModalController(
       };
       checkbox("enable", getString("settings-enable-editor"));
       checkbox("frontmatter", getString("settings-frontmatter"));
+      const toolbarRow = doc.createElement("label");
+      toolbarRow.className = "zotero-markdown-settings-row";
+      toolbarRow.appendChild(
+        textElement(doc, "span", getString("settings-markdown-toolbar")),
+      );
+      const toolbarMode = doc.createElement("select");
+      toolbarMode.name = "markdownToolbarMode";
+      toolbarMode.className = "zotero-markdown-settings-select";
+      for (const [value, labelKey] of [
+        ["always", "settings-markdown-toolbar-always"],
+        ["auto", "settings-markdown-toolbar-auto"],
+        ["hidden", "settings-markdown-toolbar-hidden"],
+      ] as const) {
+        const option = doc.createElement("option");
+        option.value = value;
+        option.textContent = getString(labelKey);
+        toolbarMode.appendChild(option);
+      }
+      toolbarMode.value = pendingSettings!.markdownToolbarMode;
+      toolbarMode.addEventListener("change", () => {
+        if (pendingSettings)
+          pendingSettings.markdownToolbarMode = resolveMarkdownToolbarMode(
+            toolbarMode.value,
+            undefined,
+          );
+      });
+      toolbarRow.appendChild(toolbarMode);
+      pageContent.appendChild(toolbarRow);
+      pageContent.appendChild(
+        textElement(
+          doc,
+          "p",
+          getString("settings-markdown-toolbar-description"),
+          "zotero-markdown-settings-description",
+        ),
+      );
       const row = doc.createElement("label");
       row.className = "zotero-markdown-settings-row";
       row.appendChild(
@@ -1359,6 +1412,7 @@ export function applySettings(settings: SettingsModalData) {
   setPref("theme", values.theme);
   setPref("markdownFontFamily", values.markdownFontFamily);
   setPref("markdownBackgroundColor", values.markdownBackgroundColor);
+  setPref("markdownToolbarMode", values.markdownToolbarMode);
   setPref("markdownSlashSearchLanguage", values.markdownSlashSearchLanguage);
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);
   setPref("whiteboardColorScheme", values.whiteboardColorScheme);

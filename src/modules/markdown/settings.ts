@@ -25,6 +25,8 @@ export async function saveMarkdownSettings(
 ): Promise<void> {
   applySettings(settings);
   applyMarkdownEditorPreferences();
+  const { applyMarkdownToolbarPreferences } = await import("./tab");
+  applyMarkdownToolbarPreferences();
   const { registerShortcuts } = await import("./menu");
   registerShortcuts();
   const { applyWhiteboardSettings } = await import("../whiteboard/tab");

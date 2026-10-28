@@ -586,6 +586,7 @@ export function editorThemeExtension(
   const liveGeometry = liveEditorGeometry(surface);
   const livePreviewStyles = createLivePreviewStyles(liveGeometry);
   const contentPadding = isLive ? liveGeometry.contentPadding : "14px 8px";
+  const contentPaddingTop = `calc(${contentPadding.split(" ")[0]} + var(--zmd-editor-top-inset, 0px))`;
 
   if (theme === "dark") {
     const tokens = THEME_TOKENS.dark;
@@ -626,6 +627,7 @@ export function editorThemeExtension(
         ".cm-content": {
           caretColor: tokens.accent,
           padding: contentPadding,
+          paddingTop: contentPaddingTop,
           maxWidth: isLive ? "50rem" : "none",
           margin: isLive ? "0 auto" : "0",
         },
@@ -724,6 +726,7 @@ export function editorThemeExtension(
     ".cm-content": {
       caretColor: tokens.accent,
       padding: contentPadding,
+      paddingTop: contentPaddingTop,
       maxWidth: isLive ? "50rem" : "none",
       margin: isLive ? "0 auto" : "0",
     },

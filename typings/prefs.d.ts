@@ -13,11 +13,15 @@ declare namespace _ZoteroTypes {
       "theme": string;
       "markdownFontFamily": string;
       "markdownBackgroundColor": string;
+      "markdownToolbarVisible": boolean;
+      "markdownToolbarMode": string;
       "markdownSlashSearchLanguage": string;
       "whiteboardColorScheme": string;
       "whiteboardFontFamily": string;
       "whiteboardBackgroundColor": string;
       "whiteboardTutorialCreated": boolean;
+      "tutorialAttachments": string;
+      "noteTemplates": string;
       "featureUpdatesSeenVersion": string;
       "shortcutNewStandaloneMd": string;
     };

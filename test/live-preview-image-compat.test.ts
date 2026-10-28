@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { history, undo } from "@codemirror/commands";
+import { defaultKeymap, history, redo, undo } from "@codemirror/commands";
 import { GFM } from "@lezer/markdown";
-import { imageControls } from "../src/editor/image-controls.ts";
+import { deletedImage, imageControls } from "../src/editor/image-controls.ts";
 import { editorTableLabels } from "../src/editor/table-config.ts";
 
 const PNG = "data:image/png;base64,aGVsbG8=";
@@ -38,6 +38,7 @@ async function editor(t: TestContext, source: string) {
   win.document.body.append(host);
   const { livePreviewPlugin, setLiveImageAssets } =
     await import("../src/editor/live-preview/plugin.ts");
+  const deletedSources: string[] = [];
   const view = new EditorView({
     parent: host as unknown as HTMLElement,
     state: EditorState.create({
@@ -46,8 +47,15 @@ async function editor(t: TestContext, source: string) {
       extensions: [
         markdown({ extensions: GFM }),
         history(),
+        keymap.of(defaultKeymap),
         livePreviewPlugin(),
         imageControls(),
+        EditorView.updateListener.of((update) => {
+          for (const transaction of update.transactions) {
+            const source = transaction.annotation(deletedImage);
+            if (source !== undefined) deletedSources.push(source);
+          }
+        }),
         editorTableLabels.of({ "append-column": "新增列测试" }),
       ],
     }),
@@ -60,7 +68,7 @@ async function editor(t: TestContext, source: string) {
       else Reflect.deleteProperty(globalThis, key);
     }
   });
-  return { view, win, setLiveImageAssets };
+  return { view, win, setLiveImageAssets, deletedSources };
 }
 
 function visibleImages(view: EditorView) {
@@ -68,6 +76,159 @@ function visibleImages(view: EditorView) {
     view.dom.querySelectorAll<HTMLImageElement>(".zmd-lp-image img"),
   );
 }
+
+function selectImage(image: HTMLImageElement, win: Window) {
+  Object.defineProperties(image, {
+    complete: { configurable: true, value: true },
+    naturalWidth: { configurable: true, value: 640 },
+    naturalHeight: { configurable: true, value: 480 },
+  });
+  image.dispatchEvent(
+    new win.PointerEvent("pointerdown", {
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+for (const [reference, key, definition] of [
+  ["![First](assets/a.png)", "Delete", ""],
+  ['<img src="assets/a.png" alt="First" width="240">', "Backspace", ""],
+  ["![[assets/a.png|320]]", "Delete", ""],
+  ["![First][ref]", "Backspace", "\n\n[ref]: assets/a.png"],
+]) {
+  test(`${key} removes only the selected image occurrence: ${reference}`, async (t) => {
+    const before = "Before ";
+    const after = `![Other](assets/a.png) after${definition}\n\nEnd`;
+    const source = before + reference + after;
+    const { view, win, setLiveImageAssets, deletedSources } = await editor(
+      t,
+      source,
+    );
+    view.dispatch({
+      effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
+    });
+    const image = visibleImages(view)[0];
+    assert.ok(image);
+    selectImage(image, win);
+    const event = new win.KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+    });
+    image.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(view.state.doc.toString(), before + after);
+    assert.deepEqual(deletedSources, ["assets/a.png"]);
+    assert.equal(view.state.selection.main.head, before.length);
+    assert.equal(view.dom.ownerDocument.activeElement, view.contentDOM);
+    assert.equal(
+      view.dom.querySelector<HTMLElement>(".zmd-image-controls")?.hidden,
+      true,
+    );
+    assert.ok(undo(view));
+    assert.equal(view.state.doc.toString(), source);
+    assert.ok(redo(view));
+    assert.equal(view.state.doc.toString(), before + after);
+  });
+}
+
+test("image selection does not take deletion keys from the width input or body", async (t) => {
+  const source = "![Figure](assets/a.png)\n\nEnd";
+  const { view, win, setLiveImageAssets } = await editor(t, source);
+  view.dispatch({
+    effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
+  });
+  const image = visibleImages(view)[0];
+  selectImage(image, win);
+  const input = view.dom.querySelector<HTMLInputElement>(
+    ".zmd-image-controls input",
+  )!;
+  input.focus();
+  const inputDelete = new win.KeyboardEvent("keydown", {
+    key: "Backspace",
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(inputDelete);
+  assert.equal(inputDelete.defaultPrevented, false);
+  assert.equal(view.state.doc.toString(), source);
+  view.focus();
+  assert.equal(
+    view.dom.querySelector<HTMLElement>(".zmd-image-controls")?.hidden,
+    true,
+  );
+  view.contentDOM.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(view.state.doc.toString(), source.slice(0, -1));
+});
+
+test("image mousedown prevents Gecko from moving focus back into the document", async (t) => {
+  const source = '<img src="assets/a.png" alt="Figure" width="240">\n\nEnd';
+  const { view, win, setLiveImageAssets } = await editor(t, source);
+  view.dispatch({
+    selection: { anchor: source.indexOf("width") },
+    effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
+  });
+  view.focus();
+  const image = visibleImages(view)[0];
+  selectImage(image, win);
+  const mouseDown = new win.MouseEvent("mousedown", {
+    button: 0,
+    bubbles: true,
+    cancelable: true,
+  });
+  image.dispatchEvent(mouseDown);
+  // Gecko focuses the editable ancestor on mousedown even after a cancelled
+  // pointerdown. Model that browser default, which happy-dom does not perform.
+  if (!mouseDown.defaultPrevented) view.focus();
+  assert.equal(
+    view.dom.ownerDocument.activeElement === image,
+    true,
+    "the selected image keeps keyboard focus through mousedown",
+  );
+  view.dom.ownerDocument.activeElement!.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(view.state.doc.toString(), "\n\nEnd");
+  assert.ok(undo(view));
+  assert.equal(view.state.doc.toString(), source);
+});
+
+test("selected images in a read-only editor cannot be deleted", async (t) => {
+  const source = "![Figure](assets/a.png)\n\nEnd";
+  const { view, win, setLiveImageAssets } = await editor(t, source);
+  const { StateEffect } = await import("@codemirror/state");
+  view.dispatch({
+    effects: [
+      setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
+      StateEffect.appendConfig.of(EditorState.readOnly.of(true)),
+    ],
+  });
+  const image = visibleImages(view)[0];
+  selectImage(image, win);
+  for (const key of ["Delete", "Backspace"]) {
+    image.dispatchEvent(
+      new win.KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    assert.equal(view.state.doc.toString(), source);
+  }
+  assert.equal(undo(view), false);
+});
 
 test("Live resolves cross-line definitions and refreshes a picture when its definition changes", async (t) => {
   const source = "![Figure][REF]\n\n[ref]: assets/a.png\n\nEnd";
@@ -134,25 +295,22 @@ test("Live reference definitions ignore frontmatter and preserve real document o
 test("resizing one reference-style occurrence leaves its shared definition and siblings intact", async (t) => {
   const source =
     "![First][ref]\n\n![Second][ref]\n\n[ref]: assets/a.png\n\nEnd";
-  const { view, win, setLiveImageAssets } = await editor(t, source);
+  const { view, win, setLiveImageAssets, deletedSources } = await editor(
+    t,
+    source,
+  );
   view.dispatch({
     effects: setLiveImageAssets.of({ "assets/a.png": { dataUrl: PNG } }),
   });
   const image = visibleImages(view)[0];
   assert.ok(image);
-  Object.defineProperties(image, {
-    complete: { configurable: true, value: true },
-    naturalWidth: { configurable: true, value: 640 },
-    naturalHeight: { configurable: true, value: 480 },
-  });
-  image.dispatchEvent(
-    new win.PointerEvent("pointerdown", { button: 0, bubbles: true }),
-  );
+  selectImage(image, win);
   const small = view.dom.querySelector<HTMLButtonElement>(
     '.zmd-image-controls button[data-width="240"]',
   );
   assert.ok(small);
   small.click();
+  assert.deepEqual(deletedSources, []);
   const result = view.state.doc.toString();
   assert.match(result, /^<img src="assets\/a.png" alt="First" width="240">/);
   assert.ok(result.includes("![Second][ref]"));

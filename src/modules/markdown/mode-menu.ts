@@ -38,7 +38,9 @@ export function mountModeMenu(options: {
     panel.append(entry);
     return entry;
   });
-  root.append(panel);
+  root
+    .querySelector<HTMLElement>(".zotero-markdown-toolbar-inner")!
+    .append(panel);
   button.setAttribute("aria-haspopup", "menu");
   button.setAttribute("aria-expanded", "false");
   const icon = doc.createElement("span");
@@ -81,7 +83,7 @@ export function mountModeMenu(options: {
     panel.style.maxWidth = `${Math.max(32, bounds.width - 8)}px`;
     panel.style.maxHeight = `${Math.max(32, bounds.height - 8)}px`;
     const rect = panel.getBoundingClientRect();
-    panel.style.left = `${Math.max(bounds.left + 4, Math.min(anchor.right - rect.width, bounds.right - rect.width - 4))}px`;
+    panel.style.left = `${Math.max(bounds.left + 4, Math.min(anchor.left, bounds.right - rect.width - 4))}px`;
     panel.style.top = `${Math.max(bounds.top + 4, Math.min(anchor.bottom + 6, bounds.bottom - rect.height - 4))}px`;
     for (const entry of buttons) {
       entry.tabIndex = entry.dataset.mode === currentMode ? 0 : -1;

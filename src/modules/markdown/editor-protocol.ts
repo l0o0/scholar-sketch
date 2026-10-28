@@ -106,6 +106,8 @@ export interface EditorInitPayload {
   mode?: EditorMode;
   /** Layout density for the editor host. */
   surface?: EditorSurface;
+  /** Space covered by host controls above the editor viewport, in CSS pixels. */
+  topInset?: number;
   imageLabels?: EditorImageLabels;
   tableLabels?: EditorTableLabels;
   linkLabels?: EditorLinkLabels;
@@ -199,6 +201,11 @@ export type ParentToEditorMessage = (
     }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "focus" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "requestMeasure" }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setTopInset";
+      payload: { topInset: number };
+    }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setTheme";
@@ -303,7 +310,11 @@ export type EditorToParentMessage = (
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "change";
-      payload: { rev: number; changes: EditorDocChange[] };
+      payload: {
+        rev: number;
+        changes: EditorDocChange[];
+        deletedImages?: string[];
+      };
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -373,6 +384,38 @@ export function isEditorProtocolMessage(
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "init" || data.type === "setTopInset") {
+    const payload = data.payload as { topInset?: unknown } | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      ((data.type === "init" && payload.topInset === undefined) ||
+        (typeof payload.topInset === "number" &&
+          Number.isFinite(payload.topInset) &&
+          payload.topInset >= 0))
+    );
+  }
+  if (data.type === "change") {
+    const payload = data.payload as Record<string, unknown> | null;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      Number.isInteger(payload.rev) &&
+      Array.isArray(payload.changes) &&
+      payload.changes.every(
+        (change) =>
+          change &&
+          Number.isInteger(change.from) &&
+          change.from >= 0 &&
+          Number.isInteger(change.to) &&
+          change.to >= change.from &&
+          typeof change.insert === "string",
+      ) &&
+      (payload.deletedImages === undefined ||
+        (Array.isArray(payload.deletedImages) &&
+          payload.deletedImages.every((source) => typeof source === "string")))
+    );
+  }
   if (data.type === "importImage") return data.payload === undefined;
   if (data.type === "applyIfUnchanged") {
     const payload = data.payload as Record<string, unknown> | null;

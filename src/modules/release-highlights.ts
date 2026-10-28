@@ -15,6 +15,49 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.22",
+    features: [
+      {
+        title: "feature-updates-floating-toolbar-title",
+        body: "feature-updates-floating-toolbar-body",
+      },
+      {
+        title: "feature-updates-toolbar-autohide-title",
+        body: "feature-updates-toolbar-autohide-body",
+      },
+    ],
+  },
+  {
+    version: "0.2.21",
+    features: [
+      {
+        title: "feature-updates-toolbar-choice-title",
+        body: "feature-updates-toolbar-choice-body",
+      },
+      {
+        title: "feature-updates-reference-keys-title",
+        body: "feature-updates-reference-keys-body",
+      },
+      {
+        title: "feature-updates-unified-pane-title",
+        body: "feature-updates-unified-pane-body",
+      },
+    ],
+  },
+  {
+    version: "0.2.20",
+    features: [
+      {
+        title: "feature-updates-image-delete-title",
+        body: "feature-updates-image-delete-body",
+      },
+      {
+        title: "feature-updates-local-examples-title",
+        body: "feature-updates-local-examples-body",
+      },
+    ],
+  },
+  {
     version: "0.2.19",
     features: [
       {

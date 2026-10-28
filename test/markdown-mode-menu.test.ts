@@ -6,7 +6,7 @@ import { mountModeMenu } from "../src/modules/markdown/mode-menu.ts";
 function fixture(t: TestContext) {
   const window = new Window();
   window.document.body.innerHTML =
-    '<main><button class="mode"></button><button class="after"></button></main>';
+    '<main><div class="zotero-markdown-toolbar-inner"><button class="mode"></button></div><button class="after"></button></main>';
   const root = window.document.querySelector("main")!;
   const button = root.querySelector<HTMLButtonElement>(".mode")!;
   const labels = {
@@ -87,6 +87,22 @@ test("mode control shows the current mode and opens on its checked option", (t) 
     assert.equal(f.menu.hidden, true);
   }
   assert.equal(f.closingOtherMenus, 3);
+});
+
+test("mode menu aligns with its trigger and stays within the editor near the edge", (t) => {
+  const f = fixture(t);
+  f.root.getBoundingClientRect = () => new f.window.DOMRect(60, 40, 480, 360);
+  f.menu.getBoundingClientRect = () => new f.window.DOMRect(0, 0, 124, 102);
+  let anchor = new f.window.DOMRect(180, 50, 70, 32);
+  f.button.getBoundingClientRect = () => anchor;
+  f.button.click();
+  assert.equal(f.menu.style.left, "180px");
+  assert.equal(f.menu.style.top, "88px");
+  f.controller.close();
+  anchor = new f.window.DOMRect(460, 340, 70, 32);
+  f.button.click();
+  assert.equal(f.menu.style.left, "412px");
+  assert.equal(f.menu.style.top, "294px");
 });
 
 test("mode menu supports arrows, Home/End, selection and an untrapped Tab exit", (t) => {

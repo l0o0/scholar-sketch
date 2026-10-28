@@ -7,7 +7,11 @@ import {
 } from "../../../packages/whiteboard/src/model";
 import { getString } from "../../utils/locale";
 import { getPref, setPref } from "../../utils/prefs";
-import { ensureTutorialAttachments } from "./tutorial-attachments";
+import {
+  ensureTutorialAttachments,
+  tutorialStartupIsCurrent,
+  type TutorialAttachmentResult,
+} from "./tutorial-attachments";
 import { openWhiteboardAttachment } from "./open";
 import {
   createZoteroSourceGateway,
@@ -24,14 +28,15 @@ export interface TutorialSampleDependencies {
 }
 
 export interface TutorialOnboardingDependencies {
-  completed(): boolean;
+  completed(): boolean | Promise<boolean>;
   markCompleted(): void;
   labels(): TutorialCanvasLabels;
   selectSample(): Promise<TutorialCanvasSample | undefined>;
   create(
     document: CanvasDocument,
     filename: string,
-  ): Promise<Zotero.Item | null>;
+    manual: boolean,
+  ): Promise<TutorialAttachmentResult | null>;
   open(item: Zotero.Item): Promise<unknown>;
   log(message: string, error?: unknown): void;
 }
@@ -223,10 +228,13 @@ export function createExampleWhiteboard(
   deps: TutorialOnboardingDependencies = productionOnboardingDependencies(),
 ): Promise<void> {
   if (tutorialInFlight) return tutorialInFlight;
-  return (tutorialInFlight = runTutorial({
-    ...deps,
-    markCompleted: () => {},
-  }).finally(() => {
+  return (tutorialInFlight = runTutorial(
+    {
+      ...deps,
+      markCompleted: () => {},
+    },
+    true,
+  ).finally(() => {
     tutorialInFlight = undefined;
   }));
 }
@@ -238,10 +246,17 @@ export function ensureTutorialWhiteboard(
   let resolved = deps;
   try {
     resolved ??= productionOnboardingDependencies();
-    if (resolved.completed()) return Promise.resolve();
-    return (tutorialInFlight = runTutorial(resolved).finally(() => {
-      tutorialInFlight = undefined;
-    }));
+    const current = resolved;
+    return (tutorialInFlight = (async () => {
+      if (await current.completed()) return;
+      await runTutorial(current);
+    })()
+      .catch((error) => {
+        safeLog(current.log, "Tutorial completion check failed", error);
+      })
+      .finally(() => {
+        tutorialInFlight = undefined;
+      }));
   } catch (error) {
     safeLog(resolved?.log, "Tutorial completion check failed", error);
     return Promise.resolve();
@@ -250,6 +265,7 @@ export function ensureTutorialWhiteboard(
 
 async function runTutorial(
   deps: TutorialOnboardingDependencies,
+  manual = false,
 ): Promise<void> {
   let sample: TutorialCanvasSample | undefined;
   try {
@@ -268,13 +284,14 @@ async function runTutorial(
           .join(", ")}`,
       );
     }
-    const attachment = await deps.create(parsed.document, labels.title);
+    const attachment = await deps.create(parsed.document, labels.title, manual);
     if (!attachment) {
       safeLog(deps.log, "Tutorial whiteboard creation returned no attachment");
       return;
     }
+    if ("deleted" in attachment) return;
     deps.markCompleted();
-    await deps.open(attachment);
+    if (manual || attachment.created) await deps.open(attachment.canvas);
   } catch (error) {
     safeLog(deps.log, "Tutorial whiteboard creation or opening failed", error);
   }
@@ -295,11 +312,19 @@ function safeLog(
 
 function productionOnboardingDependencies(): TutorialOnboardingDependencies {
   return {
-    completed: () => getPref("whiteboardTutorialCreated") === true,
+    completed: () =>
+      tutorialStartupIsCurrent(getPref("whiteboardTutorialCreated") === true),
     markCompleted: () => setPref("whiteboardTutorialCreated", true),
     labels: tutorialLabels,
     selectSample: selectTutorialSample,
-    create: ensureTutorialAttachments,
+    create: (document, filename, manual) =>
+      ensureTutorialAttachments(
+        document,
+        filename,
+        undefined,
+        undefined,
+        manual ? "manual" : "startup",
+      ),
     open: openWhiteboardAttachment,
     log: (message, error) => ztoolkit.log(message, error),
   };

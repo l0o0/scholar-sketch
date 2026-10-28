@@ -14,6 +14,7 @@ import {
   cleanupUnusedImageAssets,
 } from "./images/service";
 import { updateIndexedNote } from "./note-library";
+import type { DeletedImageAssets } from "./images/deleted-assets";
 
 /**
  * Single write path for Markdown attachment content.
@@ -35,6 +36,9 @@ export async function persistMarkdownContent(
     cleanupImages?: boolean;
     /** Recheck live editors after waits and before each image deletion. */
     canCleanupImages?: () => boolean;
+    /** Explicit image deletions owned by the open editors' undo history. */
+    deletedImages?: DeletedImageAssets;
+    canDeleteImages?: () => boolean;
     /** Sync the Zotero item title from the first H1 (editor behavior). */
     syncTitle?: boolean;
     /**
@@ -73,6 +77,19 @@ async function persistMarkdownContentNow(
   }
 
   checkCleanup();
+  // Undo may reintroduce an image removed by an earlier automatic save.
+  // Restore bytes before persisting its reference, under the same write gate.
+  if (opts.deletedImages) {
+    let packageChanged = true;
+    try {
+      packageChanged = await opts.deletedImages.restore(value);
+    } finally {
+      // A later text conflict, or a partial restore failure, must not leave
+      // already restored sidecars invisible to Zotero file sync.
+      if (packageChanged && opts.syncFile)
+        await markAttachmentForUpload(item, { packageChanged: true });
+    }
+  }
   if (opts.revision) {
     await writeProtectedFile(path, value, opts.revision, item, (content) => {
       // History I/O and queued writes may have allowed another editor to change.
@@ -100,6 +117,22 @@ async function persistMarkdownContentNow(
   }
   if (opts.cleanupImages) {
     await cleanupUnusedImageAssets(item, value, opts.canCleanupImages);
+  }
+  if (opts.deletedImages && opts.canDeleteImages) {
+    let packageChanged = false;
+    try {
+      packageChanged = await opts.deletedImages.remove(
+        value,
+        opts.canDeleteImages,
+      );
+    } catch (error) {
+      // A batch may have removed some images before the failure.
+      packageChanged = true;
+      throw error;
+    } finally {
+      if (packageChanged && opts.syncFile)
+        await markAttachmentForUpload(item, { packageChanged: true });
+    }
   }
 
   let titleChanged = false;

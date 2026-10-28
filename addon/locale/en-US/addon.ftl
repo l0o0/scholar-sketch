@@ -4,6 +4,7 @@ toolbar-create-failed = Could not create the document. Please try again.
 toolbar-created-open-failed = The document was created, but its editor could not be opened.
 startup-begin = Scholar Sketch is loading
 startup-finish = Scholar Sketch is ready
+startup-settings-migration-failed = Some old settings could not be migrated. Original templates were kept; restart Zotero to retry.
 menuitem-create-md = New Markdown…
 menuitem-new-whiteboard = New Whiteboard…
 menuitem-new-whiteboard-from-collection = New Whiteboard from Collection…
@@ -94,7 +95,6 @@ whiteboard-no-custom-templates = No custom templates
 whiteboard-rename-template = Rename template
 whiteboard-duplicate-template = Duplicate template
 whiteboard-delete-template = Delete template
-whiteboard-template-conflict-copy = Conflict copy
 whiteboard-kind-frame = Frame
 whiteboard-annotation-color = Annotation color
 whiteboard-annotations =
@@ -404,6 +404,13 @@ settings-shortcut-hint = Click a shortcut to edit it; changes apply immediately
 settings-shortcut-new-standalone = New standalone Markdown note
 settings-shortcut-surface = Shortcut set
 settings-shortcut-surface-markdown = Markdown
+settings-markdown-toolbar = Top toolbar
+settings-markdown-toolbar-always = Always show
+settings-markdown-toolbar-auto = Auto-hide
+settings-markdown-toolbar-hidden = Always hide
+settings-markdown-toolbar-description = Applies to Markdown tabs and standalone windows. Auto-hide reveals the toolbar when the pointer reaches the top of the editor and keeps it visible while a menu is open or a toolbar control has keyboard focus. Editing shortcuts remain available.
+markdown-toolbar-show = Show toolbar
+markdown-toolbar-reveal = Show toolbar temporarily
 settings-shortcut-surface-whiteboard = Whiteboard
 settings-shortcut-indent = Indent
 settings-shortcut-unindent = Unindent
@@ -933,6 +940,11 @@ feature-updates-md-navigation-body = Collapse outline sections and navigate head
 feature-updates-md-feedback-title = Clearer sidebars and operation feedback
 feature-updates-md-feedback-body = Resize sidebars with edge handles and open overlays in narrow windows. Operation warnings and failures offer details and remain until another operation starts or you dismiss them; save failures take priority.
 
+feature-updates-image-delete-title = Delete and restore images
+feature-updates-image-delete-body = Select an image in Live Preview and press Delete or Backspace. Unused local image files are removed after saving; undo restores images while the editor remains open. Image size controls stay available.
+feature-updates-local-examples-title = Example notes and local templates
+feature-updates-local-examples-body = Deleted examples stay deleted and can be restored from the Help menu. Tutorial records and custom templates are stored locally; custom templates do not sync across computers through Zotero.
+
 # Markdown editing and navigation
 status-details = View status details
 status-details-close = Close
@@ -940,3 +952,18 @@ status-details-dismiss = Dismiss
 markdown-outline-resize = Resize outline
 markdown-outline-resize-help = Use Left or Right to resize; Enter or double-click resets the width
 tab-table-size-option = Insert a { $columns } column by { $rows } row table
+
+feature-updates-toolbar-choice-title = A simpler editing space
+feature-updates-toolbar-choice-body = Hide the top toolbar in Markdown settings and restore it from the bottom bar. The mode menu now fits its labels with less empty space.
+feature-updates-reference-keys-title = Faster reference navigation
+feature-updates-reference-keys-body = After typing [[, use Left/Right to switch filters, Up/Down to choose an item, and Enter to insert it. Open tabs excludes the current note while keeping its parent item.
+feature-updates-unified-pane-title = One sidebar entry
+feature-updates-unified-pane-body = Markdown and whiteboard sidebar entries now share the Scholar Sketch icon. Selecting an attachment shows its content; selecting a paper lets you switch between Markdown and whiteboards in the panel.
+
+sidebar-view-markdown = Markdown
+sidebar-view-whiteboard = Whiteboard
+
+feature-updates-floating-toolbar-title = Floating toolbar
+feature-updates-floating-toolbar-body = The Markdown toolbar floats above the editor and stays centered as sidebars change. Narrow windows group commands into menus, leaving more room for your document.
+feature-updates-toolbar-autohide-title = Show the toolbar when you need it
+feature-updates-toolbar-autohide-body = Choose Always show, Auto-hide, or Always hide in settings. Auto-hide fades in near the top and fades out when the pointer leaves. Open menus and keyboard focus keep it visible without shifting the document.

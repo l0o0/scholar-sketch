@@ -40,6 +40,8 @@ When a paper is selected, the new note becomes its attachment. With no paper sel
 
 Markdown notes are saved as `.md` files and are separate from Zotero's built-in rich-text notes. Double-click the `.md` attachment to continue editing. You can also edit in the Markdown section of Zotero's item pane, then use its menu to open the note in a tab or a standalone window.
 
+Zotero’s right sidebar uses one **Scholar Sketch** icon. Selecting a `.md` or `.canvas` attachment shows the corresponding content. When a parent paper is selected, switch between **Markdown** and **Whiteboard** inside the panel to access both kinds of attachments.
+
 ![Markdown editor with a table, note links, an outline, and a backlinks sidebar](screenshots/markdown-linked-notes.jpg)
 
 ### Create a whiteboard
@@ -48,7 +50,7 @@ Click the same Scholar Sketch button and choose **New Whiteboard…**. Whiteboar
 
 To try the whiteboard controls, choose **Help → Scholar Sketch: Create Example Whiteboard**. Follow the example's prompts to add papers, write cards, and connect them.
 
-Both initialization and this menu action first search your personal library for the example Markdown note and whiteboard. Existing examples are reused, and only missing examples are created. Recognized examples that you have not edited can be updated; your edits are preserved. Older examples are also preserved when the plugin cannot establish whether they have been edited. An attachment that has not yet been downloaded does not cause a duplicate to be created. Existing duplicates are not automatically deleted or merged. Before installing on a new computer, complete Zotero library sync so the plugin can find your existing examples.
+The plugin records each example's item key and tutorial version in local preferences. At startup it checks that the items still exist before comparing versions. The same version is reused; a newer tutorial creates a separate copy and preserves the original content. Ordinary plugin updates do not create more examples. Deleted examples stay deleted unless you restore them through the Help menu. Without local records, the plugin first searches for existing examples and adopts those with an unknown version unchanged. Files awaiting download do not cause duplicates, and existing duplicates are not automatically deleted or merged. Before installing on a new computer, complete Zotero library sync so the plugin can find your existing examples.
 
 ![Research whiteboard connecting papers, annotations, questions, viewpoints, and summaries](screenshots/research-whiteboard.jpg)
 
@@ -77,17 +79,18 @@ There are four filters at the top of the list:
 | Notes/attachments | Zotero notes, Markdown notes, whiteboards, PDFs, and other attachments                      |
 | Open tabs         | Attachments in all open tabs of the current Zotero window, together with their parent items |
 
-**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window, not just the active tab.
+**Open tabs** is useful when reading several PDFs and linking the materials currently at hand. It includes all open tabs in that Zotero window and excludes the note you are editing, while keeping its parent item. To link to a heading in the current note, use `#heading` under **All** or **Notes/attachments**.
 
 While the candidate list is open, you can use the keyboard:
 
-| Key           | Action                             |
-| ------------- | ---------------------------------- |
-| `Tab`         | Switch to the next filter          |
-| `Shift + Tab` | Switch to the previous filter      |
-| `↑` / `↓`     | Select the previous or next result |
-| `Enter`       | Insert the selected link           |
-| `Esc`         | Close the list                     |
+| Key           | Action                                |
+| ------------- | ------------------------------------- |
+| `Tab`         | Switch to the next filter             |
+| `Shift + Tab` | Switch to the previous filter         |
+| `←` / `→`     | Switch to the previous or next filter |
+| `↑` / `↓`     | Select the previous or next result    |
+| `Enter`       | Insert the selected link              |
+| `Esc`         | Close the list                        |
 
 After switching filters, continue typing without clicking the editor again. If you use an input method such as a Chinese IME, finish confirming the composed text before using these list controls.
 
@@ -112,6 +115,8 @@ After `[[`, enter a note name followed by `#` to choose a heading in that note. 
 The text after `|` is the displayed label. Markdown note links inserted from the candidate list usually include an attachment identifier to distinguish notes with the same name. For everyday use, simply select a result from the list.
 
 ## Choose an editing mode
+
+In note tabs and standalone windows, the toolbar floats at the top center of the editor while the document scrolls beneath it, without reserving a separate row. Narrow windows group the controls into menus. Choose whether the toolbar stays visible, hides automatically, or stays hidden in [settings](#customize-appearance-and-shortcuts).
 
 The toolbar mode button shows the current mode. Click it to choose **Live**, **Source**, or **Read-only preview**.
 
@@ -171,6 +176,10 @@ The bottom-right status area reports saves and operations such as image download
 Use **Insert image** on the toolbar, paste an image from the clipboard, or drag an image file into the editor. PNG, JPEG, GIF, and WebP images are supported, with a limit of 15 MB per image.
 
 Select an image to adjust its display width or view the original. Image files are stored in the Markdown stored attachment's `assets/` directory and referenced by relative paths in the note.
+
+In Live Preview, click an image to select it, then press `Delete` or `Backspace` (`⌫` on a Mac keyboard) to remove that image reference. Press `Ctrl/Cmd + Z` to undo. Deletion keys in the width input continue to edit the number.
+
+The local file in `assets/` is removed after the document saves successfully, unless another reference or reference definition still uses it. Undo in an open editor also works after autosave: the image is displayed from temporary storage and its original file is restored on the next save. The undo copy is released when all editors for that note close. Remote images and files outside `assets/` are not deleted.
 
 When a note opens or an image loads, the plugin uses the saved Markdown references to silently restore images that were misplaced beside the Markdown file because of malformed sync paths. For example, if the note refers to `assets/image.png` but the actual file is named `assetsimage.png`, the plugin restores the directory and filename and marks the attachment for upload again. Healthy images are left alone. Repairs are skipped when there are conflicting files with different contents, missing originals, read-only attachments, or unsaved drafts; the plugin does not force a save or overwrite files.
 
@@ -320,7 +329,7 @@ Open the **Note** menu at the top, choose **Note**, **Question**, **Viewpoint**,
 
 Double-click the body or choose **Edit body** to change a card's contents. Card bodies support Markdown headings, emphasis, lists, code, links, formulas, and footnotes. While editing the body, `Ctrl/Cmd + Enter` applies the edit and `Esc` cancels it.
 
-Titles are optional. Select a card to change its type, or save, apply, and manage custom templates. Cards created from Zotero notes support **Refresh from Zotero**. If a card has local edits, you will be asked to confirm before the refresh replaces them.
+Titles are optional. Select a card to change its type, or save, apply, and manage custom templates. Custom templates are stored in local plugin preferences and do not sync across computers through Zotero. Cards created from Zotero notes support **Refresh from Zotero**. If a card has local edits, you will be asked to confirm before the refresh replaces them.
 
 ### Add images, files, and shapes
 
@@ -412,6 +421,10 @@ Local history contains versions from before saves, drafts preserved during sync,
 ## Customize appearance and shortcuts
 
 In the Markdown editor, open **More → Settings**. You can also select **Scholar Sketch** in Zotero Settings and click **Open Settings**.
+
+Under **Settings → Markdown → Top toolbar**, choose **Always show**, **Auto-hide**, or **Always hide** for note tabs and standalone windows. Saving applies the choice immediately, including to notes opened later. Your previous visibility choice is preserved until you change it.
+
+With **Auto-hide**, move the pointer to the top of the editor to fade the toolbar in; it fades out when you leave. It stays visible while a menu is open or a toolbar control has keyboard focus. The fade is disabled when your system requests reduced motion. Click **Show toolbar temporarily** in the bottom bar to reach the controls without changing Auto-hide. With **Always hide**, click **Show toolbar** in the bottom bar to return to Always show. Editing shortcuts remain available in all three modes.
 
 Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 

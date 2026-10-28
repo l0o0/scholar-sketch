@@ -1,18 +1,20 @@
 import { updateIndexedNote } from "./note-library";
 /**
- * Sidebar (item pane) Markdown editor — a "Markdown" section in Zotero's
- * right sidebar, styled after the built-in Notes section.
+ * Markdown view inside the shared Scholar Sketch item-pane section.
  *
- * Uses the official `Zotero.ItemPaneManager.registerSection()` plugin API
- * (Zotero 8/9). Each main window gets its own `SidebarController`; the
- * section shows the selected item's `.md` attachments (list) plus an inline
+ * Each section body gets its own controller. The view shows the selected
+ * item's `.md` attachments (list) plus an inline
  * editor, reusing the same chrome:// CodeMirror iframe, `SaveCoordinator`
  * and `persistMarkdownContent` write path as the main-window tabs.
  */
-import { getLocaleID, getString } from "../../utils/locale";
+import { getString } from "../../utils/locale";
 import { createMarkdownEditor, type MarkdownEditorHandle } from "./editor";
 import { SaveCoordinator } from "./save-coordinator";
 import { persistMarkdownContent } from "./persist";
+import {
+  acquireDeletedImageAssets,
+  type DeletedImageAssets,
+} from "./images/deleted-assets";
 import { isMarkdownAttachment } from "./detect";
 import { createMarkdownAttachment } from "./create";
 import { openMarkdownTab } from "./tab";
@@ -44,7 +46,6 @@ import {
   planSidebarVisibility,
   sidebarFocusAction,
   SidebarControllerRegistry,
-  shouldMountSidebarUI,
   shouldUseSidebarFocusMode,
   type SidebarBodyState,
 } from "./sidebar-state";
@@ -90,101 +91,27 @@ export async function closeSidebarSessions(itemID: number): Promise<number> {
   return closed.filter(Boolean).length;
 }
 
-function sidebarIconURL(dark = false): string {
-  return `chrome://${addon.data.config.addonRef}/content/icons/sidebar-markdown${dark ? "-dark" : ""}.svg`;
-}
-
-let sectionKey: string | null = null;
-
 type ZoteroItemPaneElement = Element & { collapsed: boolean };
 type ZoteroCollapsibleSectionElement = Element & {
   open: boolean;
   collapsible: boolean;
 };
 
-/** Register the "Markdown" item-pane section (idempotent, global). */
-export function registerSidebarSection(): void {
-  try {
-    if (!Zotero.ItemPaneManager?.registerSection) {
-      ztoolkit.log("ItemPaneManager unavailable; sidebar section skipped");
-      return;
-    }
-    const key = Zotero.ItemPaneManager.registerSection({
-      paneID: "zmd-markdown",
-      pluginID: addon.data.config.addonID,
-      sidenav: {
-        icon: sidebarIconURL(),
-        darkIcon: sidebarIconURL(true),
-        l10nID: getLocaleID("sidebar-section-tooltip"),
-      },
-      header: {
-        icon: sidebarIconURL(),
-        darkIcon: sidebarIconURL(true),
-        l10nID: getLocaleID("sidebar-section-label"),
-      },
-      onInit: ({ doc, body, setSectionSummary }) => {
-        // UI is not rendered yet — only create the controller skeleton.
-        // Content is populated only by onRender, as required by Zotero's
-        // ItemPaneManager lifecycle contract.
-        const win = doc.defaultView as _ZoteroTypes.MainWindow | null;
-        if (!win) return;
-        // A window can host multiple item-pane/context-pane section bodies.
-        // Replace only a stale controller bound to this exact body.
-        controllers.release(win, body)?.destroy();
-        const controller = new SidebarController(win);
-        controllers.bind(win, body, controller);
-        controller.bindSummary(setSectionSummary);
-      },
-      onDestroy: ({ doc, body }) => {
-        const win = doc.defaultView as _ZoteroTypes.MainWindow | null;
-        if (!win) return;
-        controllers.release(win, body)?.destroy();
-      },
-      onRender: ({ doc, body, item, editable, setSectionSummary }) => {
-        // Required by ItemPaneManager; this is where the section renders.
-        // Keep it synchronous — async work is deferred inside setItem.
-        const win = doc.defaultView as _ZoteroTypes.MainWindow | null;
-        if (!win) return;
-        if (shouldMountSidebarUI("render")) {
-          controllers
-            .get(body)
-            ?.render(body, item, editable, setSectionSummary, "render");
-        }
-      },
-    });
-    if (key === false) {
-      ztoolkit.log("Failed to register Markdown sidebar section");
-      return;
-    }
-    sectionKey = key;
-  } catch (error) {
-    ztoolkit.log("registerSidebarSection failed", error);
-  }
-}
-
-export async function unregisterSidebarSection(): Promise<void> {
-  if (sectionKey) {
-    try {
-      Zotero.ItemPaneManager?.unregisterSection(sectionKey);
-    } catch (error) {
-      ztoolkit.log("unregisterSidebarSection failed", error);
-    }
-    sectionKey = null;
-  }
-  await Promise.all(
-    Zotero.getMainWindows().flatMap((win) =>
-      controllers.releaseWindow(win).map((controller) => controller.destroy()),
-    ),
-  );
-}
-
-/** Destroy the sidebar editor for a closing window (awaits the final flush). */
-export async function disposeSidebarForWindow(win: Window): Promise<void> {
-  await Promise.all(
-    controllers
-      .releaseWindow(win as _ZoteroTypes.MainWindow)
-      .map((controller) => controller.destroy()),
-  );
+/** Keep sidebar drafts visible to the Markdown API while their view is hidden. */
+export function createMarkdownSidebar(
+  win: _ZoteroTypes.MainWindow,
+  body: HTMLElement,
+) {
+  const controller = new SidebarController(win);
+  controllers.bind(win, body, controller);
+  return {
+    render: controller.render.bind(controller),
+    setActive: controller.setActive.bind(controller),
+    destroy: () => {
+      controllers.release(win, body);
+      return controller.destroy();
+    },
+  };
 }
 
 async function readFileText(path: string): Promise<string> {
@@ -242,10 +169,11 @@ class SidebarController {
       this.autosaveTimer = null;
     }
     await this.save?.request({ force: true });
-    if (this.itemID === itemID) this.destroyEditor();
+    if (this.itemID === itemID) await this.destroyEditor();
     return true;
   }
 
+  private active = true;
   private editor: MarkdownEditorHandle | null = null;
   private save: SaveCoordinator | null = null;
   private item: Zotero.Item | null = null;
@@ -278,6 +206,7 @@ class SidebarController {
   /** Monotonic render sequence; invalidates in-flight async renders. */
   private renderSeq = 0;
   private fileRevision = { content: "" };
+  private deletedImages: DeletedImageAssets | null = null;
 
   constructor(win: _ZoteroTypes.MainWindow) {
     this.win = win;
@@ -431,6 +360,16 @@ class SidebarController {
     emptyButton.addEventListener("click", () => void this.createNew());
   }
 
+  setActive(active: boolean): void {
+    this.active = active;
+    if (active) return;
+    this.cancelPendingRender();
+    this.pendingBody = null;
+    this.closeMoreMenu();
+    this.clearFocusMode();
+    this.unbindFocusSidenav();
+  }
+
   /**
    * Render the section into the CURRENT body element provided by Zotero.
    * Follows the ItemPaneManager contract: the UI is (re)attached on every
@@ -443,26 +382,15 @@ class SidebarController {
     setSummary?: (summary: string) => void,
     source?: string,
   ): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.active) return;
     if (setSummary) {
       this.lastSummary = setSummary;
       this.bindSummary(setSummary);
     }
 
-    // Zotero can fire the hooks while the section element is not yet
-    // attached to the live DOM. Resolve a connected target body first:
-    // 1. the body passed by the hook, if connected;
-    // 2. otherwise the live section body found in the window document;
-    // 3. otherwise queue the render and retry until it connects.
-    let target = body;
-    if (!target.isConnected) {
-      const live = this.win.document.querySelector(
-        'item-pane-custom-section[data-pane="zmd-markdown"] [data-type="body"]',
-      );
-      if (live instanceof HTMLElement && live.isConnected) {
-        target = live;
-      }
-    }
+    // The owner body is unique to this pane (main or reader context). Never
+    // fall back to another pane in the same window while waiting for attachment.
+    const target = body;
     if (!target.isConnected) {
       ztoolkit.log("sidebar render deferred (body not connected)", {
         source: source ?? "render",
@@ -573,6 +501,8 @@ class SidebarController {
     }
     const editor = this.editor;
     const save = this.save;
+    const deletedImages = this.deletedImages;
+    this.deletedImages = null;
     const unbindDocumentSync = this.unbindDocumentSync;
     this.unbindDocumentSync = null;
     this.save = null;
@@ -594,6 +524,11 @@ class SidebarController {
         } finally {
           unbindDocumentSync?.();
           editor.destroy();
+          await deletedImages
+            ?.release(save.dirty || !!save.lastError)
+            .catch((error) => {
+              ztoolkit.log("Failed to release deleted image cache", error);
+            });
         }
       } else {
         unbindDocumentSync?.();
@@ -620,20 +555,28 @@ class SidebarController {
     );
   }
 
+  private setEditorVisible(visible: boolean): void {
+    this.editorHost.hidden = !visible;
+    // Empty/loading views may retain the previous draft, but its references
+    // belong to that editor and must follow its visibility.
+    const references = this.root.querySelector<HTMLElement>(".zmd-backlinks");
+    if (references) references.hidden = !visible;
+  }
+
   private applyBodyState(state: SidebarBodyState): void {
     const visibility = planSidebarVisibility(
       state,
       this.hasParentAttachmentList(),
     );
     this.listEl.hidden = !visibility.list;
-    this.editorHost.hidden = !visibility.editor;
+    this.setEditorVisible(visibility.editor);
     this.hintEl.hidden = !visibility.hint;
     this.emptyEl.hidden = !visibility.empty;
   }
 
   private beginLoading(): void {
     this.listEl.hidden = !this.hasParentAttachmentList();
-    this.editorHost.hidden = true;
+    this.setEditorVisible(false);
     this.hintEl.hidden = true;
     this.emptyEl.hidden = true;
   }
@@ -778,7 +721,8 @@ class SidebarController {
     item: Zotero.Item | null,
     seq: number,
   ): Promise<void> {
-    if (this.destroyed || !item || seq !== this.renderSeq) return;
+    if (this.destroyed || !this.active || !item || seq !== this.renderSeq)
+      return;
     if (canReuseSidebarEditor(!!this.editor, this.itemID, item.id)) {
       this.editor?.setReadOnly?.(!this.editable);
       this.showEditor();
@@ -792,22 +736,24 @@ class SidebarController {
     // Flush and tear down the previous editor before switching documents.
     if (this.editor) {
       await this.flush();
-      if (seq !== this.renderSeq || this.destroyed) return;
-      this.destroyEditor();
+      if (seq !== this.renderSeq || this.destroyed || !this.active) return;
+      await this.destroyEditor();
     }
-    if (seq !== this.renderSeq || this.destroyed) return;
+    if (seq !== this.renderSeq || this.destroyed || !this.active) return;
 
     const path = (await item.getFilePathAsync()) || null;
-    if (seq !== this.renderSeq || this.destroyed) return;
+    if (seq !== this.renderSeq || this.destroyed || !this.active) return;
     if (!path) {
       this.showEmpty(getString("sidebar-empty"));
       return;
     }
     const content = await readFileText(path);
-    if (seq !== this.renderSeq || this.destroyed) return;
+    if (seq !== this.renderSeq || this.destroyed || !this.active) return;
 
     this.fileRevision = { content };
     const fileRevision = this.fileRevision;
+    const deletedImages = acquireDeletedImageAssets(item);
+    this.deletedImages = deletedImages;
     this.itemID = item.id;
     const sourceID = `sidebar:${this.controllerID}:${item.id}`;
     this.documentSyncSourceID = sourceID;
@@ -823,14 +769,20 @@ class SidebarController {
         this.root.parentElement.appendChild(this.root);
     }
 
+    // The editor can outlive many renders (including visits to the whiteboard
+    // view). Link callbacks belong to that editor, not its initial open request.
+    const ownsEditor = () =>
+      !this.destroyed &&
+      this.active &&
+      this.editor === editor &&
+      this.itemID === item.id;
     const onNavigateNote = (
       note: PortableNote,
       heading?: string,
       position?: number,
     ) => {
       if (
-        seq !== this.renderSeq ||
-        this.itemID !== item.id ||
+        !ownsEditor() ||
         note.key !== item.key ||
         note.libraryID !== item.libraryID
       )
@@ -849,7 +801,8 @@ class SidebarController {
       surface: "sidebar",
       doc: content,
       readOnly: !this.editable,
-      onChange: () => {
+      onChange: (_value, sources) => {
+        if (sources?.length) deletedImages.record(sources);
         this.save?.markChanged();
         documentSyncRegistry.markEdited(sourceID);
         this.scheduleAutosave();
@@ -877,9 +830,8 @@ class SidebarController {
           : Promise.resolve({ error: getString("sidebar-attachment-gone") });
       },
       onLinkSearch: async (query, filter) => {
-        // The editor may remain alive for one tick while Zotero switches the
-        // selected item. Never return candidates for a different document.
-        if (seq !== this.renderSeq || this.item?.id !== item.id) return [];
+        // Retained hidden views and replaced editors cannot handle navigation.
+        if (!ownsEditor()) return [];
         return searchDocumentLinks(item, query, false, {
           filter,
           win: this.win,
@@ -887,7 +839,7 @@ class SidebarController {
         });
       },
       onOpenLink: (href) => {
-        if (seq !== this.renderSeq || this.item?.id !== item.id) return;
+        if (!ownsEditor()) return;
         navigateDocumentLink(item, this.win, href, { onNavigateNote });
       },
       onPasteImage: ({ bytes, mimeType }) =>
@@ -904,6 +856,11 @@ class SidebarController {
       write: async (value, request) => {
         await persistMarkdownContent(item, value, {
           revision: fileRevision,
+          deletedImages,
+          canDeleteImages: () =>
+            !editor.isComposing() &&
+            editor.getValue() === value &&
+            !documentSyncRegistry.hasLocalWork(item.id, sourceID),
           cleanupImages: request.cleanupImages,
           syncTitle: true,
           syncFile: true,
@@ -922,7 +879,7 @@ class SidebarController {
     void this.refreshImages(item, content);
   }
 
-  private destroyEditor(): void {
+  private async destroyEditor(): Promise<void> {
     this.unbindBacklinks?.();
     this.unbindBacklinks = null;
     if (this.autosaveTimer != null) {
@@ -934,10 +891,16 @@ class SidebarController {
     this.documentSyncSourceID = null;
     this.documentSyncRefresh = null;
     this.editor?.destroy();
+    const deletedImages = this.deletedImages;
+    const saveFailed = !!this.save?.dirty || !!this.save?.lastError;
+    this.deletedImages = null;
     this.editor = null;
     this.save = null;
     this.itemID = null;
-    this.editorHost.hidden = true;
+    this.setEditorVisible(false);
+    await deletedImages?.release(saveFailed).catch((error) => {
+      ztoolkit.log("Failed to release deleted image cache", error);
+    });
   }
 
   private bindDocumentSync(

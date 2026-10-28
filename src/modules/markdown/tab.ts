@@ -44,6 +44,11 @@ import {
   type MoreMenuAction,
 } from "./more-menu";
 import { mountModeMenu, type ModeMenuController } from "./mode-menu";
+import {
+  mountToolbarVisibility,
+  type ToolbarVisibilityController,
+} from "./toolbar-visibility";
+import { resolveMarkdownToolbarMode } from "./preferences";
 import { moveMenuFocus } from "../../utils/menu-keyboard";
 import {
   activePreviewOutlineID,
@@ -94,6 +99,7 @@ import { createStatusFeedback, type StatusTask } from "./status-feedback";
 import { MARKDOWN_TAB_TYPE, resolveMarkdownTabTitle } from "./tabHooks";
 import { SaveCoordinator } from "./save-coordinator";
 import { persistMarkdownContent } from "./persist";
+import { acquireDeletedImageAssets } from "./images/deleted-assets";
 import {
   sessionRegistry,
   type OpenSession,
@@ -102,6 +108,7 @@ import {
 } from "./session-registry";
 import { ensureDOMGlobals, getDOMDocument } from "../../utils/dom";
 import { getString } from "../../utils/locale";
+import { getPref, setPref } from "../../utils/prefs";
 import type { EditorOutlineItem, EditorTheme } from "./editor-protocol";
 import { mountOutlineSidebar } from "./outline-sidebar";
 import { documentSyncRegistry } from "./document-sync";
@@ -120,6 +127,10 @@ import {
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
+const toolbarVisibilities = new WeakMap<
+  OpenSession,
+  ToolbarVisibilityController
+>();
 const tablePickerAnchors = new WeakMap<OpenSession, HTMLElement>();
 const readOnlySessions = new WeakSet<OpenSession>();
 const AUTOSAVE_MS = 800;
@@ -156,6 +167,7 @@ export function mountMarkdownEditorSurface(
     itemID: options.item.id,
     path: options.path,
     fileRevision: { content: options.content },
+    deletedImages: acquireDeletedImageAssets(options.item),
     mode: "live",
     previewRenderGeneration: 0,
     outlineItems: [],
@@ -203,6 +215,7 @@ export function mountMarkdownEditorSurface(
     return session;
   } catch (error) {
     sessionRegistry.unregister(options.sessionID);
+    void session.deletedImages?.release().catch((error) => ztoolkit.log(error));
     throw error;
   }
 }
@@ -1032,6 +1045,16 @@ function mountEditorUI(
             properties: { innerText: "" },
           },
           {
+            tag: "button",
+            namespace: "html",
+            classList: ["zotero-markdown-toolbar-restore"],
+            properties: {
+              type: "button",
+              textContent: getString("markdown-toolbar-show"),
+            },
+            attributes: { "data-action": "show-toolbar", hidden: "true" },
+          },
+          {
             tag: "span",
             namespace: "html",
             classList: ["zotero-markdown-save-status", "is-saved"],
@@ -1092,7 +1115,17 @@ function mountEditorUI(
     if (!btn || !root.contains(btn)) return;
     const action = btn.getAttribute("data-action");
     if (action === "preview-back") setMode(session, "live");
-    else if (action === "preview-retry") void showReadOnlyPreview(session);
+    else if (action === "show-toolbar") {
+      const mode = resolveMarkdownToolbarMode(
+        getPref("markdownToolbarMode"),
+        getPref("markdownToolbarVisible"),
+      );
+      if (mode === "auto") toolbarVisibilities.get(session)?.reveal();
+      else {
+        setPref("markdownToolbarMode", "always");
+        applyMarkdownToolbarPreferences();
+      }
+    } else if (action === "preview-retry") void showReadOnlyPreview(session);
     else if (isToolbarCommand(action))
       executeToolbarCommand(session, action, btn);
     else if (action === "more") {
@@ -1195,6 +1228,12 @@ function mountEditorUI(
       onRename: (filename) => renameSessionAttachment(session, filename),
       onReveal: () => revealSessionFolder(session),
       onSettings: (settings) => saveModalSettings(settings),
+      onClose: () => {
+        if (toolbar?.hasAttribute("hidden"))
+          root
+            .querySelector<HTMLButtonElement>('[data-action="show-toolbar"]')!
+            .focus();
+      },
     },
     { mount: root, about: markdownSettingsAbout() },
   );
@@ -1252,6 +1291,7 @@ function mountEditorUI(
     mountResponsiveToolbar({
       root,
       workspace: view.workspaceEl,
+      onTopInsetChange: (top) => session.editor?.setTopInset(top),
       labels: {
         heading: getString("tab-toolbar-heading"),
         format: getString("tab-toolbar-format"),
@@ -1272,6 +1312,10 @@ function mountEditorUI(
 
   session.editor = createMarkdownEditor(view.editorHost, {
     doc: content ?? "",
+    topInset:
+      Number.parseFloat(
+        view.workspaceEl.style.getPropertyValue("--zmd-toolbar-inset"),
+      ) || 0,
     viewState: documentWorkspace(session.itemID)?.view,
     onViewState: (view) => rememberDocument(session.itemID, { view }),
     readOnly,
@@ -1296,7 +1340,8 @@ function mountEditorUI(
         if (session.save.dirty) scheduleAutosave(session);
       }
     },
-    onChange: (value) => {
+    onChange: (value, deletedImages) => {
+      if (deletedImages?.length) session.deletedImages?.record(deletedImages);
       const appliedTitleSync = !!session.applyingTitleSync;
       session.applyingTitleSync = false;
       session.save.markChanged();
@@ -1354,6 +1399,16 @@ function mountEditorUI(
   });
   // Default iframe mode is live (init.mode)
   session.editor.setMode("live");
+  toolbarVisibilities.set(
+    session,
+    mountToolbarVisibility({
+      root,
+      workspace: view.workspaceEl,
+      toolbar: root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!,
+      iframe: view.editorHost.querySelector<HTMLIFrameElement>("iframe")!,
+    }),
+  );
+  applyToolbarPreference(session);
   bindSessionDocumentSync(session);
   void refreshImageAssets(session);
 
@@ -1370,6 +1425,42 @@ function mountEditorUI(
   win.requestAnimationFrame(measure);
   win.setTimeout(measure, 50);
   win.setTimeout(measure, 200);
+}
+
+function applyToolbarPreference(session: OpenSession) {
+  const root = session.view?.root;
+  if (!root) return;
+  const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
+  const restore = root.querySelector<HTMLButtonElement>(
+    '[data-action="show-toolbar"]',
+  )!;
+  const mode = resolveMarkdownToolbarMode(
+    getPref("markdownToolbarMode"),
+    getPref("markdownToolbarVisible"),
+  );
+  if (mode === "hidden") {
+    closeToolbarMoreMenu(session);
+    session.closeTablePicker?.();
+    modeMenus.get(session)?.close();
+    responsiveToolbars.get(session)?.close();
+  }
+  const active = root.ownerDocument.activeElement;
+  toolbar.hidden = mode === "hidden";
+  toolbarVisibilities.get(session)?.setMode(mode);
+  responsiveToolbars.get(session)?.refresh();
+  restore.hidden = mode === "always";
+  restore.textContent = getString(
+    mode === "auto" ? "markdown-toolbar-reveal" : "markdown-toolbar-show",
+  );
+  if (mode === "hidden" && active && toolbar.contains(active)) restore.focus();
+  else if (mode === "always" && active === restore)
+    root.querySelector<HTMLButtonElement>('[data-action="more"]')!.focus();
+  session.editor?.view.requestMeasure();
+}
+
+/** Tab and standalone-window toolbars share the same local preference. */
+export function applyMarkdownToolbarPreferences() {
+  for (const session of sessionRegistry.all()) applyToolbarPreference(session);
 }
 
 function setOutlineExpanded(session: OpenSession, expanded: boolean) {
@@ -2929,6 +3020,14 @@ async function persistSession(
   const item = Zotero.Items.get(session.itemID);
   if (!item) throw new Error("Item gone");
   const { path, titleChanged } = await persistMarkdownContent(item, value, {
+    deletedImages: session.deletedImages,
+    canDeleteImages: () =>
+      !session.editor?.isComposing() &&
+      session.editor?.getValue() === value &&
+      !documentSyncRegistry.hasLocalWork(
+        session.itemID,
+        session.documentSyncSourceID,
+      ),
     cleanupImages: opts.cleanupImages,
     canCleanupImages: () =>
       !session.closing &&
@@ -3034,8 +3133,6 @@ export async function closeMarkdownSession(
     if (opts.flush) {
       // The same iframe channel applies this replace before the final snapshot.
       prepareSessionSave(session);
-      // Asset cleanup is explicit: another open view or an undo step can
-      // still reference images not present in this view's current buffer.
       if (opts.throwOnSaveError) {
         await session.save.request({ force: true });
       } else {
@@ -3050,6 +3147,8 @@ export async function closeMarkdownSession(
     session.unbindFeatureUpdates?.();
     session.modal?.destroy();
     session.unbindTablePicker?.();
+    toolbarVisibilities.get(session)?.destroy();
+    toolbarVisibilities.delete(session);
     modeMenus.get(session)?.destroy();
     modeMenus.delete(session);
     responsiveToolbars.get(session)?.destroy();
@@ -3082,6 +3181,12 @@ export async function closeMarkdownSession(
     session.unbindPreviewOutline?.();
     if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
     session.editor?.destroy();
+    await session.deletedImages
+      ?.release(session.save.dirty || !!session.save.lastError)
+      .catch((error) => {
+        // Recovery-cache cleanup must not reopen an already destroyed editor.
+        ztoolkit.log("Failed to release deleted image cache", error);
+      });
     sessionRegistry.unregister(tabID);
     if (!sessionRegistry.all().some((other) => other.itemID === session.itemID))
       forgetOpenDocument(session.itemID);

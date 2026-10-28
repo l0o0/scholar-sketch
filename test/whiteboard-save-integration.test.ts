@@ -110,7 +110,7 @@ test("plugin owns tutorial onboarding across startup and shutdown", () => {
       "onMainWindowLoad(win)",
       /^\s*Zotero\.getMainWindows\(\)\.map\(\(win\) => onMainWindowLoad\(win\)\),$/m,
     ],
-    ["registerSidebarSection()", /^\s*registerSidebarSection\(\);$/m],
+    ["registerItemPane()", /^\s*registerItemPane\(\);$/m],
   ] as const) {
     assert.ok(
       statementIndex(startup, pattern, label) < tutorial,

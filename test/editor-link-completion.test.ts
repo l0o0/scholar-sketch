@@ -259,7 +259,15 @@ test("modified shortcuts remain available to the editor and host", async () => {
     f.popup.update("all", [candidate, secondCandidate], false);
     const active = f.content.getAttribute("aria-activedescendant");
     for (const modifier of ["ctrlKey", "metaKey", "altKey", "shiftKey"]) {
-      for (const key of ["Tab", "ArrowDown", "ArrowUp", "Enter", "Escape"]) {
+      for (const key of [
+        "Tab",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowDown",
+        "ArrowUp",
+        "Enter",
+        "Escape",
+      ]) {
         if (modifier === "shiftKey" && key === "Tab") continue;
         assert.equal(f.key(key, { [modifier]: true }).defaultPrevented, false);
       }
@@ -310,11 +318,21 @@ test("IME keys and filter clicks do not dispatch candidates, while empty results
   try {
     f.popup.update("all", [candidate], false);
     for (const extra of [{ isComposing: true }, { keyCode: 229 }])
-      for (const key of ["Tab", "ArrowDown", "ArrowUp", "Enter", "Escape"])
+      for (const key of [
+        "Tab",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowDown",
+        "ArrowUp",
+        "Enter",
+        "Escape",
+      ])
         assert.equal(f.key(key, extra).defaultPrevented, false);
     f.composing = true;
     assert.equal(f.key("ArrowDown").defaultPrevented, false);
     assert.equal(f.key("Tab").defaultPrevented, false);
+    assert.equal(f.key("ArrowLeft").defaultPrevented, false);
+    assert.equal(f.key("ArrowRight").defaultPrevented, false);
     f.host
       .querySelector<HTMLButtonElement>('[data-link-filter="open"]')!
       .click();
@@ -472,22 +490,27 @@ test("the real iframe keeps query/selection while switching filters and rejects 
   }
 
   const keyboardRequests = [];
-  for (const expected of ["all", "regular", "notes-attachments", "open"]) {
-    assert.equal(key("Tab").defaultPrevented, true);
-    const request = latest();
-    keyboardRequests.push(request);
-    assert.equal(request.filter, expected);
-    assert.equal(request.query, "study");
-    assert.equal(view.hasFocus, true);
-    assert.equal(view.state.selection.main.head, selection);
-    assert.equal(view.state.doc.toString(), "[[study|shown label");
-    assert.equal(
-      browser.document
-        .querySelector(`[data-link-filter="${expected}"]`)
-        ?.getAttribute("aria-pressed"),
-      "true",
-    );
-  }
+  for (const filterKey of ["Tab", "ArrowRight"])
+    for (const expected of ["all", "regular", "notes-attachments", "open"]) {
+      assert.equal(key(filterKey).defaultPrevented, true);
+      const request = latest();
+      keyboardRequests.push(request);
+      assert.equal(request.filter, expected);
+      assert.equal(request.query, "study");
+      assert.equal(view.hasFocus, true);
+      assert.equal(view.state.selection.main.head, selection);
+      assert.equal(view.state.doc.toString(), "[[study|shown label");
+      assert.equal(
+        browser.document
+          .querySelector(`[data-link-filter="${expected}"]`)
+          ?.getAttribute("aria-pressed"),
+        "true",
+      );
+    }
+  assert.equal(key("ArrowLeft").defaultPrevented, true);
+  assert.equal(latest().filter, "notes-attachments");
+  assert.equal(key("ArrowRight").defaultPrevented, true);
+  assert.equal(latest().filter, "open");
   assert.equal(key("Tab", { shiftKey: true }).defaultPrevented, true);
   assert.equal(latest().filter, "notes-attachments");
   assert.equal(view.hasFocus, true);

@@ -508,6 +508,38 @@ test("open tabs include parents, deduplicate, preserve cross-library identity an
   );
 });
 
+test("open tabs omit the current note but retain its parent and other open documents", async (t) => {
+  const note = makeItem(1, "markdown", "Current note", { parentItemID: 10 });
+  const parent = makeItem(10, "regular", "Parent paper");
+  const other = makeItem(2, "markdown", "Other note");
+  const state = install(t, [note, parent, other]);
+  const win = {
+    Zotero_Tabs: {
+      getState: () =>
+        [1, 2, 1].map((itemID) => ({
+          type: "markdown",
+          data: { itemID },
+        })),
+    },
+  } as unknown as Window;
+  const result = await searchDocumentLinks(note, "", false, {
+    filter: "open",
+    win,
+  });
+  assert.deepEqual(
+    result.map((candidate) => candidate.itemID),
+    [10, 2],
+  );
+  assert.deepEqual(
+    await searchDocumentLinks(note, "Current note", false, {
+      filter: "open",
+      win,
+    }),
+    [],
+  );
+  assert.equal(state.fileReads(), 0);
+});
+
 test("host icons never expose arbitrary URLs and are resolved once per native type", async (t) => {
   let calls = 0;
   const items = [

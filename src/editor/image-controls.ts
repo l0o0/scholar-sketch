@@ -1,4 +1,5 @@
 import { isolateHistory } from "@codemirror/commands";
+import { Annotation } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { EditorImageLabels } from "../modules/markdown/editor-protocol";
 import {
@@ -7,6 +8,8 @@ import {
   serializeImageReference,
 } from "../modules/markdown/images/model";
 import { showImageViewer } from "../modules/markdown/image-viewer";
+
+export const deletedImage = Annotation.define<string>();
 
 const defaultLabels: EditorImageLabels = {
   toolbar: "Image size",
@@ -144,6 +147,9 @@ class ImageControls {
     }
     view.dom.append(this.frame, this.toolbar);
     view.dom.addEventListener("pointerdown", this.onPointerDown, true);
+    // Gecko can still focus the editable ancestor on mousedown after a
+    // cancelled pointerdown, which would clear the image selection.
+    view.dom.addEventListener("mousedown", this.onPointerDown, true);
     view.dom.addEventListener("focusin", this.onFocus);
     view.dom.addEventListener("dblclick", this.onDoubleClick, true);
     view.dom.addEventListener("keydown", this.onKeyDown, true);
@@ -185,7 +191,7 @@ class ImageControls {
     this.measure();
   }
 
-  private onPointerDown = (event: PointerEvent) => {
+  private onPointerDown = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     const image = target.closest<HTMLImageElement>(".zmd-lp-image img");
     if (!image || event.button !== 0) return;
@@ -198,6 +204,7 @@ class ImageControls {
     const target = event.target as HTMLElement;
     if (target.matches(".zmd-lp-image img"))
       this.select(target as HTMLImageElement);
+    else if (target === this.view.contentDOM) this.clear();
   };
   private onDoubleClick = (event: MouseEvent) => {
     if ((event.target as Element).closest(".zmd-lp-image")) this.clear();
@@ -223,6 +230,14 @@ class ImageControls {
         this.clear();
         this.view.focus();
       }
+    } else if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      !event.isComposing &&
+      (target === this.image || this.frame.contains(target))
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.deleteSelectedImage();
     } else if (
       (event.key === "Enter" || event.key === " ") &&
       target.matches(".zmd-lp-image img")
@@ -289,6 +304,24 @@ class ImageControls {
       userEvent: "input.image.resize",
     });
     this.measure();
+  }
+
+  private deleteSelectedImage() {
+    if (this.view.state.readOnly) return;
+    const reference = this.reference();
+    if (!reference) return;
+    // Release selection before the edit can map it onto an adjacent image.
+    this.clear();
+    this.view.dispatch({
+      changes: { from: reference.from, to: reference.to, insert: "" },
+      selection: { anchor: reference.from },
+      annotations: [
+        isolateHistory.of("full"),
+        deletedImage.of(reference.source),
+      ],
+      userEvent: "delete.image",
+    });
+    this.view.focus();
   }
 
   private openOriginal() {
@@ -381,6 +414,7 @@ class ImageControls {
     this.toolbar.remove();
     this.frame.remove();
     this.view.dom.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.view.dom.removeEventListener("mousedown", this.onPointerDown, true);
     this.view.dom.removeEventListener("focusin", this.onFocus);
     this.view.dom.removeEventListener("dblclick", this.onDoubleClick, true);
     this.view.dom.removeEventListener("keydown", this.onKeyDown, true);

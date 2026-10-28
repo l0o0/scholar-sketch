@@ -61,6 +61,7 @@ function fixture(initialWidth = 560, withMotion = false) {
   root.append(workspace);
   doc.body.append(root);
   let width = initialWidth;
+  let toolbarHeight = 66;
   let composing = false;
   let closedOther = 0;
   let observerCallback = () => {};
@@ -184,7 +185,7 @@ function fixture(initialWidth = 560, withMotion = false) {
         observerCallback = callback;
       }
       observe(target: unknown) {
-        assert.equal(target, workspace);
+        assert.ok(target === workspace || target === toolbar);
       }
       disconnect() {
         disconnected = true;
@@ -216,6 +217,11 @@ function fixture(initialWidth = 560, withMotion = false) {
     getString: (key: string) => key,
   }) as Spec;
   workspace.append(render(spec));
+  const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
+  Object.defineProperty(toolbar, "getBoundingClientRect", {
+    value: () => ({ height: toolbar.hidden ? 0 : toolbarHeight }),
+  });
+  const insets: number[] = [];
   const oldAddon = Object.getOwnPropertyDescriptor(globalThis, "addon");
   Object.defineProperty(globalThis, "addon", {
     configurable: true,
@@ -237,8 +243,8 @@ function fixture(initialWidth = 560, withMotion = false) {
       commandHandler?.(command, anchor);
     },
     closeOtherMenus: () => closedOther++,
+    onTopInsetChange: (top) => insets.push(top),
   });
-  const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
   const menu = root.querySelector<HTMLElement>(
     ".zotero-markdown-toolbar-popover",
   )!;
@@ -263,6 +269,8 @@ function fixture(initialWidth = 560, withMotion = false) {
     doc,
     root,
     toolbar,
+    workspace,
+    insets,
     menu,
     trigger,
     key,
@@ -288,6 +296,10 @@ function fixture(initialWidth = 560, withMotion = false) {
       width = value;
       observerCallback();
     },
+    resizeToolbar(height: number) {
+      toolbarHeight = height;
+      observerCallback();
+    },
     async destroy() {
       controller.destroy();
       if (withMotion) {
@@ -308,6 +320,40 @@ function fixture(initialWidth = 560, withMotion = false) {
 }
 
 describe("responsive Markdown toolbar", () => {
+  it("shares the floating inset with preview and editor, releasing it when hidden", async () => {
+    const f = fixture();
+    try {
+      const inset = () =>
+        f.workspace.style.getPropertyValue("--zmd-toolbar-inset");
+      assert.deepEqual(f.insets, [66]);
+      assert.equal(inset(), "66px");
+      assert.equal(f.win.getComputedStyle(f.toolbar).position, "absolute");
+      assert.equal(f.win.getComputedStyle(f.toolbar).pointerEvents, "none");
+      assert.equal(
+        f.win.getComputedStyle(
+          f.toolbar.querySelector(".zotero-markdown-toolbar-inner")!,
+        ).pointerEvents,
+        "auto",
+      );
+      f.toolbar.hidden = true;
+      f.controller.refresh();
+      assert.equal(inset(), "0px");
+      f.toolbar.hidden = false;
+      f.controller.refresh();
+      assert.equal(inset(), "66px");
+      f.resizeToolbar(78);
+      f.flush();
+      assert.equal(
+        inset(),
+        "78px",
+        "height changes update without a width change",
+      );
+      assert.deepEqual(f.insets, [66, 0, 66, 78]);
+    } finally {
+      await f.destroy();
+    }
+  });
+
   it("uses editor width and small expansion hysteresis", () => {
     assert.equal(toolbarLayoutForWidth(320), "compact");
     assert.equal(toolbarLayoutForWidth(540), "grouped");

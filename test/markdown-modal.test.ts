@@ -12,6 +12,7 @@ import {
 import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
 import { version } from "../package.json";
 import { releaseHighlights } from "../src/modules/release-highlights.ts";
+import { resolveMarkdownToolbarMode } from "../src/modules/markdown/preferences.ts";
 
 test("About shows installed release highlights and opens help links once across repeated visits", async (t) => {
   const { Window } = await import("happy-dom");
@@ -178,6 +179,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarMode: "always",
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -191,6 +193,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarMode: "always",
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -204,6 +207,7 @@ test("maps plugin preferences to and from modal settings", () => {
     theme: "system",
     markdownFontFamily: "system",
     markdownBackgroundColor: "",
+    markdownToolbarMode: "always",
     markdownSlashSearchLanguage: "auto",
     shortcutNewStandaloneMd: "accel,shift,M",
     whiteboardColorScheme: "traditional",
@@ -327,6 +331,93 @@ test("slash search segmented settings support keyboard selection, cancellation a
   stored.set("extensions.zotero.bamboo.markdownSlashSearchLanguage", "unknown");
   controller.open("settings", undefined, "editor");
   assertSelection("auto");
+});
+
+test("toolbar mode preserves legacy visibility until a valid mode is saved", () => {
+  for (const value of [undefined, "", "unsupported"]) {
+    assert.equal(resolveMarkdownToolbarMode(value, false), "hidden");
+    assert.equal(resolveMarkdownToolbarMode(value, true), "always");
+    assert.equal(resolveMarkdownToolbarMode(value, undefined), "always");
+  }
+  for (const mode of ["always", "auto", "hidden"] as const) {
+    assert.equal(resolveMarkdownToolbarMode(mode, false), mode);
+    assert.equal(resolveMarkdownToolbarMode(mode, true), mode);
+  }
+});
+
+test("toolbar mode supports legacy settings, cancellation and saving all three choices", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController, applySettings } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const stored = new Map<string, unknown>();
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    { onSettings: applySettings },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const mode = () =>
+    win.document.querySelector<HTMLSelectElement>(
+      'select[name="markdownToolbarMode"]',
+    )!;
+  const selectMode = (value: string) => {
+    mode().value = value;
+    mode().dispatchEvent(new win.Event("change", { bubbles: true }));
+  };
+  const save = async () => {
+    win.document
+      .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  controller.open("settings", undefined, "editor");
+  assert.equal(mode().value, "always");
+  assert.deepEqual(
+    [...mode().options].map((option) => option.value),
+    ["always", "auto", "hidden"],
+  );
+  selectMode("auto");
+  controller.close();
+  assert.equal(stored.size, 0);
+  stored.set("extensions.zotero.bamboo.markdownToolbarVisible", false);
+  stored.set("extensions.zotero.bamboo.markdownToolbarMode", "");
+  controller.open("settings", undefined, "editor");
+  assert.equal(mode().value, "hidden");
+  selectMode("auto");
+  controller.close();
+  controller.open("settings", undefined, "editor");
+  assert.equal(mode().value, "hidden", "Cancellation preserves old settings");
+  for (const choice of ["auto", "always", "hidden"]) {
+    selectMode(choice);
+    await save();
+    assert.equal(
+      stored.get("extensions.zotero.bamboo.markdownToolbarMode"),
+      choice,
+    );
+    assert.equal(
+      stored.get("extensions.zotero.bamboo.markdownToolbarVisible"),
+      false,
+      "Saving the mode must not rewrite the legacy preference",
+    );
+    controller.open("settings", undefined, "editor");
+    assert.equal(mode().value, choice);
+  }
 });
 
 test("provides stable modal titles via localized keys", () => {

@@ -1,7 +1,18 @@
 export type AppearanceTheme = "system" | "light" | "dark";
 export type FontFamilyID = "system" | "serif" | "mono";
+export type MarkdownToolbarMode = "always" | "auto" | "hidden";
 export type SlashSearchLanguage = "auto" | "english" | "pinyin";
 export type ResolvedSlashSearchLanguage = Exclude<SlashSearchLanguage, "auto">;
+
+export function resolveMarkdownToolbarMode(
+  value: unknown,
+  legacyVisible: unknown,
+): MarkdownToolbarMode {
+  if (value === "always" || value === "auto" || value === "hidden") {
+    return value;
+  }
+  return legacyVisible === false ? "hidden" : "always";
+}
 
 export function normalizeSlashSearchLanguage(
   value: unknown,

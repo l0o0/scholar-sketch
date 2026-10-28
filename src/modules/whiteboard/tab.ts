@@ -911,9 +911,7 @@ function mountWhiteboardUI(
 
   session.view = { root, host };
   const gateway = createZoteroSourceGateway();
-  const templateRepository = getZoteroNoteTemplateRepository(
-    getString("whiteboard-template-conflict-copy"),
-  );
+  const templateRepository = getZoteroNoteTemplateRepository();
   let resolutionBatchSequence = 0;
   session.sourceScheduler = new ProgressiveSourceScheduler({
     run: (job) => gateway.resolve(job.nodeId, job.generation, job.descriptor),

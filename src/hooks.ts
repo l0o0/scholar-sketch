@@ -1,8 +1,8 @@
 import {
-  registerWhiteboardSidebar,
-  unregisterWhiteboardSidebar,
-  disposeWhiteboardSidebarForWindow,
-} from "./modules/whiteboard/sidebar";
+  registerItemPane,
+  unregisterItemPane,
+  disposeItemPaneForWindow,
+} from "./modules/item-pane";
 import {
   retainWorkspaceOnShutdown,
   restoreWorkspace,
@@ -44,11 +44,6 @@ import {
 } from "./modules/whiteboard";
 import { canvasApi } from "./modules/whiteboard/api";
 import { markdownApi } from "./modules/markdown/api";
-import {
-  disposeSidebarForWindow,
-  registerSidebarSection,
-  unregisterSidebarSection,
-} from "./modules/markdown/sidebar";
 import { ensureDOMGlobals } from "./utils/dom";
 import { getString, initLocale } from "./utils/locale";
 import { bindMarkdownSettingsPreferencePane } from "./modules/markdown/settings";
@@ -62,6 +57,7 @@ import {
   unregisterAttachmentIcons,
 } from "./modules/attachment-icons";
 import { runShutdownSteps } from "./utils/shutdown";
+import { migrateLegacyPluginSettings } from "./modules/synced-settings-migration";
 import {
   registerCreationToolbar,
   unregisterCreationToolbar,
@@ -69,18 +65,37 @@ import {
 } from "./modules/creation-toolbar";
 
 let tutorialStartup: Promise<void> | undefined;
+let settingsPhase: "pending" | "ready" | "stopped" = "pending";
 
 async function onStartup() {
+  const stopped = () => settingsPhase === "stopped";
   await Promise.all([
     Zotero.initializationPromise,
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
 
+  if (stopped()) return;
   initLocale();
+  try {
+    await migrateLegacyPluginSettings();
+  } catch (error) {
+    Zotero.logError(error as Error);
+    if (stopped()) return;
+    new ztoolkit.ProgressWindow(addon.data.config.addonName)
+      .createLine({
+        text: getString("startup-settings-migration-failed"),
+        type: "fail",
+      })
+      .show();
+    // Keep the original template setting for retry; Markdown and Canvas remain usable.
+  }
+  if (stopped()) return;
+  settingsPhase = "ready";
   registerPrefs();
   registerAttachmentZipCompatibility();
   await registerAttachmentIcons();
+  if (stopped()) return;
   registerFileOpenInterceptor();
   registerWhiteboardFileOpenInterceptor();
 
@@ -88,9 +103,9 @@ async function onStartup() {
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
   );
 
+  if (stopped()) return;
   registerNoteLibraryObserver();
-  registerSidebarSection();
-  registerWhiteboardSidebar();
+  registerItemPane();
   tutorialStartup = ensureTutorialWhiteboard();
 
   addon.api = {
@@ -111,6 +126,8 @@ async function onStartup() {
 }
 
 async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
+  // Bootstrap can deliver new windows while startup is waiting or has failed.
+  if (settingsPhase !== "ready") return;
   // Plugin sandbox has no browser `document`; bridge from chrome window
   // so DOM libraries work (also via ztoolkit.getGlobal).
   ensureDOMGlobals(win);
@@ -156,17 +173,27 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
   await flushSessionsForWindow(_win);
   unregisterItemContextMenu(_win);
   unregisterWhiteboardMenus(_win);
-  await disposeWhiteboardSidebarForWindow(_win);
+  await disposeItemPaneForWindow(_win);
   await closeWhiteboardsForWindow(_win);
-  await disposeSidebarForWindow(_win);
 }
 
-async function onShutdown(): Promise<void> {
+async function onShutdown(isAppShutdown = false): Promise<void> {
+  settingsPhase = "stopped";
   // Zotero continues unloading after a rejected shutdown, removing native
   // sections while our sandbox registrations and singleton would remain.
   // Keep each cleanup independent without forcing unsaved editors closed.
   const reportError = (step: string, error: unknown) =>
     ztoolkit.log(`Shutdown cleanup failed (${step})`, error);
+  const noteIndexSteps = [
+    ["noteLibraries", clearNoteLibraries],
+    ["noteIndex", closeNoteIndex],
+  ] as const;
+  if (isAppShutdown) {
+    // Windows may already be destroyed. Release background resources without
+    // waiting for editor snapshots or timers owned by those windows.
+    await runShutdownSteps(noteIndexSteps, reportError);
+    return;
+  }
   await runShutdownSteps(
     [
       ["retainWorkspace", retainWorkspaceOnShutdown],
@@ -199,17 +226,15 @@ async function onShutdown(): Promise<void> {
           await flushAllWhiteboards();
         },
       ],
-      ["whiteboardSidebar", unregisterWhiteboardSidebar],
+      ["itemPane", unregisterItemPane],
       [
         "whiteboardWindows",
         async () => {
           await closeAllWhiteboards();
         },
       ],
-      ["markdownSidebar", unregisterSidebarSection],
       ["markdownRenderer", disposeMarkdownRenderer],
-      ["noteLibraries", clearNoteLibraries],
-      ["noteIndex", closeNoteIndex],
+      ...noteIndexSteps,
       ["markdownFileHandler", unregisterFileOpenInterceptor],
       ["whiteboardFileHandler", unregisterWhiteboardFileOpenInterceptor],
       [

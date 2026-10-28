@@ -243,33 +243,30 @@ export function createLinkCompletionPopup(options: {
       options.focusEditor();
       return;
     }
-    if (event.key === "Tab") {
+    if (
+      event.key === "Tab" ||
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight"
+    ) {
       consume();
+      const from =
+        event.key !== "Tab" && focusedFilter >= 0
+          ? focusedFilter
+          : FILTERS.indexOf(currentFilter);
+      const backwards =
+        event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey);
       const next =
-        (FILTERS.indexOf(currentFilter) +
-          (event.shiftKey ? -1 : 1) +
-          FILTERS.length) %
-        FILTERS.length;
+        (from + (backwards ? -1 : 1) + FILTERS.length) % FILTERS.length;
       selectFilter(FILTERS[next]);
-      options.focusEditor();
+      if (event.key !== "Tab" && focusedFilter >= 0)
+        filterButtons[next].focus();
+      else options.focusEditor();
       return;
     }
-    if (focusedFilter >= 0) {
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        consume();
-        const next =
-          (focusedFilter +
-            (event.key === "ArrowRight" ? 1 : -1) +
-            FILTERS.length) %
-          FILTERS.length;
-        filterButtons[next].focus();
-        selectFilter(FILTERS[next]);
-        return;
-      } else if (event.key === " ") {
-        consume();
-        selectFilter(FILTERS[focusedFilter]);
-        return;
-      }
+    if (focusedFilter >= 0 && event.key === " ") {
+      consume();
+      selectFilter(FILTERS[focusedFilter]);
+      return;
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       consume();

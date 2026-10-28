@@ -107,20 +107,24 @@ The palette uses cool neutral surfaces and one blue accent reserved for links, f
 
 ## Elevation
 
-Depth is primarily structural: separated surfaces use a one-pixel border and tonal contrast. The toolbar gets only a subtle `0 1px 2px rgba(16, 24, 40, 0.04)` shadow in light mode, with a darker equivalent in dark mode. Do not add floating cards or decorative shadows to the writing canvas.
+Depth is primarily structural: separated surfaces use a one-pixel border and tonal contrast. The floating toolbar uses a restrained shadow to distinguish it from scrolling content, with a darker equivalent in dark mode. Keep document content flat; do not turn paragraphs into floating cards or add decorative shadows.
 
 ## Components
 
 ### Toolbar
 
-The toolbar is a single, centered icon toolbelt. It follows the Live Preview text boundaries: a `44rem` usable track inside the centered `48rem` reading column, with `34px` left and `30px` right insets. Use 4px block padding on the outer toolbar and keep functional groups separated by a one-pixel divider.
+In note tabs and standalone windows, the toolbar floats at the top center of the editor workspace, with 12px outer spacing. Its width follows its controls and is bounded by the workspace after sidebars take their space; it does not reserve a separate layout row. Keep functional groups separated by a one-pixel divider and use the existing full/grouped/compact layouts as the workspace narrows.
+
+The floating shell does not intercept clicks outside the toolbelt. Its measured height supplies the initial content inset and scroll margin in the iframe and read-only preview, so the first line and navigation targets remain clear. Always-hide mode removes that inset; auto-hide keeps it stable while the toolbar fades to avoid moving the document. Do not translate or filter the toolbar container: its menus use viewport-based fixed positioning. The native item-pane editor keeps its compact inline toolbar.
+
+The top toolbar setting offers Always show, Auto-hide, and Always hide. Auto-hide fades the toolbar in when the pointer reaches the editor's top edge and fades it out after the pointer leaves. Open menus and keyboard focus within the toolbar keep it visible. Respect reduced-motion preferences by disabling the fade. The bottom-bar action reveals an auto-hidden toolbar temporarily without changing the setting; in Always-hide mode it restores Always show. Existing hidden/visible choices remain intact until the user saves a mode: `markdownToolbarMode` is authoritative when valid, otherwise the legacy `markdownToolbarVisible` preference resolves to Hidden only when explicitly false. Only the new mode is written.
 
 ### Toolbar Buttons
 
-- **Shape:** Responsive 36/40/44px square hit target, 7px radius, no resting border. Default to 40px.
+- **Shape:** 32px square hit target, 7px radius, no resting border; regroup controls rather than scaling them on narrow windows.
 - **Default:** transparent background with muted text color.
 - **Hover:** `surface-muted` background with primary text color.
-- **Icons:** Lucide-style 16/18/20px stroke icons that follow toolbar container width. Default to 18px; never scale directly from `devicePixelRatio`.
+- **Icons:** 16px stroke icons; never scale directly from `devicePixelRatio`.
 - **Ordering:** save, history, text structure, list/task controls, inline/content insertion, then a right-aligned horizontal more menu.
 
 ### More Menu

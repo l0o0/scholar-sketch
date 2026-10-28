@@ -4,6 +4,7 @@ toolbar-create-failed = 创建文档失败，请重试。
 toolbar-created-open-failed = 文档已创建，但打开编辑器失败。
 startup-begin = Scholar Sketch加载中
 startup-finish = Scholar Sketch已就绪
+startup-settings-migration-failed = 部分旧配置迁移未完成，原模板已保留；重启 Zotero 可重试。
 menuitem-create-md = 新建 Markdown…
 menuitem-new-whiteboard = 新建白板…
 menuitem-new-whiteboard-from-collection = 从分类新建白板…
@@ -94,7 +95,6 @@ whiteboard-no-custom-templates = 暂无自定义模板
 whiteboard-rename-template = 重命名模板
 whiteboard-duplicate-template = 复制模板
 whiteboard-delete-template = 删除模板
-whiteboard-template-conflict-copy = 冲突副本
 whiteboard-kind-frame = 框架
 whiteboard-annotation-color = 批注颜色
 whiteboard-annotations =
@@ -404,6 +404,13 @@ settings-shortcut-hint = 点击快捷键可进行修改，按下完成后立即�
 settings-shortcut-new-standalone = 新建独立 Markdown 笔记
 settings-shortcut-surface = 快捷键集合
 settings-shortcut-surface-markdown = Markdown
+settings-markdown-toolbar = 顶部工具栏
+settings-markdown-toolbar-always = 始终显示
+settings-markdown-toolbar-auto = 自动隐藏
+settings-markdown-toolbar-hidden = 始终隐藏
+settings-markdown-toolbar-description = 适用于 Markdown 标签页和独立窗口。自动隐藏时，鼠标移到编辑区顶部可显示；菜单打开或键盘焦点位于工具栏时保持显示。编辑快捷键仍可使用。
+markdown-toolbar-show = 显示工具栏
+markdown-toolbar-reveal = 临时显示工具栏
 settings-shortcut-surface-whiteboard = 白板
 settings-shortcut-indent = 缩进
 settings-shortcut-unindent = 取消缩进
@@ -933,6 +940,11 @@ feature-updates-md-navigation-body = 目录支持章节折叠和键盘跳转；�
 feature-updates-md-feedback-title = 更清晰的侧栏与操作反馈
 feature-updates-md-feedback-body = 拖动边缘握柄调整侧栏宽度，窄窗口以浮层展开。操作警告和失败提示可查看详情，并保留至下一次操作或手动关闭；保存失败优先显示。
 
+feature-updates-image-delete-title = 图片删除与撤销
+feature-updates-image-delete-body = 实时预览中选中图片，按 Delete 或 Backspace 删除。保存后清理不再引用的本地原图，当前编辑器中撤销可恢复；图片尺寸浮层与调整操作正常保留。
+feature-updates-local-examples-title = 示例教程与模板管理
+feature-updates-local-examples-body = 已删除的示例不会自动重建，可从帮助菜单恢复。教程记录与自定义模板保存在本机配置中，自定义模板不随 Zotero 跨设备同步。
+
 # Markdown editing and navigation
 status-details = 查看状态详情
 status-details-close = 关闭
@@ -940,3 +952,18 @@ status-details-dismiss = 知道了
 markdown-outline-resize = 调整目录宽度
 markdown-outline-resize-help = 左右方向键调整宽度，Enter 恢复默认宽度，双击分隔线也可恢复
 tab-table-size-option = 插入 { $columns } 列 × { $rows } 行的表格
+
+feature-updates-toolbar-choice-title = 更简洁的编辑空间
+feature-updates-toolbar-choice-body = 可在 Markdown 设置中隐藏顶部工具栏，从底部一键恢复。模式切换菜单也更紧凑，随文字内容调整宽度。
+feature-updates-reference-keys-title = 更顺手的文献引用
+feature-updates-reference-keys-body = 输入 [[ 后，可用左右键切换分类、上下键选择条目，Enter 插入引用。「已打开」会排除当前笔记，保留它的父文献。
+feature-updates-unified-pane-title = 统一的侧栏入口
+feature-updates-unified-pane-body = Zotero 侧栏中的 Markdown 和白板入口合并为 Scholar Sketch 图标。选中附件时自动显示对应内容，选中文献时可在面板内切换两类内容。
+
+sidebar-view-markdown = Markdown
+sidebar-view-whiteboard = 白板
+
+feature-updates-floating-toolbar-title = 悬浮工具栏
+feature-updates-floating-toolbar-body = Markdown 工具栏悬浮于编辑区顶部，随左右侧栏变化保持居中。窄窗口自动收纳为分组菜单，为正文留出更多空间。
+feature-updates-toolbar-autohide-title = 按需显示工具栏
+feature-updates-toolbar-autohide-body = 在设置中选择始终显示、自动隐藏或始终隐藏。自动模式下，鼠标靠近顶部时淡入，离开后淡出；菜单打开或键盘操作时保持显示，正文位置不跳动。
