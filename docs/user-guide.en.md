@@ -310,7 +310,7 @@ This is an export feature, not real-time, two-way sync between Zotero and Obsidi
 - Click **Add Zotero materials** at the top of the whiteboard and select items in the picker, or drag papers and attachments from your Zotero library onto the canvas.
 - Select a literature card and click **Add annotations** in the floating toolbar above it to browse annotations from its PDF, EPUB, and webpage snapshot attachments.
 - Zotero PDF, EPUB, and HTML webpage snapshot attachment cards also offer **Add annotations** in their floating toolbar. Standalone attachments do not need a parent paper. Locally imported files have no Zotero annotation source, so they do not show this action.
-- Search annotation text, comments, page labels, and tags at the top of the dialog. Below it, **All** and Zotero icons for all six annotation types remain visible; hover over an icon to see its type name. A tag filter appears when annotations have tags. The dialog keeps the same height when filters change, with an independently scrolling list and a placeholder when no annotations match. Changing filters preserves your selections; click **Add selected** to add them together.
+- Search annotation text, comments, page labels, and tags at the top of the dialog. Below it, **All** and Zotero icons for all six annotation types remain visible; hover over an icon to see its type name. A tag filter appears when annotations have tags. The dialog keeps the same height when filters change, with an independently scrolling list and a placeholder when no annotations match. Changing filters preserves your selections; click **Add selected** to add them together. Click the palette button to the right of the type filters to select multiple colors present in the source annotations. The button shows the number of selected colors; **All colors** clears the color filter. Results match any selected color, combined with type, tag, and search filters. The palette stays open while selecting colors; click outside it or press Esc to close it. **Select results** selects visible annotations that have not been added, while keeping selections from other filters. **Clear selection** clears all pending selections; the footer shows the eligible selection count.
 - New annotation cards are automatically connected to the literature or attachment card you started from. Undo removes the new cards and connections together. Annotations already on the board are marked **Already added**; choose **Focus existing** to find their cards.
 
 Supported types are highlights, underlines, sticky notes, text annotations, image annotations, and ink annotations. Available types depend on the attachment and Zotero reader. A card shows its annotation type at the top left and uses the annotation color as its default fill; a manually chosen fill takes precedence. Sticky notes and text annotations without excerpt text show their comments. Image and ink annotations display Zotero’s cached page crop with its background and marks. The preview is saved with the canvas and shown in the annotation picker and properties panel. If no cache exists, use **Open source**; a temporarily missing cache does not erase an already saved preview.
@@ -383,13 +383,17 @@ The format painter copies compatible appearance properties, without copying text
 
 Copying a group keeps its member nodes, styles, and internal connections. Copying across whiteboards preserves Zotero source references; it does not copy the original PDFs or automatically transfer images referenced by relative paths in Markdown text. While typing, copy, paste, and similar keys continue to operate on the text being edited.
 
+### Find cards on a whiteboard
+
+Press `Ctrl/Cmd + F` or choose **More → Search canvas**. Results show a type icon, title, and summary. Filter by All, Literature, Quote, Note, or Frame; attachments and shapes remain under All. Keywords match text and available metadata such as authors and tags, excluding binary image data. Click a result to select and focus its card, or use Up/Down and Enter / Shift+Enter in the search field to move between results. Esc closes search.
+
 ### Export a whiteboard
 
 Whiteboards can be exported as PNG, SVG, or Markdown.
 
 - **PNG**: useful for sharing the complete view. The default is 2× resolution; right-click empty canvas space to choose 1×, 2×, or 4×. If a large whiteboard fails to export, try a lower resolution.
 - **SVG**: useful for retaining vector graphics. Card text uses an SVG export layout that may differ from the Markdown layout in the editor.
-- **Markdown**: useful for turning card text and relationships into text that you can continue editing.
+- **Markdown**: choose the entire canvas, selected cards, or the current group. Selecting a group includes its members; Current group is available when a group or cards from one group are selected. Partial exports keep only connections between included nodes. By default, content is organized by group, with groups and members ordered top to bottom, then left to right; ungrouped content has its own section. You can also use the existing card-type order. Literature and annotation cards include clickable Zotero source links, with annotations located by their native keys. Export uses the current content without changing the canvas.
 
 Keep the original `.canvas` file if you want to continue editing the layout. Whiteboards use JSON Canvas with Scholar Sketch extension data. Other applications may not support all card types, source information, or embedded files.
 

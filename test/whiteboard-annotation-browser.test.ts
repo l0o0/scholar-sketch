@@ -85,6 +85,8 @@ function candidate(
     comment?: string;
     pageLabel?: string;
     color?: string;
+    annotationType?: AnnotationCandidate["acquisition"]["snapshot"]["annotationType"];
+    tags?: string[];
     library?: { type: "user" } | { type: "group"; groupID: number };
     itemKey?: string;
     attachmentKey?: string;
@@ -160,6 +162,7 @@ function browser(
     existingKeys: existingAnnotationKeys(document),
     returnFocusRef: { current: null },
     onQueryChange: () => undefined,
+    onSelectionChange: () => undefined,
     onToggle: () => undefined,
     onClose: () => undefined,
     onFocusExisting: () => undefined,
@@ -187,6 +190,49 @@ test("filters text, comment, and page label case-insensitively", () => {
     ),
     ["ANN3"],
   );
+});
+
+test("multiple colors match either color while text, type, and tag still narrow results", () => {
+  const highlight = {
+    annotationType: "highlight" as const,
+    tags: ["review"],
+    color: "#FFD400",
+  };
+  const items = [
+    candidate("YELLOW", "Paper.pdf", "Evidence", highlight),
+    candidate("BLUE", "Paper.pdf", "Evidence", {
+      ...highlight,
+      color: "#2ea8e5",
+    }),
+    candidate("PURPLE", "Paper.pdf", "Evidence", {
+      ...highlight,
+      color: "#a28ae5",
+    }),
+    candidate("OTHER-TEXT", "Paper.pdf", "Different finding", highlight),
+    candidate("OTHER-TYPE", "Paper.pdf", "Evidence", {
+      ...highlight,
+      annotationType: "note",
+    }),
+    candidate("OTHER-TAG", "Paper.pdf", "Evidence", {
+      ...highlight,
+      tags: ["method"],
+    }),
+    candidate("NO-COLOR", "Paper.pdf", "Evidence", {
+      annotationType: "highlight",
+      tags: ["review"],
+    }),
+  ];
+  const keys = (colors: ReadonlySet<string>) =>
+    filterAnnotationCandidates(
+      items,
+      "evidence",
+      "highlight",
+      "review",
+      colors,
+    ).map((item) => item.acquisition.source.annotationKey);
+
+  assert.deepEqual(keys(new Set(["#ffd400", "#2ea8e5"])), ["YELLOW", "BLUE"]);
+  assert.deepEqual(keys(new Set()), ["YELLOW", "BLUE", "PURPLE", "NO-COLOR"]);
 });
 
 test("groups by full attachment identity without changing gateway order or title", () => {

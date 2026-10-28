@@ -1,4 +1,8 @@
-import { noteReferenceHref } from "../model/academic";
+import {
+  literatureSourceHref,
+  noteReferenceHref,
+  quoteSourceHref,
+} from "../model/academic";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NoteTypeIcon } from "./icons";
@@ -702,7 +706,33 @@ function basicKindLabel(kind: CanvasNode["kind"]): string {
   return `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
 }
 
-export function buildCanvasMarkdown(doc: CanvasDocument): string {
+export interface CanvasMarkdownLabels {
+  source: string;
+  ungrouped: string;
+}
+
+export interface CanvasMarkdownOptions {
+  organization?: "type" | "group";
+  labels?: Partial<CanvasMarkdownLabels>;
+}
+
+function compareReadingOrder(a: CanvasNode, b: CanvasNode): number {
+  return (
+    a.position.y - b.position.y ||
+    a.position.x - b.position.x ||
+    compareStrings(a.id, b.id)
+  );
+}
+
+export function buildCanvasMarkdown(
+  doc: CanvasDocument,
+  options: CanvasMarkdownOptions = {},
+): string {
+  const labels: CanvasMarkdownLabels = {
+    source: "Source",
+    ungrouped: "Ungrouped",
+    ...options.labels,
+  };
   const lines = ["# Academic Canvas", ""];
   const byId = new Map(doc.nodes.map((node) => [node.id, node]));
   const textCounts = new Map<string, number>();
@@ -718,18 +748,27 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
     return (textCounts.get(text) ?? 0) > 1 ? `${text} [${node.id}]` : text;
   };
 
-  for (const kind of ACADEMIC_KIND_ORDER) {
-    const nodes = doc.nodes
-      .filter((node) => node.kind === kind)
-      .sort(compareNodes);
-    for (const node of nodes) {
-      const text = inlineText(canvasNodeText(node)) || node.kind;
-      lines.push(`## ${ACADEMIC_KIND_LABELS[kind]}: ${text}`, "");
+  const appendNode = (node: CanvasNode, level?: 2 | 3) => {
+    const text = inlineText(canvasNodeText(node)) || node.kind;
+    if (
+      node.kind === "literature" ||
+      node.kind === "quote" ||
+      node.kind === "note" ||
+      node.kind === "frame"
+    ) {
+      lines.push(
+        `${"#".repeat(level ?? 2)} ${ACADEMIC_KIND_LABELS[node.kind]}: ${text}`,
+        "",
+      );
       if (node.kind === "literature") {
         const citation = [node.snapshot.creators, node.snapshot.year]
           .filter(Boolean)
           .join(" · ");
         if (citation) lines.push(citation, "");
+        lines.push(
+          `[${escapeMarkdownImageAlt(labels.source)}](${literatureSourceHref(node.source)})`,
+          "",
+        );
       } else if (node.kind === "quote") {
         if (node.snapshot.image)
           lines.push(
@@ -761,6 +800,10 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
             : undefined,
         ].filter(Boolean);
         if (metadata.length) lines.push(metadata.join(" · "), "");
+        lines.push(
+          `[${escapeMarkdownImageAlt(labels.source)}](${quoteSourceHref(node.source)})`,
+          "",
+        );
       } else if (node.kind === "note" && /\r?\n/.test(node.content)) {
         lines.push(node.content, "");
       }
@@ -784,38 +827,78 @@ export function buildCanvasMarkdown(doc: CanvasDocument): string {
           "",
         );
       }
+      return;
     }
-  }
 
-  const basicNodes = doc.nodes
-    .filter((node) => !ACADEMIC_KINDS.has(node.kind))
-    .sort((a, b) => compareStrings(a.kind, b.kind) || compareNodes(a, b));
-  if (basicNodes.length) {
-    lines.push("## Other objects", "");
-    for (const node of basicNodes) {
-      const text = inlineText(canvasNodeText(node)) || node.kind;
-      lines.push(`- ${basicKindLabel(node.kind)}: ${text} [${node.id}]`);
-      if (node.kind === "attachment" || node.kind === "pdf") {
-        const preview = originalImagePreview(
-          node.data.image,
-          node.data.fileData,
-          node.data.contentType,
+    lines.push(
+      `${level ? "#".repeat(level) : "-"} ${basicKindLabel(node.kind)}: ${text} [${node.id}]`,
+    );
+    if (level) lines.push("");
+    if (node.kind === "attachment" || node.kind === "pdf") {
+      const preview = originalImagePreview(
+        node.data.image,
+        node.data.fileData,
+        node.data.contentType,
+      );
+      const indent = level ? "" : "  ";
+      if (preview) {
+        lines.push(
+          `${indent}![${escapeMarkdownImageAlt(node.data.title)}](${preview})`,
         );
-        if (preview) {
+      } else {
+        const fileHref = attachmentExportHref(node);
+        if (fileHref) {
           lines.push(
-            `  ![${escapeMarkdownImageAlt(node.data.title)}](${preview})`,
+            `${indent}[${escapeMarkdownImageAlt(node.data.title)}](${fileHref})`,
           );
-        } else {
-          const fileHref = attachmentExportHref(node);
-          if (fileHref) {
-            lines.push(
-              `  [${escapeMarkdownImageAlt(node.data.title)}](${fileHref})`,
-            );
-          }
         }
       }
+      if (level) lines.push("");
     }
-    lines.push("");
+  };
+
+  if (options.organization === "group") {
+    const frames = doc.nodes
+      .filter((node) => node.kind === "frame")
+      .sort(compareReadingOrder);
+    const members = new Map(
+      frames.map((frame) => [frame.id, [] as CanvasNode[]]),
+    );
+    const ungrouped: CanvasNode[] = [];
+    for (const node of doc.nodes) {
+      if (node.kind === "frame") continue;
+      const group = node.frameId ? members.get(node.frameId) : undefined;
+      (group ?? ungrouped).push(node);
+    }
+    for (const frame of frames) {
+      lines.push(
+        `## ${inlineText(frame.title) || ACADEMIC_KIND_LABELS.frame}`,
+        "",
+      );
+      for (const node of members.get(frame.id)!.sort(compareReadingOrder))
+        appendNode(node, 3);
+    }
+    if (frames.length && ungrouped.length) {
+      lines.push(`## ${inlineText(labels.ungrouped)}`, "");
+    }
+    for (const node of ungrouped.sort(compareReadingOrder)) {
+      appendNode(node, frames.length ? 3 : 2);
+    }
+  } else {
+    for (const kind of ACADEMIC_KIND_ORDER) {
+      const nodes = doc.nodes
+        .filter((node) => node.kind === kind)
+        .sort(compareNodes);
+      for (const node of nodes) appendNode(node);
+    }
+    const basicNodes = doc.nodes
+      .filter((node) => !ACADEMIC_KINDS.has(node.kind))
+      .sort((a, b) => compareStrings(a.kind, b.kind) || compareNodes(a, b));
+    if (basicNodes.length) {
+      lines.push("## Other objects", "");
+      for (const node of basicNodes) appendNode(node);
+      lines.push("");
+    }
   }
 
   if (doc.connections.length) {

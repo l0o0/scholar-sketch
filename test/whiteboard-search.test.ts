@@ -76,4 +76,33 @@ test("metadata remains searchable while base64 images and embedded files are exc
   ]);
   assert.deepEqual(searchCanvasNodes([attachment], "image/png"), ["file"]);
   assert.deepEqual(searchCanvasNodes([attachment], "SGVsbG8"), []);
+
+  const quote: CanvasNode = {
+    id: "quote-image",
+    kind: "quote",
+    position: { x: 0, y: 0 },
+    width: 280,
+    height: 192,
+    source: {
+      library: { type: "user" },
+      attachmentKey: "FILE1234",
+      annotationKey: "ANNO1234",
+    },
+    snapshot: {
+      text: "Figure",
+      comment: "Experiment result",
+      tags: ["evidence"],
+      image: "data:image/png;base64,SGVsbG8=",
+    },
+  };
+  assert.deepEqual(searchCanvasNodes([quote], "SGVsbG8"), []);
+  Object.defineProperty(quote.snapshot, "image", {
+    enumerable: true,
+    get: () => {
+      throw new Error("Quote image content read");
+    },
+  });
+  assert.deepEqual(searchCanvasNodes([quote], "figure experiment evidence"), [
+    "quote-image",
+  ]);
 });

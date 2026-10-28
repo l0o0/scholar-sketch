@@ -15,6 +15,23 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.23",
+    features: [
+      {
+        title: "feature-updates-canvas-annotation-filter-title",
+        body: "feature-updates-canvas-annotation-filter-body",
+      },
+      {
+        title: "feature-updates-canvas-search-title",
+        body: "feature-updates-canvas-search-body",
+      },
+      {
+        title: "feature-updates-canvas-export-title",
+        body: "feature-updates-canvas-export-body",
+      },
+    ],
+  },
+  {
     version: "0.2.22",
     features: [
       {

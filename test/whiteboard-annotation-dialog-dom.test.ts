@@ -5,6 +5,7 @@ import { act, createElement, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AnnotationBrowser,
+  toggleAnnotationSelection,
   type AnnotationBrowserLabels,
 } from "../packages/whiteboard/src/chrome/AnnotationBrowser.tsx";
 import { nativeAnnotationIdentity } from "../packages/whiteboard/src/model/academic.ts";
@@ -23,6 +24,11 @@ const labels: AnnotationBrowserLabels = {
   addSelected: "Add selected",
   page: "Page",
   close: "Close",
+  colorFilter: "Annotation color",
+  allColors: "All colors",
+  selectResults: "Select results",
+  clearSelection: "Clear selection",
+  selectedCount: "Selected: {count}",
 };
 const source = {
   library: { type: "user" as const },
@@ -98,6 +104,7 @@ test("mounted dialog traps focus, inerts siblings, and restores trigger focus on
             existingKeys: new Set(),
             returnFocusRef: triggerRef,
             onQueryChange: () => undefined,
+            onSelectionChange: () => undefined,
             onToggle: () => undefined,
             onClose: () => setOpen(false),
             onFocusExisting: () => undefined,
@@ -196,6 +203,7 @@ test("Focus existing unmounts without restoring the trigger and transfers focus"
             existingKeys: new Set([nativeAnnotationIdentity(source)]),
             returnFocusRef: triggerRef,
             onQueryChange: () => undefined,
+            onSelectionChange: () => undefined,
             onToggle: () => undefined,
             onClose: () => setOpen(false),
             onFocusExisting: focusExisting,
@@ -246,6 +254,7 @@ test("close button and backdrop both restore trigger focus after real unmount", 
               existingKeys: new Set(),
               returnFocusRef: triggerRef,
               onQueryChange: () => undefined,
+              onSelectionChange: () => undefined,
               onToggle: () => undefined,
               onClose: () => setOpen(false),
               onFocusExisting: () => undefined,
@@ -302,6 +311,7 @@ test("checkbox interaction emits the full source identity", async (t) => {
         existingKeys: new Set(),
         returnFocusRef,
         onQueryChange: () => undefined,
+        onSelectionChange: () => undefined,
         onToggle: (identity, checked) => toggled.push([identity, checked]),
         onClose: () => undefined,
         onFocusExisting: () => undefined,
@@ -378,6 +388,7 @@ test("production canvas keyboard handling leaves modal search input and dismissa
             existingKeys: new Set(),
             returnFocusRef: triggerRef,
             onQueryChange: setQuery,
+            onSelectionChange: () => undefined,
             onToggle: () => undefined,
             onClose: () => setOpen(false),
             onFocusExisting: () => undefined,
@@ -510,6 +521,7 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
       existingKeys: new Set<string>(),
       returnFocusRef: { current: null },
       onQueryChange: () => undefined,
+      onSelectionChange: () => undefined,
       onToggle: (identity, checked) =>
         setSelected((previous) => {
           const next = new Set(previous);
@@ -558,7 +570,8 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
     "an absent type remains available and shows the empty state",
   );
   assert.equal(
-    container.querySelector<HTMLButtonElement>("footer button")?.disabled,
+    container.querySelector<HTMLButtonElement>(".zmd-board-annotation-add")
+      ?.disabled,
     false,
     "empty type filters retain selections from other types",
   );
@@ -601,7 +614,9 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
       ?.checked,
     false,
   );
-  const add = container.querySelector<HTMLButtonElement>("footer button");
+  const add = container.querySelector<HTMLButtonElement>(
+    ".zmd-board-annotation-add",
+  );
   assert.equal(
     add?.disabled,
     false,
@@ -618,4 +633,361 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
   assert.equal(window.document.activeElement, segments[0]);
   assert.equal(segments[0].getAttribute("aria-pressed"), "true");
   assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 2);
+});
+
+test("color popover keeps mouse selection when Gecko would focus the dialog, dismisses outside, and consumes Escape first", async (t) => {
+  t.after(async () => {
+    await act(async () => root.unmount());
+  });
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  let closeCount = 0;
+
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+    return createElement(
+      "div",
+      null,
+      createElement(
+        "button",
+        { ref: triggerRef, id: "view-annotations" },
+        "View",
+      ),
+      open
+        ? createElement(AnnotationBrowser, {
+            labels,
+            state: {
+              status: "ready",
+              candidates: [
+                {
+                  ...candidate,
+                  acquisition: {
+                    ...candidate.acquisition,
+                    snapshot: { text: "Evidence", color: "#ffd400" },
+                  },
+                },
+              ],
+              failures: [],
+            },
+            query: "",
+            selectedKeys: new Set(),
+            existingKeys: new Set(),
+            returnFocusRef: triggerRef,
+            onQueryChange: () => undefined,
+            onSelectionChange: () => undefined,
+            onToggle: () => undefined,
+            onClose: () => {
+              closeCount += 1;
+              setOpen(false);
+            },
+            onFocusExisting: () => undefined,
+            onAddSelected: () => undefined,
+          })
+        : null,
+    );
+  }
+
+  await act(async () => root.render(createElement(Harness)));
+  const trigger = container.querySelector<HTMLButtonElement>(
+    '.zmd-board-annotation-color-trigger[aria-label="Annotation color"]',
+  );
+  const search = container.querySelector<HTMLInputElement>(
+    '[aria-label="Search annotations"]',
+  );
+  assert.ok(trigger);
+  assert.ok(search);
+  const palette = () =>
+    container.querySelector('[role="dialog"][aria-label="Annotation color"]');
+
+  await act(async () => trigger.click());
+  assert.ok(palette());
+  const swatch = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-label="Annotation color #FFD400"]',
+  );
+  const focusedColorControl = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-pressed="true"]',
+  );
+  assert.ok(swatch);
+  assert.ok(focusedColorControl);
+  assert.equal(window.document.activeElement, focusedColorControl);
+  const dialog = container.querySelector<HTMLElement>(
+    '[role="dialog"][aria-modal="true"]',
+  );
+  assert.ok(dialog);
+  const clickWithGeckoFocus = async (button: HTMLButtonElement) => {
+    await act(async () => {
+      button.dispatchEvent(
+        new window.PointerEvent("pointerdown", { bubbles: true }),
+      );
+      const press = new window.MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      });
+      button.dispatchEvent(press);
+      if (!press.defaultPrevented) {
+        // macOS Gecko can focus the ancestor dialog instead of the clicked button.
+        (window.document.activeElement as HTMLElement | null)?.blur();
+        dialog.focus();
+      }
+    });
+    await act(async () => {
+      button.dispatchEvent(new window.MouseEvent("mouseup", { bubbles: true }));
+      button.click();
+    });
+  };
+  await clickWithGeckoFocus(swatch);
+  assert.ok(palette(), "a color stays clickable through mouse focus changes");
+  assert.equal(swatch.getAttribute("aria-pressed"), "true");
+  assert.equal(trigger.textContent?.trim(), "1");
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  assert.equal(window.document.activeElement, swatch);
+
+  const allColors = palette()?.querySelector<HTMLButtonElement>(
+    ".zmd-board-annotation-all-colors",
+  );
+  assert.ok(allColors);
+  await clickWithGeckoFocus(allColors);
+  assert.ok(palette());
+  assert.equal(swatch.getAttribute("aria-pressed"), "false");
+  assert.equal(allColors.getAttribute("aria-pressed"), "true");
+  assert.equal(trigger.textContent?.trim(), "");
+  assert.equal(window.document.activeElement, allColors);
+
+  await clickWithGeckoFocus(trigger);
+  assert.equal(
+    Boolean(palette()),
+    false,
+    "clicking the trigger again closes the palette",
+  );
+  assert.equal(window.document.activeElement, trigger);
+  await clickWithGeckoFocus(trigger);
+  assert.ok(palette());
+
+  await act(async () => {
+    search.dispatchEvent(
+      new window.MouseEvent("pointerdown", { bubbles: true }),
+    );
+    search.focus();
+    search.click();
+  });
+  assert.equal(palette(), null);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(closeCount, 0, "outside the palette is still inside the dialog");
+  assert.equal(window.document.activeElement, search);
+
+  await act(async () => trigger.click());
+  assert.ok(palette());
+  await act(async () => search.focus());
+  assert.equal(palette(), null, "keyboard focus leaving the picker closes it");
+  assert.equal(window.document.activeElement, search);
+  assert.equal(closeCount, 0);
+
+  await act(async () => trigger.click());
+  const color = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-label="Annotation color #FFD400"]',
+  );
+  assert.ok(color);
+  color.focus();
+  await act(async () =>
+    color.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  assert.equal(palette(), null);
+  assert.equal(closeCount, 0);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(window.document.activeElement, trigger);
+
+  await act(async () =>
+    trigger.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  assert.equal(closeCount, 1);
+  assert.equal(container.querySelector('[role="dialog"]'), null);
+  assert.equal(window.document.activeElement?.id, "view-annotations");
+});
+
+test("multiple color and text filters batch-select visible new annotations while preserving hidden selections", async (t) => {
+  t.after(async () => {
+    await act(async () => root.unmount());
+  });
+  const window = installDom(t);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  const makeCandidate = (
+    annotationKey: string,
+    snapshot: AnnotationCandidate["acquisition"]["snapshot"],
+  ): AnnotationCandidate => ({
+    ...candidate,
+    acquisition: {
+      ...candidate.acquisition,
+      source: { ...source, annotationKey },
+      snapshot,
+    },
+  });
+  const highlight = {
+    text: "Evidence from the paper",
+    annotationType: "highlight" as const,
+    tags: ["review"],
+    color: "#FFD400",
+  };
+  const items = [
+    makeCandidate("HIDDEN01", {
+      text: "Evidence comment",
+      annotationType: "note",
+      color: "#2ea8e5",
+    }),
+    makeCandidate("NEW00001", highlight),
+    makeCandidate("NEW00002", { ...highlight, color: "#ffd400" }),
+    makeCandidate("EXIST001", highlight),
+    makeCandidate("OTHER001", { ...highlight, text: "An unrelated finding" }),
+    makeCandidate("OTHER002", { ...highlight, tags: ["method"] }),
+    makeCandidate("OTHER003", { ...highlight, color: "#a28ae5" }),
+  ];
+  const identity = (index: number) =>
+    nativeAnnotationIdentity(items[index].acquisition.source);
+  const changes: string[][] = [];
+  let submitted: string[] = [];
+  function Harness() {
+    const [selected, setSelected] = useState(new Set([identity(0)]));
+    return createElement(AnnotationBrowser, {
+      labels,
+      state: { status: "ready", candidates: items, failures: [] },
+      query: "evidence",
+      selectedKeys: selected,
+      existingKeys: new Set([identity(3)]),
+      returnFocusRef: { current: null },
+      onQueryChange: () => undefined,
+      onToggle: (key, checked) =>
+        setSelected((previous) =>
+          toggleAnnotationSelection(previous, key, checked),
+        ),
+      onSelectionChange: (next) => {
+        changes.push([...next]);
+        setSelected(next);
+      },
+      onClose: () => undefined,
+      onFocusExisting: () => undefined,
+      onAddSelected: () => {
+        submitted = [...selected];
+      },
+    });
+  }
+  await act(async () => root.render(createElement(Harness)));
+  const getButton = (name: string) => {
+    const button = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find(
+      (element) =>
+        (element.getAttribute("aria-label") ?? element.textContent) === name,
+    );
+    assert.ok(button, `button ${name} is available`);
+    return button;
+  };
+  const results = () => container.querySelectorAll('input[type="checkbox"]');
+  const colorTrigger = getButton("Annotation color");
+  const openColors = async () => {
+    if (colorTrigger.getAttribute("aria-expanded") === "false") {
+      await act(async () => colorTrigger.click());
+    }
+  };
+  const palette = () =>
+    container.querySelector('[role="dialog"][aria-label="Annotation color"]');
+  assert.equal(colorTrigger.getAttribute("aria-expanded"), "false");
+  assert.equal(palette(), null, "colors are collapsed until requested");
+  await openColors();
+  assert.equal(
+    palette()?.querySelectorAll("button").length,
+    4,
+    "the actual three colors are offered once, plus All colors",
+  );
+  await act(async () => getButton("highlight").click());
+  assert.equal(results().length, 5);
+  await openColors();
+  await act(async () => getButton("Annotation color #FFD400").click());
+  assert.equal(results().length, 4);
+  assert.equal(colorTrigger.getAttribute("aria-expanded"), "true");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "true",
+  );
+  const tag = container.querySelector<HTMLSelectElement>('[aria-label="Tag"]');
+  assert.ok(tag);
+  await act(async () => {
+    tag.value = "review";
+    tag.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  assert.equal(results().length, 3);
+  await openColors();
+  await act(async () => getButton("Annotation color #A28AE5").click());
+  assert.equal(results().length, 4, "multiple colors are combined with OR");
+  assert.equal(colorTrigger.textContent?.trim(), "2");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    getButton("Annotation color #A28AE5").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    container.querySelector(".zmd-board-annotation-selected-count")
+      ?.textContent,
+    "Selected: 1",
+    "hidden selected annotations still count",
+  );
+  await act(async () => getButton("Select results").click());
+  assert.deepEqual(changes, [
+    [identity(0), identity(1), identity(2), identity(6)],
+  ]);
+  assert.equal(getButton("Select results").disabled, true);
+  assert.equal(
+    container.querySelector(".zmd-board-annotation-selected-count")
+      ?.textContent,
+    "Selected: 4",
+  );
+  assert.equal(
+    container.querySelectorAll('input[type="checkbox"]:disabled').length,
+    1,
+    "an already-added annotation stays unavailable for selection",
+  );
+  await act(async () => getButton("Add selected").click());
+  assert.deepEqual(submitted, [
+    identity(0),
+    identity(1),
+    identity(2),
+    identity(6),
+  ]);
+  await openColors();
+  await act(async () => getButton("All colors").click());
+  assert.equal(results().length, 4);
+  assert.equal(getButton("All colors").getAttribute("aria-pressed"), "true");
+  assert.equal(
+    getButton("Annotation color #FFD400").getAttribute("aria-pressed"),
+    "false",
+  );
+  assert.equal(
+    getButton("Annotation color #A28AE5").getAttribute("aria-pressed"),
+    "false",
+  );
+  await act(async () => getButton("Annotation color #2EA8E5").click());
+  assert.equal(results().length, 0);
+  assert.equal(colorTrigger.textContent?.trim(), "1");
+  assert.equal(getButton("Select results").disabled, true);
+  assert.equal(getButton("Add selected").disabled, false);
+  await act(async () => getButton("Clear selection").click());
+  assert.deepEqual(changes.at(-1), []);
+  assert.equal(getButton("Clear selection").disabled, true);
+  assert.equal(getButton("Add selected").disabled, true);
+  assert.equal(
+    container.querySelector(".zmd-board-annotation-selected-count")
+      ?.textContent,
+    "Selected: 0",
+  );
 });

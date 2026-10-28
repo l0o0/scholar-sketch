@@ -84,6 +84,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     Node: window.Node,
     Element: window.Element,
     HTMLElement: window.HTMLElement,
+    HTMLInputElement: window.HTMLInputElement,
     SVGElement: window.SVGElement,
     FileReader: window.FileReader,
     ResizeObserver: TestResizeObserver,
@@ -123,6 +124,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       WhiteboardApp: typeof WhiteboardApp;
     };
     const noop = () => {};
+    const exportedFiles: { format: string; text?: string }[] = [];
     const openedItems: unknown[] = [];
     const openedFiles: unknown[] = [];
     const openedSources: unknown[] = [];
@@ -169,7 +171,7 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
             openedSources.push(source),
           onDropAcademicSources: noop,
           onRefreshZoteroNote: noop,
-          onExportFile: noop,
+          onExportFile: (payload) => exportedFiles.push(payload),
         }),
       ),
     );
@@ -2084,6 +2086,237 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     } finally {
       window.document.elementFromPoint = pointHit;
     }
+    const exportDocument: Parameters<WhiteboardRuntime["loadSnapshot"]>[0] = {
+      version: 2,
+      nodes: [
+        {
+          id: "export-group",
+          kind: "frame",
+          title: "Methods",
+          position: { x: 0, y: 0 },
+          width: 700,
+          height: 500,
+        },
+        {
+          id: "export-a",
+          kind: "note",
+          badge: "First",
+          content: "Evidence A\nCurrent draft",
+          frameId: "export-group",
+          position: { x: 40, y: 70 },
+          width: 220,
+          height: 160,
+        },
+        {
+          id: "export-b",
+          kind: "note",
+          badge: "Second",
+          content: "Evidence B",
+          frameId: "export-group",
+          position: { x: 340, y: 70 },
+          width: 220,
+          height: 160,
+        },
+        {
+          id: "export-outside",
+          kind: "note",
+          content: "Outside note",
+          position: { x: 900, y: 70 },
+          width: 220,
+          height: 160,
+        },
+      ],
+      connections: [],
+    };
+    await act(async () => runtime!.loadSnapshot(exportDocument));
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "f",
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    const searchInput = container.querySelector<HTMLInputElement>(
+      ".zmd-board-search input",
+    )!;
+    assert.ok(searchInput, "Ctrl+F opens the production search panel");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(searchInput, "Evidence");
+      searchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    const searchResults = container.querySelectorAll<HTMLElement>(
+      '.zmd-board-search [role="option"]',
+    );
+    assert.equal(searchResults.length, 2);
+    await dispatch(searchResults[0], "click");
+    assert.equal(
+      container
+        .querySelector(".react-flow__node.selected")
+        ?.getAttribute("data-id"),
+      "export-a",
+      "search click selects the actual card",
+    );
+    await act(async () =>
+      searchInput.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-search"), null);
+
+    const openExportDialog = async () => {
+      await dispatch(container.querySelector('[aria-label="More"]')!, "click");
+      const exportButton = Array.from(
+        container.querySelectorAll(".zmd-board-more-menu button"),
+      ).find((button) => button.textContent?.trim() === "Export Markdown")!;
+      await dispatch(exportButton, "click");
+      assert.ok(container.querySelector(".zmd-board-export-dialog"));
+    };
+    await openExportDialog();
+    const groupOption = container.querySelector<HTMLInputElement>(
+      'input[name="export-scope"][value="group"]',
+    )!;
+    assert.equal(
+      groupOption.disabled,
+      false,
+      "the selected card exposes its owning group",
+    );
+    await act(async () => groupOption.click());
+    await act(async () =>
+      container
+        .querySelector("form.zmd-board-export-dialog")!
+        .dispatchEvent(
+          new window.Event("submit", { bubbles: true, cancelable: true }),
+        ),
+    );
+    assert.equal(exportedFiles.length, 1);
+    assert.equal(exportedFiles[0].format, "md");
+    assert.match(exportedFiles[0].text!, /## Methods/);
+    assert.match(exportedFiles[0].text!, /Evidence A\nCurrent draft/);
+    assert.match(exportedFiles[0].text!, /Evidence B/);
+    assert.doesNotMatch(exportedFiles[0].text!, /Outside note/);
+    assert.equal(container.querySelector(".zmd-board-export-dialog"), null);
+    assert.deepEqual(
+      runtime!.getSnapshot().nodes,
+      exportDocument.nodes,
+      "export leaves cards unchanged",
+    );
+
+    await openExportDialog();
+    await act(async () =>
+      container
+        .querySelector<HTMLInputElement>(
+          'input[name="export-scope"][value="selection"]',
+        )!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector("form.zmd-board-export-dialog")!
+        .dispatchEvent(
+          new window.Event("submit", { bubbles: true, cancelable: true }),
+        ),
+    );
+    assert.match(exportedFiles[1].text!, /Evidence A/);
+    assert.doesNotMatch(
+      exportedFiles[1].text!,
+      /Evidence B|Outside note|## Methods/,
+    );
+
+    await openExportDialog();
+    const exportDialog = container.querySelector(
+      "form.zmd-board-export-dialog",
+    )!;
+    const beforeModalInput = runtime!.getSnapshot();
+    const exportSubmit = exportDialog.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    )!;
+    exportSubmit.focus();
+    const pasteEvent = new window.Event("paste", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(pasteEvent, "clipboardData", {
+      value: {
+        items: [],
+        getData: () =>
+          JSON.stringify({
+            type: "scholar-canvas-selection",
+            document: exportDocument,
+          }),
+      },
+    });
+    await act(async () => exportSubmit.dispatchEvent(pasteEvent));
+    assert.deepEqual(
+      runtime!.getSnapshot(),
+      beforeModalInput,
+      "pasting into the export dialog cannot paste cards onto the background canvas",
+    );
+    const dropEvent = new window.Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(dropEvent, "dataTransfer", {
+      value: {
+        types: ["Files"],
+        files: [
+          new window.File(["modal guard"], "modal-guard.txt", {
+            type: "text/plain",
+          }),
+        ],
+      },
+    });
+    let dropReachedCanvas = false;
+    const observeDrop = () => {
+      dropReachedCanvas = true;
+    };
+    window.addEventListener("drop", observeDrop);
+    try {
+      await act(async () => exportSubmit.dispatchEvent(dropEvent));
+    } finally {
+      window.removeEventListener("drop", observeDrop);
+    }
+    assert.equal(dropEvent.defaultPrevented, true);
+    assert.equal(dropReachedCanvas, false);
+    assert.deepEqual(
+      runtime!.getSnapshot(),
+      beforeModalInput,
+      "dropping a file onto the export dialog cannot import it onto the background canvas",
+    );
+
+    assert.equal(
+      container.querySelector<HTMLElement>(".react-flow")!.inert,
+      true,
+    );
+    await act(async () =>
+      exportDialog.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-export-dialog"), null);
+    assert.equal(
+      container.querySelector<HTMLElement>(".react-flow")!.inert,
+      false,
+    );
+    assert.equal(
+      exportedFiles.length,
+      2,
+      "cancel does not export or modify the document",
+    );
+    assert.equal(
+      window.document.activeElement,
+      boardHost,
+      "closing export returns keyboard focus to the canvas",
+    );
     assert.deepEqual(errors, [], "workflow must render without React errors");
   } finally {
     console.error = previousConsoleError;

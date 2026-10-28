@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type MouseEvent,
@@ -17,7 +18,7 @@ import type {
   AnnotationCandidate,
   AnnotationListFailure,
 } from "../model/protocol";
-import { IconAnnotations } from "../whiteboard/icons";
+import { IconAnnotations, IconCheck, IconPalette } from "../whiteboard/icons";
 import { AnnotationTypeIcon } from "./AnnotationTypeIcon";
 
 export interface AnnotationBrowserLabels {
@@ -38,6 +39,11 @@ export interface AnnotationBrowserLabels {
   allTypes?: string;
   allTags?: string;
   noText?: string;
+  colorFilter?: string;
+  allColors?: string;
+  selectResults?: string;
+  clearSelection?: string;
+  selectedCount?: string;
 }
 
 export type AnnotationBrowserState =
@@ -60,13 +66,24 @@ export function filterAnnotationCandidates(
   query: string,
   type: AnnotationType | "" = "",
   tag = "",
+  colors: ReadonlySet<string> = new Set(),
 ): AnnotationCandidate[] {
   const needle = query.trim().toLocaleLowerCase();
+  const normalizedColors = new Set(
+    [...colors].map((color) => color.trim().toLowerCase()),
+  );
   return candidates.filter(({ acquisition }) => {
     const { text, comment, pageLabel, annotationType, tags } =
       acquisition.snapshot;
     if (type && annotationType !== type) return false;
     if (tag && !tags?.includes(tag)) return false;
+    if (
+      normalizedColors.size &&
+      !normalizedColors.has(
+        acquisition.snapshot.color?.trim().toLowerCase() ?? "",
+      )
+    )
+      return false;
     return (
       !needle ||
       [text, comment, pageLabel, ...(tags ?? [])].some((value) =>
@@ -128,12 +145,19 @@ export function AnnotationBrowser(props: {
   returnFocusRef: RefObject<{ focus(): void } | null>;
   onQueryChange: (query: string) => void;
   onToggle: (annotationKey: string, checked: boolean) => void;
+  onSelectionChange: (selection: Set<string>) => void;
   onClose: () => void;
   onFocusExisting: (annotationKey: string) => void;
   onAddSelected: () => void;
 }) {
   const [typeFilter, setTypeFilter] = useState<AnnotationType | "">("");
   const [tagFilter, setTagFilter] = useState("");
+  const [colorFilter, setColorFilter] = useState<Set<string>>(() => new Set());
+  const [colorPopoverOpen, setColorPopoverOpen] = useState(false);
+  const colorPopoverId = useId();
+  const colorPickerRef = useRef<HTMLDivElement | null>(null);
+  const colorPopoverRef = useRef<HTMLDivElement | null>(null);
+  const colorTriggerRef = useRef<HTMLButtonElement | null>(null);
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -167,6 +191,11 @@ export function AnnotationBrowser(props: {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
+        if (colorPopoverRef.current) {
+          setColorPopoverOpen(false);
+          colorTriggerRef.current?.focus();
+          return;
+        }
         close();
         return;
       }
@@ -212,8 +241,39 @@ export function AnnotationBrowser(props: {
     };
   }, [close]);
 
+  useEffect(() => {
+    if (!colorPopoverOpen) return;
+    const picker = colorPickerRef.current;
+    const popover = colorPopoverRef.current;
+    if (!picker || !popover) return;
+    popover
+      .querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+      ?.focus();
+    const onPointerDown = (event: PointerEvent) => {
+      if (!picker.contains(event.target as Node)) setColorPopoverOpen(false);
+    };
+    // A mouse press in Gecko can blur a button without focusing the next one.
+    // Wait for a concrete focus destination so the pending color click survives.
+    const onFocusIn = (event: FocusEvent) => {
+      if (!picker.contains(event.target as Node)) setColorPopoverOpen(false);
+    };
+    const ownerDocument = picker.ownerDocument;
+    ownerDocument.addEventListener("pointerdown", onPointerDown, true);
+    ownerDocument.addEventListener("focusin", onFocusIn, true);
+    return () => {
+      ownerDocument.removeEventListener("pointerdown", onPointerDown, true);
+      ownerDocument.removeEventListener("focusin", onFocusIn, true);
+    };
+  }, [colorPopoverOpen]);
+
   const onBackdrop = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) close();
+  };
+  const focusColorControl = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    // macOS may focus the enclosing dialog instead of a button on mouse down.
+    event.preventDefault();
+    event.currentTarget.focus();
   };
   const candidates =
     props.state.status === "ready"
@@ -222,6 +282,7 @@ export function AnnotationBrowser(props: {
           props.query,
           typeFilter,
           tagFilter,
+          colorFilter,
         )
       : [];
   const groups = groupAnnotationCandidates(candidates);
@@ -235,14 +296,31 @@ export function AnnotationBrowser(props: {
       ),
     ),
   ].sort((a, b) => a.localeCompare(b));
-  const hasEligibleSelection =
-    props.state.status === "ready" &&
-    props.state.candidates.some(({ acquisition }) => {
+  const availableColors = [
+    ...new Set(
+      availableCandidates.flatMap(({ acquisition }) => {
+        const color = acquisition.snapshot.color?.trim().toLowerCase();
+        return color ? [color] : [];
+      }),
+    ),
+  ];
+  const eligibleKeys = new Set(
+    candidates
+      .map(({ acquisition }) => nativeAnnotationIdentity(acquisition.source))
+      .filter((identity) => !props.existingKeys.has(identity)),
+  );
+  const selectedCount = new Set(
+    availableCandidates.flatMap(({ acquisition }) => {
       const identity = nativeAnnotationIdentity(acquisition.source);
-      return (
-        props.selectedKeys.has(identity) && !props.existingKeys.has(identity)
-      );
-    });
+      return props.selectedKeys.has(identity) &&
+        !props.existingKeys.has(identity)
+        ? [identity]
+        : [];
+    }),
+  ).size;
+  const hasUnselectedResult = [...eligibleKeys].some(
+    (identity) => !props.selectedKeys.has(identity),
+  );
 
   return (
     <div
@@ -284,66 +362,141 @@ export function AnnotationBrowser(props: {
           </button>
         </header>
 
-        <div
-          className="zmd-board-annotation-type-filters"
-          role="group"
-          aria-label={props.labels.typeFilter ?? "Annotation type"}
-        >
-          {typeOptions.map((type, index) => {
-            const label = type
-              ? (props.labels.typeLabels?.[type] ?? type)
-              : (props.labels.allTypes ?? "All");
-            return (
-              <button
-                key={type}
-                type="button"
-                data-annotation-type={type}
-                aria-label={label}
-                aria-pressed={typeFilter === type}
-                title={label}
-                disabled={props.state.status !== "ready"}
-                onClick={() => setTypeFilter(type)}
-                onKeyDown={(event) => {
-                  if (
-                    event.nativeEvent.isComposing ||
-                    event.ctrlKey ||
-                    event.metaKey ||
-                    event.altKey ||
-                    event.shiftKey
-                  )
-                    return;
-                  let next: number;
-                  if (event.key === "ArrowRight")
-                    next = (index + 1) % typeOptions.length;
-                  else if (event.key === "ArrowLeft")
-                    next =
-                      (index - 1 + typeOptions.length) % typeOptions.length;
-                  else if (event.key === "Home") next = 0;
-                  else if (event.key === "End") next = typeOptions.length - 1;
-                  else return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setTypeFilter(typeOptions[next]);
-                  event.currentTarget.parentElement
-                    ?.querySelectorAll<HTMLButtonElement>("button")
-                    .item(next)
-                    ?.focus();
-                }}
+        <div className="zmd-board-annotation-filter-row">
+          <div
+            className="zmd-board-annotation-type-filters"
+            role="group"
+            aria-label={props.labels.typeFilter ?? "Annotation type"}
+          >
+            {typeOptions.map((type, index) => {
+              const label = type
+                ? (props.labels.typeLabels?.[type] ?? type)
+                : (props.labels.allTypes ?? "All");
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  data-annotation-type={type}
+                  aria-label={label}
+                  aria-pressed={typeFilter === type}
+                  title={label}
+                  disabled={props.state.status !== "ready"}
+                  onClick={() => setTypeFilter(type)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.nativeEvent.isComposing ||
+                      event.ctrlKey ||
+                      event.metaKey ||
+                      event.altKey ||
+                      event.shiftKey
+                    )
+                      return;
+                    let next: number;
+                    if (event.key === "ArrowRight")
+                      next = (index + 1) % typeOptions.length;
+                    else if (event.key === "ArrowLeft")
+                      next =
+                        (index - 1 + typeOptions.length) % typeOptions.length;
+                    else if (event.key === "Home") next = 0;
+                    else if (event.key === "End") next = typeOptions.length - 1;
+                    else return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setTypeFilter(typeOptions[next]);
+                    event.currentTarget.parentElement
+                      ?.querySelectorAll<HTMLButtonElement>("button")
+                      .item(next)
+                      ?.focus();
+                  }}
+                >
+                  {type ? (
+                    <span
+                      className="zmd-board-annotation-type-icon"
+                      data-annotation-icon={type}
+                      aria-hidden="true"
+                    >
+                      <AnnotationTypeIcon type={type} />
+                    </span>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            ref={colorPickerRef}
+            className="zmd-board-annotation-color-picker"
+          >
+            <button
+              ref={colorTriggerRef}
+              type="button"
+              className="zmd-board-annotation-color-trigger"
+              aria-label={props.labels.colorFilter ?? "Color"}
+              title={props.labels.colorFilter ?? "Color"}
+              aria-haspopup="dialog"
+              aria-expanded={colorPopoverOpen}
+              aria-controls={colorPopoverOpen ? colorPopoverId : undefined}
+              data-filtered={colorFilter.size > 0}
+              disabled={!availableColors.length}
+              onMouseDown={focusColorControl}
+              onClick={() => setColorPopoverOpen((open) => !open)}
+            >
+              <IconPalette />
+              {colorFilter.size > 0 ? <span>{colorFilter.size}</span> : null}
+            </button>
+            {colorPopoverOpen ? (
+              <div
+                ref={colorPopoverRef}
+                id={colorPopoverId}
+                className="zmd-board-annotation-color-filters"
+                role="dialog"
+                aria-label={props.labels.colorFilter ?? "Color"}
               >
-                {type ? (
-                  <span
-                    className="zmd-board-annotation-type-icon"
-                    data-annotation-icon={type}
-                    aria-hidden="true"
-                  >
-                    <AnnotationTypeIcon type={type} />
-                  </span>
-                ) : (
-                  <span>{label}</span>
-                )}
-              </button>
-            );
-          })}
+                <button
+                  type="button"
+                  className="zmd-board-annotation-all-colors"
+                  aria-pressed={!colorFilter.size}
+                  onMouseDown={focusColorControl}
+                  onClick={() => setColorFilter(new Set())}
+                >
+                  {props.labels.allColors ?? "All colors"}
+                </button>
+                <div
+                  className="zmd-board-annotation-color-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.min(5, availableColors.length)}, 28px)`,
+                  }}
+                >
+                  {availableColors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className="zmd-board-annotation-color-option"
+                      aria-label={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
+                      title={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
+                      aria-pressed={colorFilter.has(color)}
+                      onMouseDown={focusColorControl}
+                      onClick={() =>
+                        setColorFilter((selected) => {
+                          const next = new Set(selected);
+                          if (next.has(color)) next.delete(color);
+                          else next.add(color);
+                          return next;
+                        })
+                      }
+                    >
+                      <span
+                        style={{ backgroundColor: color }}
+                        aria-hidden="true"
+                      />
+                      {colorFilter.has(color) ? <IconCheck /> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {availableTags.length ? (
@@ -510,10 +663,37 @@ export function AnnotationBrowser(props: {
         </div>
 
         <footer>
+          <span className="zmd-board-annotation-selected-count" role="status">
+            {(props.labels.selectedCount ?? "Selected: {count}").replace(
+              "{count}",
+              String(selectedCount),
+            )}
+          </span>
+          <div className="zmd-board-annotation-bulk-actions">
+            <button
+              type="button"
+              disabled={!hasUnselectedResult}
+              onClick={() =>
+                props.onSelectionChange(
+                  new Set([...props.selectedKeys, ...eligibleKeys]),
+                )
+              }
+            >
+              {props.labels.selectResults ?? "Select results"}
+            </button>
+            <button
+              type="button"
+              disabled={!props.selectedKeys.size}
+              onClick={() => props.onSelectionChange(new Set())}
+            >
+              {props.labels.clearSelection ?? "Clear selection"}
+            </button>
+          </div>
           <button
             type="button"
+            className="zmd-board-annotation-add"
             onClick={props.onAddSelected}
-            disabled={!hasEligibleSelection}
+            disabled={!selectedCount}
           >
             {props.labels.addSelected}
           </button>

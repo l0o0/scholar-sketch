@@ -18,6 +18,7 @@ import {
   svgToPngDataUrl,
 } from "../packages/whiteboard/src/whiteboard/export.ts";
 import { createQuoteBatchRuntime } from "../packages/whiteboard/src/whiteboard/sourceState.ts";
+import { selectedDocument } from "../packages/whiteboard/src/whiteboard/selection.ts";
 
 function canonicalDocument(): CanvasDocument {
   return {
@@ -255,6 +256,151 @@ test("Markdown groups Academic kinds, retains Basic objects, and describes relat
     }),
     markdown,
   );
+});
+
+test("Markdown links literature and standalone annotations using their native library identities", () => {
+  const document = canonicalDocument();
+  const literature = document.nodes.find((node) => node.kind === "literature")!;
+  const quote = document.nodes.find((node) => node.kind === "quote")!;
+  assert.equal(literature.kind, "literature");
+  assert.equal(quote.kind, "quote");
+  document.nodes.push(
+    {
+      ...literature,
+      id: "group-paper",
+      source: { library: { type: "group", groupID: 42 }, itemKey: "GROUP123" },
+    },
+    {
+      ...quote,
+      id: "standalone-epub-annotation",
+      source: {
+        library: { type: "group", groupID: 42 },
+        attachmentKey: "EPUB1234",
+        annotationKey: "MARK1234",
+      },
+      snapshot: {
+        text: "Book passage",
+        attachmentTitle: "Book.epub",
+        pageLabel: "iv",
+      },
+    },
+  );
+  const before = structuredClone(document);
+  const markdown = buildCanvasMarkdown(document, {
+    labels: { source: "来源" },
+  });
+  assert.ok(
+    markdown.includes("[来源](zotero://select/library/items/ITEM1234)"),
+  );
+  assert.ok(
+    markdown.includes("[来源](zotero://select/groups/42/items/GROUP123)"),
+  );
+  assert.ok(
+    markdown.includes(
+      "[来源](zotero://open-pdf/library/items/PDF12345?annotation=ANNO1234)",
+    ),
+  );
+  assert.ok(
+    markdown.includes(
+      "[来源](zotero://open-pdf/groups/42/items/EPUB1234?annotation=MARK1234)",
+    ),
+  );
+  assert.doesNotMatch(
+    markdown,
+    /[?&]page=/,
+    "a printed page label must not become a physical page index",
+  );
+  assert.deepEqual(document, before);
+});
+
+test("exporting a selected frame includes its members and only internal relationships", () => {
+  const document = canonicalDocument();
+  for (const node of document.nodes) {
+    if (node.id === "quote-1" || node.id === "claim-1")
+      node.frameId = "frame-1";
+  }
+  const before = structuredClone(document);
+  const selected = selectedDocument(document, ["frame-1"]);
+  assert.deepEqual(
+    new Set(selected.nodes.map((node) => node.id)),
+    new Set(["frame-1", "quote-1", "claim-1"]),
+  );
+  assert.deepEqual(
+    selected.connections.map((edge) => edge.id),
+    ["supports-1"],
+  );
+  const markdown = buildCanvasMarkdown(selected);
+  assert.match(markdown, /Evidence/);
+  assert.match(markdown, /The result generalizes/);
+  assert.doesNotMatch(markdown, /A paper|Context|missing-node/);
+  assert.match(markdown, /supports: Evidence → The result generalizes/);
+  const oneCard = selectedDocument(document, ["quote-1"]);
+  assert.equal("frameId" in oneCard.nodes[0], false);
+  assert.equal(oneCard.connections.length, 0);
+  assert.equal(buildCanvasMarkdown(oneCard).includes("Review <Frame>"), false);
+  assert.deepEqual(document, before);
+});
+
+test("grouped Markdown follows visual reading order without duplicating cards", () => {
+  const document = canonicalDocument();
+  for (const node of document.nodes) {
+    if (node.kind !== "frame") node.frameId = "frame-1";
+  }
+  const note = document.nodes.find((node) => node.id === "note-1")!;
+  assert.equal(note.kind, "note");
+  delete note.frameId;
+  document.nodes.push({
+    id: "frame-before",
+    kind: "frame",
+    title: "First section",
+    position: { x: 0, y: -200 },
+    width: 300,
+    height: 100,
+  });
+  const before = structuredClone(document);
+  const markdown = buildCanvasMarkdown(document, {
+    organization: "group",
+    labels: { ungrouped: "未分组" },
+  });
+  const sections = [
+    "## First section",
+    "## Review <Frame>",
+    "### Arrow:",
+    "### Rect: Context",
+    "### Quote: Evidence",
+    "### Note: The result generalizes",
+    "### Literature:",
+    "## 未分组",
+    "### Note: First line",
+  ];
+  let previous = -1;
+  for (const section of sections) {
+    const index = markdown.indexOf(section);
+    assert.ok(index > previous, section + " must follow visual reading order");
+    previous = index;
+  }
+  assert.equal(markdown.match(/### Quote:/g)?.length, 1);
+  assert.equal(markdown.match(/### Note: First line/g)?.length, 1);
+  assert.match(markdown, /First line\nSecond & <line> "quoted"/);
+  assert.match(markdown, /supports: Evidence → The result generalizes/);
+  assert.equal(
+    buildCanvasMarkdown(
+      { ...document, nodes: [...document.nodes].reverse() },
+      { organization: "group", labels: { ungrouped: "未分组" } },
+    ),
+    markdown,
+  );
+  const withoutGroups = {
+    ...document,
+    nodes: document.nodes.filter((node) => node.kind !== "frame"),
+  };
+  const ungroupedMarkdown = buildCanvasMarkdown(withoutGroups, {
+    organization: "group",
+    labels: { ungrouped: "未分组" },
+  });
+  assert.doesNotMatch(ungroupedMarkdown, /## 未分组/);
+  assert.match(ungroupedMarkdown, /## Note:/);
+  assert.deepEqual(document, before);
 });
 
 test("an acquired Quote keeps its persisted fallback through save, reopen, and export", () => {

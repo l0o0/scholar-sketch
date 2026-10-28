@@ -301,6 +301,7 @@ test("mounted filters combine type, tag and search while retaining hidden select
       existingKeys: new Set<string>(),
       returnFocusRef: { current: null },
       onQueryChange: () => undefined,
+      onSelectionChange: () => undefined,
       onToggle: (key, checked) =>
         setSelected((old) => {
           const next = new Set(old);
@@ -345,7 +346,9 @@ test("mounted filters combine type, tag and search while retaining hidden select
   });
   assert.deepEqual(results(), []);
   assert.match(container.textContent ?? "", /No matching annotations/);
-  const add = container.querySelector<HTMLButtonElement>("footer button");
+  const add = container.querySelector<HTMLButtonElement>(
+    ".zmd-board-annotation-add",
+  );
   assert.equal(add?.disabled, false);
   await act(async () => add?.click());
   assert.deepEqual(submitted, [
@@ -397,6 +400,7 @@ test("sparse annotation lists keep all seven type filters and put search first w
             existingKeys: new Set<string>(),
             returnFocusRef: { current: null },
             onQueryChange: noop,
+            onSelectionChange: () => undefined,
             onToggle: noop,
             onClose: noop,
             onFocusExisting: noop,
@@ -483,7 +487,8 @@ test("sparse annotation lists keep all seven type filters and put search first w
         /No matching annotations/,
       );
       assert.equal(
-        container.querySelector<HTMLButtonElement>("footer button")?.disabled,
+        container.querySelector<HTMLButtonElement>(".zmd-board-annotation-add")
+          ?.disabled,
         false,
       );
       await act(async () =>
@@ -608,6 +613,7 @@ test("drawing previews appear in cards, picker and properties without the missin
         selectedKeys: new Set<string>(),
         existingKeys: new Set<string>(),
         onQueryChange: () => undefined,
+        onSelectionChange: () => undefined,
         onToggle: () => undefined,
         onClose: () => undefined,
         onFocusExisting: () => undefined,

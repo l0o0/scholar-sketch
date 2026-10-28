@@ -58,6 +58,26 @@ export interface WhiteboardProtocolMessage {
 
 export interface WhiteboardLabels {
   searchCanvas?: string;
+  annotationColorFilter?: string;
+  annotationAllColors?: string;
+  annotationSelectResults?: string;
+  annotationClearSelection?: string;
+  annotationSelectedCount?: string;
+  searchFilter?: string;
+  searchResults?: string;
+  searchEmpty?: string;
+  searchPrompt?: string;
+  searchAll?: string;
+  exportScope?: string;
+  exportAll?: string;
+  exportSelection?: string;
+  exportGroup?: string;
+  exportOrganization?: string;
+  exportByGroup?: string;
+  exportByType?: string;
+  exportIncludeSources?: string;
+  exportConfirm?: string;
+  exportUngrouped?: string;
   duplicateSelection?: string;
   layoutAllConfirm?: string;
 
@@ -906,6 +926,26 @@ const whiteboardLabelStringKeys: Record<
   true
 > = {
   searchCanvas: true,
+  annotationColorFilter: true,
+  annotationAllColors: true,
+  annotationSelectResults: true,
+  annotationClearSelection: true,
+  annotationSelectedCount: true,
+  searchFilter: true,
+  searchResults: true,
+  searchEmpty: true,
+  searchPrompt: true,
+  searchAll: true,
+  exportScope: true,
+  exportAll: true,
+  exportSelection: true,
+  exportGroup: true,
+  exportOrganization: true,
+  exportByGroup: true,
+  exportByType: true,
+  exportIncludeSources: true,
+  exportConfirm: true,
+  exportUngrouped: true,
   duplicateSelection: true,
   layoutAllConfirm: true,
   annotationTypeFilter: true,
@@ -1165,6 +1205,26 @@ function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
     "cancelFormatPainter",
     "styleCopied",
     "searchCanvas",
+    "annotationColorFilter",
+    "annotationAllColors",
+    "annotationSelectResults",
+    "annotationClearSelection",
+    "annotationSelectedCount",
+    "searchFilter",
+    "searchResults",
+    "searchEmpty",
+    "searchPrompt",
+    "searchAll",
+    "exportScope",
+    "exportAll",
+    "exportSelection",
+    "exportGroup",
+    "exportOrganization",
+    "exportByGroup",
+    "exportByType",
+    "exportIncludeSources",
+    "exportConfirm",
+    "exportUngrouped",
     "duplicateSelection",
     "layoutAllConfirm",
     "batchStyle",
