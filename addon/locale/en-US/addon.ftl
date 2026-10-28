@@ -967,6 +967,12 @@ feature-updates-floating-toolbar-title = Floating toolbar
 feature-updates-floating-toolbar-body = The Markdown toolbar floats above the editor and stays centered as sidebars change. Narrow windows group commands into menus, leaving more room for your document.
 feature-updates-toolbar-autohide-title = Show the toolbar when you need it
 feature-updates-toolbar-autohide-body = Choose Always show, Auto-hide, or Always hide in settings. Auto-hide fades in near the top and fades out when the pointer leaves. Open menus and keyboard focus keep it visible without shifting the document.
+feature-updates-canvas-annotation-filter-title = Filter and collect annotations together
+feature-updates-canvas-annotation-filter-body = Select multiple colors in a compact palette and combine them with type, tag, and keyword filters. Select matching results or clear the selection, while keeping selected annotations as filters change.
+feature-updates-canvas-search-title = Find whiteboard cards faster
+feature-updates-canvas-search-body = Search results show type icons, titles, and summaries. Filter by literature, annotations, notes, or groups, then click a result or use the keyboard to locate its card.
+feature-updates-canvas-export-title = Export the Markdown you need
+feature-updates-canvas-export-body = Export the whole canvas, selected cards, or the current group. Organize content by group reading order or card type, with Zotero source links for literature and annotations.
 
 whiteboard-annotation-color-filter = Annotation color
 whiteboard-annotation-all-colors = All colors

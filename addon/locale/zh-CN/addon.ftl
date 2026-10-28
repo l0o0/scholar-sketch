@@ -967,6 +967,12 @@ feature-updates-floating-toolbar-title = 悬浮工具栏
 feature-updates-floating-toolbar-body = Markdown 工具栏悬浮于编辑区顶部，随左右侧栏变化保持居中。窄窗口自动收纳为分组菜单，为正文留出更多空间。
 feature-updates-toolbar-autohide-title = 按需显示工具栏
 feature-updates-toolbar-autohide-body = 在设置中选择始终显示、自动隐藏或始终隐藏。自动模式下，鼠标靠近顶部时淡入，离开后淡出；菜单打开或键盘操作时保持显示，正文位置不跳动。
+feature-updates-canvas-annotation-filter-title = 批注筛选与批量收集
+feature-updates-canvas-annotation-filter-body = 在紧凑色板中多选批注颜色，与类型、标签和关键词组合筛选。可一键选择当前结果或清空选择，切换筛选时保留已选批注。
+feature-updates-canvas-search-title = 更快找到白板卡片
+feature-updates-canvas-search-body = 搜索结果显示类型图标、标题与摘要，可按文献、批注、笔记和分组筛选，点击结果或使用键盘即可定位卡片。
+feature-updates-canvas-export-title = 按需导出白板 Markdown
+feature-updates-canvas-export-body = 可导出整个白板、所选卡片或当前分组，按分组阅读顺序或卡片类型组织内容，并保留文献和批注的 Zotero 来源链接。
 
 whiteboard-annotation-color-filter = 批注颜色
 whiteboard-annotation-all-colors = 全部颜色
