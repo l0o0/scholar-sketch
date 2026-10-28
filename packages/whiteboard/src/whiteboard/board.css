@@ -921,8 +921,9 @@
   top: calc(100% + 6px);
   right: 0;
   box-sizing: border-box;
-  width: 232px;
-  padding: 8px;
+  width: max-content;
+  min-width: 112px;
+  padding: 6px;
   border: 1px solid var(--zmd-board-border, #d8dbe0);
   border-radius: 9px;
   background: var(--zmd-board-surface, #fff);
@@ -956,37 +957,38 @@
 
 .zmd-board-annotation-color-filters .zmd-board-annotation-all-colors {
   width: 100%;
+  min-height: 24px;
   text-align: left;
 }
 
 .zmd-board-annotation-color-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 3px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
-.zmd-board-annotation-color-option {
+.zmd-board-annotation-color-filters .zmd-board-annotation-color-option {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
+  height: 28px;
+  padding: 0;
 }
 
 .zmd-board-annotation-color-option > span {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
 }
 
 .zmd-board-annotation-color-option > svg {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 12px;
-  height: 12px;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
   padding: 1px;
   border-radius: 50%;
   background: var(--zmd-board-surface, #fff);

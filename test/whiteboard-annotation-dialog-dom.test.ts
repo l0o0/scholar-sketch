@@ -635,7 +635,7 @@ test("type segments filter with arrows without hijacking modal Tab or losing sel
   assert.equal(container.querySelectorAll('input[type="checkbox"]').length, 2);
 });
 
-test("color popover dismisses outside and consumes Escape before the annotation dialog", async (t) => {
+test("color popover keeps mouse selection when Gecko would focus the dialog, dismisses outside, and consumes Escape first", async (t) => {
   t.after(async () => {
     await act(async () => root.unmount());
   });
@@ -704,6 +704,69 @@ test("color popover dismisses outside and consumes Escape before the annotation 
 
   await act(async () => trigger.click());
   assert.ok(palette());
+  const swatch = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-label="Annotation color #FFD400"]',
+  );
+  const focusedColorControl = palette()?.querySelector<HTMLButtonElement>(
+    '[aria-pressed="true"]',
+  );
+  assert.ok(swatch);
+  assert.ok(focusedColorControl);
+  assert.equal(window.document.activeElement, focusedColorControl);
+  const dialog = container.querySelector<HTMLElement>(
+    '[role="dialog"][aria-modal="true"]',
+  );
+  assert.ok(dialog);
+  const clickWithGeckoFocus = async (button: HTMLButtonElement) => {
+    await act(async () => {
+      button.dispatchEvent(
+        new window.PointerEvent("pointerdown", { bubbles: true }),
+      );
+      const press = new window.MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      });
+      button.dispatchEvent(press);
+      if (!press.defaultPrevented) {
+        // macOS Gecko can focus the ancestor dialog instead of the clicked button.
+        (window.document.activeElement as HTMLElement | null)?.blur();
+        dialog.focus();
+      }
+    });
+    await act(async () => {
+      button.dispatchEvent(new window.MouseEvent("mouseup", { bubbles: true }));
+      button.click();
+    });
+  };
+  await clickWithGeckoFocus(swatch);
+  assert.ok(palette(), "a color stays clickable through mouse focus changes");
+  assert.equal(swatch.getAttribute("aria-pressed"), "true");
+  assert.equal(trigger.textContent?.trim(), "1");
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  assert.equal(window.document.activeElement, swatch);
+
+  const allColors = palette()?.querySelector<HTMLButtonElement>(
+    ".zmd-board-annotation-all-colors",
+  );
+  assert.ok(allColors);
+  await clickWithGeckoFocus(allColors);
+  assert.ok(palette());
+  assert.equal(swatch.getAttribute("aria-pressed"), "false");
+  assert.equal(allColors.getAttribute("aria-pressed"), "true");
+  assert.equal(trigger.textContent?.trim(), "");
+  assert.equal(window.document.activeElement, allColors);
+
+  await clickWithGeckoFocus(trigger);
+  assert.equal(
+    Boolean(palette()),
+    false,
+    "clicking the trigger again closes the palette",
+  );
+  assert.equal(window.document.activeElement, trigger);
+  await clickWithGeckoFocus(trigger);
+  assert.ok(palette());
+
   await act(async () => {
     search.dispatchEvent(
       new window.MouseEvent("pointerdown", { bubbles: true }),
@@ -715,6 +778,13 @@ test("color popover dismisses outside and consumes Escape before the annotation 
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
   assert.equal(closeCount, 0, "outside the palette is still inside the dialog");
   assert.equal(window.document.activeElement, search);
+
+  await act(async () => trigger.click());
+  assert.ok(palette());
+  await act(async () => search.focus());
+  assert.equal(palette(), null, "keyboard focus leaving the picker closes it");
+  assert.equal(window.document.activeElement, search);
+  assert.equal(closeCount, 0);
 
   await act(async () => trigger.click());
   const color = palette()?.querySelector<HTMLButtonElement>(

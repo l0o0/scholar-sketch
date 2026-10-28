@@ -252,14 +252,28 @@ export function AnnotationBrowser(props: {
     const onPointerDown = (event: PointerEvent) => {
       if (!picker.contains(event.target as Node)) setColorPopoverOpen(false);
     };
+    // A mouse press in Gecko can blur a button without focusing the next one.
+    // Wait for a concrete focus destination so the pending color click survives.
+    const onFocusIn = (event: FocusEvent) => {
+      if (!picker.contains(event.target as Node)) setColorPopoverOpen(false);
+    };
     const ownerDocument = picker.ownerDocument;
     ownerDocument.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
+    ownerDocument.addEventListener("focusin", onFocusIn, true);
+    return () => {
       ownerDocument.removeEventListener("pointerdown", onPointerDown, true);
+      ownerDocument.removeEventListener("focusin", onFocusIn, true);
+    };
   }, [colorPopoverOpen]);
 
   const onBackdrop = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) close();
+  };
+  const focusColorControl = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    // macOS may focus the enclosing dialog instead of a button on mouse down.
+    event.preventDefault();
+    event.currentTarget.focus();
   };
   const candidates =
     props.state.status === "ready"
@@ -413,11 +427,6 @@ export function AnnotationBrowser(props: {
           <div
             ref={colorPickerRef}
             className="zmd-board-annotation-color-picker"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) {
-                setColorPopoverOpen(false);
-              }
-            }}
           >
             <button
               ref={colorTriggerRef}
@@ -430,6 +439,7 @@ export function AnnotationBrowser(props: {
               aria-controls={colorPopoverOpen ? colorPopoverId : undefined}
               data-filtered={colorFilter.size > 0}
               disabled={!availableColors.length}
+              onMouseDown={focusColorControl}
               onClick={() => setColorPopoverOpen((open) => !open)}
             >
               <IconPalette />
@@ -447,11 +457,17 @@ export function AnnotationBrowser(props: {
                   type="button"
                   className="zmd-board-annotation-all-colors"
                   aria-pressed={!colorFilter.size}
+                  onMouseDown={focusColorControl}
                   onClick={() => setColorFilter(new Set())}
                 >
                   {props.labels.allColors ?? "All colors"}
                 </button>
-                <div className="zmd-board-annotation-color-grid">
+                <div
+                  className="zmd-board-annotation-color-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.min(5, availableColors.length)}, 28px)`,
+                  }}
+                >
                   {availableColors.map((color) => (
                     <button
                       key={color}
@@ -460,6 +476,7 @@ export function AnnotationBrowser(props: {
                       aria-label={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
                       title={`${props.labels.colorFilter ?? "Color"} ${color.toUpperCase()}`}
                       aria-pressed={colorFilter.has(color)}
+                      onMouseDown={focusColorControl}
                       onClick={() =>
                         setColorFilter((selected) => {
                           const next = new Set(selected);
