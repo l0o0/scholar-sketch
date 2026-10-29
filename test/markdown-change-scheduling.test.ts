@@ -1,3 +1,4 @@
+import { cancelPaperExport } from "../src/modules/markdown/paper/session.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -321,6 +322,7 @@ function fixture(initial = "# Untitled\n\nBody") {
   const context = createContext({
     session,
     requestSave,
+    cancelPaperExport,
     SaveCoordinator,
     persistSession: async (
       _session: unknown,
