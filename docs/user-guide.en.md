@@ -287,6 +287,16 @@ Click the Scholar Sketch toolbar button in Zotero and choose **Import Markdown�
 
 Import copies the Markdown content and supported local images it references into a new Zotero stored attachment. The original file does not become an external note that automatically syncs changes in both directions with Zotero.
 
+### Manuscript writing and Word export (experimental branch)
+
+Use **More → Insert citation…** in an editable document to select Zotero references and optionally enter a locator such as `p. 23`. Personal-library references use `[@zotero-user-ABCD1234, p. 23]`, and group references use `[@zotero-group-42-ABCD1234]`. They retain native item keys rather than local database IDs. Ordinary `[[reading links]]` do not become scholarly citations.
+
+Choose **More → Export → Word document…**, locate your installed Pandoc executable, select a Zotero citation style and optionally a `.docx` style reference. Export reads the current draft without changing Markdown or Zotero data. Headings, text, ordinary tables, footnotes, native Word equations and figures are supported. Mermaid, SVG and WebP are rasterized to PNG when needed, capped at 4096 pixels on the longest side; original PNG/JPEG/GIF data is retained.
+
+Citations and the bibliography are static text in Word. Maintain the Markdown manuscript and export again; the Zotero Word plugin cannot refresh these citations. Word-to-Markdown updates, automatic figure cross-references and complex cover/section layouts are outside this trial. A Word reference document supplies styles, not every layout feature of an arbitrary university template.
+
+Missing references/images, Pandoc warnings or unsupported raw HTML/TeX stop conversion with an explanation. Download external images first. The destination is written only after conversion completes, and an external change to an existing destination stops replacement. See the [sample manuscript](../examples/paper-writing/README.md).
+
 ### Choose an export format
 
 | What you want to do                                                           | Action and result                                                                                                             |

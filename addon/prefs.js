@@ -17,3 +17,8 @@ pref("noteTemplates", "");
 pref("featureUpdatesSeenVersion", "");
 // KeyModifier raw string: modifiers + key, e.g. "accel,shift,M"
 pref("shortcutNewStandaloneMd", "accel,shift,M");
+
+// Local paths and export choices; manuscript content remains in Markdown.
+pref("paperPandocPath", "");
+pref("paperStyleID", "");
+pref("paperReferenceDoc", "");

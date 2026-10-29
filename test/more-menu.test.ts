@@ -15,7 +15,7 @@ describe("more menu", () => {
       MORE_MENU_SECTIONS.map((section) => section.map((item) => item.action)),
       [
         ["document-info", "history", "rename", "show-in-folder", "open-window"],
-        ["search-library", "find"],
+        ["insert-citation", "search-library", "find"],
         ["export"],
         [
           "import-external-images",
@@ -61,7 +61,13 @@ it("positions flyouts to the right or flips left within the available surface", 
   );
   assert.deepEqual(
     EXPORT_OPTIONS.map((x) => x.action),
-    ["export-pdf", "export-html", "export-obsidian", "export-markdown"],
+    [
+      "export-pdf",
+      "export-html",
+      "export-docx",
+      "export-obsidian",
+      "export-markdown",
+    ],
   );
 });
 

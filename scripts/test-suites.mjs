@@ -96,6 +96,7 @@ export const testSuites = {
       "test/mermaid-preview.test.ts",
       "test/mermaid-runtime.test.ts",
       "test/more-menu.test.ts",
+      "test/paper-*.test.ts",
       "test/note-index-shutdown.test.ts",
       "test/note-references.test.ts",
       "test/preview-document.test.ts",

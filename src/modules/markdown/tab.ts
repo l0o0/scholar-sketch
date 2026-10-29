@@ -1,4 +1,10 @@
 import {
+  cancelPaperExport,
+  exportSessionPaper,
+  insertPaperCitation,
+  reportPaperError,
+} from "./paper/session";
+import {
   documentWorkspace,
   rememberDocument,
   forgetOpenDocument,
@@ -1516,10 +1522,10 @@ function applyModeVisibility(
     ?.updateMode(mode === "preview" || readOnly, !readOnly);
   if (root) {
     for (const entry of root.querySelectorAll<HTMLButtonElement>(
-      '[data-menu-action="redo"], [data-menu-action="save"]',
+      '[data-menu-action="redo"], [data-menu-action="save"], [data-menu-action="insert-citation"]',
     ))
       entry.disabled =
-        readOnly || (mode === "preview" && entry.dataset.menuAction === "redo");
+        readOnly || (mode === "preview" && entry.dataset.menuAction !== "save");
     root.classList.toggle("mode-live", mode === "live");
     root.classList.toggle("mode-source", mode === "source");
     root.classList.toggle("mode-preview", mode === "preview");
@@ -1685,6 +1691,9 @@ export function mountMoreMenu(session: OpenSession) {
       button.setAttribute("role", "menuitem");
       button.className = "zotero-markdown-more-menu-item";
       button.dataset.menuAction = item.action;
+      if (item.action === "insert-citation")
+        button.disabled =
+          readOnlySessions.has(session) || session.mode === "preview";
       button.append(
         item.action === "open-window" && session.surface === "window"
           ? getString("more-open-tab")
@@ -1718,7 +1727,10 @@ export function mountMoreMenu(session: OpenSession) {
           entry.tabIndex = -1;
           entry.className = "zotero-markdown-more-menu-item";
           entry.dataset.menuAction = option.action;
-          entry.textContent = option.label;
+          entry.textContent =
+            option.action === "export-docx"
+              ? moreMenuLabel(option.action)
+              : option.label;
           entry.setAttribute("role", "menuitem");
           panel.append(entry);
         }
@@ -1854,6 +1866,24 @@ export function mountMoreMenu(session: OpenSession) {
     if (action === "repair-images") {
       close();
       openSessionImageRepair(session);
+      return;
+    }
+    if (action === "insert-citation") {
+      close();
+      void insertPaperCitation(
+        session,
+        () => !readOnlySessions.has(session) && session.mode !== "preview",
+      ).catch(reportPaperError);
+      return;
+    }
+    if (action === "export-docx") {
+      close();
+      void exportSessionPaper(session)
+        .then((path) => {
+          if (path && !session.closing)
+            setStatus(session, "info", getString("paper-export-complete"));
+        })
+        .catch(reportPaperError);
       return;
     }
     if (action === "export-html") {
@@ -3129,6 +3159,7 @@ export async function closeMarkdownSession(
   }
 
   session.closing = true;
+  cancelPaperExport(session);
   session.closePromise = (async () => {
     if (opts.flush) {
       // The same iframe channel applies this replace before the final snapshot.

@@ -218,3 +218,16 @@ commands or cross-tab annotation drag-and-drop.
 ## Follow-ups
 
 Preview is a read-only HTML document page, not an editor mode. The same `buildStandaloneDocument()` renderer feeds the in-app preview, HTML export, and print-to-PDF. Parser unification (Live decorations vs markdown-it export) remains open.
+
+## Experimental manuscript export
+
+The Markdown host owns citation selection, portable user/group citation identities,
+CSL data access and local Pandoc execution. `markdown/paper/export.ts` prepares the
+Pandoc document through explicit file/process/image/reference ports; it retains
+native math and citations, normalizes existing image syntax and rejects unsupported
+raw content. Only display metadata is retained. The host reuses the image resolver
+and Mermaid renderer, converts vector/WebP figures when necessary, and publishes a
+complete DOCX after session and destination checks. Temporary workspaces and
+subprocesses belong to the export operation and are cancelled on session close.
+Markdown remains authoritative; Word citations are static. See the
+[accepted trial design](superpowers/specs/2026-10-29-paper-writing-design.md).
