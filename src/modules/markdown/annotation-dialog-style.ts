@@ -12,7 +12,8 @@ export const annotationDialogCSS = `
 .ss-annotation-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; flex: 0 0 auto; }
 .ss-annotation-dialog h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .ss-annotation-dialog button, .ss-annotation-dialog input, .ss-annotation-dialog select { font: inherit; color: inherit; }
-.ss-annotation-dialog button { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 6px 10px; cursor: pointer; }
+/* Zotero's macOS button height cap and margins clip these padded HTML controls. */
+.ss-annotation-dialog button { appearance: none; display: inline-flex; align-items: center; justify-content: center; height: auto; min-height: 0; max-height: none; margin: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 6px 10px; cursor: pointer; }
 .ss-annotation-dialog button:hover { background: color-mix(in srgb, CanvasText 7%, Canvas); }
 .ss-annotation-dialog button:disabled { opacity: .45; cursor: default; }
 .ss-annotation-dialog :is(button, input, select):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
@@ -22,19 +23,19 @@ export const annotationDialogCSS = `
 .ss-annotation-search { width: 100%; padding: 9px 12px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
 .ss-annotation-filter-row { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
 .ss-annotation-types { display: flex; flex: 0 1 auto; min-width: 0; overflow-x: auto; gap: 4px; }
-.ss-annotation-types button { flex: 0 0 auto; white-space: nowrap; }
+.ss-annotation-types button { flex: 0 0 auto; min-height: 34px; white-space: nowrap; }
 .ss-annotation-dialog button[aria-pressed="true"] { background: color-mix(in srgb, Highlight 12%, Canvas); border-color: color-mix(in srgb, Highlight 55%, Canvas); }
 .ss-annotation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ss-annotation-tag-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .ss-annotation-tag-filter select { max-width: 180px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
 .ss-annotation-color-picker { position: relative; flex: 0 0 auto; padding-inline-start: 6px; border-inline-start: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); }
 .ss-annotation-dialog .ss-annotation-color-trigger { display: flex; align-items: center; justify-content: center; gap: 3px; width: 44px; height: 34px; padding: 0 4px; }
-.ss-annotation-color-trigger svg { width: 18px; height: 18px; }
+.ss-annotation-color-trigger svg { display: block; flex: 0 0 auto; width: 18px; height: 18px; }
 .ss-annotation-color-trigger span { font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ss-annotation-color-trigger[aria-expanded="true"], .ss-annotation-color-trigger[data-filtered="true"] { background: color-mix(in srgb, CanvasText 7%, Canvas); }
 .ss-annotation-colors { position: absolute; z-index: 3; top: calc(100% + 6px); inset-inline-end: 0; width: max-content; min-width: 112px; padding: 6px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 9px; background: Canvas; box-shadow: 0 8px 24px #0003; }
 .ss-annotation-colors button { font-size: 11px; }
-.ss-annotation-dialog .ss-annotation-all-colors { width: 100%; min-height: 24px; padding: 0 6px; text-align: start; }
+.ss-annotation-dialog .ss-annotation-all-colors { justify-content: flex-start; width: 100%; min-height: 24px; padding: 0 6px; text-align: start; }
 .ss-annotation-color-grid { display: grid; gap: 3px; margin-top: 4px; }
 .ss-annotation-dialog .ss-annotation-color { position: relative; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; }
 .ss-annotation-color > span { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px #0002; }
@@ -54,6 +55,7 @@ export const annotationDialogCSS = `
 .ss-annotation-dialog .ss-annotation-expand { margin: 0 0 6px 32px; font-size: 12px; padding: 2px 6px; }
 .ss-annotation-empty { padding: 48px 24px; text-align: center; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-dialog footer { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 6px; align-items: center; border-top: 1px solid color-mix(in srgb, CanvasText 13%, Canvas); padding: 12px 20px; }
+.ss-annotation-dialog footer button { min-height: 38px; white-space: nowrap; }
 .ss-annotation-selected { margin-inline-end: auto; font-size: 12px; }
 .ss-annotation-dialog .ss-annotation-primary { background: #2563eb; color: white; padding: 8px 14px; }
 .ss-annotation-dialog .ss-annotation-primary:hover { background: #1d4ed8; }
