@@ -21,7 +21,7 @@ export const annotationDialogCSS = `
 .ss-annotation-filters { padding: 0 20px; flex: 0 0 auto; }
 .ss-annotation-search { width: 100%; padding: 9px 12px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
 .ss-annotation-filter-row { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
-.ss-annotation-types { display: flex; flex: 1; min-width: 0; overflow-x: auto; gap: 4px; }
+.ss-annotation-types { display: flex; flex: 0 1 auto; min-width: 0; overflow-x: auto; gap: 4px; }
 .ss-annotation-types button { flex: 0 0 auto; white-space: nowrap; }
 .ss-annotation-dialog button[aria-pressed="true"] { background: color-mix(in srgb, Highlight 12%, Canvas); border-color: color-mix(in srgb, Highlight 55%, Canvas); }
 .ss-annotation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
