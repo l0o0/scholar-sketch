@@ -20,15 +20,25 @@ export const annotationDialogCSS = `
 .ss-annotation-hint { margin: 6px 20px 14px; color: color-mix(in srgb, CanvasText 65%, Canvas); font-size: 12px; flex: 0 0 auto; }
 .ss-annotation-filters { padding: 0 20px; flex: 0 0 auto; }
 .ss-annotation-search { width: 100%; padding: 9px 12px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
-.ss-annotation-types { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+.ss-annotation-filter-row { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
+.ss-annotation-types { display: flex; flex: 1; min-width: 0; overflow-x: auto; gap: 4px; }
+.ss-annotation-types button { flex: 0 0 auto; white-space: nowrap; }
 .ss-annotation-dialog button[aria-pressed="true"] { background: color-mix(in srgb, Highlight 12%, Canvas); border-color: color-mix(in srgb, Highlight 55%, Canvas); }
 .ss-annotation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ss-annotation-tag-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .ss-annotation-tag-filter select { max-width: 180px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
-.ss-annotation-colors { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.ss-annotation-colors button { font-size: 12px; }
-.ss-annotation-dialog .ss-annotation-color { display: grid; place-items: center; width: 28px; height: 28px; padding: 4px; }
-.ss-annotation-color span { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #0002; }
+.ss-annotation-color-picker { position: relative; flex: 0 0 auto; padding-inline-start: 6px; border-inline-start: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); }
+.ss-annotation-dialog .ss-annotation-color-trigger { display: flex; align-items: center; justify-content: center; gap: 3px; width: 44px; height: 34px; padding: 0 4px; }
+.ss-annotation-color-trigger svg { width: 18px; height: 18px; }
+.ss-annotation-color-trigger span { font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ss-annotation-color-trigger[aria-expanded="true"], .ss-annotation-color-trigger[data-filtered="true"] { background: color-mix(in srgb, CanvasText 7%, Canvas); }
+.ss-annotation-colors { position: absolute; z-index: 3; top: calc(100% + 6px); inset-inline-end: 0; width: max-content; min-width: 112px; padding: 6px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 9px; background: Canvas; box-shadow: 0 8px 24px #0003; }
+.ss-annotation-colors button { font-size: 11px; }
+.ss-annotation-dialog .ss-annotation-all-colors { width: 100%; min-height: 24px; padding: 0 6px; text-align: start; }
+.ss-annotation-color-grid { display: grid; gap: 3px; margin-top: 4px; }
+.ss-annotation-dialog .ss-annotation-color { position: relative; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; }
+.ss-annotation-color > span { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px #0002; }
+.ss-annotation-color[aria-pressed="true"]::after { content: "✓"; position: absolute; inset-inline-end: 0; bottom: 0; width: 10px; height: 10px; border-radius: 50%; background: Canvas; color: CanvasText; font-size: 9px; line-height: 10px; }
 .ss-annotation-result-count { flex: 0 0 auto; margin: 10px 20px 8px; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-results { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 20px 16px; overscroll-behavior: contain; }
 .ss-annotation-group h3 { margin: 10px 0 8px; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }

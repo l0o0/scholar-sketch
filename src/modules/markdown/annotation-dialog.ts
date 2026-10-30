@@ -114,41 +114,111 @@ export function showAnnotationExportDialog(
   const availableColors = [
     ...new Set(annotations.map(normalizeColor).filter(Boolean)),
   ];
-  if (availableColors.length) {
-    const palette = element("div", "ss-annotation-colors");
-    palette.setAttribute("role", "group");
-    palette.setAttribute(
-      "aria-label",
-      getString("whiteboard-annotation-color-filter"),
+  const filterRow = element("div", "ss-annotation-filter-row");
+  const picker = element("div", "ss-annotation-color-picker");
+  const colorTrigger = button("", "ss-annotation-color-trigger");
+  const colorLabel = getString("whiteboard-annotation-color-filter");
+  colorTrigger.setAttribute("aria-label", colorLabel);
+  colorTrigger.title = colorLabel;
+  colorTrigger.setAttribute("aria-haspopup", "dialog");
+  const icon = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "2");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.setAttribute("aria-hidden", "true");
+  const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute(
+    "d",
+    "M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.4-3.4c-.8-.8-.2-2.1.9-2.1H17a4 4 0 0 0 4-4A8.5 8.5 0 0 0 12 3Z",
+  );
+  icon.append(path);
+  for (const [x, y] of [
+    [7, 11],
+    [10, 7],
+    [15, 7],
+  ]) {
+    const circle = doc.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", String(x));
+    circle.setAttribute("cy", String(y));
+    circle.setAttribute("r", "1");
+    icon.append(circle);
+  }
+  const colorCount = element("span");
+  colorTrigger.append(icon, colorCount);
+  const palette = element("div", "ss-annotation-colors");
+  palette.id = `ss-annotation-colors-${win.crypto.randomUUID()}`;
+  palette.setAttribute("role", "dialog");
+  palette.setAttribute("aria-label", colorLabel);
+  colorTrigger.setAttribute("aria-controls", palette.id);
+  const setPaletteOpen = (open: boolean) => {
+    palette.hidden = !open;
+    colorTrigger.setAttribute("aria-expanded", String(open));
+    if (open)
+      palette
+        .querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+        ?.focus();
+  };
+  setPaletteOpen(false);
+  colorTrigger.addEventListener("click", () =>
+    setPaletteOpen(palette.hidden === true),
+  );
+  // Gecko on macOS may blur a button without focusing the next one.
+  picker.addEventListener("mousedown", (event) => {
+    const control = (event.target as Element).closest<HTMLButtonElement>(
+      "button",
     );
-    const allColors = button(getString("whiteboard-annotation-all-colors"));
-    allColors.addEventListener("click", () => {
-      colors.clear();
+    if (event.button === 0 && control) {
+      event.preventDefault();
+      control.focus();
+    }
+  });
+  dialog.addEventListener("pointerdown", (event) => {
+    if (!picker.contains(event.target as Node)) setPaletteOpen(false);
+  });
+  dialog.addEventListener("focusin", (event) => {
+    if (!picker.contains(event.target as Node)) setPaletteOpen(false);
+  });
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !palette.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      setPaletteOpen(false);
+      colorTrigger.focus();
+    }
+  });
+  const allColors = button(
+    getString("whiteboard-annotation-all-colors"),
+    "ss-annotation-all-colors",
+  );
+  allColors.addEventListener("click", () => {
+    colors.clear();
+    render();
+  });
+  colorButtons.set("", allColors);
+  const colorGrid = element("div", "ss-annotation-color-grid");
+  colorGrid.style.gridTemplateColumns = `repeat(${Math.min(5, availableColors.length) || 1}, 28px)`;
+  for (const color of availableColors) {
+    const control = button("", "ss-annotation-color");
+    control.setAttribute("aria-label", `${colorLabel} ${color}`);
+    control.title = color.toUpperCase();
+    const swatch = element("span");
+    swatch.style.backgroundColor = color;
+    control.append(swatch);
+    control.addEventListener("click", () => {
+      if (colors.has(color)) colors.delete(color);
+      else colors.add(color);
       render();
     });
-    colorButtons.set("", allColors);
-    palette.append(allColors);
-    for (const color of availableColors) {
-      const control = button("", "ss-annotation-color");
-      control.setAttribute(
-        "aria-label",
-        `${getString("whiteboard-annotation-color-filter")} ${color}`,
-      );
-      control.title = color.toUpperCase();
-      const swatch = element("span");
-      swatch.style.backgroundColor = color;
-      control.append(swatch);
-      control.addEventListener("click", () => {
-        if (colors.has(color)) colors.delete(color);
-        else colors.add(color);
-        render();
-      });
-      colorButtons.set(color, control);
-      palette.append(control);
-    }
-    tools.append(palette);
+    colorButtons.set(color, control);
+    colorGrid.append(control);
   }
-  filters.append(search, types, tools);
+  palette.append(allColors, colorGrid);
+  picker.append(colorTrigger, palette);
+  filterRow.append(types, picker);
+  filters.append(search, filterRow, tools);
   const resultCount = element("p", "ss-annotation-result-count");
   resultCount.setAttribute("role", "status");
   const list = element("div", "ss-annotation-results");
@@ -204,6 +274,10 @@ export function showAnnotationExportDialog(
         "aria-pressed",
         String(value ? colors.has(value) : !colors.size),
       );
+    colorTrigger.disabled = busy || !availableColors.length;
+    colorTrigger.dataset.filtered = String(colors.size > 0);
+    colorCount.textContent = String(colors.size);
+    colorCount.hidden = !colors.size;
     resultCount.textContent = getString("annotation-export-results", {
       args: { count: visible.length, total: annotations.length },
     });
@@ -304,6 +378,7 @@ export function showAnnotationExportDialog(
     if (busy || !selected.size) return;
     const chosen = annotations.filter((_, index) => selected.has(index));
     busy = true;
+    setPaletteOpen(false);
     status.hidden = true;
     for (const control of filters.querySelectorAll<
       HTMLInputElement | HTMLButtonElement | HTMLSelectElement
