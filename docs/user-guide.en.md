@@ -265,7 +265,9 @@ All entered keywords must match. Up to 100 notes are shown. Content that has not
 
 1. Select a bibliographic item or PDF attachment in your Zotero library.
 2. Right-click, open the Scholar Sketch menu, and choose **Create Markdown from PDF annotations…**.
-3. Select the annotations to include, then click **Create Markdown note**.
+3. Search excerpts, comments, pages or tags, and filter by type, color or tag. Results are grouped by PDF; long content can be expanded.
+4. All annotations are selected initially. Use **Clear selection**, then **Select results** or individual checkboxes. Changing filters preserves your selection; the footer shows the total selected count.
+5. Click **Create Markdown note**. If creation fails, your selection is kept for a retry.
 
 The resulting note contains text excerpts, comments, page numbers, and links back to the original PDF annotations. Image-only or area-snapshot annotations without text or comments are not included in this text-annotation export.
 

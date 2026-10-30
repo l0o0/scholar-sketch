@@ -52,6 +52,7 @@ export const testSuites = {
       "test/lezer-link-parser.test.ts",
       "test/live-preview-*.test.ts",
       "test/markdown-api-guards.test.ts",
+      "test/markdown-annotation-dialog.test.ts",
       "test/markdown-change-scheduling.test.ts",
       "test/markdown-context-menu.test.ts",
       "test/markdown-create-target.test.ts",
