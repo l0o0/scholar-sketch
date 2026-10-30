@@ -31,6 +31,8 @@ function makeItem(
     parentItemID: options.parent,
     deleted: options.deleted ?? false,
     attachmentFilename: `${id}.${options.kind === "pdf" ? "pdf" : "md"}`,
+    attachmentContentType:
+      options.kind === "pdf" ? "application/pdf" : "text/markdown",
     isRegularItem: () => !options.kind || options.kind === "regular",
     isAttachment: () => options.kind === "md" || options.kind === "pdf",
     isNote: () => options.kind === "note",
@@ -49,6 +51,7 @@ function fixture(t: TestContext) {
     options: Record<string, unknown>;
   }> = [];
   const exports: Array<{ win: Host; items: Item[] }> = [];
+  const annotationExports: Array<{ win: Host; item: Item }> = [];
   const conversions: Array<{
     win: Host;
     items: Item[];
@@ -89,7 +92,11 @@ function fixture(t: TestContext) {
     return `${kind}-${item.id}`;
   };
   const mocks: Record<string, unknown> = {
-    "./annotations": { showAnnotationExport: async () => {} },
+    "./annotations": {
+      showAnnotationExport: async (win: Host, item: Item) => {
+        annotationExports.push({ win, item });
+      },
+    },
     "../file-history-ui": { registerFileHistoryMenu: () => () => {} },
     "../../utils/locale": { getString: (key: string) => key },
     "../../utils/prefs": { getPref: () => undefined },
@@ -225,6 +232,7 @@ function fixture(t: TestContext) {
     items,
     calls,
     exports,
+    annotationExports,
     conversions,
     notices,
     opened,
@@ -397,6 +405,7 @@ test("regular items expose both child creation commands and export only their di
   assert.deepEqual(visibleCommands(win), [
     "bamboo-item-create-canvas",
     "bamboo-item-create-md",
+    "bamboo-item-annotations-md",
     "bamboo-item-export-md",
   ]);
   assert.equal(entry(win, "export-md").hasAttribute("disabled"), false);
@@ -425,6 +434,28 @@ test("regular items expose both child creation commands and export only their di
   assert.equal(entry(win, "export-md").getAttribute("disabled"), "true");
   await command(win, "export-md");
   assert.equal(f.exports.length, 1);
+});
+
+test("PDF annotation export is a direct Scholar Sketch submenu command", async (t) => {
+  const f = fixture(t);
+  const { win, state } = f.makeWindow();
+  const pdf = makeItem(12, { kind: "pdf" });
+  state.selection = [pdf];
+  show(win);
+  assert.equal(entry(win, "scholar-sketch").hidden, false);
+  assert.deepEqual(visibleCommands(win), ["bamboo-item-annotations-md"]);
+  assert.equal(
+    entry(win, "annotations-md").parentElement,
+    entry(win, "scholar-sketch").firstElementChild,
+  );
+  await command(win, "annotations-md");
+  assert.deepEqual(f.annotationExports, [{ win, item: pdf }]);
+  state.selection = [makeItem(13, { kind: "pdf", editable: false })];
+  show(win);
+  assert.equal(entry(win, "annotations-md").getAttribute("disabled"), "true");
+  state.selection = [];
+  show(win);
+  assert.equal(entry(win, "scholar-sketch").hidden, true);
 });
 
 test("Markdown attachments show only export inside the submenu and mixed selections hide it", async (t) => {
