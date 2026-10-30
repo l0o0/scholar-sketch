@@ -6,6 +6,7 @@ export type FluentMessageId =
   | 'annotation-export-create'
   | 'annotation-export-empty'
   | 'annotation-export-failed'
+  | 'annotation-export-help'
   | 'annotation-export-hint'
   | 'annotation-export-no-results'
   | 'annotation-export-read-only'

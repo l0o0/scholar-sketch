@@ -45,12 +45,41 @@ export function showAnnotationExportDialog(
   const header = element("header");
   const heading = element("h2");
   heading.textContent = getString("menuitem-annotations-md");
+  const headerActions = element("div", "ss-annotation-header-actions");
+  const help = element("div", "ss-annotation-help");
+  const helpButton = button("", "ss-annotation-help-trigger");
+  helpButton.setAttribute("aria-label", getString("annotation-export-help"));
+  const question = element("span");
+  question.textContent = "?";
+  question.setAttribute("aria-hidden", "true");
+  helpButton.append(question);
+  const hint = element("p", "ss-annotation-guidance");
+  hint.id = `ss-annotation-guidance-${win.crypto.randomUUID()}`;
+  hint.setAttribute("role", "tooltip");
+  hint.textContent = getString("annotation-export-hint");
+  hint.hidden = true;
+  helpButton.setAttribute("aria-describedby", hint.id);
+  help.append(helpButton, hint);
+  help.addEventListener("pointerenter", () => {
+    hint.hidden = false;
+  });
+  help.addEventListener("pointerleave", () => {
+    if (!help.contains(doc.activeElement)) hint.hidden = true;
+  });
+  help.addEventListener("focusin", () => {
+    hint.hidden = false;
+  });
+  help.addEventListener("focusout", () => {
+    if (!help.matches(":hover")) hint.hidden = true;
+  });
+  helpButton.addEventListener("click", () => {
+    hint.hidden = false;
+  });
   const close = button("×", "ss-annotation-close");
   close.setAttribute("aria-label", getString("file-history-close"));
   close.addEventListener("click", () => dialog.close());
-  header.append(heading, close);
-  const hint = element("p", "ss-annotation-hint");
-  hint.textContent = getString("annotation-export-hint");
+  headerActions.append(help, close);
+  header.append(heading, headerActions);
   const filters = element("div", "ss-annotation-filters");
   const search = element("input", "ss-annotation-search");
   search.type = "search";
@@ -187,6 +216,10 @@ export function showAnnotationExportDialog(
       event.stopPropagation();
       setPaletteOpen(false);
       colorTrigger.focus();
+    } else if (event.key === "Escape" && !hint.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      hint.hidden = true;
     }
   });
   const allColors = button(
@@ -217,10 +250,10 @@ export function showAnnotationExportDialog(
   }
   palette.append(allColors, colorGrid);
   picker.append(colorTrigger, palette);
-  filterRow.append(types, picker);
-  filters.append(search, filterRow, tools);
   const resultCount = element("p", "ss-annotation-result-count");
   resultCount.setAttribute("role", "status");
+  filterRow.append(types, picker, resultCount);
+  filters.append(search, filterRow, tools);
   const list = element("div", "ss-annotation-results");
   const footer = element("footer");
   const count = element("span", "ss-annotation-selected");
@@ -288,9 +321,7 @@ export function showAnnotationExportDialog(
       let group = groups.get(annotation.attachmentKey);
       if (!group) {
         group = element("section", "ss-annotation-group");
-        const title = element("h3");
-        title.textContent = annotation.attachmentTitle;
-        group.append(title);
+        group.setAttribute("aria-label", annotation.attachmentTitle);
         groups.set(annotation.attachmentKey, group);
         list.append(group);
       }
@@ -419,16 +450,7 @@ export function showAnnotationExportDialog(
     },
     { once: true },
   );
-  dialog.append(
-    style,
-    header,
-    hint,
-    filters,
-    resultCount,
-    list,
-    status,
-    footer,
-  );
+  dialog.append(style, header, filters, list, status, footer);
   doc.documentElement.append(dialog);
   render();
   dialog.showModal();

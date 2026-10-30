@@ -151,6 +151,76 @@ test("color palette sits beside the type filters and supports multiple colors, r
   assert.equal(palette.hidden, true);
 });
 
+test("compact controls retain accessible guidance, source labels and live matching counts", (t) => {
+  const globals = globalThis as typeof globalThis & { addon?: unknown };
+  const previousAddon = Object.getOwnPropertyDescriptor(globals, "addon");
+  Object.defineProperty(globals, "addon", {
+    configurable: true,
+    value: {
+      data: {
+        locale: {
+          current: {
+            formatMessagesSync: (
+              messages: Array<{
+                id: string;
+                args?: Record<string, unknown>;
+              }>,
+            ) =>
+              messages.map(({ id, args }) => ({
+                value:
+                  id === "bamboo-annotation-export-results"
+                    ? `${args?.count} / ${args?.total}`
+                    : id,
+              })),
+          },
+        },
+      },
+    },
+  });
+  t.after(() => {
+    if (previousAddon) Object.defineProperty(globals, "addon", previousAddon);
+    else delete globals.addon;
+  });
+  const f = fixture(t, async () => true);
+  const resultCount = f.query(".ss-annotation-result-count");
+  assert.ok(f.query(".ss-annotation-filter-row").contains(resultCount));
+  assert.equal(resultCount.textContent, "3 / 3");
+  const groups = [...f.dialog.querySelectorAll(".ss-annotation-group")];
+  assert.deepEqual(
+    groups.map((group) => group.getAttribute("aria-label")),
+    ["First PDF", "Second PDF"],
+  );
+  assert.equal(f.dialog.querySelector(".ss-annotation-group h3"), null);
+  assert.ok(
+    !f.query(".ss-annotation-results").textContent?.includes("First PDF"),
+  );
+
+  const help = f.query<HTMLButtonElement>(".ss-annotation-help button");
+  const guidance = f.query('.ss-annotation-guidance[role="tooltip"]');
+  assert.ok(f.query("header").contains(help));
+  assert.ok(help.getAttribute("aria-label"));
+  assert.ok(guidance.id);
+  assert.equal(help.getAttribute("aria-describedby"), guidance.id);
+  assert.equal(guidance.hidden, true);
+  help.focus();
+  assert.equal(f.win.document.activeElement, help);
+  assert.equal(guidance.hidden, false);
+  const escape = new f.win.KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  help.dispatchEvent(escape);
+  assert.equal(escape.defaultPrevented, true);
+  assert.equal(guidance.hidden, true);
+  assert.equal(f.dialog.open, true);
+
+  f.search("Other quote");
+  assert.equal(resultCount.textContent, "1 / 3");
+  f.search("no matching annotation");
+  assert.equal(resultCount.textContent, "0 / 3");
+});
+
 test("long comments expand without toggling selection and empty results cannot be selected", (t) => {
   const f = fixture(t, async () => true);
   const expand = f.query<HTMLButtonElement>(".ss-annotation-expand");
