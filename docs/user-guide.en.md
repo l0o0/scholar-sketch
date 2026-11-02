@@ -348,6 +348,8 @@ Titles are optional. Select a card to change its type, or save, apply, and manag
 
 Use **File** at the top or right-click empty canvas space to choose local files. You can also drag files from your computer or paste screenshots from the clipboard. Images can be enlarged for viewing, text files can show a summary, and other attachments display information appropriate to their type.
 
+When you resize an image card, the image scales to fit the available space between its title and file details, keeping its proportions without cropping or stretching.
+
 Locally imported files are embedded in the `.canvas` document, with a limit of 15 MB per file and 30 MB per batch. Referenced Zotero attachments remain source references; the original file is not copied again. Zotero attachments that have not been downloaded are not automatically downloaded just to preview them.
 
 Under **Shapes and drawing**, you can add rectangles, rounded rectangles, diamonds, ovals, lines, arrows, and text. Double-click the relevant content to edit its text. Select an object to adjust its fill, stroke, and text styling.

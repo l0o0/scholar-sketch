@@ -1859,10 +1859,9 @@
 .zmd-board-card-body > .zmd-board-pdf-image {
   box-sizing: border-box;
   display: block;
-  flex-shrink: 1;
+  flex: 1 1 0;
   min-height: 0;
   width: 100%;
-  max-height: 160px;
   margin-bottom: 10px;
   border: 1px solid var(--zmd-board-border, #e5e7eb);
   border-radius: 4px;
