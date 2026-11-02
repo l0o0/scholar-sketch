@@ -36,6 +36,7 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
     isMarkdownAttachment,
   );
   const annotationsItem = doc.createXULElement("menuitem") as HTMLElement;
+  annotationsItem.id = `${addon.data.config.addonRef}-item-annotations-md`;
   annotationsItem.setAttribute("label", getString("menuitem-annotations-md"));
   annotationsItem.addEventListener("command", () => {
     const items = win.ZoteroPane?.getSelectedItems?.() || [];
@@ -44,7 +45,6 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
         win.alert(String(error)),
       );
   });
-  popup.append(annotationsItem);
   const createItem = doc.createXULElement("menuitem") as HTMLElement;
   createItem.id = `${addon.data.config.addonRef}-item-create-md`;
   createItem.setAttribute("label", getString("menuitem-create-md"));
@@ -83,7 +83,13 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
   const convertItem = doc.createXULElement("menuitem") as HTMLElement;
   convertItem.id = `${addon.data.config.addonRef}-item-convert-note-md`;
   convertItem.setAttribute("label", getString("menuitem-convert-note-md"));
-  scholarPopup.append(canvasItem, createItem, exportItem, convertItem);
+  scholarPopup.append(
+    canvasItem,
+    createItem,
+    annotationsItem,
+    exportItem,
+    convertItem,
+  );
   scholarMenu.append(scholarPopup);
   const editableParent = (item: Zotero.Item | undefined) => {
     if (!item?.isRegularItem() || item.deleted || !item.isEditable())
@@ -258,7 +264,11 @@ export function registerItemContextMenu(win: _ZoteroTypes.MainWindow) {
     const noteSelection = Boolean(
       items.length && items.every((item) => item.isNote()),
     );
-    scholarMenu.hidden = !regular && !markdownSelection && !noteSelection;
+    scholarMenu.hidden =
+      !regular &&
+      !markdownSelection &&
+      !noteSelection &&
+      annotationsItem.hidden;
     createItem.hidden = !regular;
     canvasItem.hidden = !regular;
     exportItem.hidden = !regular && !markdownSelection;
