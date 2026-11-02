@@ -14,6 +14,8 @@ export type MoreMenuAction =
   | "export"
   | "export-pdf"
   | "export-html"
+  | "export-docx"
+  | "insert-citation"
   | "export-obsidian"
   | "export-markdown"
   | "shortcuts"
@@ -48,6 +50,7 @@ export const MORE_MENU_SECTIONS: readonly (readonly MoreMenuItem[])[] = [
     { action: "open-window" },
   ],
   [
+    { action: "insert-citation" },
     { action: "search-library" },
     { action: "find", shortcut: findShortcutLabel() },
   ],
@@ -109,6 +112,7 @@ export function focusMenuEntry(menu: HTMLElement, entry?: HTMLButtonElement) {
 export const EXPORT_OPTIONS = [
   { action: "export-pdf", label: "PDF" },
   { action: "export-html", label: "HTML" },
+  { action: "export-docx", label: "Word (.docx)…" },
   { action: "export-obsidian", label: "Obsidian…" },
   { action: "export-markdown", label: "Markdown…" },
 ] as const;
