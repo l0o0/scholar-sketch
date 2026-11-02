@@ -6,6 +6,39 @@ import {
 } from "../packages/whiteboard/src/devHost.ts";
 import { emptyCanvasDocument } from "../packages/whiteboard/src/model/document.ts";
 import type { WhiteboardRuntime } from "../packages/whiteboard/src/whiteboard/app.tsx";
+import type { IndexedAcademicAcquisition } from "../packages/whiteboard/src/model/protocol.ts";
+
+test("browser transfer adapter preserves annotation identity through the production gateway", async () => {
+  const demo = createBrowserDemo();
+  const received: IndexedAcademicAcquisition[] = [];
+  demo.callbacks.onReady({
+    resolveAcademicAcquisitionBatch: (
+      _requestId,
+      _nodeId,
+      successes,
+      failures,
+    ) => {
+      assert.deepEqual(failures, []);
+      received.push(...successes);
+    },
+  } as WhiteboardRuntime);
+  const source = {
+    library: { type: "user" as const },
+    attachmentKey: "PDF00001",
+    annotationKey: "QUOTE001",
+    itemKey: "PAPER001",
+  };
+  try {
+    await demo.callbacks.onDropAcademicSources("paste", "quote", [source]);
+    assert.equal(received.length, 1);
+    const acquired = received[0].acquisition;
+    assert.equal(acquired.kind, "quote");
+    assert.deepEqual(acquired.source, source);
+    assert.match(acquired.snapshot.text, /reproducible fixture/);
+  } finally {
+    demo.dispose();
+  }
+});
 
 test("fake library runs the production gateway, including note mutation and reader calls", async () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");

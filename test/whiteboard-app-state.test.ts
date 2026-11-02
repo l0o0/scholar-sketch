@@ -455,6 +455,74 @@ test("runtime load and replace methods accept canonical documents", () => {
   assert.doesNotMatch(runtimeSource, /\(value: unknown\)/);
 });
 
+test("annotation transfer creates source-backed Quote cards in one undoable batch", () => {
+  let document = EMPTY;
+  let nodes = canvasDocumentToFlow(document).nodes;
+  let edges = canvasDocumentToFlow(document).edges;
+  const history = new CanvasDocumentHistory(() => {});
+  const saved = () =>
+    flowToCanvasDocument(nodes, edges, { x: 0, y: 0, zoom: 1 });
+  const runtime = createAcademicAcquisitionRuntime({
+    getNodes: () => nodes,
+    setNodes: (next) => {
+      nodes = next;
+    },
+    getEdges: () => edges,
+    setEdges: (next) => {
+      edges = next;
+    },
+    pushHistory: () =>
+      history.push(
+        runtimeModule.omitAcademicPlaceholders(
+          saved(),
+          runtime.pendingNodeIds(),
+        ),
+      ),
+    changed: () => history.changed(),
+    onPickAcademicSource: () => assert.fail("Unexpected picker"),
+    onDropAcademicSources: () => {},
+  });
+  const source = {
+    library: { type: "user" as const },
+    attachmentKey: "ATTACH12",
+    annotationKey: "ANNOT123",
+  };
+  runtime.dropLiterature("annotations", "drop-quote", { x: 40, y: 80 }, [
+    source,
+  ]);
+  const quote = {
+    kind: "quote" as const,
+    source,
+    snapshot: {
+      text: "Exact excerpt",
+      comment: "My interpretation",
+      annotationType: "underline" as const,
+      pageLabel: "3",
+      color: "#ffd400",
+      attachmentTitle: "Research paper",
+    },
+  };
+  runtime.resolveBatch(
+    "annotations",
+    "drop-quote",
+    [{ index: 0, acquisition: quote }],
+    [],
+  );
+  document = saved();
+  assert.equal(document.nodes.length, 1);
+  assert.equal(document.nodes[0].kind, "quote");
+  assert.deepEqual(document.nodes[0].source, source);
+  assert.deepEqual(document.nodes[0].snapshot, quote.snapshot);
+  assert.deepEqual(document.nodes[0].position, { x: 40, y: 80 });
+  assert.equal(history.revision, 1);
+  assert.deepEqual(history.undo(document)?.nodes, []);
+  assert.deepEqual(history.redo(EMPTY)?.nodes, document.nodes);
+  assert.deepEqual(
+    parseCanvasDocument(JSON.parse(JSON.stringify(document))).document.nodes,
+    document.nodes,
+  );
+});
+
 test("a Literature acquisition replaces its placeholder with native keys", () => {
   const placeholder = canvasDocumentToFlow({
     ...EMPTY,

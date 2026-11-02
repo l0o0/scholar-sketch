@@ -365,7 +365,8 @@ export interface IndexedAcademicAcquisition {
 }
 
 /** Ordered, persistence-safe identity used after the host resolves a Zotero drag. */
-export type AcademicDropSourceRef = LiteratureSource | AttachmentSource;
+export type AcademicDropSourceRef =
+  LiteratureSource | AttachmentSource | QuoteSource;
 
 export type AcademicDropFailureCode = "drop-malformed" | "drop-unsupported";
 
@@ -528,6 +529,7 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
           nodeId: string;
           position: { x: number; y: number };
           sources: AcademicDropSourceRef[];
+          interaction?: "paste";
         };
       }
     | {
@@ -1364,7 +1366,11 @@ function isAttachmentSnapshot(value: unknown): value is AttachmentSnapshot {
 }
 
 function isAcademicDropSource(value: unknown): value is AcademicDropSourceRef {
-  return isLiteratureSource(value) || isAttachmentSource(value);
+  return (
+    isLiteratureSource(value) ||
+    isAttachmentSource(value) ||
+    isQuoteSource(value)
+  );
 }
 
 function isLiteratureSnapshot(value: unknown): boolean {
@@ -1961,7 +1967,14 @@ function validateParentToWhiteboardMessageForChannel(
       return (
         hasOwn(data, "payload") &&
         isPlainRecord(payload) &&
-        hasExactKeys(payload, ["requestId", "nodeId", "position", "sources"]) &&
+        hasExactKeys(
+          payload,
+          ["requestId", "nodeId", "position", "sources"],
+          ["interaction"],
+        ) &&
+        (!hasOwn(payload, "interaction") ||
+          payload.interaction === undefined ||
+          payload.interaction === "paste") &&
         hasRequestAndNode(payload) &&
         isPlainRecord(payload.position) &&
         hasExactKeys(payload.position, ["x", "y"]) &&

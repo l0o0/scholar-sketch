@@ -10,6 +10,7 @@ import type {
   AttachmentSnapshot,
   LiteratureSource,
   NoteSource,
+  QuoteSource,
   SourceResolutionResult,
 } from "../../../packages/whiteboard/src/model";
 import {
@@ -44,6 +45,9 @@ export interface SourceGatewayDependencies {
 
 export interface ZoteroSourceGateway {
   acquireItem(item: Zotero.Item): AcademicAcquisition;
+  acquireQuote(
+    source: QuoteSource,
+  ): Promise<Extract<AcademicAcquisition, { kind: "quote" }>>;
   resolve(
     nodeId: string,
     generation: number,
@@ -148,6 +152,27 @@ export function createZoteroSourceGateway(
     )
       return current;
     return { ...current, snapshot: { ...current.snapshot, image } };
+  }
+
+  async function acquireQuote(source: QuoteSource) {
+    const id = libraryID(source.library);
+    if (id === null)
+      throw new SourceGatewayError(
+        "library-missing",
+        unavailableMessages["library-missing"],
+      );
+    const annotation = deps.getByLibraryAndKey(id, source.annotationKey);
+    if (!annotation)
+      throw new SourceGatewayError(
+        "item-missing",
+        unavailableMessages["item-missing"],
+      );
+    if (annotation.libraryID !== id)
+      throw new SourceIntegrityError("parent-mismatch");
+    return withQuoteImage(
+      annotation,
+      quoteForSource(annotation, source).acquisition,
+    );
   }
 
   async function resolve(
@@ -391,6 +416,7 @@ export function createZoteroSourceGateway(
 
   return {
     acquireItem: acquisition,
+    acquireQuote,
     resolve,
     listAnnotations,
     refreshNote,

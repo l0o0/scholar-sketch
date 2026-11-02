@@ -630,6 +630,7 @@ export interface WhiteboardRuntime {
     nodeId: string,
     position: { x: number; y: number },
     sources: AcademicDropSourceRef[],
+    interaction?: "paste",
   ) => void;
   rejectAcademicDrop: (code: AcademicDropFailureCode) => void;
   resolveAcademicAcquisitionBatch: (
@@ -1267,6 +1268,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const eraser = activeTool === "eraser";
   const annotationBrowserRef = useRef<AnnotationBrowserSession | null>(null);
   annotationBrowserRef.current = annotationBrowser;
+  const nativePasteBlockedRef = useRef(false);
+  nativePasteBlockedRef.current = Boolean(
+    imageViewer || editing || editingEdge || annotationBrowser,
+  );
   const annotationBrowserOriginNodeIdRef = useRef<string | null>(null);
   const viewAnnotationsRef = useRef<HTMLButtonElement | null>(null);
   const detailsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -4014,7 +4019,20 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       getSnapshot: snapshotWithDraft,
       undo: undoCanvas,
       redo: redoCanvas,
-      beginAcademicDrop(requestId, nodeId, screenPosition, sources) {
+      beginAcademicDrop(
+        requestId,
+        nodeId,
+        screenPosition,
+        sources,
+        interaction,
+      ) {
+        if (
+          !editableRef.current ||
+          (interaction === "paste" &&
+            (nativePasteBlockedRef.current ||
+              isEditableTarget(document.activeElement)))
+        )
+          return;
         setActiveTool("select");
         const position =
           flowRef.current?.screenToFlowPosition(screenPosition) ??
@@ -4030,6 +4048,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         showCanvasNotice({ code });
       },
       resolveAcademicAcquisitionBatch(requestId, nodeId, successes, failures) {
+        if (!editableRef.current) {
+          notePickRequestsRef.current.delete(requestId);
+          academicAcquisition.reject(requestId, nodeId, "acquisition-failed");
+          return;
+        }
         const noteId = notePickRequestsRef.current.get(requestId);
         if (noteId) {
           notePickRequestsRef.current.delete(requestId);
