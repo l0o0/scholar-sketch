@@ -66,6 +66,7 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
   const root = createRoot(container);
   const revisions: number[] = [];
   const notifiedContents: unknown[] = [];
+  const transferredAnnotations: string[] = [];
   let runtime: WhiteboardRuntime | undefined;
   try {
     const app = (await server.ssrLoadModule("/src/whiteboard/app.tsx")) as {
@@ -101,7 +102,8 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
           onSave: noop,
           onPickAcademicSource: noop,
           onOpenItem: noop,
-          onDropAcademicSources: noop,
+          onDropAcademicSources: (requestId) =>
+            transferredAnnotations.push(requestId),
           onRefreshZoteroNote: noop,
           onExportFile: noop,
         }),
@@ -119,6 +121,11 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     });
     assert.ok(container.querySelector('.zmd-board-host[data-sidebar="true"]'));
     assert.ok(container.querySelector(".zmd-board-sidebar-toolbar"));
+    const annotationSource = {
+      library: { type: "user" as const },
+      attachmentKey: "ATTACH12",
+      annotationKey: "ANNOT123",
+    };
     const card = container.querySelector<HTMLElement>('[data-id="note"]');
     assert.ok(card);
     const cardContent = card.querySelector<HTMLElement>(
@@ -155,6 +162,20 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     };
 
     await setText("First draft");
+    await act(async () =>
+      api.beginAcademicDrop(
+        "editing-paste",
+        "editing-quote",
+        { x: 100, y: 100 },
+        [annotationSource],
+        "paste",
+      ),
+    );
+    assert.deepEqual(
+      transferredAnnotations,
+      [],
+      "annotation paste must not interrupt text editing",
+    );
     const firstRevision = revisions.at(-1);
     assert.ok(firstRevision !== undefined);
     assert.equal(api.getSnapshot().nodes[0]?.kind, "note");
@@ -260,6 +281,68 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     );
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
     assert.equal(notifiedContents.at(-1), "Committed");
+    await act(async () =>
+      api.beginAcademicDrop(
+        "readonly-result",
+        "pending-quote",
+        { x: 100, y: 100 },
+        [annotationSource],
+        "paste",
+      ),
+    );
+    assert.deepEqual(transferredAnnotations, ["readonly-result"]);
+    const acquisition = {
+      kind: "quote" as const,
+      source: annotationSource,
+      snapshot: {
+        text: "Quoted passage",
+        pageLabel: "3",
+        annotationType: "highlight" as const,
+      },
+    };
+    await act(async () => api.setEditable(false));
+    await act(async () => {
+      api.resolveAcademicAcquisitionBatch(
+        "readonly-result",
+        "pending-quote",
+        [{ index: 0, acquisition }],
+        [],
+      );
+      api.beginAcademicDrop(
+        "readonly-paste",
+        "blocked-quote",
+        { x: 100, y: 100 },
+        [annotationSource],
+        "paste",
+      );
+    });
+    assert.equal(
+      api.getSnapshot().nodes.length,
+      1,
+      "a late annotation response must not edit a readonly canvas",
+    );
+    assert.deepEqual(transferredAnnotations, ["readonly-result"]);
+    await act(async () => api.setEditable(true));
+    await act(async () =>
+      api.beginAcademicDrop(
+        "accepted-paste",
+        "new-quote",
+        { x: 100, y: 100 },
+        [annotationSource],
+        "paste",
+      ),
+    );
+    await act(async () =>
+      api.resolveAcademicAcquisitionBatch(
+        "accepted-paste",
+        "new-quote",
+        [{ index: 0, acquisition }],
+        [],
+      ),
+    );
+    assert.equal(api.getSnapshot().nodes.at(-1)?.kind, "quote");
+    await act(async () => api.undo());
+    assert.equal(api.getSnapshot().nodes.length, 1);
     await act(async () => api.setSidebar(false));
     assert.equal(container.querySelector(".zmd-board-sidebar-toolbar"), null);
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");

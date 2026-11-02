@@ -640,6 +640,77 @@ test("native drop capture converts resolver exceptions into typed diagnostics", 
   cleanup();
 });
 
+interface PasteController {
+  supportsCommand(command: string): boolean;
+  isCommandEnabled(command: string): boolean;
+  doCommand(command: string): void;
+}
+
+/** Native Gecko command routing is the only replaced boundary. */
+class NativePasteControllers {
+  readonly native: PasteController;
+  private readonly controllers: PasteController[];
+  executions = 0;
+
+  constructor(private readonly frame: Window) {
+    this.native = {
+      supportsCommand: (command) => command === "cmd_paste",
+      isCommandEnabled: () => false,
+      doCommand: () => {
+        this.executions++;
+        const event = new this.frame.Event("paste", {
+          bubbles: true,
+          cancelable: true,
+        });
+        Object.defineProperty(event, "clipboardData", {
+          value: {
+            types: ["zotero/annotation", "text/plain"],
+            getData: (type: string) =>
+              type === "zotero/annotation"
+                ? '[{"id":"ANNOT123","attachmentItemID":21}]'
+                : "Copied annotation",
+          },
+        });
+        (
+          this.frame.document.activeElement ?? this.frame.document.body
+        ).dispatchEvent(event);
+      },
+    };
+    this.controllers = [this.native];
+  }
+
+  getControllerForCommand(command: string) {
+    return (
+      this.controllers.find((controller) =>
+        controller.supportsCommand(command),
+      ) ?? null
+    );
+  }
+
+  insertControllerAt(index: number, controller: PasteController) {
+    this.controllers.splice(index, 0, controller);
+  }
+
+  removeController(controller: PasteController) {
+    const index = this.controllers.indexOf(controller);
+    assert.ok(index >= 0, "only installed controllers may be removed");
+    this.controllers.splice(index, 1);
+  }
+
+  get count() {
+    return this.controllers.length;
+  }
+
+  dispatch(command: string) {
+    const controller = this.getControllerForCommand(command);
+    if (!controller?.isCommandEnabled(command)) return false;
+    controller.doCommand(command);
+    return true;
+  }
+}
+
+const nativePasteHosts = new WeakMap<object, NativePasteControllers>();
+
 function installProductionEditorWindow(t: {
   after(callback: () => void): void;
 }) {
@@ -647,6 +718,7 @@ function installProductionEditorWindow(t: {
   const globalKeys = [
     "addon",
     "ztoolkit",
+    "ChromeUtils",
     "__zoteroMarkdownDOMGlobalsInjected",
     "window",
     "self",
@@ -693,7 +765,37 @@ function installProductionEditorWindow(t: {
     configurable: true,
     value: { log: () => undefined },
   });
+  Object.defineProperty(globalThis, "ChromeUtils", {
+    configurable: true,
+    value: {
+      generateQI: () =>
+        function (this: unknown) {
+          return this;
+        },
+    },
+  });
+  const prototype = window.HTMLIFrameElement.prototype;
+  const contentWindow = Object.getOwnPropertyDescriptor(
+    prototype,
+    "contentWindow",
+  )!;
+  Object.defineProperty(prototype, "contentWindow", {
+    ...contentWindow,
+    get() {
+      const frame = contentWindow.get!.call(this) as Window | null;
+      if (frame && !nativePasteHosts.has(frame)) {
+        const controllers = new NativePasteControllers(frame);
+        nativePasteHosts.set(frame, controllers);
+        Object.defineProperty(frame, "controllers", {
+          value: controllers,
+          configurable: true,
+        });
+      }
+      return frame;
+    },
+  });
   t.after(() => {
+    Object.defineProperty(prototype, "contentWindow", contentWindow);
     for (const [key, descriptor] of previous) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
       else Reflect.deleteProperty(globalThis, key);
@@ -744,10 +846,23 @@ test("production editor rebinds native drop ownership on iframe reload and relea
     contentDocument.dispatchEvent(event);
   };
 
-  iframe.dispatchEvent(new window.Event("load"));
+  const ready = () =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          channel: "tab-1:canvas-1",
+          type: "ready",
+        },
+      }),
+    );
+  ready();
   dispatchDrop();
   assert.equal(resolveCount, 1);
   iframe.dispatchEvent(new window.Event("load"));
+  ready();
   dispatchDrop();
   assert.equal(resolveCount, 2, "reload must not duplicate drop listeners");
   assert.equal(rejected.length, 1);
@@ -1287,4 +1402,200 @@ test("whiteboard page loads styles and bundle with the current editor mount cach
       `chrome://bamboo/content/whiteboard/whiteboard.js?v=${encodedVersion}`,
     ]);
   }
+});
+
+test("Gecko paste commands reach only the owning editable canvas and release their controller", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  const sources = [
+    {
+      library: { type: "user" as const },
+      attachmentKey: "PDF12345",
+      annotationKey: "ANNOT123",
+    },
+  ];
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "paste:canvas",
+    resolveNativeAcademicDrop: (transfer) => {
+      assert.equal(
+        transfer.getData("zotero/annotation"),
+        '[{"id":"ANNOT123","attachmentItemID":21}]',
+      );
+      return { status: "accepted", sources };
+    },
+  });
+  t.after(() => handle.destroy());
+  const iframe = parent.querySelector("iframe")!;
+  const initialFrame = iframe.contentWindow!;
+  // The chrome document can replace about:blank without the host observing its
+  // load event. Model that browser boundary before delivering the real ready.
+  const loadedFrame = window.document.createElement("iframe");
+  window.document.body.append(loadedFrame);
+  const frame = loadedFrame.contentWindow!;
+  const doc = loadedFrame.contentDocument!;
+  Object.defineProperties(iframe, {
+    contentWindow: { configurable: true, value: frame },
+    contentDocument: { configurable: true, value: doc },
+  });
+  t.after(() => loadedFrame.remove());
+  let focused = true;
+  doc.hasFocus = () => focused;
+  doc.documentElement.getBoundingClientRect = () =>
+    ({ width: 800, height: 600 }) as DOMRect;
+  const canvas = doc.createElement("div");
+  canvas.tabIndex = 0;
+  doc.body.append(canvas);
+  canvas.focus();
+  const posted: Array<{
+    type: string;
+    payload?: {
+      sources?: unknown;
+      interaction?: string;
+      position?: { x: number; y: number };
+    };
+  }> = [];
+  frame.postMessage = ((message: (typeof posted)[number]) =>
+    posted.push(message)) as typeof frame.postMessage;
+  const ready = (channel = "paste:canvas") =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          channel,
+          type: "ready",
+        },
+      }),
+    );
+  ready();
+  const controllers = nativePasteHosts.get(frame)!;
+  const paste = (
+    target: Element,
+    types = ["zotero/annotation", "text/plain", "image/png"],
+  ) => {
+    const event = new window.Event("paste", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "clipboardData", {
+      value: { types, getData: () => "[]" },
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(paste(window.document.body).defaultPrevented, false);
+  assert.equal(paste(canvas, ["text/plain"]).defaultPrevented, false);
+  assert.equal(controllers.dispatch("cmd_copy"), false);
+  focused = false;
+  assert.equal(
+    controllers.getControllerForCommand("cmd_paste"),
+    controllers.native,
+  );
+  assert.equal(controllers.dispatch("cmd_paste"), false);
+  focused = true;
+  for (const selector of [
+    "input",
+    "textarea",
+    "select",
+    "contenteditable",
+    "textbox",
+  ]) {
+    const input = doc.createElement(
+      ["contenteditable", "textbox"].includes(selector) ? "div" : selector,
+    );
+    if (selector === "contenteditable")
+      input.setAttribute("contenteditable", "true");
+    if (selector === "textbox") input.setAttribute("role", "textbox");
+    input.tabIndex = 0;
+    doc.body.append(input);
+    input.focus();
+    assert.equal(
+      controllers.getControllerForCommand("cmd_paste"),
+      controllers.native,
+      `${selector} keeps its native command handling`,
+    );
+    assert.equal(paste(input).defaultPrevented, false);
+    input.remove();
+  }
+  const dialog = doc.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  const confirm = doc.createElement("button");
+  dialog.append(confirm);
+  doc.body.append(dialog);
+  confirm.focus();
+  assert.equal(controllers.dispatch("cmd_paste"), false);
+  assert.equal(paste(confirm).defaultPrevented, false);
+  canvas.focus();
+  assert.equal(
+    controllers.dispatch("cmd_paste"),
+    false,
+    "an open modal blocks canvas paste even before focus moves into it",
+  );
+  dialog.remove();
+  canvas.focus();
+  assert.equal(controllers.native.isCommandEnabled("cmd_paste"), false);
+  assert.equal(
+    controllers.dispatch("cmd_paste"),
+    true,
+    "the canvas must enable native paste even though it is not an editor",
+  );
+  assert.equal(controllers.executions, 1);
+  assert.equal(
+    nativePasteHosts.get(initialFrame)!.count,
+    1,
+    "the replaced document cannot retain a canvas paste controller",
+  );
+  const imported = posted.filter(
+    (message) => message.type === "academicDropStarted",
+  );
+  assert.equal(imported.length, 1);
+  assert.deepEqual(imported[0].payload?.sources, sources);
+  assert.equal(imported[0].payload?.interaction, "paste");
+  assert.deepEqual(imported[0].payload?.position, { x: 400, y: 300 });
+  iframe.dispatchEvent(new window.Event("load"));
+  ready();
+  assert.equal(
+    controllers.count,
+    2,
+    "reload must replace, not accumulate, the canvas controller",
+  );
+  assert.equal(controllers.dispatch("cmd_paste"), true);
+  assert.equal(controllers.executions, 2);
+  assert.equal(
+    posted.filter((message) => message.type === "academicDropStarted").length,
+    2,
+  );
+  const detached = controllers.getControllerForCommand("cmd_paste")!;
+  handle.destroy();
+  assert.equal(controllers.count, 1);
+  assert.equal(
+    controllers.getControllerForCommand("cmd_paste"),
+    controllers.native,
+  );
+  detached.doCommand("cmd_paste");
+  assert.equal(
+    controllers.executions,
+    2,
+    "a detached controller cannot dispatch paste into its old canvas",
+  );
+  assert.equal(paste(doc.body).defaultPrevented, false);
+  const readonly = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "paste:readonly",
+    editable: false,
+    resolveNativeAcademicDrop: () =>
+      assert.fail("readonly canvas cannot acquire annotations"),
+  });
+  const readonlyFrame = parent.querySelector("iframe")!;
+  ready("paste:readonly");
+  assert.equal(nativePasteHosts.get(readonlyFrame.contentWindow!)!.count, 1);
+  assert.equal(
+    paste(readonlyFrame.contentDocument!.body).defaultPrevented,
+    false,
+  );
+  readonly.destroy();
 });

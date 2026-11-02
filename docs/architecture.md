@@ -123,6 +123,23 @@ including a picker result containing just one item. The runtime correlates that
 batch with its pending placeholder and commits successful nodes as one undoable
 edit. Failed or cancelled requests do not create history entries.
 
+Reader annotation drag and copy use Zotero's native `zotero/annotation` data.
+The host resolves each saved annotation's attachment ID and native key to a
+validated Quote source; clipboard text and other display fields are not treated
+as authoritative content. Unsaved text selections have no annotation key and
+retain their normal text behavior. Quote acquisition rechecks the source chain
+and includes cached image/ink previews. Annotation paste uses the same batch
+flow with an explicit paste interaction so the iframe can respect text editing,
+modal, and read-only state before creating cards. Because Gecko disables the
+default paste command on non-editable chrome documents, each editable iframe
+owns a paste command controller while its canvas has focus. It delegates to the
+original native controller to preserve trusted clipboard events and custom MIME
+decoding; text inputs keep their native command handling. The host binds native
+listeners and the controller to the loaded document on the validated `ready`
+handshake, replacing previous bindings after a reload and removing them on
+disposal. Initial iframe `readyState` and `load` events do not determine this
+ownership. Raw Zotero IDs do not enter saved canvas data.
+
 Opening a canvas parses and renders every persisted snapshot before scheduling
 Zotero lookups. Selected and visible sources take priority over idle sources,
 with at most four host lookups active. Resolution failures affect only the

@@ -620,7 +620,8 @@ const activeHostToIframeMessages = [
       requestId: "drop-1",
       nodeId: "node-3",
       position: { x: 10, y: 20 },
-      sources: [literatureSource],
+      sources: [literatureSource, quoteSource],
+      interaction: "paste",
     },
   },
   {
