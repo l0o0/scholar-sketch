@@ -6,7 +6,10 @@ import {
 } from "@zotero-plugin/fake-zotero";
 import { createZoteroSourceGateway } from "../../../src/modules/whiteboard/source-gateway";
 import { emptyCanvasDocument, parseCanvasDocument } from "./model/document";
-import type { AcademicAcquisitionBatch } from "./model/protocol";
+import type {
+  AcademicAcquisitionBatch,
+  AcademicDropSourceRef,
+} from "./model/protocol";
 import type { WhiteboardAppProps, WhiteboardRuntime } from "./whiteboard/app";
 
 export const DEMO_STORAGE_KEY = "fake-zotero:whiteboard:v1";
@@ -92,18 +95,31 @@ export function createBrowserDemo(
     return item;
   }
 
-  function acquire(requestId: string, nodeId: string, keys: string[]) {
+  async function acquire(
+    requestId: string,
+    nodeId: string,
+    sources: AcademicDropSourceRef[],
+  ) {
     const batch: AcademicAcquisitionBatch = { successes: [], failures: [] };
-    keys.forEach((key, index) => {
+    for (const [index, source] of sources.entries()) {
+      const key =
+        "annotationKey" in source
+          ? source.annotationKey
+          : "attachmentKey" in source
+            ? source.attachmentKey
+            : source.itemKey;
       const item = fake.Zotero.Items.getByLibraryAndKey(1, key);
       if (!item) {
         batch.failures.push({ index, code: "item-missing", message: key });
-        return;
+        continue;
       }
       try {
         batch.successes.push({
           index,
-          acquisition: gateway.acquireItem(item as unknown as Zotero.Item),
+          acquisition:
+            "annotationKey" in source
+              ? await gateway.acquireQuote(source)
+              : gateway.acquireItem(item as unknown as Zotero.Item),
         });
       } catch (error) {
         batch.failures.push({
@@ -112,7 +128,7 @@ export function createBrowserDemo(
           message: String(error),
         });
       }
-    });
+    }
     ready().resolveAcademicAcquisitionBatch(
       requestId,
       nodeId,
@@ -162,21 +178,17 @@ export function createBrowserDemo(
     onChange() {},
     onSave: save,
     onPickAcademicSource(requestId, nodeId) {
-      acquire(requestId, nodeId, ["PAPER001"]);
+      void acquire(requestId, nodeId, [
+        { library: { type: "user" }, itemKey: "PAPER001" },
+      ]);
       report("Selected the demo paper from the fake library.");
     },
-    onDropAcademicSources(requestId, nodeId, sources) {
+    async onDropAcademicSources(requestId, nodeId, sources) {
       if (sources.some((source) => source.library.type !== "user")) {
         ready().rejectAcademicRequest(requestId, nodeId, "library-missing");
         return;
       }
-      acquire(
-        requestId,
-        nodeId,
-        sources.map((source) =>
-          "attachmentKey" in source ? source.attachmentKey : source.itemKey,
-        ),
-      );
+      await acquire(requestId, nodeId, sources);
     },
     async onResolveAcademicSources(_requestId, generation, _priority, sources) {
       const results = await Promise.all(

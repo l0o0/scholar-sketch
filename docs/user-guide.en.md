@@ -265,7 +265,9 @@ All entered keywords must match. Up to 100 notes are shown. Content that has not
 
 1. Select a bibliographic item or PDF attachment in your Zotero library.
 2. Right-click, open the Scholar Sketch menu, and choose **Create Markdown from PDF annotations…**.
-3. Select the annotations to include, then click **Create Markdown note**.
+3. Search excerpts, comments, pages or tags, and filter by type, color or tag. The palette button beside the type filters opens color choices; select multiple colors or reset to **All colors**. Results are grouped by PDF; long content can be expanded.
+4. All annotations are selected initially. Use **Clear selection**, then **Select results** or individual checkboxes. Changing filters preserves your selection; the footer shows the total selected count.
+5. Click **Create Markdown note**. If creation fails, your selection is kept for a retry.
 
 The resulting note contains text excerpts, comments, page numbers, and links back to the original PDF annotations. Image-only or area-snapshot annotations without text or comments are not included in this text-annotation export.
 
@@ -286,6 +288,16 @@ Markdown cannot represent every rich-text format. Content such as subscripts, su
 Click the Scholar Sketch toolbar button in Zotero and choose **Import Markdown…**. If a paper is selected, the imported note is attached to it. Otherwise, it is imported into the current library or collection.
 
 Import copies the Markdown content and supported local images it references into a new Zotero stored attachment. The original file does not become an external note that automatically syncs changes in both directions with Zotero.
+
+### Manuscript writing and Word export (experimental branch)
+
+Use **More → Insert citation…** in an editable document to select Zotero references and optionally enter a locator such as `p. 23`. Personal-library references use `[@zotero-user-ABCD1234, p. 23]`, and group references use `[@zotero-group-42-ABCD1234]`. They retain native item keys rather than local database IDs. Ordinary `[[reading links]]` do not become scholarly citations.
+
+Choose **More → Export → Word document…**, locate your installed Pandoc executable, select a Zotero citation style and optionally a `.docx` style reference. Export reads the current draft without changing Markdown or Zotero data. Headings, text, ordinary tables, footnotes, native Word equations and figures are supported. Mermaid, SVG and WebP are rasterized to PNG when needed, capped at 4096 pixels on the longest side; original PNG/JPEG/GIF data is retained.
+
+Citations and the bibliography are static text in Word. Maintain the Markdown manuscript and export again; the Zotero Word plugin cannot refresh these citations. Word-to-Markdown updates, automatic figure cross-references and complex cover/section layouts are outside this trial. A Word reference document supplies styles, not every layout feature of an arbitrary university template.
+
+Missing references/images, Pandoc warnings or unsupported raw HTML/TeX stop conversion with an explanation. Download external images first. The destination is written only after conversion completes, and an external change to an existing destination stops replacement. See the [sample manuscript](../examples/paper-writing/README.md).
 
 ### Choose an export format
 

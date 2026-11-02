@@ -1302,6 +1302,51 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   color: var(--zmd-danger, #c2410c);
   font-size: 12px;
 }
+
+.zotero-markdown-paper-dialog {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 12px;
+  background: var(--zmd-surface);
+  color: var(--zmd-text);
+  font: 14px/1.5 system-ui, sans-serif;
+}
+.zotero-markdown-paper-dialog::backdrop { background: #0006; }
+.zotero-markdown-paper-dialog form { display: grid; gap: 16px; }
+.zotero-markdown-paper-dialog h2 { margin: 0; font-size: 18px; }
+.zotero-markdown-paper-dialog p { margin: 0; color: var(--zmd-text-muted); }
+.zotero-markdown-paper-dialog label { display: grid; gap: 6px; }
+.zotero-markdown-paper-dialog input,
+.zotero-markdown-paper-dialog select {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 6px;
+  background: var(--zmd-bg);
+  color: var(--zmd-text);
+  font: inherit;
+}
+.zotero-markdown-paper-file { display: flex; gap: 8px; }
+.zotero-markdown-paper-dialog button {
+  padding: 7px 12px;
+  border: 1px solid var(--zmd-border);
+  border-radius: 6px;
+  background: var(--zmd-surface-2);
+  color: var(--zmd-text);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.zotero-markdown-paper-dialog footer { display: flex; justify-content: flex-end; gap: 8px; }
+.zotero-markdown-paper-dialog button[type="submit"] { background: var(--zmd-accent); color: white; }
+.zotero-markdown-paper-dialog :focus-visible { outline: 2px solid var(--zmd-accent); outline-offset: 2px; }
 `;
 }
 

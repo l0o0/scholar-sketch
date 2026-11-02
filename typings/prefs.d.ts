@@ -24,6 +24,9 @@ declare namespace _ZoteroTypes {
       "noteTemplates": string;
       "featureUpdatesSeenVersion": string;
       "shortcutNewStandaloneMd": string;
+      "paperPandocPath": string;
+      "paperStyleID": string;
+      "paperReferenceDoc": string;
     };
   }
 }

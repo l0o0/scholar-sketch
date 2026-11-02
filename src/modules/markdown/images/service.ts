@@ -285,9 +285,11 @@ export async function importExternalImages(
   item: Zotero.Item,
   markdown: string,
   options: {
+    /** Supplied by the owning editor window; plugin sandboxes lack this API. */
+    createAbortController: () => AbortController;
     onProgress?: (progress: ExternalImageImportProgress) => void;
     shouldContinue?: () => boolean;
-  } = {},
+  },
 ): Promise<ExternalImageImportResult> {
   let next = markdown;
   const images = externalImageReferences(markdown).sort(
@@ -327,7 +329,7 @@ export async function importExternalImages(
       // Timeout + size pre-check: a malicious or broken endpoint must not be
       // able to stall the save or pull an unbounded payload into memory
       // (writeImageAsset validates the size only after the full download).
-      const controller = new AbortController();
+      const controller = options.createAbortController();
       const timeout = setTimeout(
         () => controller.abort(),
         EXTERNAL_IMAGE_TIMEOUT_MS,

@@ -291,11 +291,19 @@ test("annotation picker supports selection and prevents creating an empty note",
     dialog.querySelectorAll('input[type="checkbox"]:checked').length,
     2,
   );
-  const [toggle, submit, close] = [...dialog.querySelectorAll("button")];
-  toggle.click();
+  const clear = dialog.querySelector<HTMLButtonElement>(
+    '[data-action="clear-selection"]',
+  )!;
+  const submit = dialog.querySelector<HTMLButtonElement>(
+    '[data-action="create"]',
+  )!;
+  const close = dialog.querySelector<HTMLButtonElement>(
+    ".ss-annotation-close",
+  )!;
+  clear.click();
   assert.equal(submit.disabled, true);
   assert.equal(dialog.querySelectorAll("input:checked").length, 0);
-  dialog.querySelector("input")!.click();
+  dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
   assert.equal(submit.disabled, false);
   close.click();
   await new Promise((resolve) => setTimeout(resolve, 0));
