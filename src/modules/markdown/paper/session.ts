@@ -88,7 +88,7 @@ export async function exportSessionPaper(
   const mount = session.view?.root;
   if (!editor || !mount || !sessionCurrent(session) || operations.has(session))
     return null;
-  const controller = new AbortController();
+  const controller = new session.win.AbortController();
   operations.set(session, controller);
   const { signal } = controller;
   const unload = () => controller.abort();
