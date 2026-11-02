@@ -122,6 +122,7 @@ export type NativeAcademicDropEvent =
   | {
       position: { x: number; y: number };
       sources: AcademicDropSourceRef[];
+      interaction?: "paste";
     };
 
 export function attachNativeAcademicDropListeners(
@@ -133,7 +134,12 @@ export function attachNativeAcademicDropListeners(
     const types = Array.from(event.dataTransfer?.types ?? []);
     if (
       !types.some((type) =>
-        ["zotero/collection", "zotero/item", "zotero/search"].includes(type),
+        [
+          "zotero/collection",
+          "zotero/annotation",
+          "zotero/item",
+          "zotero/search",
+        ].includes(type),
       )
     ) {
       return;
@@ -176,6 +182,67 @@ export function attachNativeAcademicDropListeners(
     target.removeEventListener("dragenter", onDragOver, true);
     target.removeEventListener("dragover", onDragOver, true);
     target.removeEventListener("drop", onDrop, true);
+  };
+}
+
+function attachNativeAnnotationPasteListener(
+  target: Document,
+  resolve: (transfer: DataTransfer) => NativeAcademicDropResolution,
+  emit: (drop: NativeAcademicDropEvent) => void,
+): () => void {
+  const isPasteBlocked = (element: Element | null) =>
+    Boolean(
+      element?.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]',
+      ) || target.querySelector('[role="dialog"][aria-modal="true"]'),
+    );
+  const onPaste = (event: ClipboardEvent) => {
+    if (isPasteBlocked(event.target as Element | null)) return;
+    const transfer = event.clipboardData;
+    if (!transfer || !Array.from(transfer.types).includes("zotero/annotation"))
+      return;
+    const result = resolve(transfer);
+    if (result.status === "ignored") return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (result.status === "rejected") {
+      emit({ code: result.code, diagnostic: result.diagnostic });
+      return;
+    }
+    const viewport = target.documentElement.getBoundingClientRect();
+    emit({
+      sources: result.sources,
+      position: { x: viewport.width / 2, y: viewport.height / 2 },
+      interaction: "paste",
+    });
+  };
+  // Gecko disables cmd_paste on non-editable chrome documents. Let this
+  // focused canvas own the command, but retain Gecko's trusted clipboard
+  // event and custom MIME decoding by calling its original controller.
+  const controllers = target.defaultView!.controllers;
+  const nativePaste = controllers.getControllerForCommand("cmd_paste");
+  let attached = true;
+  const canPaste = (command: string) =>
+    attached &&
+    command === "cmd_paste" &&
+    target.hasFocus() &&
+    !isPasteBlocked(target.activeElement);
+  const controller: nsIController = {
+    QueryInterface: ChromeUtils.generateQI(["nsIController"]),
+    supportsCommand: canPaste,
+    isCommandEnabled: canPaste,
+    doCommand(command) {
+      if (canPaste(command)) nativePaste.doCommand(command);
+    },
+    onEvent() {},
+  };
+  target.addEventListener("paste", onPaste, true);
+  controllers.insertControllerAt(0, controller);
+  return () => {
+    if (!attached) return;
+    attached = false;
+    controllers.removeController(controller);
+    target.removeEventListener("paste", onPaste, true);
   };
 }
 
@@ -381,6 +448,9 @@ export function createWhiteboardEditor(
 
     switch (data.type) {
       case "ready": {
+        // The ready handshake identifies the loaded whiteboard document;
+        // the iframe can initially expose a complete about:blank document.
+        attachDropListeners();
         iframeReady = true;
         post({
           source: WHITEBOARD_MESSAGE_SOURCE,
@@ -499,6 +569,7 @@ export function createWhiteboardEditor(
 
   let dropSequence = 0;
   const emitNativeDrop = (drop: NativeAcademicDropEvent) => {
+    if (options.editable === false) return;
     const suffix = `${Date.now().toString(36)}-${dropSequence++}`;
     if ("code" in drop) {
       options.onNativeAcademicDropRejected?.(
@@ -521,6 +592,7 @@ export function createWhiteboardEditor(
         nodeId: `literature-${suffix}`,
         position: drop.position,
         sources: drop.sources,
+        ...(drop.interaction ? { interaction: drop.interaction } : {}),
       },
     });
   };
@@ -547,18 +619,28 @@ export function createWhiteboardEditor(
       )
     : () => undefined;
   let detachDropListeners: () => void = () => undefined;
+  let detachPasteListener: () => void = () => undefined;
   const attachDropListeners = () => {
     detachDropListeners();
+    detachPasteListener();
     const target = iframe.contentDocument;
-    if (!target || !options.resolveNativeAcademicDrop) return;
+    if (
+      !target ||
+      !options.resolveNativeAcademicDrop ||
+      options.editable === false
+    )
+      return;
     detachDropListeners = attachNativeAcademicDropListeners(
       target,
       options.resolveNativeAcademicDrop,
       emitNativeDrop,
     );
+    detachPasteListener = attachNativeAnnotationPasteListener(
+      target,
+      options.resolveNativeAcademicDrop,
+      emitNativeDrop,
+    );
   };
-  iframe.addEventListener("load", attachDropListeners);
-  if (iframe.contentDocument?.readyState === "complete") attachDropListeners();
 
   return {
     ready,
@@ -574,8 +656,8 @@ export function createWhiteboardEditor(
       if (destroyed) return;
       destroyed = true;
       ownerWin?.removeEventListener("message", onMessage);
-      iframe.removeEventListener("load", attachDropListeners);
       detachDropListeners();
+      detachPasteListener();
       detachOuterDropListeners();
       for (const waiter of snapshotWaiters.values()) {
         if (waiter.timeoutId !== undefined) {
