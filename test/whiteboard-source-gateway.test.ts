@@ -1584,6 +1584,8 @@ test("image and ink previews travel through listing and resolution after source 
         ? undefined
         : image;
     assert.equal(candidate.acquisition.snapshot.image, expected);
+    const imported = await gateway.acquireQuote(candidate.acquisition.source);
+    assert.deepEqual(imported, candidate.acquisition);
     const resolved = await gateway.resolve("quote", 1, {
       kind: "quote",
       source: candidate.acquisition.source,
@@ -1633,6 +1635,11 @@ test("a parent change during an annotation cache read cannot return a resolved p
       annotationKey: "ANN",
     },
   });
+  const importing = gateway.acquireQuote({
+    library: { type: "user" },
+    attachmentKey: "PDF",
+    annotationKey: "ANN",
+  });
   await started.promise;
   annotation.parentItem = item("attachment", {
     key: "OTHER",
@@ -1640,6 +1647,7 @@ test("a parent change during an annotation cache read cannot return a resolved p
   });
   image.resolve(undefined);
   assert.equal((await pending).status, "unavailable");
+  await assert.rejects(importing, /parent-mismatch/);
 });
 
 test("production cache reads preserve metadata when the cache is missing or unreadable", async () => {

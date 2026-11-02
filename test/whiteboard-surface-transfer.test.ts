@@ -1,12 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import {
+  createSourceFile,
+  isFunctionDeclaration,
+  ScriptTarget,
+  transpileModule,
+} from "typescript";
 import {
   FileConflictError,
   writeProtectedFile,
 } from "../src/modules/file-safety.ts";
 import { WhiteboardSaveCoordinator } from "../src/modules/whiteboard/save-coordinator.ts";
 import { captureWhiteboardSurfaceTransfer } from "../src/modules/whiteboard/surface-transfer.ts";
+import { acquireAcademicItems } from "../src/modules/whiteboard/tab.ts";
+import { createAcademicAcquisitionRuntime } from "../packages/whiteboard/src/whiteboard/runtime.ts";
+import {
+  canvasDocumentToFlow,
+  flowToCanvasDocument,
+} from "../packages/whiteboard/src/whiteboard/document.ts";
+import type {
+  AcademicAcquisition,
+  AcademicDropSourceRef,
+} from "../packages/whiteboard/src/model/protocol.ts";
 import {
   createBasicNode,
   emptyCanvasDocument,
@@ -256,6 +274,132 @@ test("two captures separated by an external change use the second file, never th
   assert.equal(f.persistedReads, 2);
   assert.equal(f.writes, 0);
   assert.deepEqual((await f.editor.requestSnapshot()).snapshot, f.initial);
+});
+
+test("a quote acquired while transferring remains in the old editor and the second capture", async (t) => {
+  const f = fixture(t);
+  const started = Promise.withResolvers<void>();
+  const preview = Promise.withResolvers<void>();
+  const quote: Extract<AcademicAcquisition, { kind: "quote" }> = {
+    kind: "quote",
+    source: {
+      library: { type: "user" },
+      attachmentKey: "PDF12345",
+      annotationKey: "ANNOT123",
+    },
+    snapshot: {
+      text: "Quote completed during transfer",
+      annotationType: "ink",
+    },
+  };
+  const annotation = { isAnnotation: () => true };
+  const tree = createSourceFile(
+    "tab.ts",
+    readFileSync(
+      new URL("../src/modules/whiteboard/tab.ts", import.meta.url),
+      "utf8",
+    ),
+    ScriptTarget.ES2022,
+    true,
+  );
+  const declaration = tree.statements.find(
+    (statement) =>
+      isFunctionDeclaration(statement) &&
+      statement.name?.text === "handleDropAcademicSources",
+  );
+  assert.ok(declaration);
+  // Exercise the production host handler; only native item lookup and delayed
+  // preview acquisition are replaced. The iframe runtime and save path are real.
+  const handleDrop = runInNewContext(
+    transpileModule(declaration.getText(tree), {
+      compilerOptions: { target: ScriptTarget.ES2022 },
+    }).outputText + "\nhandleDropAcademicSources;",
+    {
+      Zotero: {
+        Libraries: { userLibraryID: 1 },
+        Items: { getByLibraryAndKey: () => annotation },
+      },
+      createZoteroSourceGateway: () => ({
+        async acquireQuote() {
+          started.resolve();
+          await preview.promise;
+          return quote;
+        },
+      }),
+      acquireAcademicItems,
+      reportAcademicRequestFailure: () =>
+        assert.fail("acquisition should succeed"),
+    },
+  ) as (
+    session: unknown,
+    requestId: string,
+    nodeId: string,
+    sources: AcademicDropSourceRef[],
+  ) => Promise<void>;
+  const flow = canvasDocumentToFlow(f.initial);
+  let importing: Promise<void> | undefined;
+  const runtime = createAcademicAcquisitionRuntime({
+    getNodes: () => flow.nodes,
+    setNodes: (nodes) => {
+      flow.nodes = nodes;
+    },
+    getEdges: () => flow.edges,
+    setEdges: (edges) => {
+      flow.edges = edges;
+    },
+    pushHistory() {},
+    changed() {
+      f.setDraft(
+        flowToCanvasDocument(
+          flow.nodes,
+          flow.edges,
+          { x: 0, y: 0, zoom: 1 },
+          flow.shell,
+        ),
+        1,
+      );
+    },
+    onPickAcademicSource: () => assert.fail("not a picker"),
+    onDropAcademicSources: (requestId, nodeId, sources) => {
+      importing = handleDrop(session, requestId, nodeId, sources);
+    },
+  });
+  const session = {
+    ...f.source,
+    transitioning: false,
+    editor: {
+      ...f.editor,
+      resolveAcademicAcquisitionBatch: runtime.resolveBatch,
+      rejectAcademicRequest: runtime.reject,
+    },
+  };
+  runtime.dropLiterature("drag", "quote", { x: 20, y: 30 }, [quote.source]);
+  await started.promise;
+  session.transitioning = true;
+  const first = await captureWhiteboardSurfaceTransfer(
+    session,
+    f.readPersisted,
+  );
+  assert.equal(
+    first.document.nodes.some((node) => node.kind === "quote"),
+    false,
+  );
+  preview.resolve();
+  await importing;
+  assert.deepEqual(
+    runtime.pendingNodeIds(),
+    [],
+    "the original editor must not retain a loading placeholder",
+  );
+  const second = await captureWhiteboardSurfaceTransfer(
+    session,
+    f.readPersisted,
+  );
+  const imported = second.document.nodes.find((node) => node.kind === "quote");
+  assert.ok(imported);
+  assert.deepEqual(imported.source, quote.source);
+  assert.equal(imported.snapshot.text, quote.snapshot.text);
+  assert.deepEqual(parseStoredCanvas(f.disk).document, second.document);
 });
 
 test("a conflict snapshot failure rejects instead of disposing or replacing the caller draft", async (t) => {

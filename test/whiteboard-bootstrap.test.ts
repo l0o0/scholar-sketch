@@ -1232,3 +1232,110 @@ test("whiteboard page loads styles and bundle with the current editor mount cach
     ]);
   }
 });
+
+test("native annotation paste enters only the owning editable canvas and detaches with its iframe", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  const sources = [
+    {
+      library: { type: "user" as const },
+      attachmentKey: "PDF12345",
+      annotationKey: "ANNOT123",
+    },
+  ];
+  let resolved = 0;
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "paste:canvas",
+    resolveNativeAcademicDrop: () => {
+      resolved++;
+      return { status: "accepted", sources };
+    },
+  });
+  const iframe = parent.querySelector("iframe")!;
+  const doc = iframe.contentDocument!;
+  doc.documentElement.getBoundingClientRect = () =>
+    ({ width: 800, height: 600 }) as DOMRect;
+  const posted: Array<{
+    type: string;
+    payload?: {
+      sources?: unknown;
+      interaction?: string;
+      position?: { x: number; y: number };
+    };
+  }> = [];
+  iframe.contentWindow!.postMessage = ((value: (typeof posted)[number]) =>
+    posted.push(value)) as typeof iframe.contentWindow.postMessage;
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      source: null,
+      data: {
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        v: WHITEBOARD_PROTOCOL_VERSION,
+        channel: "paste:canvas",
+        type: "ready",
+      },
+    }),
+  );
+  iframe.dispatchEvent(new window.Event("load"));
+  const paste = (
+    target: Element,
+    types = ["zotero/annotation", "text/plain", "image/png"],
+  ) => {
+    const event = new window.Event("paste", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "clipboardData", {
+      value: { types, getData: () => "[]" },
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(paste(window.document.body).defaultPrevented, false);
+  const input = doc.createElement("textarea");
+  doc.body.append(input);
+  assert.equal(paste(input).defaultPrevented, false);
+  const editable = doc.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  doc.body.append(editable);
+  assert.equal(paste(editable).defaultPrevented, false);
+  assert.equal(paste(doc.body, ["text/plain"]).defaultPrevented, false);
+  assert.equal(paste(doc.body).defaultPrevented, true);
+  assert.equal(resolved, 1);
+  assert.deepEqual(
+    posted
+      .filter((value) => value.type === "academicDropStarted")
+      .map((value) => value.payload?.sources),
+    [sources],
+  );
+  const imported = posted.find(
+    (value) => value.type === "academicDropStarted",
+  )!;
+  assert.equal(imported.payload?.interaction, "paste");
+  assert.deepEqual(imported.payload?.position, { x: 400, y: 300 });
+  iframe.dispatchEvent(new window.Event("load"));
+  paste(doc.body);
+  assert.equal(resolved, 2);
+  handle.destroy();
+  assert.equal(paste(doc.body).defaultPrevented, false);
+  assert.equal(resolved, 2);
+  const readonly = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "paste:readonly",
+    editable: false,
+    resolveNativeAcademicDrop: () => {
+      resolved++;
+      return { status: "accepted", sources };
+    },
+  });
+  const readonlyFrame = parent.querySelector("iframe")!;
+  readonlyFrame.dispatchEvent(new window.Event("load"));
+  assert.equal(
+    paste(readonlyFrame.contentDocument!.body).defaultPrevented,
+    false,
+  );
+  assert.equal(resolved, 2);
+  readonly.destroy();
+});
