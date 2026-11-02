@@ -190,14 +190,14 @@ function attachNativeAnnotationPasteListener(
   resolve: (transfer: DataTransfer) => NativeAcademicDropResolution,
   emit: (drop: NativeAcademicDropEvent) => void,
 ): () => void {
+  const isPasteBlocked = (element: Element | null) =>
+    Boolean(
+      element?.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]',
+      ) || target.querySelector('[role="dialog"][aria-modal="true"]'),
+    );
   const onPaste = (event: ClipboardEvent) => {
-    const element = event.target as Element | null;
-    if (
-      element?.closest?.(
-        'input, textarea, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
-      )
-    )
-      return;
+    if (isPasteBlocked(event.target as Element | null)) return;
     const transfer = event.clipboardData;
     if (!transfer || !Array.from(transfer.types).includes("zotero/annotation"))
       return;
@@ -216,8 +216,34 @@ function attachNativeAnnotationPasteListener(
       interaction: "paste",
     });
   };
+  // Gecko disables cmd_paste on non-editable chrome documents. Let this
+  // focused canvas own the command, but retain Gecko's trusted clipboard
+  // event and custom MIME decoding by calling its original controller.
+  const controllers = target.defaultView!.controllers;
+  const nativePaste = controllers.getControllerForCommand("cmd_paste");
+  let attached = true;
+  const canPaste = (command: string) =>
+    attached &&
+    command === "cmd_paste" &&
+    target.hasFocus() &&
+    !isPasteBlocked(target.activeElement);
+  const controller: nsIController = {
+    QueryInterface: ChromeUtils.generateQI(["nsIController"]),
+    supportsCommand: canPaste,
+    isCommandEnabled: canPaste,
+    doCommand(command) {
+      if (canPaste(command)) nativePaste.doCommand(command);
+    },
+    onEvent() {},
+  };
   target.addEventListener("paste", onPaste, true);
-  return () => target.removeEventListener("paste", onPaste, true);
+  controllers.insertControllerAt(0, controller);
+  return () => {
+    if (!attached) return;
+    attached = false;
+    controllers.removeController(controller);
+    target.removeEventListener("paste", onPaste, true);
+  };
 }
 
 function whiteboardPageURL() {
