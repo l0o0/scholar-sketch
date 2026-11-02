@@ -846,10 +846,23 @@ test("production editor rebinds native drop ownership on iframe reload and relea
     contentDocument.dispatchEvent(event);
   };
 
-  iframe.dispatchEvent(new window.Event("load"));
+  const ready = () =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          channel: "tab-1:canvas-1",
+          type: "ready",
+        },
+      }),
+    );
+  ready();
   dispatchDrop();
   assert.equal(resolveCount, 1);
   iframe.dispatchEvent(new window.Event("load"));
+  ready();
   dispatchDrop();
   assert.equal(resolveCount, 2, "reload must not duplicate drop listeners");
   assert.equal(rejected.length, 1);
@@ -1359,8 +1372,18 @@ test("Gecko paste commands reach only the owning editable canvas and release the
   });
   t.after(() => handle.destroy());
   const iframe = parent.querySelector("iframe")!;
-  const frame = iframe.contentWindow!;
-  const doc = iframe.contentDocument!;
+  const initialFrame = iframe.contentWindow!;
+  // The chrome document can replace about:blank without the host observing its
+  // load event. Model that browser boundary before delivering the real ready.
+  const loadedFrame = window.document.createElement("iframe");
+  window.document.body.append(loadedFrame);
+  const frame = loadedFrame.contentWindow!;
+  const doc = loadedFrame.contentDocument!;
+  Object.defineProperties(iframe, {
+    contentWindow: { configurable: true, value: frame },
+    contentDocument: { configurable: true, value: doc },
+  });
+  t.after(() => loadedFrame.remove());
   let focused = true;
   doc.hasFocus = () => focused;
   doc.documentElement.getBoundingClientRect = () =>
@@ -1379,18 +1402,19 @@ test("Gecko paste commands reach only the owning editable canvas and release the
   }> = [];
   frame.postMessage = ((message: (typeof posted)[number]) =>
     posted.push(message)) as typeof frame.postMessage;
-  window.dispatchEvent(
-    new window.MessageEvent("message", {
-      source: null,
-      data: {
-        source: WHITEBOARD_MESSAGE_SOURCE,
-        v: WHITEBOARD_PROTOCOL_VERSION,
-        channel: "paste:canvas",
-        type: "ready",
-      },
-    }),
-  );
-  iframe.dispatchEvent(new window.Event("load"));
+  const ready = (channel = "paste:canvas") =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          channel,
+          type: "ready",
+        },
+      }),
+    );
+  ready();
   const controllers = nativePasteHosts.get(frame)!;
   const paste = (
     target: Element,
@@ -1464,6 +1488,11 @@ test("Gecko paste commands reach only the owning editable canvas and release the
     "the canvas must enable native paste even though it is not an editor",
   );
   assert.equal(controllers.executions, 1);
+  assert.equal(
+    nativePasteHosts.get(initialFrame)!.count,
+    1,
+    "the replaced document cannot retain a canvas paste controller",
+  );
   const imported = posted.filter(
     (message) => message.type === "academicDropStarted",
   );
@@ -1472,6 +1501,7 @@ test("Gecko paste commands reach only the owning editable canvas and release the
   assert.equal(imported[0].payload?.interaction, "paste");
   assert.deepEqual(imported[0].payload?.position, { x: 400, y: 300 });
   iframe.dispatchEvent(new window.Event("load"));
+  ready();
   assert.equal(
     controllers.count,
     2,
@@ -1505,7 +1535,7 @@ test("Gecko paste commands reach only the owning editable canvas and release the
       assert.fail("readonly canvas cannot acquire annotations"),
   });
   const readonlyFrame = parent.querySelector("iframe")!;
-  readonlyFrame.dispatchEvent(new window.Event("load"));
+  ready("paste:readonly");
   assert.equal(nativePasteHosts.get(readonlyFrame.contentWindow!)!.count, 1);
   assert.equal(
     paste(readonlyFrame.contentDocument!.body).defaultPrevented,

@@ -448,6 +448,9 @@ export function createWhiteboardEditor(
 
     switch (data.type) {
       case "ready": {
+        // The ready handshake identifies the loaded whiteboard document;
+        // the iframe can initially expose a complete about:blank document.
+        attachDropListeners();
         iframeReady = true;
         post({
           source: WHITEBOARD_MESSAGE_SOURCE,
@@ -638,8 +641,6 @@ export function createWhiteboardEditor(
       emitNativeDrop,
     );
   };
-  iframe.addEventListener("load", attachDropListeners);
-  if (iframe.contentDocument?.readyState === "complete") attachDropListeners();
 
   return {
     ready,
@@ -655,7 +656,6 @@ export function createWhiteboardEditor(
       if (destroyed) return;
       destroyed = true;
       ownerWin?.removeEventListener("message", onMessage);
-      iframe.removeEventListener("load", attachDropListeners);
       detachDropListeners();
       detachPasteListener();
       detachOuterDropListeners();
