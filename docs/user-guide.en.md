@@ -289,7 +289,7 @@ Click the Scholar Sketch toolbar button in Zotero and choose **Import Markdown�
 
 Import copies the Markdown content and supported local images it references into a new Zotero stored attachment. The original file does not become an external note that automatically syncs changes in both directions with Zotero.
 
-### Manuscript writing and Word export
+### Manuscript writing and Word export (experimental)
 
 Use **More → Insert citation…** in an editable document to select Zotero references and optionally enter a locator such as `p. 23`. Personal-library references use `[@zotero-user-ABCD1234, p. 23]`, and group references use `[@zotero-group-42-ABCD1234]`. They retain native item keys rather than local database IDs. Ordinary `[[reading links]]` do not become scholarly citations.
 
@@ -320,6 +320,7 @@ This is an export feature, not real-time, two-way sync between Zotero and Obsidi
 ### Add papers and attachment annotations
 
 - Click **Add Zotero materials** at the top of the whiteboard and select items in the picker, or drag papers and attachments from your Zotero library onto the canvas.
+- Drag saved annotations from a Zotero reader page or its annotation list onto the whiteboard to create quote cards. You can also copy annotations and press `Ctrl/Cmd + V` on an empty area of the whiteboard to add cards at the center of the current view. Multiple annotations can be added together and undone in one step. Text editing keeps normal text paste; PDF text selections that have not been saved as annotations do not create cards automatically.
 - Select a literature card and click **Add annotations** in the floating toolbar above it to browse annotations from its PDF, EPUB, and webpage snapshot attachments.
 - Zotero PDF, EPUB, and HTML webpage snapshot attachment cards also offer **Add annotations** in their floating toolbar. Standalone attachments do not need a parent paper. Locally imported files have no Zotero annotation source, so they do not show this action.
 - Search annotation text, comments, page labels, and tags at the top of the dialog. Below it, **All** and Zotero icons for all six annotation types remain visible; hover over an icon to see its type name. A tag filter appears when annotations have tags. The dialog keeps the same height when filters change, with an independently scrolling list and a placeholder when no annotations match. Changing filters preserves your selections; click **Add selected** to add them together. Click the palette button to the right of the type filters to select multiple colors present in the source annotations. The button shows the number of selected colors; **All colors** clears the color filter. Results match any selected color, combined with type, tag, and search filters. The palette stays open while selecting colors; click outside it or press Esc to close it. **Select results** selects visible annotations that have not been added, while keeping selections from other filters. **Clear selection** clears all pending selections; the footer shows the eligible selection count.
