@@ -613,6 +613,9 @@ whiteboard-tutorial-color-summary = Bring together agreements, differences, and 
 
 more-open-window = Open in standalone window
 more-open-tab = Return to Zotero tab
+whiteboard-sidebar-open-tab = Open in tab
+whiteboard-sidebar-focus = Focus sidebar
+whiteboard-sidebar-exit-focus = Exit sidebar focus
 
 image-size-toolbar = Image size
 image-size-width = Width
@@ -743,6 +746,8 @@ whiteboard-create = New whiteboard
 whiteboard-sidebar-empty = This item has no whiteboard attachment
 whiteboard-sidebar-open = This whiteboard is open elsewhere
 whiteboard-sidebar-readonly = This library is read-only
+whiteboard-sidebar-save-blocked = Could not save “{ $title }”. Sidebar editing is paused and the draft is preserved. Retry saving to continue.
+whiteboard-sidebar-retry-save = Retry saving
 whiteboard-sidebar-label =
     .label = Whiteboard
 whiteboard-sidebar-tooltip =

@@ -1033,6 +1033,8 @@ function mountWhiteboardUI(
     },
   });
   session.editor = createWhiteboardEditor(host, {
+    sidebar: session.surface === "sidebar",
+    sidebarFocused: session.sidebar?.focused ?? false,
     editable: (() => {
       const attachment = Zotero.Items.get(session.itemID);
       const library =
@@ -1060,6 +1062,9 @@ function mountWhiteboardUI(
       switchWindow: getString(
         session.surface === "window" ? "more-open-tab" : "more-open-window",
       ),
+      openTab: getString("whiteboard-sidebar-open-tab"),
+      sidebarFocus: getString("whiteboard-sidebar-focus"),
+      sidebarExitFocus: getString("whiteboard-sidebar-exit-focus"),
       canvas: getString("whiteboard-canvas"),
       selection: getString("whiteboard-selection"),
       select: getString("whiteboard-select"),
@@ -1380,11 +1385,29 @@ function mountWhiteboardUI(
       const item = Zotero.Items.get(session.itemID);
       if (item)
         void openWhiteboardSurface(item, {
+          ...(session.surface !== "window"
+            ? { win: session.win as _ZoteroTypes.MainWindow }
+            : {}),
           surface: session.surface === "window" ? "tab" : "window",
         }).catch((error) => {
           ztoolkit.log("Failed to switch Canvas window", error);
           toast(getString("whiteboard-open-failed"));
         });
+    },
+    onOpenTab() {
+      if (session.surface !== "sidebar") return;
+      const item = Zotero.Items.get(session.itemID);
+      if (item)
+        void openWhiteboardSurface(item, {
+          win: session.win as _ZoteroTypes.MainWindow,
+          surface: "tab",
+        }).catch((error) => {
+          ztoolkit.log("Failed to open sidebar Canvas in tab", error);
+          toast(getString("whiteboard-open-failed"));
+        });
+    },
+    onToggleSidebarFocus() {
+      session.sidebar?.onToggleFocus();
     },
     onOpenLink(href) {
       const item = Zotero.Items.get(session.itemID);
@@ -1504,6 +1527,7 @@ type SurfaceOptions = {
   surface?: "tab" | "window" | "sidebar";
   container?: HTMLElement;
   onClose?: () => void;
+  sidebar?: WhiteboardSession["sidebar"];
 };
 
 export function openWhiteboardTab(
@@ -1528,6 +1552,7 @@ export function openWhiteboardSidebar(
   win: _ZoteroTypes.MainWindow,
   container: HTMLElement,
   onClose?: () => void,
+  sidebar?: WhiteboardSession["sidebar"],
 ) {
   return whiteboardRegistry.withItemLock(item.id, async () => {
     const existing = whiteboardRegistry.findByItem(item.id);
@@ -1537,6 +1562,7 @@ export function openWhiteboardSidebar(
       surface: "sidebar",
       container,
       onClose,
+      sidebar,
     });
   });
 }
@@ -1711,6 +1737,7 @@ async function mountWhiteboardSurface(
       path,
       title,
       surface,
+      ...(surface === "sidebar" ? { sidebar: options.sidebar } : {}),
       transitioning: true,
       closeHost,
     };

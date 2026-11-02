@@ -114,6 +114,13 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     });
     assert.ok(runtime);
     const api = runtime;
+    // The iframe receives its sidebar mode after React has mounted.
+    await act(async () => {
+      api.setSidebar(true);
+      api.setSidebarFocus(true);
+    });
+    assert.ok(container.querySelector('.zmd-board-host[data-sidebar="true"]'));
+    assert.ok(container.querySelector(".zmd-board-sidebar-toolbar"));
     const annotationSource = {
       library: { type: "user" as const },
       attachmentKey: "ATTACH12",
@@ -336,6 +343,8 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     assert.equal(api.getSnapshot().nodes.at(-1)?.kind, "quote");
     await act(async () => api.undo());
     assert.equal(api.getSnapshot().nodes.length, 1);
+    await act(async () => api.setSidebar(false));
+    assert.equal(container.querySelector(".zmd-board-sidebar-toolbar"), null);
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
   } finally {
     await act(async () => root.unmount());

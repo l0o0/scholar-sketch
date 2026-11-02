@@ -192,6 +192,9 @@ export interface WhiteboardLabels {
   redo: string;
   save: string;
   switchWindow: string;
+  openTab?: string;
+  sidebarFocus?: string;
+  sidebarExitFocus?: string;
   settings: string;
   editText: string;
   copy: string;
@@ -325,6 +328,8 @@ export interface WhiteboardLabels {
 export interface WhiteboardInitPayload {
   theme: WhiteboardTheme;
   editable?: boolean;
+  sidebar?: boolean;
+  sidebarFocused?: boolean;
   colorScheme?: ColorSchemeID;
   appearance?: WhiteboardAppearance;
   snapshot?: CanvasDocument | null;
@@ -503,6 +508,7 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
   (
     | { type: "init"; payload: WhiteboardInitPayload }
     | { type: "setTheme"; payload: { theme: WhiteboardTheme } }
+    | { type: "setSidebarFocus"; payload: { focused: boolean } }
     | { type: "setAppearance"; payload: { appearance: WhiteboardAppearance } }
     | { type: "setColorScheme"; payload: { colorScheme: ColorSchemeID } }
     | {
@@ -623,6 +629,8 @@ export type WhiteboardToParentBody =
     }
   | { type: "save" }
   | { type: "switchWindow" }
+  | { type: "openTab" }
+  | { type: "toggleSidebarFocus" }
   | { type: "openSettings" }
   | { type: "openLink"; payload: { href: string } }
   | {
@@ -707,6 +715,8 @@ const activeWhiteboardToParentTypes = {
   snapshot: true,
   save: true,
   switchWindow: true,
+  openTab: true,
+  toggleSidebarFocus: true,
   openSettings: true,
   error: true,
   pickAcademicSource: true,
@@ -726,6 +736,7 @@ const activeWhiteboardToParentTypes = {
 const activeParentToWhiteboardTypes = {
   init: true,
   setTheme: true,
+  setSidebarFocus: true,
   setAppearance: true,
   setColorScheme: true,
   loadSnapshot: true,
@@ -927,6 +938,9 @@ const whiteboardLabelStringKeys: Record<
   Exclude<keyof WhiteboardLabels, "annotations" | "annotationTypeLabels">,
   true
 > = {
+  openTab: true,
+  sidebarFocus: true,
+  sidebarExitFocus: true,
   searchCanvas: true,
   annotationColorFilter: true,
   annotationAllColors: true,
@@ -1192,6 +1206,9 @@ const whiteboardLabelStringKeys: Record<
 function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
   if (!isPlainRecord(value)) return false;
   const optional = [
+    "openTab",
+    "sidebarFocus",
+    "sidebarExitFocus",
     "collapseQuote",
     "expandQuote",
     "quoteContent",
@@ -1695,6 +1712,8 @@ function validateWhiteboardToParentMessageForChannel(
     case "ready":
     case "save":
     case "switchWindow":
+    case "openTab":
+    case "toggleSidebarFocus":
     case "openSettings":
       return !hasOwn(data, "payload");
     case "change":
@@ -1878,12 +1897,20 @@ function validateParentToWhiteboardMessageForChannel(
             "colorScheme",
             "appearance",
             "editable",
+            "sidebar",
+            "sidebarFocused",
           ],
         ) &&
         (payload.theme === "light" || payload.theme === "dark") &&
         (!hasOwn(payload, "editable") ||
           payload.editable === undefined ||
           typeof payload.editable === "boolean") &&
+        (!hasOwn(payload, "sidebar") ||
+          payload.sidebar === undefined ||
+          typeof payload.sidebar === "boolean") &&
+        (!hasOwn(payload, "sidebarFocused") ||
+          payload.sidebarFocused === undefined ||
+          typeof payload.sidebarFocused === "boolean") &&
         (!hasOwn(payload, "colorScheme") ||
           payload.colorScheme === undefined ||
           payload.colorScheme === "traditional" ||
@@ -1903,6 +1930,13 @@ function validateParentToWhiteboardMessageForChannel(
           ? payload.templates === undefined ||
             isArrayOf(payload.templates, isNoteTemplate)
           : !("templates" in payload))
+      );
+    case "setSidebarFocus":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(payload, ["focused"]) &&
+        typeof payload.focused === "boolean"
       );
     case "setColorScheme":
       return (

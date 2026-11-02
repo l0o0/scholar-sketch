@@ -417,6 +417,9 @@ const DEFAULT_LABELS: WhiteboardLabels & FileLabelValues = {
   redo: "Redo",
   save: "Save",
   switchWindow: "Open in standalone window",
+  openTab: "Open in tab",
+  sidebarFocus: "Focus sidebar",
+  sidebarExitFocus: "Exit sidebar focus",
   editText: "Edit text",
   copy: "Copy",
   delete: "Delete",
@@ -556,6 +559,8 @@ function fileLabel(
 export interface WhiteboardAppProps {
   theme: WhiteboardTheme;
   editable?: boolean;
+  sidebar?: boolean;
+  sidebarFocused?: boolean;
   colorScheme?: ColorSchemeID;
   appearance?: WhiteboardAppearance;
   labels?: WhiteboardLabels;
@@ -565,6 +570,8 @@ export interface WhiteboardAppProps {
   onChange: (rev: number) => void;
   onSave: () => void;
   onSwitchWindow?: () => void;
+  onOpenTab?: () => void;
+  onToggleSidebarFocus?: () => void;
   onOpenSettings?: () => void;
   onSaveNoteTemplate?: (template: NoteTemplate) => void;
   onDeleteNoteTemplate?: (templateId: string) => void;
@@ -616,6 +623,8 @@ export interface WhiteboardAppProps {
 
 export interface WhiteboardRuntime {
   setEditable: (editable: boolean) => void;
+  setSidebar: (sidebar: boolean) => void;
+  setSidebarFocus: (focused: boolean) => void;
   setTheme: (theme: WhiteboardTheme) => void;
   setColorScheme: (scheme: ColorSchemeID) => void;
   setAppearance: (appearance: WhiteboardAppearance) => void;
@@ -1082,6 +1091,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const academicAcquisition = academicAcquisitionRef.current;
   const [theme, setTheme] = useState<WhiteboardTheme>(props.theme);
   const [editable, setEditable] = useState(props.editable ?? true);
+  const [sidebar, setSidebar] = useState(props.sidebar ?? false);
+  const [sidebarFocused, setSidebarFocus] = useState(
+    props.sidebarFocused ?? false,
+  );
   const editableRef = useRef(editable);
   editableRef.current = editable;
   useEffect(() => setEditable(props.editable ?? true), [props.editable]);
@@ -4008,6 +4021,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   useEffect(() => {
     const runtime: WhiteboardRuntime = {
       setEditable,
+      setSidebar,
+      setSidebarFocus,
       setTheme,
       setColorScheme,
       setAppearance,
@@ -4500,6 +4515,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         }
         className={`zmd-board-host${eraser ? " is-eraser" : ""}${activeTool === "hand" ? " is-hand" : ""}${isDrawTool(activeTool) ? " is-draw" : ""}${fileDropTargetId ? " is-file-drop-target" : ""}${formatPainting ? " is-format-painter" : ""}`}
         data-theme={theme}
+        data-sidebar={sidebar || undefined}
         data-file-drop-target={fileDropTargetId ?? undefined}
         tabIndex={-1}
         onDragOver={onCanvasDragOver}
@@ -4604,6 +4620,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         }}
       >
         <TopIsland
+          sidebar={sidebar}
+          sidebarFocused={sidebarFocused}
+          onOpenTab={props.onOpenTab}
+          onToggleSidebarFocus={props.onToggleSidebarFocus}
+          editable={editable}
+          canUndo={documentHistory.canUndo || !!editing}
+          canRedo={documentHistory.canRedo}
           labels={labels}
           theme={theme}
           onOpenSettings={props.onOpenSettings}

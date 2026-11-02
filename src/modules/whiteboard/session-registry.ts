@@ -7,12 +7,18 @@ export interface WhiteboardView {
   host: HTMLElement;
 }
 
+export interface WhiteboardSidebarOptions {
+  focused: boolean;
+  onToggleFocus: () => void;
+}
+
 export interface WhiteboardSession {
   tabID: string;
   canvasId: string;
   itemID: number;
   win: Window;
   surface?: "tab" | "window" | "sidebar";
+  sidebar?: WhiteboardSidebarOptions;
   transitioning?: boolean;
   closePromise?: Promise<boolean>;
   closeHost?: () => void;
