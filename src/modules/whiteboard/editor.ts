@@ -40,6 +40,7 @@ export interface WhiteboardHandle {
   setColorScheme: (colorScheme: ColorSchemeID) => void;
   setAppearance: (appearance: WhiteboardAppearance) => void;
   setTheme: (theme: WhiteboardTheme) => void;
+  setSidebarFocus: (focused: boolean) => void;
   setTemplates: (templates: NoteTemplate[]) => void;
   loadSnapshot: (snapshot: CanvasDocument) => void;
   requestSnapshot: () => Promise<{
@@ -257,6 +258,7 @@ type PendingCommand = Extract<
     type:
       | "init"
       | "setTheme"
+      | "setSidebarFocus"
       | "setAppearance"
       | "setColorScheme"
       | "loadSnapshot"
@@ -285,6 +287,8 @@ export function createWhiteboardEditor(
     channel?: string;
     snapshot?: CanvasDocument | null;
     editable?: boolean;
+    sidebar?: boolean;
+    sidebarFocused?: boolean;
     labels?: WhiteboardLabels;
     templates?: NoteTemplate[];
     appearance?: WhiteboardAppearance;
@@ -293,6 +297,8 @@ export function createWhiteboardEditor(
     onSave?: () => void;
     onOpenSettings?: () => void;
     onSwitchWindow?: () => void;
+    onOpenTab?: () => void;
+    onToggleSidebarFocus?: () => void;
     onSaveNoteTemplate?: (template: NoteTemplate) => void;
     onDeleteNoteTemplate?: (templateId: string) => void;
     onError?: (message: string) => void;
@@ -423,6 +429,7 @@ export function createWhiteboardEditor(
       if (
         message.type === "init" ||
         message.type === "setTheme" ||
+        message.type === "setSidebarFocus" ||
         message.type === "setAppearance" ||
         message.type === "setColorScheme" ||
         message.type === "loadSnapshot"
@@ -459,6 +466,12 @@ export function createWhiteboardEditor(
             ...(options.editable !== undefined
               ? { editable: options.editable }
               : {}),
+            ...(options.sidebar !== undefined
+              ? { sidebar: options.sidebar }
+              : {}),
+            ...(options.sidebarFocused !== undefined
+              ? { sidebarFocused: options.sidebarFocused }
+              : {}),
             theme: resolveEditorTheme(ownerWin),
             colorScheme: normalizeColorScheme(options.colorScheme),
             ...(options.appearance ? { appearance: options.appearance } : {}),
@@ -493,6 +506,12 @@ export function createWhiteboardEditor(
         break;
       case "switchWindow":
         options.onSwitchWindow?.();
+        break;
+      case "openTab":
+        options.onOpenTab?.();
+        break;
+      case "toggleSidebarFocus":
+        options.onToggleSidebarFocus?.();
         break;
       case "save":
         options.onSave?.();
@@ -736,6 +755,13 @@ export function createWhiteboardEditor(
         source: WHITEBOARD_MESSAGE_SOURCE,
         type: "command",
         payload: { command },
+      });
+    },
+    setSidebarFocus(focused) {
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "setSidebarFocus",
+        payload: { focused },
       });
     },
     resolveAcademicAcquisitionBatch(requestId, nodeId, successes, failures) {

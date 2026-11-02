@@ -1,7 +1,6 @@
 import { getString } from "../../utils/locale";
-import { childAttachmentIDs } from "../markdown/sidebar-state";
 import { isWhiteboardAttachment } from "./detect";
-import { createWhiteboardAttachment } from "./create";
+import { WhiteboardSidebarLayout } from "./sidebar-layout";
 import { whiteboardRegistry } from "./session-registry";
 import {
   closeWhiteboardSession,
@@ -11,11 +10,10 @@ import {
 
 export class WhiteboardSidebar {
   private host?: HTMLElement;
-  private select?: HTMLSelectElement;
   private message?: HTMLElement;
   private open?: HTMLButtonElement;
-  private create?: HTMLButtonElement;
-  private item?: Zotero.Item;
+  private retry?: HTMLButtonElement;
+  private layout?: WhiteboardSidebarLayout;
   private targetID?: number;
   private sessionID?: string;
   private active = true;
@@ -33,7 +31,10 @@ export class WhiteboardSidebar {
 
   setActive(active: boolean) {
     this.active = active;
-    if (!active) ++this.revision;
+    if (!active) {
+      ++this.revision;
+      this.layout?.setFocused(false);
+    }
   }
 
   render(
@@ -45,20 +46,9 @@ export class WhiteboardSidebar {
     if (this.disposed || !this.active) return;
     if (!this.host) {
       const doc = body.ownerDocument;
-      const toolbar = doc.createElement("div");
-      toolbar.style.cssText =
-        "display:flex;gap:6px;align-items:center;margin-bottom:6px";
-      this.select = doc.createElement("select");
-      this.select.style.cssText = "flex:1;min-width:0";
-      this.select.setAttribute("aria-label", getString("whiteboard-tab-title"));
-      this.select.addEventListener("change", () => {
-        this.targetID = Number(this.select!.value);
-        this.schedule();
-      });
       this.open = doc.createElement("button");
-      this.open.textContent = "↗";
-      this.open.title = getString("sidebar-open-tab");
-      this.open.setAttribute("aria-label", this.open.title);
+      this.open.textContent = getString("sidebar-open-tab");
+      this.open.hidden = true;
       this.open.addEventListener("click", () => {
         const target = this.targetID && Zotero.Items.get(this.targetID);
         if (target)
@@ -66,71 +56,39 @@ export class WhiteboardSidebar {
             .then(() => this.schedule())
             .catch((error) => this.report(error));
       });
-      this.create = doc.createElement("button");
-      this.create.textContent = "+";
-      this.create.title = getString("whiteboard-create");
-      this.create.setAttribute("aria-label", this.create.title);
-      this.create.addEventListener("click", () => {
-        const parent = this.item;
-        if (!parent || !this.editable) return;
-        this.create!.disabled = true;
-        void createWhiteboardAttachment(parent, { select: false })
-          .then((attachment) => {
-            if (attachment && !this.disposed && this.item?.id === parent.id) {
-              this.targetID = attachment.id;
-              this.render(body, parent, this.editable, summary);
-            }
-          })
-          .catch((error) => this.report(error))
-          .finally(() => {
-            if (this.create) this.create.disabled = !this.editable;
-          });
-      });
-      toolbar.append(this.select, this.open, this.create);
       this.message = doc.createElement("div");
-      this.message.style.cssText =
-        "padding:8px;font-size:12px;color:var(--fill-secondary)";
+      this.message.className = "scholar-sketch-whiteboard-message";
+      this.retry = doc.createElement("button");
+      this.retry.textContent = getString("whiteboard-sidebar-retry-save");
+      this.retry.dataset.action = "retry-save";
+      this.retry.hidden = true;
+      this.retry.addEventListener("click", () => this.schedule());
       this.host = doc.createElement("div");
-      this.host.style.cssText =
-        "height:560px;min-height:320px;min-width:0;resize:vertical;overflow:hidden;display:flex";
-      body.replaceChildren(toolbar, this.message, this.host);
+      this.host.className = "scholar-sketch-whiteboard-host";
+      body.replaceChildren(this.message, this.open, this.retry, this.host);
+      this.layout = new WhiteboardSidebarLayout(
+        this.win,
+        body,
+        this.host,
+        (focused) => {
+          const session =
+            this.sessionID && whiteboardRegistry.get(this.sessionID);
+          if (session) {
+            if (session.sidebar) session.sidebar.focused = focused;
+            session.editor?.setSidebarFocus(focused);
+          }
+        },
+      );
     }
-    const changed = this.item?.id !== item?.id;
-    this.item = item ?? undefined;
     this.editable = editable;
-    const attachments = !item
-      ? []
-      : isWhiteboardAttachment(item)
-        ? [item]
-        : childAttachmentIDs(item)
-            .map((id) => Zotero.Items.get(id))
-            .filter(
-              (child): child is Zotero.Item =>
-                !!child && isWhiteboardAttachment(child),
-            );
-    if (
-      changed ||
-      !attachments.some((attachment) => attachment.id === this.targetID)
-    )
-      this.targetID = attachments[0]?.id;
-    this.select!.replaceChildren(
-      ...attachments.map((attachment) => {
-        const option = body.ownerDocument.createElement("option");
-        option.value = String(attachment.id);
-        option.textContent = String(
-          attachment.getDisplayTitle() ||
-            attachment.getField("title") ||
-            attachment.attachmentFilename,
-        );
-        return option;
-      }),
-    );
-    this.select!.value = String(this.targetID ?? "");
-    this.select!.disabled = !attachments.length;
+    const targetID = item && isWhiteboardAttachment(item) ? item.id : undefined;
+    if (targetID !== this.targetID || !editable) this.layout!.setFocused(false);
+    this.targetID = targetID;
+    const current = this.sessionID && whiteboardRegistry.get(this.sessionID);
+    if (!editable || !current || current.itemID !== targetID)
+      this.setEditorVisible(false);
     this.open!.disabled = !this.targetID || !editable;
-    this.create!.hidden = !item?.isRegularItem() || !editable;
-    this.create!.disabled = !editable;
-    summary(String(attachments.length || ""));
+    summary("");
     this.schedule();
   }
 
@@ -142,27 +100,60 @@ export class WhiteboardSidebar {
     }
   }
 
+  private setEditorVisible(visible: boolean) {
+    this.host!.style.display = visible ? "flex" : "none";
+    this.host!.inert = !visible;
+  }
+
+  private reportBlockedSave(title: string, error: unknown) {
+    this.report(error);
+    this.layout!.setFocused(false);
+    this.setEditorVisible(false);
+    this.open!.hidden = true;
+    this.retry!.hidden = false;
+    this.message!.textContent = getString("whiteboard-sidebar-save-blocked", {
+      args: { title },
+    });
+  }
+
   private schedule() {
     if (!this.active || this.disposed) return;
     const revision = ++this.revision;
+    this.retry!.disabled = true;
     this.pending = this.pending
       .then(async () => {
         if (this.disposed || revision !== this.revision) return;
         const current =
           this.sessionID && whiteboardRegistry.get(this.sessionID);
-        if (current && current.itemID === this.targetID && this.editable)
+        if (current && current.itemID === this.targetID && this.editable) {
+          this.setEditorVisible(true);
+          this.message!.hidden = true;
+          this.open!.hidden = true;
+          this.retry!.hidden = true;
           return;
-        if (current && !(await closeWhiteboardSession(current.tabID))) {
-          // Keep the unsaved editor mounted when switching fails.
-          this.targetID = current.itemID;
-          this.select!.value = String(current.itemID);
-          this.report(new Error("Unable to save sidebar before switching"));
-          return;
+        }
+        this.setEditorVisible(false);
+        this.open!.hidden = true;
+        this.retry!.hidden = true;
+        if (current) {
+          try {
+            if (!(await closeWhiteboardSession(current.tabID))) {
+              if (!this.disposed && revision === this.revision)
+                this.reportBlockedSave(
+                  current.title,
+                  new Error("Unable to save sidebar before switching"),
+                );
+              return;
+            }
+          } catch (error) {
+            if (!this.disposed && revision === this.revision)
+              this.reportBlockedSave(current.title, error);
+            return;
+          }
         }
         this.sessionID = undefined;
         if (this.disposed || revision !== this.revision) return;
         const target = this.targetID && Zotero.Items.get(this.targetID);
-        this.host!.style.display = "none";
         this.message!.hidden = false;
         this.message!.textContent = getString(
           !this.editable && target
@@ -175,22 +166,49 @@ export class WhiteboardSidebar {
           target,
           this.win,
           this.host!,
-          () => this.schedule(),
+          () => {
+            this.layout!.setFocused(false);
+            this.schedule();
+          },
+          {
+            focused: this.layout!.focused,
+            onToggleFocus: () => {
+              if (
+                this.active &&
+                !this.disposed &&
+                this.editable &&
+                this.targetID === target.id &&
+                !this.host!.inert
+              )
+                this.layout!.setFocused(!this.layout!.focused);
+            },
+          },
         );
         this.sessionID = id ?? undefined;
-        this.host!.style.display = id ? "flex" : "none";
+        if (this.disposed || revision !== this.revision) return;
+        this.setEditorVisible(!!id);
         this.message!.hidden = !!id;
+        this.open!.hidden = !!id;
         if (!id)
           this.message!.textContent = getString("whiteboard-sidebar-open");
       })
-      .catch((error) => this.report(error));
+      .catch((error) => {
+        if (!this.disposed && revision === this.revision) this.report(error);
+      })
+      .finally(() => {
+        if (!this.disposed && revision === this.revision)
+          this.retry!.disabled = false;
+      });
   }
 
   async destroy() {
+    if (this.disposed) return;
     this.unsubscribeRegistry();
     this.disposed = true;
     ++this.revision;
+    this.layout?.destroy();
     await this.pending;
-    if (this.sessionID) await closeWhiteboardSession(this.sessionID);
+    if (this.sessionID && !(await closeWhiteboardSession(this.sessionID)))
+      throw new Error("Unable to save whiteboard sidebar before closing");
   }
 }

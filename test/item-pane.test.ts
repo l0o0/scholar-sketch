@@ -92,24 +92,27 @@ function fixture(t: TestContext) {
     win.document.body.append(root);
     const body = root.querySelector('[data-type="body"]')!;
     let summary = "";
+    let enabled = true;
     const result = {
       root,
       body,
       summary: () => summary,
+      enabled: () => enabled,
       render(item: unknown, editable = false) {
+        const setEnabled = (value: boolean) => {
+          enabled = value;
+        };
+        hooks.onItemChange({ body, item, setEnabled });
+        if (!enabled) return;
         hooks.onRender({
           body,
+          setEnabled,
           item,
           editable,
           setSectionSummary: (value: string) => {
             summary = value;
           },
         });
-      },
-      select(kind: "markdown" | "whiteboard") {
-        body
-          .querySelector<HTMLButtonElement>(`button[data-view="${kind}"]`)!
-          .click();
       },
       panel(kind: "markdown" | "whiteboard") {
         return body.querySelector<HTMLElement>(
@@ -147,7 +150,7 @@ function fixture(t: TestContext) {
   };
 }
 
-test("one native Scholar Sketch entry routes attachments and lazily switches parent views", async (t) => {
+test("the native section shows only the selected supported attachment", async (t) => {
   const f = fixture(t);
   registerItemPane();
   assert.equal(f.registrations.length, 1);
@@ -159,13 +162,20 @@ test("one native Scholar Sketch entry routes attachments and lazily switches par
   assert.equal(main.body.children.length, 0, "onInit must not create UI");
   main.render(f.parent);
   await nextTurn();
-  assert.ok(main.panel("markdown"));
-  assert.equal(main.panel("whiteboard"), null);
-  main.select("whiteboard");
+  assert.equal(main.enabled(), false);
+  assert.equal(
+    main.body.children.length,
+    0,
+    "a parent must not open child attachments",
+  );
+  main.render(f.canvas);
   await nextTurn();
-  assert.equal(main.panel("markdown")!.hidden, true);
+  assert.equal(main.enabled(), true);
+  assert.equal(main.panel("markdown"), null);
   assert.equal(main.panel("whiteboard")!.hidden, false);
-  assert.equal(main.panel("whiteboard")!.querySelectorAll("option").length, 1);
+  assert.equal(main.body.querySelector("select"), null);
+  assert.equal(main.body.querySelector("[role=tablist]"), null);
+  assert.ok(main.root.querySelector(".scholar-sketch-attachment-section"));
   assert.equal(
     main.body.querySelector("iframe"),
     null,
@@ -173,28 +183,32 @@ test("one native Scholar Sketch entry routes attachments and lazily switches par
   );
   reader.render(f.markdown);
   assert.ok(reader.root.querySelector(".zmd-sidebar-focus-section"));
-  assert.equal(main.panel("whiteboard")!.hidden, false);
+  assert.equal(main.root.querySelector(".zmd-sidebar-focus-section"), null);
   reader.render(f.canvas);
   await nextTurn();
   assert.equal(reader.root.querySelector(".zmd-sidebar-focus-section"), null);
   assert.equal(reader.panel("whiteboard")!.hidden, false);
-  assert.equal(
-    reader.body.querySelector<HTMLElement>("[role=tablist]")!.hidden,
-    true,
-  );
-  // A hidden Markdown controller must not reclaim the shared native pane.
   reader.root
     .querySelector<HTMLButtonElement>("item-pane-sidenav button")!
     .click();
-  assert.equal(reader.root.querySelector(".zmd-sidebar-focus-section"), null);
-  main.body
-    .querySelector<HTMLButtonElement>('button[data-view="whiteboard"]')!
-    .dispatchEvent(
-      new f.win.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
-    );
-  assert.equal(main.panel("markdown")!.hidden, false);
+  assert.equal(
+    reader.root.querySelector(".zmd-sidebar-focus-section"),
+    null,
+    "an inactive Markdown controller must not reclaim the pane",
+  );
+  main.render(f.parent);
+  assert.equal(main.enabled(), false);
+  assert.equal(main.panel("whiteboard")!.hidden, true);
+  assert.equal(
+    main.root.querySelector(".scholar-sketch-attachment-section"),
+    null,
+  );
   assert.equal(reader.panel("whiteboard")!.hidden, false);
   await unregisterItemPane();
+  assert.equal(
+    reader.root.querySelector(".scholar-sketch-attachment-section"),
+    null,
+  );
   assert.deepEqual(f.removals, ["test-scholar-sketch"]);
 });
 
@@ -271,7 +285,6 @@ test("switching views keeps the Markdown draft and native destruction remains aw
   main.render(f.markdown, true);
   assert.equal(main.body.querySelector("iframe"), iframe);
   assert.equal(findSidebarSessions(2)[0].editor.getValue(), "# Unsaved draft");
-  main.render(f.parent, true);
   const frame = new Window({ url: "https://item-pane.test/frame" });
   t.after(() => frame.happyDOM.close());
   Object.defineProperty(iframe, "contentWindow", { value: frame });
@@ -301,7 +314,7 @@ test("switching views keeps the Markdown draft and native destruction remains aw
   assert.equal(
     results?.type === "linkSearchResults" && results.payload.results[0]?.key,
     f.markdown.key,
-    "the reused editor still searches references beneath its parent item",
+    "the reused editor still searches references for its selected attachment",
   );
   assert.deepEqual(f.launched, ["https://example.com/reference"]);
   holdSave = true;
@@ -322,7 +335,7 @@ test("switching views keeps the Markdown draft and native destruction remains aw
   assert.deepEqual(findSidebarSessions(2), []);
 });
 
-test("an empty Markdown view hides retained references and restores them with the draft", async (t) => {
+test("an unsupported item hides retained references and restores them with the draft", async (t) => {
   const f = fixture(t);
   f.markdown.getFilePathAsync = async () => "/note.md";
   t.mock.method(
@@ -344,16 +357,13 @@ test("an empty Markdown view hides retained references and restores them with th
 
   main.render(f.canvas);
   main.render({ ...f.parent, id: 4, getAttachments: () => [3] });
-  main.select("markdown");
-  assert.equal(main.panel("markdown")!.hidden, false);
+  assert.equal(main.enabled(), false);
+  assert.equal(main.panel("markdown")!.hidden, true);
+  assert.equal(main.panel("whiteboard")!.hidden, true);
   assert.equal(
-    main.body.querySelector<HTMLElement>(".zmd-sidebar-empty")!.hidden,
-    false,
-  );
-  assert.equal(
-    references.hidden,
+    references.closest<HTMLElement>(".scholar-sketch-pane-view")!.hidden,
     true,
-    "an unrelated empty view must not display the previous note's references",
+    "an unrelated item must not display the previous note's references",
   );
   assert.equal(findSidebarSessions(2)[0].editor, session.editor);
   assert.equal(session.save.dirty, true);

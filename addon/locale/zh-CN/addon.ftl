@@ -613,6 +613,9 @@ whiteboard-tutorial-color-summary = 归纳共识、分歧与下一步，形成�
 
 more-open-window = 在独立窗口打开
 more-open-tab = 返回 Zotero 标签页
+whiteboard-sidebar-open-tab = 在标签页中打开
+whiteboard-sidebar-focus = 专注侧栏
+whiteboard-sidebar-exit-focus = 退出侧栏专注
 
 image-size-toolbar = 图片大小
 image-size-width = 宽度
@@ -743,6 +746,8 @@ whiteboard-create = 新建白板
 whiteboard-sidebar-empty = 此条目没有白板附件
 whiteboard-sidebar-open = 此白板已在其他位置打开
 whiteboard-sidebar-readonly = 此文献库为只读
+whiteboard-sidebar-save-blocked = 未能保存「{ $title }」，侧栏编辑已暂停。草稿仍保留，请重试保存后继续。
+whiteboard-sidebar-retry-save = 重试保存
 whiteboard-sidebar-label =
     .label = 白板
 whiteboard-sidebar-tooltip =

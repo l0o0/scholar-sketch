@@ -34,6 +34,8 @@ let appearance: WhiteboardAppearance = {
 let pendingSnapshot: CanvasDocument | null = null;
 let pendingTemplates: NoteTemplate[] = [];
 let editable = true;
+let sidebar = false;
+let sidebarFocused = false;
 const deferredLabels = createDeferredLabels();
 let runtime: WhiteboardRuntime | null = null;
 let reactRoot: Root | null = null;
@@ -80,6 +82,10 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
     case "init":
       editable = data.payload.editable ?? true;
       runtime?.setEditable(editable);
+      sidebar = data.payload.sidebar ?? false;
+      sidebarFocused = data.payload.sidebarFocused ?? false;
+      runtime?.setSidebar(sidebar);
+      runtime?.setSidebarFocus(sidebarFocused);
       applyDocumentTheme(data.payload.theme);
       applyDocumentAppearance(
         data.payload.appearance ?? {
@@ -96,6 +102,10 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
       runtime?.setAppearance(appearance);
       runtime?.setTemplates(pendingTemplates);
       if (data.payload.snapshot) runtime?.loadSnapshot(data.payload.snapshot);
+      break;
+    case "setSidebarFocus":
+      sidebarFocused = data.payload.focused;
+      runtime?.setSidebarFocus(sidebarFocused);
       break;
     case "setColorScheme":
       colorScheme = data.payload.colorScheme;
@@ -187,6 +197,8 @@ function boot() {
     <WhiteboardApp
       theme={theme}
       editable={editable}
+      sidebar={sidebar}
+      sidebarFocused={sidebarFocused}
       colorScheme={colorScheme}
       appearance={appearance}
       labels={deferredLabels.current}
@@ -194,6 +206,8 @@ function boot() {
       onReady={(next) => {
         runtime = next;
         next.setEditable(editable);
+        next.setSidebar(sidebar);
+        next.setSidebarFocus(sidebarFocused);
         deferredLabels.attach(next);
         if (pendingSnapshot) next.loadSnapshot(pendingSnapshot);
         next.setTheme(theme);
@@ -208,6 +222,8 @@ function boot() {
       onSave={() => postToParent({ type: "save" })}
       onOpenSettings={() => postToParent({ type: "openSettings" })}
       onSwitchWindow={() => postToParent({ type: "switchWindow" })}
+      onOpenTab={() => postToParent({ type: "openTab" })}
+      onToggleSidebarFocus={() => postToParent({ type: "toggleSidebarFocus" })}
       onSaveNoteTemplate={(template) =>
         postToParent({ type: "saveNoteTemplate", payload: { template } })
       }

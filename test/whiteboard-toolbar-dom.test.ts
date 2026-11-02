@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
 import { act, createElement, Fragment, useState } from "react";
@@ -98,6 +99,320 @@ function menuItem(window: Window, name: string) {
     ),
   ).find((button) => button.textContent?.includes(name));
 }
+
+function sidebarGeometry(window: Window, initialWidth: number) {
+  const style = window.document.createElement("style");
+  style.textContent = readFileSync(
+    new URL("../packages/whiteboard/src/whiteboard/board.css", import.meta.url),
+    "utf8",
+  );
+  window.document.head.append(style);
+  let width = initialWidth;
+  let measure = () => {};
+  let disconnects = 0;
+  const getRect = window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.matches(".zmd-board-sidebar-toolbar")) {
+      return new window.DOMRect(0, 0, width, 41);
+    }
+    if (this.matches(".zmd-board-sidebar-toolbar > button")) {
+      return new window.DOMRect(0, 0, 35, 34);
+    }
+    return getRect.call(this);
+  };
+  Object.defineProperty(window, "ResizeObserver", {
+    configurable: true,
+    value: class {
+      constructor(callback: () => void) {
+        measure = callback;
+      }
+      observe() {}
+      disconnect() {
+        disconnects += 1;
+      }
+    },
+  });
+  return {
+    resize(nextWidth: number) {
+      width = nextWidth;
+      measure();
+    },
+    get disconnects() {
+      return disconnects;
+    },
+  };
+}
+
+function sidebarButton(window: Window, id: string) {
+  return window.document.querySelector<HTMLButtonElement>(
+    `[data-sidebar-action="${id}"]`,
+  )!;
+}
+
+function sidebarTopActions(window: Window) {
+  return Array.from(
+    window.document.querySelectorAll(
+      ".zmd-board-sidebar-toolbar > [data-sidebar-action]",
+    ),
+    (button) => button.getAttribute("data-sidebar-action"),
+  );
+}
+
+test("sidebar toolbar fits its container and restores ordered actions without duplicates", async (t) => {
+  const window = installDom(t);
+  const geometry = sidebarGeometry(window, 504);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      createElement(TopIsland, {
+        ...toolbarProps(),
+        sidebar: true,
+        onOpenTab: () => {},
+      }),
+    ),
+  );
+  const all = [
+    "select",
+    "hand",
+    "templates",
+    "arrow",
+    "text",
+    "literature",
+    "file",
+    "draw",
+    "undo",
+    "redo",
+    "fit",
+    "open-tab",
+  ];
+  assert.deepEqual(sidebarTopActions(window), all);
+  const toolbar = window.document.querySelector<HTMLElement>(
+    ".zmd-board-sidebar-toolbar",
+  )!;
+  assert.equal(window.getComputedStyle(toolbar).flexWrap, "nowrap");
+  const more = window.document.querySelector<HTMLButtonElement>(
+    ".zmd-board-sidebar-more",
+  )!;
+
+  await act(async () => geometry.resize(264));
+  assert.deepEqual(sidebarTopActions(window), [
+    "select",
+    "hand",
+    "templates",
+    "arrow",
+    "fit",
+    "open-tab",
+  ]);
+  await act(async () => more.click());
+  for (const action of all) {
+    assert.equal(
+      window.document.querySelectorAll(`[data-sidebar-action="${action}"]`)
+        .length,
+      1,
+    );
+  }
+  // Fit view has its responsive entry only, without a second copy in More.
+  assert.equal(
+    Array.from(window.document.querySelectorAll("button")).filter(
+      (button) =>
+        button.title === "fitView" || button.textContent === "fitView",
+    ).length,
+    1,
+  );
+  await act(async () => geometry.resize(344));
+  assert.equal(sidebarTopActions(window).length, 8);
+  const mediumActions = sidebarTopActions(window);
+  await act(async () => geometry.resize(428));
+  assert.ok(
+    mediumActions.every((action) => sidebarTopActions(window).includes(action)),
+  );
+  assert.ok(!sidebarTopActions(window).includes("undo"));
+  assert.ok(!sidebarTopActions(window).includes("redo"));
+  await act(async () => geometry.resize(463));
+  assert.ok(sidebarTopActions(window).includes("undo"));
+  assert.ok(sidebarTopActions(window).includes("redo"));
+
+  await act(async () => geometry.resize(504));
+  assert.deepEqual(sidebarTopActions(window), all);
+  assert.equal(
+    window.document.querySelectorAll(
+      ".zmd-board-more-menu [data-sidebar-action]",
+    ).length,
+    0,
+  );
+  await act(async () => root.unmount());
+  assert.equal(geometry.disconnects, 1);
+});
+
+test("sidebar overflow preserves command state, keyboard focus and shared submenus", async (t) => {
+  const window = installDom(t);
+  const geometry = sidebarGeometry(window, 113);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  const tools: string[] = [];
+  const selected: string[] = [];
+  let redos = 0;
+  await act(async () =>
+    root.render(
+      createElement(TopIsland, {
+        ...toolbarProps(
+          (id) => selected.push(id),
+          (tool) => tools.push(tool),
+        ),
+        sidebar: true,
+        activeTool: "text",
+        canUndo: false,
+        canRedo: true,
+        onRedo: () => {
+          redos += 1;
+        },
+        onOpenTab: () => {},
+      }),
+    ),
+  );
+  const more = window.document.querySelector<HTMLButtonElement>(
+    ".zmd-board-sidebar-more",
+  )!;
+  more.focus();
+  await act(async () =>
+    more.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    ),
+  );
+  assert.equal(
+    window.document.activeElement,
+    sidebarButton(window, "templates"),
+  );
+  assert.equal(
+    sidebarButton(window, "text").getAttribute("aria-checked"),
+    "true",
+  );
+  assert.equal(sidebarButton(window, "undo").disabled, true);
+  assert.equal(sidebarButton(window, "redo").disabled, false);
+  sidebarButton(window, "draw").focus();
+  await act(async () =>
+    sidebarButton(window, "draw").dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    ),
+  );
+  assert.equal(window.document.activeElement, sidebarButton(window, "redo"));
+  await act(async () => sidebarButton(window, "redo").click());
+  assert.equal(redos, 1);
+  assert.equal(window.document.querySelector('[role="menu"]'), null);
+  assert.equal(window.document.activeElement, more);
+
+  await act(async () => more.click());
+  await act(async () => sidebarButton(window, "templates").click());
+  assert.ok(window.document.querySelector(".zmd-board-template-menu"));
+  assert.equal(window.document.querySelector(".zmd-board-more-menu"), null);
+  await act(async () => menuItem(window, "Question")!.click());
+  assert.deepEqual(selected, ["bamboo.question"]);
+  assert.deepEqual(tools, ["note"]);
+  assert.equal(window.document.activeElement, more);
+
+  await act(async () => more.click());
+  await act(async () => sidebarButton(window, "draw").click());
+  assert.equal(
+    window.document.querySelector(
+      '.zmd-board-draw-menu [aria-label="addArrow (A)"]',
+    ),
+    null,
+  );
+  const escape = new window.KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(async () => window.document.activeElement!.dispatchEvent(escape));
+  assert.equal(escape.defaultPrevented, true);
+  assert.equal(window.document.querySelector('[role="menu"]'), null);
+  assert.equal(window.document.activeElement, more);
+
+  await act(async () => more.click());
+  sidebarButton(window, "text").focus();
+  await act(async () => geometry.resize(504));
+  assert.equal(window.document.activeElement, sidebarButton(window, "text"));
+  assert.equal(
+    sidebarButton(window, "text").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(sidebarButton(window, "undo").disabled, true);
+  await act(async () =>
+    window.document.body.dispatchEvent(
+      new window.PointerEvent("pointerdown", { bubbles: true }),
+    ),
+  );
+  assert.equal(window.document.querySelector('[role="menu"]'), null);
+  sidebarButton(window, "text").focus();
+  await act(async () => geometry.resize(113));
+  assert.equal(window.document.activeElement, more);
+  sidebarButton(window, "select").focus();
+  await act(async () => geometry.resize(114));
+  const editor = window.document.createElement("textarea");
+  window.document.body.append(editor);
+  editor.focus();
+  await act(async () => geometry.resize(148));
+  assert.equal(window.document.activeElement, editor);
+  await act(async () => root.unmount());
+  const afterUnmount = new window.KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  window.dispatchEvent(afterUnmount);
+  assert.equal(afterUnmount.defaultPrevented, false);
+});
+
+test("readonly sidebar disables editing in the toolbar and overflow while navigation stays usable", async (t) => {
+  const window = installDom(t);
+  const geometry = sidebarGeometry(window, 504);
+  const container = window.document.createElement("div");
+  window.document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      createElement(TopIsland, {
+        ...toolbarProps(),
+        sidebar: true,
+        editable: false,
+        canUndo: true,
+        canRedo: true,
+        onOpenTab: () => {},
+      }),
+    ),
+  );
+  for (const action of ["select", "hand", "fit", "open-tab"])
+    assert.equal(sidebarButton(window, action).disabled, false);
+  for (const action of [
+    "templates",
+    "arrow",
+    "text",
+    "literature",
+    "file",
+    "draw",
+    "undo",
+    "redo",
+  ])
+    assert.equal(sidebarButton(window, action).disabled, true);
+  await act(async () => geometry.resize(113));
+  await act(async () =>
+    window.document
+      .querySelector<HTMLButtonElement>(".zmd-board-sidebar-more")!
+      .click(),
+  );
+  assert.equal(sidebarButton(window, "text").disabled, true);
+  assert.equal(sidebarButton(window, "fit").disabled, false);
+  for (const name of ["save", "autoLayout", "duplicateSelection"]) {
+    const button = Array.from(
+      window.document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ).find((item) => item.textContent === name);
+    assert.equal(button?.disabled, true);
+  }
+  await act(async () => root.unmount());
+});
 
 test("template menu selects a Note template and restores trigger focus", async (t) => {
   const window = installDom(t);

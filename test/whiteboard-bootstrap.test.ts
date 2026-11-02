@@ -1244,6 +1244,62 @@ test("palette preferences initialize the bridge and queued changes keep the late
   handle.destroy();
 });
 
+test("sidebar bridge preserves the latest focus before ready and routes host actions until destroyed", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  const actions: string[] = [];
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "sidebar-test",
+    sidebar: true,
+    sidebarFocused: false,
+    onOpenTab: () => actions.push("tab"),
+    onToggleSidebarFocus: () => actions.push("focus"),
+  });
+  const iframe = parent.querySelector("iframe")!;
+  const posted: Array<{ type: string; payload?: Record<string, unknown> }> = [];
+  iframe.contentWindow!.postMessage = ((message: (typeof posted)[number]) => {
+    posted.push(message);
+  }) as typeof iframe.contentWindow.postMessage;
+  const dispatch = (type: string, extra = {}) =>
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        source: null,
+        data: {
+          source: WHITEBOARD_MESSAGE_SOURCE,
+          channel: "sidebar-test",
+          v: WHITEBOARD_PROTOCOL_VERSION,
+          type,
+          ...extra,
+        },
+      }),
+    );
+  handle.setSidebarFocus(false);
+  handle.setSidebarFocus(true);
+  dispatch("ready");
+  assert.equal(posted[0].payload?.sidebar, true);
+  assert.equal(posted[0].payload?.sidebarFocused, false);
+  assert.deepEqual(
+    posted
+      .filter((message) => message.type === "setSidebarFocus")
+      .map((message) => message.payload),
+    [{ focused: true }],
+  );
+  handle.setSidebarFocus(false);
+  assert.deepEqual(posted.at(-1)?.payload, { focused: false });
+  dispatch("openTab", { channel: "different-session" });
+  dispatch("toggleSidebarFocus", { payload: { focused: true } });
+  assert.deepEqual(actions, []);
+  dispatch("openTab");
+  dispatch("toggleSidebarFocus");
+  assert.deepEqual(actions, ["tab", "focus"]);
+  handle.destroy();
+  dispatch("openTab");
+  dispatch("toggleSidebarFocus");
+  assert.deepEqual(actions, ["tab", "focus"]);
+});
+
 test("outer-window drops reach the iframe once with local coordinates and detach on destroy", (t) => {
   const window = installProductionEditorWindow(t);
   const parent = window.document.createElement("div");

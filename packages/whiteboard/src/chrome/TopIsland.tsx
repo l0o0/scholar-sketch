@@ -28,6 +28,7 @@ import {
   IconLayout,
   IconLine,
   IconMore,
+  IconOpen,
   IconRect,
   IconRoundedRect,
   IconRedo,
@@ -38,6 +39,7 @@ import {
   IconUndo,
 } from "../whiteboard/icons";
 import type { CanvasTool } from "./tools";
+import { SidebarToolbar, type SidebarAction } from "./SidebarToolbar";
 
 type ToolbarLabel =
   | "drawTools"
@@ -63,7 +65,14 @@ interface ToolButton<T extends string = CanvasTool> {
   icon: ReactElement;
 }
 
-export function TopIsland(props: {
+export interface TopIslandProps {
+  sidebar?: boolean;
+  sidebarFocused?: boolean;
+  onOpenTab?: () => void;
+  onToggleSidebarFocus?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  editable?: boolean;
   labels: WhiteboardLabels;
   theme?: WhiteboardTheme;
   activeTool: CanvasTool;
@@ -96,7 +105,9 @@ export function TopIsland(props: {
   ) => void;
   onDistribute: (direction: "horizontal" | "vertical") => void;
   onOpenShortcuts: () => void;
-}) {
+}
+
+export function TopIsland(props: TopIslandProps) {
   const { labels, activeTool, onSelectTool } = props;
   const [openMenu, setOpenMenu] = useState<
     "templates" | "draw" | "more" | null
@@ -106,8 +117,20 @@ export function TopIsland(props: {
   const drawTriggerRef = useRef<HTMLButtonElement>(null);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
 
+  const closeMoreMenu = () => {
+    setOpenMenu(null);
+    if (props.sidebar) moreTriggerRef.current?.focus();
+  };
+
   useEffect(() => {
     if (!openMenu) return;
+    if (props.sidebar) {
+      menuRef.current
+        ?.querySelector<HTMLButtonElement>(
+          '[role="menu"] button:not(:disabled)',
+        )
+        ?.focus();
+    }
     const onPointerDown = (event: PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
         setOpenMenu(null);
@@ -121,8 +144,29 @@ export function TopIsland(props: {
             : openMenu === "draw"
               ? drawTriggerRef.current
               : moreTriggerRef.current;
+        if (props.sidebar) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         setOpenMenu(null);
-        trigger?.focus();
+        (trigger ?? moreTriggerRef.current)?.focus();
+        return;
+      }
+      if (event.key === "Tab" && props.sidebar) {
+        if (
+          menuRef.current
+            ?.querySelector('[role="menu"]')
+            ?.contains(event.target as Node)
+        ) {
+          const trigger =
+            openMenu === "templates"
+              ? templateTriggerRef.current
+              : openMenu === "draw"
+                ? drawTriggerRef.current
+                : moreTriggerRef.current;
+          (trigger ?? moreTriggerRef.current)?.focus();
+        }
+        setOpenMenu(null);
         return;
       }
       if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
@@ -178,7 +222,7 @@ export function TopIsland(props: {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [openMenu]);
+  }, [openMenu, props.sidebar]);
   const activeNoteTemplate =
     props.noteTemplates.find(
       (template) => template.id === props.activeNoteTemplateId,
@@ -224,6 +268,501 @@ export function TopIsland(props: {
   const hasSelectionActions =
     (props.selectedNodeCount >= 2 && !!props.onGroupSelection) ||
     (props.selectedNodeCount >= 1 && !!props.onFitSelection);
+
+  const templateMenu =
+    openMenu === "templates" ? (
+      <div
+        className="zmd-board-template-menu"
+        role="menu"
+        aria-label={labels.addNote}
+      >
+        {props.noteTemplates.map((template) => {
+          const active = template.id === props.activeNoteTemplateId;
+          const surface = {
+            ...canvasNodeUiSurfaceDefaults(
+              "note",
+              props.theme ?? "light",
+              template.noteType,
+            ),
+            ...template.style,
+          };
+          return (
+            <button
+              key={template.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={active}
+              disabled={props.sidebar && props.editable === false}
+              onClick={() => {
+                props.onSelectNoteTemplate(template.id);
+                props.onSelectTool("note");
+                setOpenMenu(null);
+                (templateTriggerRef.current ?? moreTriggerRef.current)?.focus();
+              }}
+            >
+              {template.noteType ? (
+                <span
+                  className="zmd-board-template-preview"
+                  style={{
+                    background: surface.fill,
+                    borderColor: surface.stroke,
+                    borderRadius: surface.radius / 2,
+                    borderStyle: template.style.dashed
+                      ? "dashed"
+                      : surface.strokeStyle,
+                    borderWidth: surface.strokeWidth,
+                  }}
+                >
+                  <NoteTypeIcon type={template.noteType} />
+                </span>
+              ) : null}
+              <span className="zmd-board-template-option">
+                <span>{template.name}</span>
+                {template.noteType ? (
+                  <small>{noteTypePrompt(labels, template.noteType)}</small>
+                ) : null}
+              </span>
+              {active ? <IconCheck /> : null}
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
+  const drawMenu = drawToolsOpen ? (
+    <div className="zmd-board-draw-menu" role="menu">
+      {drawTools
+        .filter((item) => !props.sidebar || item.tool !== "arrow")
+        .map((item) => (
+          <button
+            key={item.tool}
+            type="button"
+            role="menuitemradio"
+            aria-label={item.title}
+            aria-checked={activeTool === item.tool}
+            disabled={props.sidebar && props.editable === false}
+            className={activeTool === item.tool ? "is-active" : ""}
+            onClick={() => {
+              setOpenMenu(null);
+              onSelectTool(item.tool);
+              (drawTriggerRef.current ?? moreTriggerRef.current)?.focus();
+            }}
+          >
+            {item.icon}
+            <span>{item.title}</span>
+          </button>
+        ))}
+    </div>
+  ) : null;
+  const moreMenuContent = (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          props.onSearch?.();
+        }}
+      >
+        {labels.searchCanvas ?? "Search canvas"} · Ctrl/⌘ F
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={
+          !props.selectedNodeCount ||
+          (props.sidebar && props.editable === false)
+        }
+        onClick={() => {
+          closeMoreMenu();
+          props.onDuplicate?.();
+        }}
+      >
+        {labels.duplicateSelection ?? "Duplicate selection"}
+      </button>
+      {props.selectedNodeCount >= 2 &&
+      (!props.sidebar || props.editable !== false) ? (
+        <div className="zmd-board-menu-section" role="group">
+          <span className="zmd-board-menu-section-label">
+            {labels.alignment}
+          </span>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignLeft}
+            onClick={() => props.onAlign("left")}
+          >
+            <IconAlignLeft />
+            <span>{labels.alignLeft}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignRight}
+            onClick={() => props.onAlign("right")}
+          >
+            <IconAlignRight />
+            <span>{labels.alignRight}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignTop}
+            onClick={() => props.onAlign("top")}
+          >
+            <IconAlignTop />
+            <span>{labels.alignTop}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignBottom}
+            onClick={() => props.onAlign("bottom")}
+          >
+            <IconAlignBottom />
+            <span>{labels.alignBottom}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignHorizontal}
+            onClick={() => props.onAlign("horizontal")}
+          >
+            <IconAlignHCenter />
+            <span>{labels.alignHorizontal}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            title={labels.alignVertical}
+            onClick={() => props.onAlign("vertical")}
+          >
+            <IconAlignVCenter />
+            <span>{labels.alignVertical}</span>
+          </button>
+          {props.selectedNodeCount >= 3 ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                title={labels.distributeHorizontal}
+                onClick={() => props.onDistribute("horizontal")}
+              >
+                <IconDistributeH />
+                <span>{labels.distributeHorizontal}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                title={labels.distributeVertical}
+                onClick={() => props.onDistribute("vertical")}
+              >
+                <IconDistributeV />
+                <span>{labels.distributeVertical}</span>
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        disabled={props.sidebar && props.editable === false}
+        onClick={() => {
+          closeMoreMenu();
+          props.onSave();
+        }}
+      >
+        <IconSave />
+        <span>{labels.save}</span>
+      </button>
+      {props.onExportPng ? (
+        <button
+          type="button"
+          role="menuitem"
+          disabled={props.exportBusy}
+          onClick={() => {
+            closeMoreMenu();
+            props.onExportPng?.();
+          }}
+        >
+          <IconExport />
+          <span>{labels.exportPng} · 2×</span>
+        </button>
+      ) : null}
+      {props.onExportSvg ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onExportSvg?.();
+          }}
+        >
+          <IconExport />
+          <span>{labels.exportSvg}</span>
+        </button>
+      ) : null}
+      {props.onExportMarkdown ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onExportMarkdown?.();
+          }}
+        >
+          <IconExport />
+          <span>{labels.exportMarkdown}</span>
+        </button>
+      ) : null}
+      {!props.sidebar ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onFitView();
+          }}
+        >
+          <IconFitView />
+          <span>{labels.fitView}</span>
+        </button>
+      ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        disabled={props.sidebar && props.editable === false}
+        onClick={() => {
+          closeMoreMenu();
+          props.onAutoLayout();
+        }}
+      >
+        <IconLayout />
+        <span>{labels.autoLayout}</span>
+      </button>
+      {props.onSwitchWindow ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onSwitchWindow?.();
+          }}
+        >
+          {labels.switchWindow}
+        </button>
+      ) : null}
+      {props.onOpenSettings ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onOpenSettings?.();
+          }}
+        >
+          {labels.settings}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          props.onOpenShortcuts();
+        }}
+      >
+        {labels.shortcutsTitle}
+      </button>
+
+      {props.sidebar && props.onToggleSidebarFocus ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            props.onToggleSidebarFocus?.();
+          }}
+        >
+          {props.sidebarFocused
+            ? (labels.sidebarExitFocus ?? "Exit sidebar focus")
+            : (labels.sidebarFocus ?? "Focus sidebar")}
+        </button>
+      ) : null}
+    </>
+  );
+
+  if (props.sidebar) {
+    const editable = props.editable !== false;
+    const toolAction = (
+      tool: CanvasTool,
+      label: string,
+      icon: ReactElement,
+      priority: number,
+    ): SidebarAction => ({
+      id: tool,
+      label,
+      icon,
+      priority,
+      selected: activeTool === tool,
+      disabled: tool !== "select" && tool !== "hand" && !editable,
+      holdEditFocus: tool === "literature" ? props.onHoldEditFocus : undefined,
+      run: () => {
+        setOpenMenu(null);
+        onSelectTool(tool);
+      },
+    });
+    const actions: SidebarAction[] = [
+      toolAction("select", labels.select, <IconSelect />, 0),
+      toolAction("hand", labels.hand, <IconHand />, 1),
+      {
+        id: "templates",
+        label: labels.addNote,
+        icon: <NoteTypeIcon type={activeNoteTemplate?.noteType ?? "note"} />,
+        priority: 4,
+        selected: activeTool === "note",
+        disabled: !editable,
+        menu: "templates",
+        triggerRef: templateTriggerRef,
+        run: () =>
+          setOpenMenu((current) =>
+            current === "templates" ? null : "templates",
+          ),
+      },
+      toolAction("arrow", `${labels.addArrow} (A)`, <IconArrow />, 5),
+      toolAction("text", `${labels.addText} (T)`, <IconText />, 6),
+      toolAction("literature", labels.addItem, <IconZotero />, 8),
+      {
+        id: "file",
+        label: labels.addFile,
+        icon: <IconFile />,
+        priority: 9,
+        disabled: !editable,
+        holdEditFocus: props.onHoldEditFocus,
+        run: () => {
+          setOpenMenu(null);
+          props.onAddFile();
+        },
+      },
+      {
+        id: "draw",
+        label: toolbarLabel(labels, "drawTools", labels.more),
+        icon: drawTools.find(
+          (item) => item.tool !== "arrow" && item.tool === activeTool,
+        )?.icon ?? <IconRect />,
+        priority: 10,
+        selected: drawTools.some(
+          (item) => item.tool !== "arrow" && item.tool === activeTool,
+        ),
+        disabled: !editable,
+        menu: "draw",
+        triggerRef: drawTriggerRef,
+        run: () =>
+          setOpenMenu((current) => (current === "draw" ? null : "draw")),
+      },
+      {
+        id: "undo",
+        label: labels.undo,
+        icon: <IconUndo />,
+        priority: 11,
+        group: "history",
+        disabled: !editable || props.canUndo === false,
+        run: props.onUndo,
+      },
+      {
+        id: "redo",
+        label: labels.redo,
+        icon: <IconRedo />,
+        priority: 11,
+        group: "history",
+        disabled: !editable || props.canRedo === false,
+        run: props.onRedo,
+      },
+      {
+        id: "fit",
+        label: labels.fitView,
+        icon: <IconFitView />,
+        priority: 2,
+        run: props.onFitView,
+      },
+      ...(props.onOpenTab
+        ? [
+            {
+              id: "open-tab",
+              label: labels.openTab ?? "Open in tab",
+              icon: <IconOpen />,
+              priority: 3,
+              run: props.onOpenTab,
+            },
+          ]
+        : []),
+    ];
+    const extraActions = (
+      <>
+        <button
+          type="button"
+          role="menuitemradio"
+          aria-checked={activeTool === "frame"}
+          disabled={!editable}
+          onClick={() => {
+            closeMoreMenu();
+            onSelectTool("frame");
+          }}
+        >
+          <IconFrame />
+          <span>{labels.addFrame} (F)</span>
+        </button>
+        {props.selectedNodeCount >= 2 && props.onGroupSelection ? (
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!editable}
+            onClick={() => {
+              closeMoreMenu();
+              props.onGroupSelection?.();
+            }}
+          >
+            <IconGroup />
+            <span>
+              {toolbarLabel(labels, "groupSelection", labels.addFrame)}
+            </span>
+          </button>
+        ) : null}
+        {props.selectedNodeCount >= 1 && props.onFitSelection ? (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeMoreMenu();
+              props.onFitSelection?.();
+            }}
+          >
+            <IconFitView />
+            <span>{toolbarLabel(labels, "fitSelection", labels.fitView)}</span>
+          </button>
+        ) : null}
+        {moreMenuContent}
+      </>
+    );
+    return (
+      <div
+        ref={menuRef}
+        className="zmd-board-toolbars zmd-board-sidebar-toolbars"
+      >
+        <SidebarToolbar
+          actions={actions}
+          label={labels.canvas}
+          moreLabel={labels.more}
+          openMenu={openMenu}
+          onMenuChange={setOpenMenu}
+          moreTriggerRef={moreTriggerRef}
+          templateMenu={templateMenu}
+          drawMenu={drawMenu}
+          moreContent={extraActions}
+        />
+      </div>
+    );
+  }
 
   return (
     <div ref={menuRef} className="zmd-board-toolbars">
@@ -279,65 +818,7 @@ export function TopIsland(props: {
                   <span>{activeNoteTemplate?.name ?? labels.addNote}</span>
                   <IconChevronDown />
                 </button>
-                {openMenu === "templates" ? (
-                  <div
-                    className="zmd-board-template-menu"
-                    role="menu"
-                    aria-label={labels.addNote}
-                  >
-                    {props.noteTemplates.map((template) => {
-                      const active = template.id === props.activeNoteTemplateId;
-                      const surface = {
-                        ...canvasNodeUiSurfaceDefaults(
-                          "note",
-                          props.theme ?? "light",
-                          template.noteType,
-                        ),
-                        ...template.style,
-                      };
-                      return (
-                        <button
-                          key={template.id}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={active}
-                          onClick={() => {
-                            props.onSelectNoteTemplate(template.id);
-                            props.onSelectTool("note");
-                            setOpenMenu(null);
-                            templateTriggerRef.current?.focus();
-                          }}
-                        >
-                          {template.noteType ? (
-                            <span
-                              className="zmd-board-template-preview"
-                              style={{
-                                background: surface.fill,
-                                borderColor: surface.stroke,
-                                borderRadius: surface.radius / 2,
-                                borderStyle: template.style.dashed
-                                  ? "dashed"
-                                  : surface.strokeStyle,
-                                borderWidth: surface.strokeWidth,
-                              }}
-                            >
-                              <NoteTypeIcon type={template.noteType} />
-                            </span>
-                          ) : null}
-                          <span className="zmd-board-template-option">
-                            <span>{template.name}</span>
-                            {template.noteType ? (
-                              <small>
-                                {noteTypePrompt(labels, template.noteType)}
-                              </small>
-                            ) : null}
-                          </span>
-                          {active ? <IconCheck /> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                {templateMenu}
               </div>
             ) : null}
           </div>
@@ -366,28 +847,7 @@ export function TopIsland(props: {
             )}
             <IconChevronDown />
           </button>
-          {drawToolsOpen ? (
-            <div className="zmd-board-draw-menu" role="menu">
-              {drawTools.map((item) => (
-                <button
-                  key={item.tool}
-                  type="button"
-                  role="menuitemradio"
-                  aria-label={item.title}
-                  aria-checked={activeTool === item.tool}
-                  className={activeTool === item.tool ? "is-active" : ""}
-                  onClick={() => {
-                    setOpenMenu(null);
-                    onSelectTool(item.tool);
-                    drawTriggerRef.current?.focus();
-                  }}
-                >
-                  {item.icon}
-                  <span>{item.title}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
+          {drawMenu}
         </div>
         {hasSelectionActions ? (
           <div className="zmd-board-top-group zmd-board-selection-tools">
@@ -446,217 +906,7 @@ export function TopIsland(props: {
           </button>
           {openMenu === "more" ? (
             <div className="zmd-board-more-menu" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onSearch?.();
-                }}
-              >
-                {labels.searchCanvas ?? "Search canvas"} · Ctrl/⌘ F
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={!props.selectedNodeCount}
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onDuplicate?.();
-                }}
-              >
-                {labels.duplicateSelection ?? "Duplicate selection"}
-              </button>
-              {props.selectedNodeCount >= 2 ? (
-                <div className="zmd-board-menu-section" role="group">
-                  <span className="zmd-board-menu-section-label">
-                    {labels.alignment}
-                  </span>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignLeft}
-                    onClick={() => props.onAlign("left")}
-                  >
-                    <IconAlignLeft />
-                    <span>{labels.alignLeft}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignRight}
-                    onClick={() => props.onAlign("right")}
-                  >
-                    <IconAlignRight />
-                    <span>{labels.alignRight}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignTop}
-                    onClick={() => props.onAlign("top")}
-                  >
-                    <IconAlignTop />
-                    <span>{labels.alignTop}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignBottom}
-                    onClick={() => props.onAlign("bottom")}
-                  >
-                    <IconAlignBottom />
-                    <span>{labels.alignBottom}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignHorizontal}
-                    onClick={() => props.onAlign("horizontal")}
-                  >
-                    <IconAlignHCenter />
-                    <span>{labels.alignHorizontal}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    title={labels.alignVertical}
-                    onClick={() => props.onAlign("vertical")}
-                  >
-                    <IconAlignVCenter />
-                    <span>{labels.alignVertical}</span>
-                  </button>
-                  {props.selectedNodeCount >= 3 ? (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        title={labels.distributeHorizontal}
-                        onClick={() => props.onDistribute("horizontal")}
-                      >
-                        <IconDistributeH />
-                        <span>{labels.distributeHorizontal}</span>
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        title={labels.distributeVertical}
-                        onClick={() => props.onDistribute("vertical")}
-                      >
-                        <IconDistributeV />
-                        <span>{labels.distributeVertical}</span>
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onSave();
-                }}
-              >
-                <IconSave />
-                <span>{labels.save}</span>
-              </button>
-              {props.onExportPng ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={props.exportBusy}
-                  onClick={() => {
-                    setOpenMenu(null);
-                    props.onExportPng?.();
-                  }}
-                >
-                  <IconExport />
-                  <span>{labels.exportPng} · 2×</span>
-                </button>
-              ) : null}
-              {props.onExportSvg ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    props.onExportSvg?.();
-                  }}
-                >
-                  <IconExport />
-                  <span>{labels.exportSvg}</span>
-                </button>
-              ) : null}
-              {props.onExportMarkdown ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    props.onExportMarkdown?.();
-                  }}
-                >
-                  <IconExport />
-                  <span>{labels.exportMarkdown}</span>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onFitView();
-                }}
-              >
-                <IconFitView />
-                <span>{labels.fitView}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onAutoLayout();
-                }}
-              >
-                <IconLayout />
-                <span>{labels.autoLayout}</span>
-              </button>
-              {props.onSwitchWindow ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    props.onSwitchWindow?.();
-                  }}
-                >
-                  {labels.switchWindow}
-                </button>
-              ) : null}
-              {props.onOpenSettings ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    props.onOpenSettings?.();
-                  }}
-                >
-                  {labels.settings}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpenMenu(null);
-                  props.onOpenShortcuts();
-                }}
-              >
-                {labels.shortcutsTitle}
-              </button>
+              {moreMenuContent}
             </div>
           ) : null}
         </div>
