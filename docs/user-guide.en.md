@@ -289,7 +289,7 @@ Click the Scholar Sketch toolbar button in Zotero and choose **Import Markdown�
 
 Import copies the Markdown content and supported local images it references into a new Zotero stored attachment. The original file does not become an external note that automatically syncs changes in both directions with Zotero.
 
-### Manuscript writing and Word export (experimental branch)
+### Manuscript writing and Word export
 
 Use **More → Insert citation…** in an editable document to select Zotero references and optionally enter a locator such as `p. 23`. Personal-library references use `[@zotero-user-ABCD1234, p. 23]`, and group references use `[@zotero-group-42-ABCD1234]`. They retain native item keys rather than local database IDs. Ordinary `[[reading links]]` do not become scholarly citations.
 
