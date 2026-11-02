@@ -12,6 +12,8 @@ import {
 } from "typescript";
 import { WhiteboardSidebarLayout } from "../src/modules/whiteboard/sidebar-layout.ts";
 import { WhiteboardSidebar } from "../src/modules/whiteboard/sidebar.ts";
+import { injectMarkdownStyles } from "../src/modules/markdown/styles.ts";
+import { injectWhiteboardStyles } from "../src/modules/whiteboard/styles.ts";
 import {
   whiteboardRegistry,
   WhiteboardSessionRegistry,
@@ -336,17 +338,29 @@ test("sidebar follows selected canvases and locks preserved drafts when saving f
   assert.equal(openCalls, 3, "Destroyed controllers must not recreate editors");
 });
 
-test("sidebar focus restores native geometry and the resized compact height", (t) => {
+test("sidebar confines its positioned canvas and restores the resized compact height", (t) => {
   const win = new Window();
   const root = win.document.createElement("item-pane");
   root.innerHTML = `<div class="shell"><div class="sections" style="--min-scroll-height: 720px"><item-pane-custom-section data-pane="test-scholar-sketch"><div class="body"><div class="host"></div></div></item-pane-custom-section><section data-pane="info"></section></div></div><item-pane-sidenav><button class="btn" data-pane="test-scholar-sketch"></button><button class="btn" data-pane="info"></button></item-pane-sidenav>`;
   win.document.body.append(root);
   const body = root.querySelector<HTMLElement>(".body")!;
   const host = root.querySelector<HTMLElement>(".host")!;
+  host.classList.add(
+    "scholar-sketch-whiteboard-host",
+    "zotero-whiteboard-tab-content",
+  );
+  const canvas = win.document.createElement("div");
+  canvas.className = "zotero-whiteboard-root zotero-markdown-root";
+  host.append(canvas);
   const sections = root.querySelector<HTMLElement>(".sections")!;
   let height: number | undefined;
   const writes: number[] = [];
   const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const previousAddon = Object.getOwnPropertyDescriptor(globalThis, "addon");
+  Object.defineProperty(globalThis, "addon", {
+    configurable: true,
+    value: { data: { config: { addonRef: "bamboo" } } },
+  });
   Object.defineProperty(globalThis, "Zotero", {
     configurable: true,
     writable: true,
@@ -363,8 +377,19 @@ test("sidebar focus restores native geometry and the resized compact height", (t
   t.after(() => {
     if (previous) Object.defineProperty(globalThis, "Zotero", previous);
     else Reflect.deleteProperty(globalThis, "Zotero");
+    if (previousAddon)
+      Object.defineProperty(globalThis, "addon", previousAddon);
+    else Reflect.deleteProperty(globalThis, "addon");
     win.close();
   });
+  injectMarkdownStyles(win as unknown as globalThis.Window);
+  injectWhiteboardStyles(win as unknown as globalThis.Window);
+  assert.equal(win.getComputedStyle(canvas).position, "absolute");
+  assert.equal(
+    win.getComputedStyle(host).position,
+    "relative",
+    "the canvas must be positioned within the resizable host, not the entire item pane",
+  );
   let resize!: () => void;
   let disconnected = 0;
   Object.defineProperty(win, "ResizeObserver", {

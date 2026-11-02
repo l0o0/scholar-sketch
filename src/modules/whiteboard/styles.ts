@@ -7,6 +7,8 @@ export function injectWhiteboardStyles(win: Window) {
   style.id = id;
   style.textContent = `
 .zotero-whiteboard-tab-content {
+  /* Contain the absolute positioning inherited from the Markdown theme root. */
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
