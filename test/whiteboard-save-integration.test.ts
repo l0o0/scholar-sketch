@@ -272,7 +272,12 @@ test("production academic request failures log typed context and raw diagnostics
         throw new Error("native transfer exception");
       },
     },
-    { userLibraryID: 1, getItem: () => null, getLibrary: () => null },
+    {
+      userLibraryID: 1,
+      getItem: () => null,
+      getByLibraryAndKey: () => null,
+      getLibrary: () => null,
+    },
   );
   assert.deepEqual(rejected, {
     status: "rejected",
@@ -338,6 +343,7 @@ test("host resolves ordered Zotero ids to native user/group keys before protocol
           } as Zotero.Item;
         return null;
       },
+      getByLibraryAndKey: () => null,
       getLibrary(libraryID) {
         return libraryID === 5 ? { libraryType: "group", groupID: 88 } : null;
       },
@@ -359,7 +365,12 @@ test("host resolves ordered Zotero ids to native user/group keys before protocol
   assert.deepEqual(
     resolveNativeAcademicDrop(
       { types: ["zotero/item"], getData: () => "11,broken" },
-      { userLibraryID: 1, getItem: () => null, getLibrary: () => null },
+      {
+        userLibraryID: 1,
+        getItem: () => null,
+        getByLibraryAndKey: () => null,
+        getLibrary: () => null,
+      },
     ),
     { status: "rejected", code: "drop-malformed" },
   );
@@ -367,7 +378,7 @@ test("host resolves ordered Zotero ids to native user/group keys before protocol
 
 test("generic Zotero batches acquire supported inputs independently and retain source indexes", async () => {
   const item = (
-    kind: "regular" | "note" | "attachment" | "other",
+    kind: "regular" | "note" | "attachment" | "annotation" | "other",
     key: string,
   ) =>
     ({
@@ -375,7 +386,7 @@ test("generic Zotero batches acquire supported inputs independently and retain s
       isRegularItem: () => kind === "regular",
       isNote: () => kind === "note",
       isAttachment: () => kind === "attachment",
-      isAnnotation: () => false,
+      isAnnotation: () => kind === "annotation",
     }) as unknown as Zotero.Item;
   const calls: string[] = [];
   const result = await acquireAcademicItems(
@@ -384,46 +395,63 @@ test("generic Zotero batches acquire supported inputs independently and retain s
       item("attachment", "PDF12345"),
       item("regular", "FIRST123"),
       item("note", "NOTE1234"),
+      item("annotation", "ANNOT123"),
     ],
     {
       async acquireItem(input) {
         calls.push(input.key);
         await Promise.resolve();
-        return input.isNote()
+        return input.isAnnotation()
           ? {
-              kind: "note" as const,
+              kind: "quote" as const,
               source: {
                 library: { type: "user" as const },
-                noteKey: input.key,
+                attachmentKey: "PDF12345",
+                annotationKey: input.key,
               },
-              content: "Imported note",
+              snapshot: { text: "Quoted text" },
             }
-          : input.isAttachment()
+          : input.isNote()
             ? {
-                kind: "attachment" as const,
+                kind: "note" as const,
                 source: {
                   library: { type: "user" as const },
-                  attachmentKey: input.key,
+                  noteKey: input.key,
                 },
-                snapshot: {
-                  filename: `${input.key}.pdf`,
-                  contentType: "application/pdf",
-                  availability: "available" as const,
-                },
+                content: "Imported note",
               }
-            : {
-                kind: "literature" as const,
-                source: {
-                  library: { type: "user" as const },
-                  itemKey: input.key,
-                },
-                snapshot: { title: input.key },
-              };
+            : input.isAttachment()
+              ? {
+                  kind: "attachment" as const,
+                  source: {
+                    library: { type: "user" as const },
+                    attachmentKey: input.key,
+                  },
+                  snapshot: {
+                    filename: `${input.key}.pdf`,
+                    contentType: "application/pdf",
+                    availability: "available" as const,
+                  },
+                }
+              : {
+                  kind: "literature" as const,
+                  source: {
+                    library: { type: "user" as const },
+                    itemKey: input.key,
+                  },
+                  snapshot: { title: input.key },
+                };
       },
     },
   );
 
-  assert.deepEqual(calls, ["FIRST123", "PDF12345", "FIRST123", "NOTE1234"]);
+  assert.deepEqual(calls, [
+    "FIRST123",
+    "PDF12345",
+    "FIRST123",
+    "NOTE1234",
+    "ANNOT123",
+  ]);
   assert.deepEqual(
     result.successes.map(({ index, acquisition }) => [index, acquisition.kind]),
     [
@@ -431,6 +459,7 @@ test("generic Zotero batches acquire supported inputs independently and retain s
       [1, "attachment"],
       [2, "literature"],
       [3, "note"],
+      [4, "quote"],
     ],
   );
   assert.deepEqual(result.failures, []);
@@ -442,7 +471,7 @@ test("generic Zotero batches acquire supported inputs independently and retain s
   );
   assert.equal(
     result.successes.some(({ acquisition }) => acquisition.kind === "quote"),
-    false,
+    true,
   );
   assert.equal(
     result.successes.filter(({ acquisition }) => acquisition.kind === "note")
@@ -525,4 +554,71 @@ test("image export still decodes base64 PNG bytes", () => {
     assert.equal(result?.mimeType, "image/png");
   }
   assert.equal(dataUrlToBytes("not a data URL"), null);
+});
+
+test("reader annotations resolve through their attachment library and native parent chain", () => {
+  const attachment = {
+    id: 21,
+    key: "PDF12345",
+    libraryID: 5,
+    isAttachment: () => true,
+    parentItem: { key: "PAPER123", libraryID: 5, isRegularItem: () => true },
+  } as Zotero.Item;
+  const annotation = {
+    key: "ANNOT123",
+    libraryID: 5,
+    parentItem: attachment,
+    isAnnotation: () => true,
+  } as Zotero.Item;
+  const dependencies = {
+    userLibraryID: 1,
+    getItem: (id: number) => (id === 21 ? attachment : null),
+    getByLibraryAndKey: (libraryID: number, key: string) =>
+      libraryID === 5 && key === annotation.key ? annotation : null,
+    getLibrary: () => ({ libraryType: "group", groupID: 88 }),
+  };
+  const transfer = (records: unknown) => ({
+    types: ["zotero/annotation", "text/plain"],
+    getData: (type: string) =>
+      type === "zotero/annotation"
+        ? JSON.stringify(records)
+        : "Untrusted copied quote",
+  });
+  const records = [
+    { id: "ANNOT123", attachmentItemID: 21, text: "Untrusted copied quote" },
+  ];
+  assert.deepEqual(resolveNativeAcademicDrop(transfer(records), dependencies), {
+    status: "accepted",
+    sources: [
+      {
+        library: { type: "group", groupID: 88 },
+        itemKey: "PAPER123",
+        attachmentKey: "PDF12345",
+        annotationKey: "ANNOT123",
+      },
+    ],
+  });
+  annotation.parentItem = {
+    ...attachment,
+    id: 22,
+    key: "OTHERPDF",
+  } as Zotero.Item;
+  assert.deepEqual(resolveNativeAcademicDrop(transfer(records), dependencies), {
+    status: "rejected",
+    code: "drop-malformed",
+  });
+  assert.deepEqual(
+    resolveNativeAcademicDrop(
+      transfer([{ attachmentItemID: 21, text: "Unsaved selection" }]),
+      dependencies,
+    ),
+    { status: "ignored" },
+  );
+  assert.deepEqual(
+    resolveNativeAcademicDrop(
+      transfer([{ id: "ANNOT123", attachmentItemID: "21" }]),
+      dependencies,
+    ),
+    { status: "rejected", code: "drop-malformed" },
+  );
 });

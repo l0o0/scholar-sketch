@@ -30,6 +30,7 @@ export function forwardAcademicParentMessage(
       data.payload.nodeId,
       data.payload.position,
       data.payload.sources,
+      data.payload.interaction,
     );
     return true;
   }

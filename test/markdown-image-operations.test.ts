@@ -66,6 +66,7 @@ function fixture(t: TestContext) {
     editable: true,
     applyAllowed: true,
     downloads: 0,
+    controllers: [] as AbortController[],
     applies: 0,
     saves: 0,
     cleanups: 0,
@@ -83,6 +84,7 @@ function fixture(t: TestContext) {
     },
   };
   const session = {
+    win,
     tabID: "note",
     itemID: 7,
     closing: false,
@@ -131,11 +133,13 @@ function fixture(t: TestContext) {
         _item: unknown,
         _source: string,
         options: {
+          createAbortController(): AbortController;
           shouldContinue(): boolean;
           onProgress(progress: object): void;
         },
       ) => {
         state.downloads++;
+        state.controllers.push(options.createAbortController());
         options.onProgress({ completed: 0, total: state.result.total });
         await state.beforeDownload();
         if (!options.shouldContinue())
@@ -175,6 +179,16 @@ test("download progress survives autosave and reports success only after persist
   assert.equal(f.state.value, f.state.result.markdown);
   assert.equal(f.element.dataset.statusState, "success");
   assert.match(f.element.textContent, /status-imported-images/);
+});
+
+test("a standalone editor supplies its own abort controller without a main library window", async (t) => {
+  const f = fixture(t);
+  await f.api.importExternalImagesInSession(f.session);
+  assert.equal(f.state.controllers.length, 1);
+  assert.ok(f.state.controllers[0] instanceof f.win.AbortController);
+  assert.equal(f.state.value, f.state.result.markdown);
+  assert.equal(f.state.saves, 1);
+  assert.equal(f.element.dataset.statusState, "success");
 });
 
 test("empty, fully failed and partly failed downloads have distinct outcomes", async (t) => {

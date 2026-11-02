@@ -1,15 +1,29 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   importExternalImages,
   isSafeExternalImageUrl,
   readResponseBytes,
   type ExternalImageImportProgress,
 } from "../src/modules/markdown/images/service.ts";
-import { MAX_IMAGE_BYTES } from "../src/modules/markdown/images/model.ts";
+import {
+  MAX_IMAGE_BYTES,
+  parseMarkdownImages,
+} from "../src/modules/markdown/images/model.ts";
 
 function fixture(t: TestContext) {
-  const names = ["Zotero", "IOUtils", "PathUtils", "ztoolkit", "fetch"];
+  const names = [
+    "Zotero",
+    "IOUtils",
+    "PathUtils",
+    "ztoolkit",
+    "fetch",
+    "AbortController",
+  ];
+  const BrowserAbortController = globalThis.AbortController;
   const previous = names.map(
     (name) =>
       [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const,
@@ -22,6 +36,8 @@ function fixture(t: TestContext) {
   });
   const state = {
     requests: [] as string[],
+    signals: [] as Array<AbortSignal | null | undefined>,
+    controllers: [] as AbortController[],
     writes: [] as Array<{ path: string; bytes: Uint8Array }>,
     busy: false,
     failWrite: false,
@@ -36,6 +52,7 @@ function fixture(t: TestContext) {
   };
   Object.assign(globalThis, {
     Zotero: {
+      getMainWindow: () => null,
       Attachments: { getStorageDirectory: () => ({ path: "/storage/IMAGES" }) },
       Sync: {
         Runner: {
@@ -55,8 +72,9 @@ function fixture(t: TestContext) {
       },
     },
     ztoolkit: { log: () => {} },
-    fetch: async (source: string) => {
+    fetch: async (source: string, init?: RequestInit) => {
       state.requests.push(source);
+      state.signals.push(init?.signal);
       return state.fetch(source);
     },
   });
@@ -69,7 +87,17 @@ function fixture(t: TestContext) {
     isStoredFileAttachment: () => true,
     isEditable: () => true,
   } as unknown as Zotero.Item;
-  return { state, item };
+  return {
+    state,
+    item,
+    options: {
+      createAbortController: () => {
+        const controller = new BrowserAbortController();
+        state.controllers.push(controller);
+        return controller;
+      },
+    },
+  };
 }
 
 test("allows public http(s) image URLs", () => {
@@ -128,10 +156,11 @@ test("bounds streamed external image responses", async () => {
 });
 
 test("reports an empty download without reading or writing assets", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   const progress: ExternalImageImportProgress[] = [];
   const markdown = "![local](assets/a.png)\nPlain text";
   const result = await importExternalImages(item, markdown, {
+    ...options,
     onProgress: (value) => progress.push(value),
   });
   assert.deepEqual(result, {
@@ -148,8 +177,50 @@ test("reports an empty download without reading or writing assets", async (t) =>
   assert.equal(state.writes.length, 0);
 });
 
+test("downloads with the owning window's controller when the plugin sandbox and main window cannot supply one", async (t) => {
+  const { item, state, options } = fixture(t);
+  const directory = await mkdtemp(join(tmpdir(), "sketch-image-download-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const bytes = new Uint8Array(
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV2cAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  );
+  const response = new Response(bytes, {
+    headers: { "content-type": "image/png" },
+  });
+  state.fetch = async () => response;
+  Object.assign(Zotero.Attachments, {
+    getStorageDirectory: () => ({ path: directory }),
+  });
+  Object.assign(IOUtils, {
+    makeDirectory: (path: string) => mkdir(path, { recursive: true }),
+    write: (path: string, value: Uint8Array) => writeFile(path, value),
+  });
+  // Zotero's plugin loader exposes fetch but does not request this constructor.
+  Reflect.deleteProperty(globalThis, "AbortController");
+  const result = await importExternalImages(
+    item,
+    "Before\n![remote](https://example.org/figure.png)\nAfter",
+    options,
+  );
+  assert.equal(result.imported, 1);
+  assert.equal(result.failed, 0);
+  const reference = parseMarkdownImages(result.markdown)[0].source;
+  assert.match(reference, /^assets\/[^/]+\.png$/);
+  assert.deepEqual(
+    new Uint8Array(await readFile(join(directory, reference))),
+    bytes,
+  );
+  assert.equal(result.markdown, `Before\n![remote](${reference})\nAfter`);
+  assert.deepEqual(state.requests, ["https://example.org/figure.png"]);
+  assert.equal(state.signals[0], state.controllers[0].signal);
+  assert.equal(state.signals[0]?.aborted, false);
+});
+
 test("reports partial success, failures and blocked URLs after actual processing", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   const markdown = [
     "![ok](https://example.org/ok.png)",
     "![missing](https://example.org/missing.png)",
@@ -174,6 +245,7 @@ test("reports partial success, failures and blocked URLs after actual processing
   };
   const progress: ExternalImageImportProgress[] = [];
   const result = await importExternalImages(item, markdown, {
+    ...options,
     onProgress: (value) => progress.push(value),
   });
   assert.equal(result.total, 6);
@@ -201,14 +273,14 @@ test("reports partial success, failures and blocked URLs after actual processing
 });
 
 test("preserves reference titles and HTML image sizes when replacing URLs", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   const markdown = [
     'before ![inline](https://example.org/a.png "A") after',
     '<img src="https://example.org/b.png" alt="B &amp; C" title="HTML title" width="240">',
     "![reference][figure]",
     '[figure]: https://example.org/c.png "Reference title"',
   ].join("\n\n");
-  const result = await importExternalImages(item, markdown);
+  const result = await importExternalImages(item, markdown, options);
   assert.equal(result.imported, 3);
   assert.equal(state.writes.length, 3);
   assert.match(result.markdown, /!\[inline\]\(assets\/[^)]+ "A"\)/);
@@ -228,22 +300,23 @@ test("preserves reference titles and HTML image sizes when replacing URLs", asyn
 });
 
 test("reports failed asset writes without replacing the source", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   state.failWrite = true;
   const markdown = "![image](https://example.org/a.png)";
-  const result = await importExternalImages(item, markdown);
+  const result = await importExternalImages(item, markdown, options);
   assert.equal(result.markdown, markdown);
   assert.equal(result.failed, 1);
   assert.equal(result.imported, 0);
 });
 
 test("progress observers receive snapshots and cannot break successful downloads", async (t) => {
-  const { item } = fixture(t);
+  const { item, options } = fixture(t);
   let calls = 0;
   const result = await importExternalImages(
     item,
     "![image](https://example.org/a.png)",
     {
+      ...options,
       onProgress: (progress) => {
         calls++;
         progress.imported = 999;
@@ -257,9 +330,10 @@ test("progress observers receive snapshots and cannot break successful downloads
 });
 
 test("cancels stale operations before downloading without counting unfinished work as failures", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   const markdown = "![image](https://example.org/a.png)";
   const result = await importExternalImages(item, markdown, {
+    ...options,
     shouldContinue: () => false,
   });
   assert.equal(result.cancelled, true);
@@ -272,7 +346,7 @@ test("cancels stale operations before downloading without counting unfinished wo
 });
 
 test("cancels after a pending download when the document changes", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   let current = true;
   state.fetch = async () => {
     current = false;
@@ -284,6 +358,7 @@ test("cancels after a pending download when the document changes", async (t) => 
     item,
     "![image](https://example.org/a.png)",
     {
+      ...options,
       shouldContinue: () => current,
     },
   );
@@ -295,7 +370,7 @@ test("cancels after a pending download when the document changes", async (t) => 
 });
 
 test("checks the source again after waiting for Zotero sync", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   let current = true;
   state.busy = true;
   state.wait = async () => {
@@ -306,6 +381,7 @@ test("checks the source again after waiting for Zotero sync", async (t) => {
     item,
     "![image](https://example.org/a.png)",
     {
+      ...options,
       shouldContinue: () => current,
     },
   );
@@ -316,7 +392,7 @@ test("checks the source again after waiting for Zotero sync", async (t) => {
 });
 
 test("checks cancellation immediately before writing image bytes", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   let current = true;
   state.afterDirectory = () => {
     current = false;
@@ -325,6 +401,7 @@ test("checks cancellation immediately before writing image bytes", async (t) => 
     item,
     "![image](https://example.org/a.png)",
     {
+      ...options,
       shouldContinue: () => current,
     },
   );
@@ -334,7 +411,7 @@ test("checks cancellation immediately before writing image bytes", async (t) => 
 });
 
 test("keeps completed downloads when a later image is cancelled", async (t) => {
-  const { item, state } = fixture(t);
+  const { item, state, options } = fixture(t);
   let current = true;
   const result = await importExternalImages(
     item,
@@ -343,6 +420,7 @@ test("keeps completed downloads when a later image is cancelled", async (t) => {
       "![last](https://example.org/b.png)",
     ].join("\n"),
     {
+      ...options,
       shouldContinue: () => current,
       onProgress: (progress) => {
         if (progress.completed === 1) current = false;

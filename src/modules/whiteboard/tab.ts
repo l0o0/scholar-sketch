@@ -180,6 +180,7 @@ function toast(message: string, type: "success" | "fail" = "fail") {
 type AcademicItemGateway = {
   acquireItem(
     item: Zotero.Item,
+    index: number,
   ): AcademicAcquisition | Promise<AcademicAcquisition>;
 };
 
@@ -202,10 +203,14 @@ export async function acquireAcademicItems(
         if (
           item.isRegularItem?.() ||
           item.isNote?.() ||
-          item.isAttachment?.()
+          item.isAttachment?.() ||
+          item.isAnnotation?.()
         ) {
           return {
-            success: { index, acquisition: await gateway.acquireItem(item) },
+            success: {
+              index,
+              acquisition: await gateway.acquireItem(item, index),
+            },
           };
         }
         return {
@@ -449,6 +454,7 @@ type ZoteroDragTransfer = Pick<DataTransfer, "types" | "getData">;
 
 const ZOTERO_DRAG_PRECEDENCE = [
   "zotero/collection",
+  "zotero/annotation",
   "zotero/item",
   "zotero/search",
 ] as const;
@@ -490,9 +496,81 @@ function readDroppedItemIDs(transfer: ZoteroDragTransfer): {
 interface AcademicDropResolverDependencies {
   userLibraryID: number;
   getItem(itemID: number): Zotero.Item | null;
+  getByLibraryAndKey(libraryID: number, key: string): Zotero.Item | null;
   getLibrary(
     libraryID: number,
   ): { libraryType: string; groupID?: number } | null;
+}
+
+function droppedLibrary(
+  libraryID: number,
+  dependencies: AcademicDropResolverDependencies,
+): AcademicDropSourceRef["library"] | null {
+  if (libraryID === dependencies.userLibraryID) return { type: "user" };
+  const library = dependencies.getLibrary(libraryID);
+  return library?.libraryType === "group" && typeof library.groupID === "number"
+    ? { type: "group", groupID: library.groupID }
+    : null;
+}
+
+function resolveDroppedAnnotations(
+  transfer: ZoteroDragTransfer,
+  dependencies: AcademicDropResolverDependencies,
+): NativeAcademicDropResolution {
+  const records: unknown = JSON.parse(transfer.getData("zotero/annotation"));
+  if (!Array.isArray(records) || !records.length)
+    return { status: "rejected", code: "drop-malformed" };
+  // Reader also supplies this MIME for a plain text selection that has never
+  // been saved as an annotation. Let the normal text drop/paste handle it.
+  if (
+    records.every(
+      (record) =>
+        record && typeof record === "object" && record.id === undefined,
+    )
+  )
+    return { status: "ignored" };
+  const sources: AcademicDropSourceRef[] = [];
+  for (const record of records) {
+    if (
+      !record ||
+      typeof record !== "object" ||
+      typeof record.id !== "string" ||
+      !record.id ||
+      !Number.isSafeInteger(record.attachmentItemID) ||
+      record.attachmentItemID <= 0
+    )
+      return { status: "rejected", code: "drop-malformed" };
+    const attachment = dependencies.getItem(record.attachmentItemID);
+    if (!attachment?.isAttachment() || !attachment.key)
+      return { status: "rejected", code: "drop-malformed" };
+    const annotation = dependencies.getByLibraryAndKey(
+      attachment.libraryID,
+      record.id,
+    );
+    if (
+      !annotation?.isAnnotation() ||
+      annotation.key !== record.id ||
+      annotation.libraryID !== attachment.libraryID ||
+      annotation.parentItem?.id !== attachment.id ||
+      annotation.parentItem?.key !== attachment.key
+    )
+      return { status: "rejected", code: "drop-malformed" };
+    const library = droppedLibrary(attachment.libraryID, dependencies);
+    if (!library) return { status: "rejected", code: "drop-unsupported" };
+    const parent = attachment.parentItem;
+    if (
+      parent &&
+      (!parent.isRegularItem() || parent.libraryID !== attachment.libraryID)
+    )
+      return { status: "rejected", code: "drop-malformed" };
+    sources.push({
+      library,
+      ...(parent ? { itemKey: parent.key } : {}),
+      attachmentKey: attachment.key,
+      annotationKey: annotation.key,
+    });
+  }
+  return { status: "accepted", sources };
 }
 
 export function resolveNativeAcademicDrop(
@@ -500,11 +578,29 @@ export function resolveNativeAcademicDrop(
   dependencies: AcademicDropResolverDependencies = {
     userLibraryID: Zotero.Libraries.userLibraryID,
     getItem: (itemID) => Zotero.Items.get(itemID) || null,
+    getByLibraryAndKey: (libraryID, key) =>
+      Zotero.Items.getByLibraryAndKey(libraryID, key) || null,
     getLibrary: (libraryID) => Zotero.Libraries.get(libraryID) || null,
   },
 ): NativeAcademicDropResolution {
   const type = primaryZoteroDragType(transfer);
   if (!type) return { status: "ignored" };
+  if (type === "zotero/annotation") {
+    try {
+      return resolveDroppedAnnotations(transfer, dependencies);
+    } catch (error) {
+      return {
+        status: "rejected",
+        code: "drop-malformed",
+        diagnostic:
+          error instanceof SyntaxError
+            ? "Invalid Zotero annotation JSON."
+            : error instanceof Error
+              ? error.message
+              : String(error),
+      };
+    }
+  }
   if (type !== "zotero/item") {
     return { status: "rejected", code: "drop-unsupported" };
   }
@@ -524,19 +620,7 @@ export function resolveNativeAcademicDrop(
       if (!item?.key) {
         return { status: "rejected", code: "drop-malformed" };
       }
-      const library =
-        item.libraryID === dependencies.userLibraryID
-          ? ({ type: "user" } as const)
-          : (() => {
-              const value = dependencies.getLibrary(item.libraryID);
-              if (
-                value?.libraryType !== "group" ||
-                typeof value.groupID !== "number"
-              ) {
-                return null;
-              }
-              return { type: "group", groupID: value.groupID } as const;
-            })();
+      const library = droppedLibrary(item.libraryID, dependencies);
       if (!library) {
         return { status: "rejected", code: "drop-unsupported" };
       }
@@ -581,7 +665,11 @@ async function handleDropAcademicSources(
     }
     const items = sources.map((source) => {
       const key =
-        "attachmentKey" in source ? source.attachmentKey : source.itemKey;
+        "annotationKey" in source
+          ? source.annotationKey
+          : "attachmentKey" in source
+            ? source.attachmentKey
+            : source.itemKey;
       const libraryID =
         source.library.type === "user"
           ? Zotero.Libraries.userLibraryID
@@ -590,7 +678,17 @@ async function handleDropAcademicSources(
       return Zotero.Items.getByLibraryAndKey(libraryID, key) || undefined;
     });
     const gateway = createZoteroSourceGateway();
-    const result = await acquireAcademicItems(items, gateway);
+    const result = await acquireAcademicItems(items, {
+      acquireItem: (item, index) => {
+        const source = sources[index];
+        return "annotationKey" in source
+          ? gateway.acquireQuote(source)
+          : gateway.acquireItem(item);
+      },
+    });
+    // Surface transfer captures this still-owned editor again after the new
+    // surface is ready, including acquisitions completed during the handoff.
+    if (session.editor !== editor || session.closing) return;
     for (const failure of result.failures) {
       reportAcademicRequestFailure({
         operation: "drop",

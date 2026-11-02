@@ -2312,6 +2312,7 @@ async function importExternalImagesInSession(session: OpenSession) {
     const unchanged = () =>
       task.isCurrent() && !editor.isComposing() && editor.getValue() === source;
     const result = await importExternalImages(item, source, {
+      createAbortController: () => new session.win.AbortController(),
       shouldContinue: unchanged,
       onProgress: ({ completed, total }) => {
         if (total)
