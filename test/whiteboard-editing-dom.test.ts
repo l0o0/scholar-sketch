@@ -112,6 +112,13 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     });
     assert.ok(runtime);
     const api = runtime;
+    // The iframe receives its sidebar mode after React has mounted.
+    await act(async () => {
+      api.setSidebar(true);
+      api.setSidebarFocus(true);
+    });
+    assert.ok(container.querySelector('.zmd-board-host[data-sidebar="true"]'));
+    assert.ok(container.querySelector(".zmd-board-sidebar-toolbar"));
     const card = container.querySelector<HTMLElement>('[data-id="note"]');
     assert.ok(card);
     const cardContent = card.querySelector<HTMLElement>(
@@ -253,6 +260,9 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     );
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
     assert.equal(notifiedContents.at(-1), "Committed");
+    await act(async () => api.setSidebar(false));
+    assert.equal(container.querySelector(".zmd-board-sidebar-toolbar"), null);
+    assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
   } finally {
     await act(async () => root.unmount());
     await server.close();

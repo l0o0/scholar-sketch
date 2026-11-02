@@ -441,6 +441,14 @@ export class CanvasDocumentHistory {
 
   constructor(private readonly onChange: (revision: number) => void) {}
 
+  get canUndo() {
+    return this.history.length > 0;
+  }
+
+  get canRedo() {
+    return this.future.length > 0;
+  }
+
   changed() {
     this.revision += 1;
     this.onChange(this.revision);

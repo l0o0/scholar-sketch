@@ -19,6 +19,7 @@ declare namespace _ZoteroTypes {
       "whiteboardColorScheme": string;
       "whiteboardFontFamily": string;
       "whiteboardBackgroundColor": string;
+      "whiteboardSidebarHeight": number;
       "whiteboardTutorialCreated": boolean;
       "tutorialAttachments": string;
       "noteTemplates": string;

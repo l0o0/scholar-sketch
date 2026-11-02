@@ -1,15 +1,19 @@
-import { getLocaleID, getString } from "../utils/locale";
+import { getLocaleID } from "../utils/locale";
 import { isMarkdownAttachment } from "./markdown/detect";
 import { createMarkdownSidebar } from "./markdown/sidebar";
-import {
-  childAttachmentIDs,
-  SidebarControllerRegistry,
-} from "./markdown/sidebar-state";
+import { SidebarControllerRegistry } from "./markdown/sidebar-state";
 import { isWhiteboardAttachment } from "./whiteboard/detect";
 import { WhiteboardSidebar } from "./whiteboard/sidebar";
 
 type ViewKind = "markdown" | "whiteboard";
 type SidebarView = ReturnType<typeof createMarkdownSidebar>;
+type CollapsibleSection = HTMLElement & { open: boolean; collapsible: boolean };
+
+function viewForItem(item: Zotero.Item | null): ViewKind | undefined {
+  if (item && isMarkdownAttachment(item)) return "markdown";
+  if (item && isWhiteboardAttachment(item)) return "whiteboard";
+  return undefined;
+}
 
 const controllers = new SidebarControllerRegistry<
   Window,
@@ -21,13 +25,15 @@ let sectionKey: string | null = null;
 
 /** One native section; each view retains ownership of its own draft and save path. */
 class ScholarSketchSidebar {
-  private switcher?: HTMLElement;
-  private readonly buttons = new Map<ViewKind, HTMLButtonElement>();
   private readonly views = new Map<
     ViewKind,
     { body: HTMLElement; controller: SidebarView }
   >();
-  private active: ViewKind = "markdown";
+  private active?: ViewKind;
+  private section?: Element;
+  private collapsible?: CollapsibleSection;
+  private wasOpen = false;
+  private wasCollapsible = true;
   private item: Zotero.Item | null = null;
   private editable = false;
   private summary: (value: string) => void = () => {};
@@ -45,69 +51,10 @@ class ScholarSketchSidebar {
     summary: (value: string) => void,
   ) {
     if (this.disposed) return;
-    const changed = this.item?.id !== item?.id;
     this.item = item;
     this.editable = editable;
     this.summary = summary;
-    if (!this.switcher) this.createSwitcher();
-    const regular = !!item?.isRegularItem();
-    const markdown = !!item && isMarkdownAttachment(item);
-    const whiteboard = !!item && isWhiteboardAttachment(item);
-    this.switcher!.hidden = !regular;
-    if (markdown) this.active = "markdown";
-    else if (whiteboard) this.active = "whiteboard";
-    else if (changed && regular && item) {
-      // A parent with only one supported attachment type opens that type.
-      // Parents with both (or neither) keep this pane's previous choice.
-      const attachments = childAttachmentIDs(item).map((id) =>
-        Zotero.Items.get(id),
-      );
-      const hasMarkdown = attachments.some(isMarkdownAttachment);
-      const hasWhiteboard = attachments.some(isWhiteboardAttachment);
-      if (hasMarkdown !== hasWhiteboard)
-        this.active = hasMarkdown ? "markdown" : "whiteboard";
-    }
-    this.renderActiveView();
-  }
-
-  private createSwitcher() {
-    const doc = this.body.ownerDocument;
-    this.switcher = doc.createElement("div");
-    this.switcher.className = "scholar-sketch-pane-switcher";
-    this.switcher.setAttribute("role", "tablist");
-    this.switcher.setAttribute("aria-label", "Scholar Sketch");
-    for (const kind of ["markdown", "whiteboard"] as const) {
-      const button = doc.createElement("button");
-      button.type = "button";
-      button.dataset.view = kind;
-      button.setAttribute("role", "tab");
-      button.textContent = getString(`sidebar-view-${kind}`);
-      button.addEventListener("click", () => this.selectView(kind));
-      button.addEventListener("keydown", (event) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
-          return;
-        event.preventDefault();
-        event.stopPropagation();
-        const next =
-          event.key === "Home"
-            ? "markdown"
-            : event.key === "End"
-              ? "whiteboard"
-              : kind === "markdown"
-                ? "whiteboard"
-                : "markdown";
-        this.selectView(next);
-        this.buttons.get(next)!.focus();
-      });
-      this.buttons.set(kind, button);
-      this.switcher.append(button);
-    }
-    this.body.append(this.switcher);
-  }
-
-  private selectView(kind: ViewKind) {
-    if (this.disposed || this.active === kind) return;
-    this.active = kind;
+    this.active = viewForItem(item);
     this.renderActiveView();
   }
 
@@ -116,10 +63,12 @@ class ScholarSketchSidebar {
       view.controller.setActive(kind === this.active);
       view.body.hidden = kind !== this.active;
     }
-    for (const [kind, button] of this.buttons) {
-      button.setAttribute("aria-selected", String(kind === this.active));
-      button.tabIndex = kind === this.active ? 0 : -1;
+    this.summary("");
+    if (!this.active) {
+      this.restoreNativeSection();
+      return;
     }
+    this.prepareNativeSection();
     let view = this.views.get(this.active);
     if (!view) {
       const body = this.body.ownerDocument.createElement("div");
@@ -133,7 +82,6 @@ class ScholarSketchSidebar {
       view = { body, controller };
       this.views.set(this.active, view);
     }
-    this.summary("");
     const kind = this.active;
     const itemID = this.item?.id;
     view.controller.render(view.body, this.item, this.editable, (value) => {
@@ -142,9 +90,39 @@ class ScholarSketchSidebar {
     });
   }
 
+  private prepareNativeSection() {
+    if (this.section) return;
+    const section = this.body.closest("item-pane-custom-section");
+    if (!section) return;
+    this.section = section;
+    this.collapsible =
+      section.querySelector<CollapsibleSection>("collapsible-section") ??
+      undefined;
+    if (this.collapsible) {
+      this.wasOpen = this.collapsible.open;
+      this.wasCollapsible = this.collapsible.collapsible;
+      this.collapsible.open = true;
+      this.collapsible.collapsible = false;
+    }
+    section.classList.add("scholar-sketch-attachment-section");
+  }
+
+  private restoreNativeSection() {
+    this.section?.classList.remove("scholar-sketch-attachment-section");
+    if (this.collapsible) {
+      this.collapsible.open = this.wasOpen;
+      this.collapsible.collapsible = this.wasCollapsible;
+    }
+    this.section = undefined;
+    this.collapsible = undefined;
+  }
+
   destroy(): Promise<void> {
     if (this.closePromise) return this.closePromise;
     this.disposed = true;
+    for (const { controller } of this.views.values())
+      controller.setActive(false);
+    this.restoreNativeSection();
     this.closePromise = (async () => {
       // Native onDestroy is synchronous; the owner tracks this work so window
       // and addon shutdown still wait for both views' final saves.
@@ -187,8 +165,14 @@ export function registerItemPane() {
       if (old) void closeController(old);
       controllers.bind(win, body, new ScholarSketchSidebar(win, body));
     },
-    onRender: ({ body, item, editable, setSectionSummary }) => {
+    onItemChange: ({ body, item, setEnabled }) => {
+      const enabled = !!viewForItem(item);
+      if (!enabled) controllers.get(body)?.render(null, false, () => {});
+      setEnabled(enabled);
+    },
+    onRender: ({ body, item, editable, setSectionSummary, setEnabled }) => {
       controllers.get(body)?.render(item, editable, setSectionSummary);
+      setEnabled(!!viewForItem(item));
     },
     onDestroy: ({ doc, body }) => {
       const controller = controllers.release(doc.defaultView!, body);

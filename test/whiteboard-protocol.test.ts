@@ -469,6 +469,8 @@ const activeIframeToHostMessages = [
   },
   { ...protocolBase, type: "save" },
   { ...protocolBase, type: "switchWindow" },
+  { ...protocolBase, type: "openTab" },
+  { ...protocolBase, type: "toggleSidebarFocus" },
   { ...protocolBase, type: "openSettings" },
   { ...protocolBase, type: "error", payload: { message: "render failed" } },
   {
@@ -573,6 +575,7 @@ const activeHostToIframeMessages = [
     payload: { theme: "dark", snapshot: emptyDocument },
   },
   { ...protocolBase, type: "setTheme", payload: { theme: "light" } },
+  { ...protocolBase, type: "setSidebarFocus", payload: { focused: true } },
   {
     ...protocolBase,
     type: "setColorScheme",
@@ -1321,23 +1324,17 @@ test("null-source init requires complete labels and a canonical canvas document"
     isParentToWhiteboardMessageForChannel(init, "tab-9:canvas-a"),
     true,
   );
-  for (const editable of [true, false]) {
-    assert.equal(
-      isParentToWhiteboardMessageForChannel(
-        { ...init, payload: { ...init.payload, editable } },
-        "tab-9:canvas-a",
-      ),
-      true,
-    );
-  }
-  for (const editable of ["false", 0, null]) {
-    assert.equal(
-      isParentToWhiteboardMessageForChannel(
-        { ...init, payload: { ...init.payload, editable } },
-        "tab-9:canvas-a",
-      ),
-      false,
-    );
+  for (const key of ["editable", "sidebar", "sidebarFocused"]) {
+    for (const value of [true, false, "false", 0, null]) {
+      assert.equal(
+        isParentToWhiteboardMessageForChannel(
+          { ...init, payload: { ...init.payload, [key]: value } },
+          "tab-9:canvas-a",
+        ),
+        typeof value === "boolean",
+        `${key}: ${value}`,
+      );
+    }
   }
 
   for (const label of [

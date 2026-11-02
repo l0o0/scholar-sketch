@@ -11,6 +11,7 @@ pref("markdownSlashSearchLanguage", "auto");
 pref("whiteboardColorScheme", "traditional");
 pref("whiteboardFontFamily", "system");
 pref("whiteboardBackgroundColor", "");
+pref("whiteboardSidebarHeight", 321);
 pref("whiteboardTutorialCreated", false);
 pref("tutorialAttachments", "");
 pref("noteTemplates", "");

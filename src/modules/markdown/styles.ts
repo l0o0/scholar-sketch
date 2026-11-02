@@ -91,46 +91,45 @@ item-pane-custom-section[data-pane$="-scholar-sketch"] > collapsible-section[dat
   background-repeat: no-repeat;
 }
 
-.scholar-sketch-pane-switcher {
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background: var(--fill-quinary, rgba(128, 128, 128, 0.1));
+item-pane-custom-section.scholar-sketch-attachment-section > collapsible-section {
+  padding: 0 !important;
 }
 
-.scholar-sketch-pane-switcher[hidden],
-.scholar-sketch-pane-view[hidden] {
+item-pane-custom-section.scholar-sketch-attachment-section > collapsible-section > .head {
   display: none !important;
 }
 
-.scholar-sketch-pane-switcher > button {
-  flex: 1;
-  min-width: 0;
+item-pane-custom-section.scholar-sketch-attachment-section > collapsible-section > [data-type="body"] {
   margin: 0;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
+  padding: 0 !important;
+}
+
+.scholar-sketch-pane-view[hidden],
+.scholar-sketch-whiteboard-message[hidden],
+.scholar-sketch-pane-view > button[hidden] {
+  display: none !important;
+}
+
+.scholar-sketch-whiteboard-host {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 241px;
+  overflow: hidden;
+  resize: vertical;
+}
+
+.scholar-sketch-whiteboard-message {
+  padding: 8px;
+  font-size: 12px;
   color: var(--fill-secondary);
-  font: inherit;
-  cursor: pointer;
 }
 
-.scholar-sketch-pane-switcher > button:hover {
-  background: var(--fill-quinary, rgba(128, 128, 128, 0.1));
-}
-
-.scholar-sketch-pane-switcher > button[aria-selected="true"] {
-  background: var(--material-background, Canvas);
-  color: var(--fill-primary, CanvasText);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.scholar-sketch-pane-switcher > button:focus-visible {
-  outline: 2px solid var(--color-accent, Highlight);
-  outline-offset: -2px;
+.zmd-sidebar-focus-section .scholar-sketch-whiteboard-host {
+  flex: 1 1 auto;
+  height: auto !important;
+  min-height: 0;
+  resize: none;
 }
 
 .zmd-sidebar-focus-section .scholar-sketch-pane-view:not([hidden]) {
