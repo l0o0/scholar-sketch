@@ -15,6 +15,15 @@ export interface ReleaseHighlights {
  */
 export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
   {
+    version: "0.2.25",
+    features: [
+      {
+        title: "feature-updates-canvas-image-resize-title",
+        body: "feature-updates-canvas-image-resize-body",
+      },
+    ],
+  },
+  {
     version: "0.2.24",
     features: [
       {
