@@ -62,6 +62,8 @@ export type FluentMessageId =
   | 'feature-updates-canvas-body'
   | 'feature-updates-canvas-export-body'
   | 'feature-updates-canvas-export-title'
+  | 'feature-updates-canvas-image-resize-body'
+  | 'feature-updates-canvas-image-resize-title'
   | 'feature-updates-canvas-notices-body'
   | 'feature-updates-canvas-notices-title'
   | 'feature-updates-canvas-search-body'
