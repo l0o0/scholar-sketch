@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { Window } from "happy-dom";
 import {
   activePreviewOutlineID,
   applyAssetsToHtml,
@@ -11,8 +12,11 @@ import {
 } from "../src/modules/markdown/preview.ts";
 import {
   documentTitleCore,
+  parseHtmlTableBlocksCore,
   renderMarkdownCore,
 } from "../src/modules/markdown/preview-render-core.ts";
+import { parseInlineHtmlRanges } from "../src/modules/markdown/inline-html.ts";
+import { parseHtmlTable } from "../src/modules/markdown/html-table.ts";
 
 test("the worker-safe render core preserves preview behavior", () => {
   const source = "---\ntitle: Worker title\n---\n\n```ts\nconst n = 1;\n```";
@@ -238,4 +242,271 @@ test("only safe image attributes render while arbitrary HTML and code remain ine
     renderMarkdown('<img src="assets/a.png" width="-20">'),
     /width=/,
   );
+});
+
+test("renders paired inline HTML formatting with Markdown and table content", () => {
+  const source = [
+    "正文<SUP>9</SUP> H<sub>2</sub>O <u>underlined</u>",
+    "",
+    "<mark>**important** <kbd>Ctrl</kbd> <small>detail</small></mark><br/>next",
+    "",
+    "<b>bold</b> <strong>strong</strong> <i>italic</i> <em>emphasis</em> <s>old</s> <del>deleted</del> <code>key</code>",
+    "",
+    "| Formula | Meaning |",
+    "| --- | --- |",
+    "| H<sub>2</sub>O | x<sup>2</sup> |",
+  ].join("\n");
+  const { bodyHtml, standaloneHtml } = buildStandaloneDocument({ source });
+  for (const html of [bodyHtml, standaloneHtml]) {
+    assert.match(html, /正文<sup>9<\/sup> H<sub>2<\/sub>O <u>underlined<\/u>/);
+    assert.match(
+      html,
+      /<mark><strong>important<\/strong> <kbd>Ctrl<\/kbd> <small>detail<\/small><\/mark><br>next/,
+    );
+    assert.match(html, /<td>H<sub>2<\/sub>O<\/td>/);
+    assert.match(html, /<td>x<sup>2<\/sup><\/td>/);
+    for (const tag of ["b", "strong", "i", "em", "s", "del", "code"]) {
+      assert.match(html, new RegExp(`<${tag}>[^<]+<\\/${tag}>`));
+    }
+  }
+});
+
+test("inline HTML preserves code, escapes, unsupported tags and attributes as text", () => {
+  const html = renderMarkdown(
+    [
+      "`<sup>9</sup>` \\<sub>2</sub>",
+      "",
+      "```html",
+      "<sup>9</sup>",
+      "```",
+      "",
+      '<sup onclick="alert(1)">9</sup> <mark style="color:red">text</mark>',
+      "",
+      "<script>alert(1)</script> <iframe>frame</iframe> <span>span</span>",
+      "",
+      "<sup>unclosed <sub>2</sup>",
+    ].join("\n"),
+  );
+  assert.match(html, /<code>&lt;sup&gt;9&lt;\/sup&gt;<\/code>/);
+  assert.match(html, /&lt;sub&gt;2&lt;\/sub&gt;/);
+  assert.match(html, /&lt;sup onclick=[^\n]*?&gt;9&lt;\/sup&gt;/);
+  assert.doesNotMatch(html, /<(?:sup|sub|mark|script|iframe)(?:\s|>)/);
+  assert.match(html, /&lt;span&gt;span&lt;\/span&gt;/);
+  assert.match(html, /&lt;sup&gt;unclosed &lt;sub&gt;2&lt;\/sup&gt;/);
+});
+
+test("inline HTML ranges retain source offsets and use Markdown code and escape rules", () => {
+  const source =
+    "前 <sup>`</sup>` <u>x</u>9</sup> <br> [<kbd>K</kbd>](https://example.com)";
+  const ranges = parseInlineHtmlRanges(source);
+  assert.deepEqual(
+    ranges.map((range) => ({
+      tag: range.tag,
+      source: source.slice(range.from, range.to),
+      content: source.slice(range.openTo, range.closeFrom),
+    })),
+    [
+      {
+        tag: "sup",
+        source: "<sup>`</sup>` <u>x</u>9</sup>",
+        content: "`</sup>` <u>x</u>9",
+      },
+      { tag: "u", source: "<u>x</u>", content: "x" },
+      { tag: "br", source: "<br>", content: "" },
+      { tag: "kbd", source: "<kbd>K</kbd>", content: "K" },
+    ],
+  );
+  assert.match(
+    renderMarkdown(source),
+    /<sup><code>&lt;\/sup&gt;<\/code> <u>x<\/u>9<\/sup>/,
+  );
+  for (const inert of [
+    "`<sup>9</sup>`",
+    "\\<sup>9</sup>",
+    "<sup>9\\</sup>",
+    '<sup style="color:red">9</sup>',
+    "![<sup>9</sup>](assets/a.png)",
+    "[text](https://example.com/<sup>9</sup>)",
+    "<sup>unclosed",
+  ]) {
+    assert.deepEqual(parseInlineHtmlRanges(inert), [], inert);
+  }
+});
+
+test("renders the imported five-by-five HTML table with a formula in every cell", (t) => {
+  const source =
+    "<table>" +
+    Array.from(
+      { length: 5 },
+      (_, row) =>
+        "<tr>" +
+        Array.from(
+          { length: 5 },
+          (_, column) =>
+            `<td> $${row === column ? `g_${row + 1}` : `(g_${row + 1}, g_${column + 1})`}$ </td>`,
+        ).join("") +
+        "</tr>",
+    ).join("") +
+    "</table>";
+  const document = buildStandaloneDocument({ source });
+  const win = new Window();
+  t.after(() => win.close());
+  win.document.body.innerHTML = document.bodyHtml;
+  const table = win.document.querySelector("table");
+  assert.ok(table);
+  assert.equal(table.querySelectorAll("tr").length, 5);
+  assert.equal(table.querySelectorAll("td").length, 25);
+  assert.equal(table.querySelectorAll("math").length, 25);
+  assert.doesNotMatch(document.bodyHtml, /<p>\s*<table>/);
+  assert.match(table.querySelector("annotation")?.textContent || "", /g_1/);
+  assert.match(document.standaloneHtml, /<table>/);
+});
+
+test("HTML tables retain sections, spans, inline formatting and surrounding content", (t) => {
+  const source = [
+    "Before",
+    '<table class="imported">',
+    "<caption><b>Results</b></caption>",
+    '<thead><tr><th colspan="2">$x^2$</th></tr></thead>',
+    "",
+    "<tbody>",
+    "<tr><td rowspan='2'><mark>important</mark></td><td>**bold** H<sub>2</sub>O</td></tr>",
+    "<tr><td><code>&lt;/td&gt;</code> $\\text{cell}$</td></tr>",
+    "</tbody>",
+    "<tfoot><tr><td colspan=2>Summary</td></tr></tfoot>",
+    "</table>",
+    "After",
+  ].join("\r\n");
+  const win = new Window();
+  t.after(() => win.close());
+  win.document.body.innerHTML = renderMarkdown(source);
+  const table = win.document.querySelector("table");
+  assert.ok(table);
+  assert.equal(table.querySelector("caption b")?.textContent, "Results");
+  assert.equal(table.querySelector("thead th")?.getAttribute("colspan"), "2");
+  assert.equal(table.querySelector("tbody td")?.getAttribute("rowspan"), "2");
+  assert.ok(table.querySelector("thead th math"));
+  assert.equal(table.querySelector("mark")?.textContent, "important");
+  assert.equal(table.querySelector("strong")?.textContent, "bold");
+  assert.equal(table.querySelector("sub")?.textContent, "2");
+  assert.equal(table.querySelector("code")?.textContent, "</td>");
+  assert.equal(table.querySelectorAll("tbody td").length, 3);
+  assert.equal(table.querySelector("tfoot td")?.textContent, "Summary");
+  assert.equal(table.hasAttribute("class"), false);
+  assert.match(win.document.body.textContent, /Before[\s\S]*After/);
+});
+
+test("HTML table rendering keeps unsafe content inert and incomplete or code tables literal", (t) => {
+  const complete =
+    '<table onclick="alert(1)"><tr><td colspan="2" style="display:none" onmouseover="alert(1)"><script>alert(1)</script>[bad](javascript:alert(1))</td></tr></table>';
+  const win = new Window();
+  t.after(() => win.close());
+  win.document.body.innerHTML = renderMarkdown(complete);
+  assert.equal(win.document.querySelectorAll("table td").length, 1);
+  assert.equal(
+    win.document.querySelector("[onclick], [onmouseover], [style], script, a"),
+    null,
+  );
+  assert.match(
+    win.document.querySelector("td")?.textContent || "",
+    /<script>alert\(1\)<\/script>/,
+  );
+  const simple = "<table><tr><td>$x$</td></tr></table>";
+  for (const source of [
+    `\`${simple}\``,
+    `\`\`\`html\n${simple}\n\`\`\``,
+    `    ${simple}`,
+    `\\${simple}`,
+    "<table><tr><td>$x$</td></tr>",
+    "<table><tr><td>$x$</tr></table>",
+    "<table-widget><tr><td>$x$</td></tr></table-widget>",
+  ]) {
+    assert.doesNotMatch(renderMarkdown(source), /<table>/, source);
+  }
+});
+
+test("HTML table blocks preserve adjacent tables, trailing text and original source offsets", (t) => {
+  const simple = "<table><tr><td>$x$</td></tr></table>";
+  const win = new Window();
+  t.after(() => win.close());
+  win.document.body.innerHTML = renderMarkdown(
+    `${simple}${simple} Tail\nAfter`,
+  );
+  assert.equal(win.document.querySelectorAll("table").length, 2);
+  assert.equal(
+    parseHtmlTableBlocksCore(`${simple}${simple} Tail\nAfter`).length,
+    2,
+  );
+  assert.match(win.document.body.textContent, /Tail[\s\S]*After/);
+  const source =
+    "Before\r\n<table>\r\n<tr><td>x</td></tr>\r\n</table>\r\nAfter";
+  const table = parseHtmlTable(source, source.indexOf("<table>"));
+  assert.ok(table);
+  const cell = table.rows[0].cells[0];
+  assert.equal(source.slice(cell.contentFrom, cell.contentTo), "x");
+  assert.equal(
+    source.slice(table.from, table.to),
+    "<table>\r\n<tr><td>x</td></tr>\r\n</table>",
+  );
+});
+
+test("HTML table captions and cells render multiline display formulas with the shared math parser", (t) => {
+  const source = [
+    "<table>",
+    "<caption>Matrix $A$</caption>",
+    "<tr><td>",
+    "$$",
+    String.raw`\frac{1}{2}`,
+    "$$",
+    "</td><td>Ordinary **text**</td></tr>",
+    "</table>",
+  ].join("\n");
+  const win = new Window();
+  t.after(() => win.close());
+  win.document.body.innerHTML = renderMarkdown(source);
+  assert.ok(win.document.querySelector("caption math"));
+  assert.ok(win.document.querySelector('td math[display="block"] mfrac'));
+  assert.equal(
+    win.document.querySelector("td + td strong")?.textContent,
+    "text",
+  );
+  assert.equal(win.document.querySelector("td + td p"), null);
+});
+
+test("HTML cell boundaries isolate unclosed Markdown code and math delimiters", (t) => {
+  const win = new Window();
+  t.after(() => win.close());
+  for (const [left, right] of [
+    ["`open", "close`"],
+    ["$a", "b$"],
+  ]) {
+    const source = `<table><tr><td>${left}</td><td>${right}</td></tr></table>`;
+    const table = parseHtmlTable(source);
+    assert.ok(table);
+    assert.equal(table.rows[0].cells.length, 2);
+    win.document.body.innerHTML = renderMarkdown(source);
+    const cells = win.document.querySelectorAll("table td");
+    assert.equal(cells.length, 2);
+    assert.equal(cells[0].textContent, left);
+    assert.equal(cells[1].textContent, right);
+  }
+});
+
+test("HTML comments keep enclosed table source and the closing line suffix visible", (t) => {
+  const table = "<table><tr><td>$x$</td></tr></table>";
+  const win = new Window();
+  t.after(() => win.close());
+  for (const source of [
+    `<!--\n${table}\n--> ${table} Tail`,
+    `<!--\n${table}`,
+  ]) {
+    win.document.body.innerHTML = renderMarkdown(source);
+    assert.equal(win.document.querySelector("table"), null);
+    assert.ok(win.document.body.textContent?.includes(table));
+    assert.deepEqual(parseHtmlTableBlocksCore(source), []);
+  }
+  win.document.body.innerHTML = renderMarkdown(
+    `<!--\n${table}\n--> ${table} Tail`,
+  );
+  assert.match(win.document.body.textContent || "", /--> <table>[\s\S]*Tail/);
 });

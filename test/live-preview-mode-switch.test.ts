@@ -20,6 +20,8 @@ const source = [
   "",
   "- [ ] task with $x^2$",
   "",
+  "<table><tr><td>$g_1$</td><td>$g_2$</td></tr></table>",
+  "",
   "End",
 ].join("\n");
 
@@ -75,11 +77,13 @@ test("re-adding live preview through a compartment rebuilds every live field", a
   });
   const math = () => view.dom.querySelectorAll(".zmd-lp-math math").length;
   assert.equal(math(), 3);
+  assert.equal(view.dom.querySelectorAll(".zmd-lp-html-table td").length, 2);
 
   view.dispatch({ effects: live.reconfigure(livePreviewWhen(false)) });
   assert.equal(math(), 0);
   view.dispatch({ effects: live.reconfigure(livePreviewWhen(true)) });
   assert.equal(math(), 3);
+  assert.equal(view.dom.querySelectorAll(".zmd-lp-html-table td").length, 2);
   assert.ok(view.dom.querySelector(".zmd-lp-h1"));
   assert.ok(view.dom.querySelector(".zmd-lp-list"));
 
@@ -171,6 +175,7 @@ test("the real editor switches Live -> Source -> Live without errors", async (t)
       .map((message) => message.payload?.message);
   assert.equal(math(), 3);
   assert.ok(view.dom.classList.contains("zmd-mode-live"));
+  assert.equal(view.dom.querySelectorAll(".zmd-lp-html-table td").length, 2);
 
   for (let round = 0; round < 2; round++) {
     send("setMode", { mode: "source" });
@@ -182,6 +187,7 @@ test("the real editor switches Live -> Source -> Live without errors", async (t)
     assert.deepEqual(errors(), []);
     assert.ok(view.dom.classList.contains("zmd-mode-live"));
     assert.equal(math(), 3);
+    assert.equal(view.dom.querySelectorAll(".zmd-lp-html-table td").length, 2);
   }
 
   // Editing after the round trip keeps the rebuilt decorations current.

@@ -151,6 +151,22 @@ ${mermaidStyles()}
   padding: 0.12em 0.4em;
   border-radius: 4px;
 }
+.zotero-markdown-preview-inner sup,
+.zotero-markdown-preview-inner sub {
+  font-size: 0.75em;
+  line-height: 0;
+}
+.zotero-markdown-preview-inner mark {
+  background: rgba(250, 204, 21, 0.35);
+  color: inherit;
+}
+.zotero-markdown-preview-inner kbd {
+  font-family: ${CODE_FONT_FAMILY};
+  font-size: 0.85em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+}
 .zotero-markdown-preview-inner .hljs-comment,
 .zotero-markdown-preview-inner .hljs-quote {
   color: var(--zmd-code-comment);
