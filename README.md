@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.25-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.26-blue?style=flat-square" alt="version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -62,6 +62,20 @@ Requires **Zotero 9 / 10 / 11 for desktop**.
 - **Explore an example**: choose **Help → Scholar Sketch: Create Example Whiteboard**.
 
 Stored attachments follow Zotero file sync; linked attachments need separate syncing. Local history stays on the current device.
+
+### Inline HTML formatting
+
+Markdown notes render attribute-free `sup`, `sub`, `u`, `mark`, `kbd`, `b`, `strong`, `i`, `em`, `s`, `del`, `small`, and `code` tags, plus `br` line breaks. For example, `Reference<sup>9</sup>` displays a superscript and `H<sub>2</sub>O` displays a subscript. Formatting tags require a matching closing tag and can contain Markdown or nested supported tags.
+
+Live preview renders tags within the same line, including table cells. Move the cursor onto the line to edit its source. Reading preview and HTML/PDF exports share the same supported tags. Code examples, unsupported tags, and tags with attributes display as text.
+
+### HTML tables with formulas
+
+Standalone HTML table blocks render in Live preview, reading preview, and HTML/PDF exports. Cells support Markdown, inline HTML formatting, and math, including `$g_1$` and multiline display formulas. Both single-line and multiline table source are supported.
+
+Supported structure includes `table`, `caption`, `thead`, `tbody`, `tfoot`, `tr`, `th`, and `td`. Positive integer `colspan` and `rowspan` values up to 1000 are rendered. Other table attributes are omitted from the rendered output. Incomplete tables remain visible as source.
+
+Click a rendered table cell or focus the table and press Enter to edit its HTML source. Moving the cursor outside the table restores the preview. The original HTML remains in the Markdown file.
 
 ### Flowcharts in Markdown
 

@@ -1,5 +1,9 @@
 import { parseMarkdownImages } from "../../modules/markdown/images/model";
 import { parseInlineL2 } from "./inline";
+import {
+  parseInlineHtmlRanges,
+  type InlineHtmlRange,
+} from "../../modules/markdown/inline-html";
 import { planLiveImageDecorations } from "./images";
 import {
   parseAtxHeading,
@@ -19,6 +23,7 @@ export interface CachedLineParse {
   list: ListPrefixParse | null;
   quote: PrefixParse | null;
   inlines: InlineRange[];
+  html: InlineHtmlRange[];
   imagePlans: ReturnType<typeof planLiveImageDecorations>;
   /** Raw image references of the line (shared by both active/inactive). */
   images: MarkdownImageReference[];
@@ -46,6 +51,7 @@ function parseLine(text: string, active: boolean): CachedLineParse {
     list: parseListPrefix(text),
     quote: parseBlockQuotePrefix(text),
     inlines,
+    html: parseInlineHtmlRanges(text),
     imagePlans: planLiveImageDecorations(text, active, images),
     images,
   };

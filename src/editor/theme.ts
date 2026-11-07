@@ -48,6 +48,31 @@ function createLivePreviewStyles(
     ".zmd-lp-mermaid": {
       margin: liveGeometry.tableMargin,
     },
+    ".zmd-lp-html-table": {
+      margin: liveGeometry.tableMargin,
+      paddingBlock: "0.5em",
+      overflowX: "auto",
+    },
+    ".zmd-lp-html-table table": {
+      borderCollapse: "collapse",
+      width: "100%",
+    },
+    ".zmd-lp-html-table th, .zmd-lp-html-table td": {
+      border: "1px solid rgba(127, 127, 127, 0.35)",
+      padding: "0.4em 0.75em",
+      verticalAlign: "middle",
+    },
+    ".zmd-lp-html-table th": {
+      backgroundColor: "rgba(127, 127, 127, 0.08)",
+      fontWeight: "600",
+    },
+    ".zmd-lp-html-table caption": {
+      fontWeight: "600",
+      paddingBottom: "0.4em",
+    },
+    ".zmd-lp-html-table p": {
+      margin: "0.4em 0",
+    },
     // Visible MD markers on the active (source) line — muted, keep line metrics
     ".zmd-lp-syntax": {
       opacity: "0.45",
@@ -105,7 +130,29 @@ function createLivePreviewStyles(
     ".zmd-lp-strike": {
       textDecoration: "line-through",
     },
-    ".zmd-lp-code": {
+    ".zmd-lp-html-sup, .zmd-lp-html-sub, .zmd-lp-html-table sup, .zmd-lp-html-table sub":
+      {
+        fontSize: "0.75em",
+        lineHeight: "0",
+      },
+    ".zmd-lp-html-sup, .zmd-lp-html-table sup": {
+      verticalAlign: "super",
+    },
+    ".zmd-lp-html-sub, .zmd-lp-html-table sub": {
+      verticalAlign: "sub",
+    },
+    ".zmd-lp-html-mark, .zmd-lp-html-table mark": {
+      backgroundColor: "rgba(250, 204, 21, 0.35)",
+      color: "inherit",
+    },
+    ".zmd-lp-html-kbd, .zmd-lp-html-table kbd": {
+      fontFamily: FONT_MONO,
+      fontSize: "0.85em",
+      border: "1px solid currentColor",
+      borderRadius: "3px",
+      padding: "0.05em 0.3em",
+    },
+    ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code": {
       fontFamily: FONT_MONO,
       fontSize: "0.9em",
       borderRadius: "4px",
@@ -676,8 +723,10 @@ export function editorThemeExtension(
           opacity: "0.8",
           fontWeight: "600",
         },
-        ".zmd-lp-code": {
-          ...livePreviewStyles[".zmd-lp-code"],
+        ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code": {
+          ...livePreviewStyles[
+            ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code"
+          ],
           backgroundColor: "rgba(255, 255, 255, 0.08)",
         },
         ".zmd-lp-link": {
@@ -763,8 +812,10 @@ export function editorThemeExtension(
       borderLeftColor: tokens.borderStrong,
       color: "#4b5563",
     },
-    ".zmd-lp-code": {
-      ...livePreviewStyles[".zmd-lp-code"],
+    ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code": {
+      ...livePreviewStyles[
+        ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code"
+      ],
       backgroundColor: "rgba(0, 0, 0, 0.06)",
     },
     ".zmd-lp-link": {

@@ -39,7 +39,12 @@ import {
   MermaidWidget,
   type MermaidBlockRange,
 } from "./mermaid";
+import { htmlTableBlocks, HtmlTableWidget } from "./html-table";
 import { renderMath } from "../../modules/markdown/math";
+import {
+  parseInlineHtmlRanges,
+  type InlineHtmlRange,
+} from "../../modules/markdown/inline-html";
 import type { DocLines, LineInfo } from "./types";
 import {
   assetReferenceCandidates,
@@ -104,6 +109,27 @@ function hideRange(from: number, to: number) {
 /** Muted visible syntax on the active (editing) line. */
 function syntaxRange(from: number, to: number) {
   return Decoration.mark({ class: "zmd-lp-syntax" }).range(from, to);
+}
+
+class HtmlLineBreakWidget extends WidgetType {
+  eq() {
+    return true;
+  }
+
+  get lineBreaks() {
+    return 1;
+  }
+
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = "zmd-lp-html-br";
+    span.append(document.createElement("br"));
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
 }
 
 /** Replaces a list prefix without losing its nesting indentation or label. */
@@ -681,6 +707,11 @@ class TableEdgeActionsWidget extends WidgetType {
 
 function appendRenderedInline(parent: HTMLElement, value: string) {
   const formulas = parseMathRanges(value);
+  const html = parseInlineHtmlRanges(value);
+  if (html.length) {
+    appendHtmlInline(parent, value, html, formulas);
+    return;
+  }
   const ranges = [
     ...parseInlineL2(value).filter(
       (range) => !intersects(range.from, range.to, formulas),
@@ -706,6 +737,104 @@ function appendRenderedInline(parent: HTMLElement, value: string) {
   if (!parent.hasChildNodes()) parent.textContent = "\u00a0";
 }
 
+/** Split at source boundaries so HTML can wrap existing Markdown styles. */
+function appendHtmlInline(
+  parent: HTMLElement,
+  value: string,
+  html: InlineHtmlRange[],
+  formulas: MathRange[],
+) {
+  const inlines = parseInlineL2(value).filter(
+    (range) => !intersects(range.from, range.to, formulas),
+  );
+  const hidden = [
+    ...inlines.filter((range) => range.kind === "mark"),
+    ...html.flatMap((range) => [
+      { from: range.from, to: range.openTo },
+      { from: range.closeFrom, to: range.to },
+    ]),
+  ];
+  const formats = [
+    ...inlines
+      .filter((range) => range.kind !== "mark")
+      .map((range) => ({
+        ...range,
+        tag: "span",
+        className: `zmd-lp-${range.kind}`,
+      })),
+    ...html
+      .filter((range) => range.tag !== "br")
+      .map((range) => ({
+        from: range.openTo,
+        to: range.closeFrom,
+        tag: range.tag,
+        className: `zmd-lp-html-${range.tag}`,
+      })),
+  ].sort((a, b) => a.from - b.from || b.to - a.to);
+  const boundaries = [
+    ...new Set([
+      0,
+      value.length,
+      ...[...hidden, ...formats, ...formulas].flatMap((range) => [
+        range.from,
+        range.to,
+      ]),
+    ]),
+  ].sort((a, b) => a - b);
+  for (let index = 0; index < boundaries.length - 1; index++) {
+    const from = boundaries[index];
+    const to = boundaries[index + 1];
+    for (const range of html) {
+      if (range.tag === "br" && range.from === from)
+        parent.append(document.createElement("br"));
+    }
+    if (intersects(from, to, hidden)) continue;
+    const formula = formulas.find(
+      (range) => range.from <= from && from < range.to,
+    );
+    if (formula && formula.from !== from) continue;
+    let container = parent;
+    for (const format of formats) {
+      if (format.from > from || format.to < to) continue;
+      const element = document.createElement(format.tag);
+      element.className = format.className;
+      container.append(element);
+      container = element;
+    }
+    if (formula) {
+      const span = document.createElement("span");
+      span.className = "zmd-lp-math";
+      span.innerHTML = renderMath(formula.content, formula.display);
+      container.append(span);
+      continue;
+    }
+    container.append(value.slice(from, to));
+  }
+  if (!parent.hasChildNodes()) parent.textContent = "\u00a0";
+}
+
+function liveHtmlRanges(
+  state: EditorState,
+  line: LineInfo,
+  html: InlineHtmlRange[],
+  excluded: Array<{ from: number; to: number }>,
+): InlineHtmlRange[] {
+  const tree = syntaxTree(state);
+  return html.filter((range) => {
+    if (
+      intersects(range.from, range.openTo, excluded) ||
+      intersects(range.closeFrom, range.to, excluded)
+    )
+      return false;
+    const opening = tree.resolve(line.from + range.from, 1);
+    const closing = tree.resolve(line.from + range.closeFrom, 1);
+    return (
+      opening.name === "HTMLTag" &&
+      (range.tag === "br" || closing.name === "HTMLTag")
+    );
+  });
+}
+
 function intersects(
   from: number,
   to: number,
@@ -727,7 +856,8 @@ export function buildBlockDecorations(
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const lineNumber = line.number;
-    if (fm.has(lineNumber)) continue;
+    if (fm.has(lineNumber) || structure.htmlTableLines.has(lineNumber))
+      continue;
     if (
       mathOnLine(state, structure, lineNumber).some(
         (formula) =>
@@ -840,13 +970,26 @@ function buildStructure(state: EditorState) {
   const lines = state.doc.toJSON();
   const fm = frontmatterLineNumbersFromLines(lines);
   const fencedCode = fencedCodeLineKindsFromLines(lines);
+  const htmlTables = htmlTableBlocks(state, fm);
+  const htmlTableLines = new Set<number>();
+  for (const table of htmlTables)
+    for (
+      let number = state.doc.lineAt(table.from).number;
+      number <= state.doc.lineAt(table.to).number;
+      number++
+    )
+      htmlTableLines.add(number);
   const mermaidBlocks: MermaidBlockRange[] = [];
   const mermaidLines = new Map<number, MermaidBlockRange>();
-  const excludedMath: Array<{ from: number; to: number }> = [];
+  const excludedMath: Array<{ from: number; to: number }> = [...htmlTables];
   syntaxTree(state).iterate({
     enter({ node }) {
       const mermaid = mermaidBlockFromNode(state, node);
-      if (mermaid && !fm.has(state.doc.lineAt(mermaid.from).number)) {
+      if (
+        mermaid &&
+        !fm.has(state.doc.lineAt(mermaid.from).number) &&
+        !htmlTableLines.has(state.doc.lineAt(mermaid.from).number)
+      ) {
         mermaidBlocks.push(mermaid);
         for (
           let number = state.doc.lineAt(mermaid.from).number;
@@ -946,12 +1089,15 @@ function buildStructure(state: EditorState) {
     ...allImageLines,
     ...mathLines.keys(),
     ...mermaidLines.keys(),
+    ...htmlTableLines,
   ]);
   for (const entries of imageLines.values())
     for (const number of entries) widgetLines.add(number);
   return {
     fm,
     fencedCode,
+    htmlTables,
+    htmlTableLines,
     mermaidBlocks,
     mermaidLines,
     formulas,
@@ -1111,6 +1257,51 @@ export const livePreviewMermaidDecorations = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+/** HTML tables own both their rendered cells and the complete editable source. */
+function buildHtmlTableDecorations(state: EditorState): DecorationSet {
+  const structure = state.field(liveStructure);
+  const editable = !state.readOnly && state.facet(EditorView.editable);
+  const decorations: ReturnType<Decoration["range"]>[] = [];
+  for (const table of structure.htmlTables) {
+    const from = structure.mapping.mapPos(table.from, 1);
+    const to = structure.mapping.mapPos(table.to, -1);
+    const first = state.doc.lineAt(from).number;
+    const last = state.doc.lineAt(to).number;
+    const editing =
+      editable &&
+      state.selection.ranges.some(
+        (selection) =>
+          state.doc.lineAt(selection.from).number <= last &&
+          state.doc.lineAt(selection.to).number >= first,
+      );
+    if (editing) continue;
+    decorations.push(
+      Decoration.replace({
+        widget: new HtmlTableWidget(table, from, to, editable),
+        block: true,
+        inclusive: false,
+      }).range(from, to),
+    );
+  }
+  return Decoration.set(decorations, true);
+}
+
+const livePreviewHtmlTableDecorations = StateField.define<DecorationSet>({
+  create: buildHtmlTableDecorations,
+  update(decorations, transaction) {
+    return transaction.docChanged ||
+      transaction.selection ||
+      transaction.state.field(liveStructure) !==
+        transaction.startState.field(liveStructure, false) ||
+      transaction.state.readOnly !== transaction.startState.readOnly ||
+      transaction.state.facet(EditorView.editable) !==
+        transaction.startState.facet(EditorView.editable)
+      ? buildHtmlTableDecorations(transaction.state)
+      : decorations;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
 function canUpdateLocally(transaction: Transaction): boolean {
   // Switching from Source to Live adds the live fields in this transaction,
   // so the start state has no structure to update from.
@@ -1151,6 +1342,7 @@ function canUpdateLocally(transaction: Transaction): boolean {
       structure.fm.has(before.number) ||
       structure.fencedCode[before.number - 1] ||
       structure.tableRows.has(before.number) ||
+      structure.htmlTableLines.has(before.number) ||
       structure.structuralLines.has(before.number)
     ) {
       local = false;
@@ -1347,7 +1539,7 @@ export function buildLivePreviewDecorations(
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const n = line.number;
-    if (fm.has(n)) continue;
+    if (fm.has(n) || structure.htmlTableLines.has(n)) continue;
 
     const text = line.text;
     const base = line.from;
@@ -1566,6 +1758,38 @@ export function buildLivePreviewDecorations(
     }
 
     const inlines = parsed.inlines;
+    for (const html of liveHtmlRanges(state, line, parsed.html, images)) {
+      const openFrom = base + html.from;
+      const openTo = base + html.openTo;
+      if (html.tag === "br") {
+        ranges.push(
+          hideMarks
+            ? Decoration.replace({ widget: new HtmlLineBreakWidget() }).range(
+                openFrom,
+                openTo,
+              )
+            : syntaxRange(openFrom, openTo),
+        );
+        continue;
+      }
+      const closeFrom = base + html.closeFrom;
+      const closeTo = base + html.to;
+      ranges.push(
+        hideMarks ? hideRange(openFrom, openTo) : syntaxRange(openFrom, openTo),
+        hideMarks
+          ? hideRange(closeFrom, closeTo)
+          : syntaxRange(closeFrom, closeTo),
+      );
+      if (openTo < closeFrom) {
+        ranges.push(
+          Decoration.mark({
+            tagName: html.tag,
+            class: `zmd-lp-html-${html.tag}`,
+            inclusive: true,
+          }).range(openTo, closeFrom),
+        );
+      }
+    }
     for (const r of inlines) {
       if (r.from >= r.to) continue;
       if (intersects(r.from, r.to, formulaOffsets)) continue;
@@ -1855,6 +2079,7 @@ export function buildVisibleLinkDecorations(
       structure.fm.has(number) ||
       structure.fencedCode[number - 1] ||
       structure.tableRows.has(number) ||
+      structure.htmlTableLines.has(number) ||
       structure.tableDelimiterLines.has(number) ||
       structure.structuralLines.has(number)
     )
@@ -1955,6 +2180,7 @@ export function livePreviewPlugin(): Extension {
     liveStructure,
     livePreviewMathDecorations,
     livePreviewMermaidDecorations,
+    livePreviewHtmlTableDecorations,
     livePreviewBlockDecorations,
     livePreviewViewPlugin,
     livePreviewVisibleLinks,
