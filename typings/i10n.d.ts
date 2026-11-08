@@ -92,6 +92,8 @@ export type FluentMessageId =
   | 'feature-updates-image-repair-title'
   | 'feature-updates-inline-html-body'
   | 'feature-updates-inline-html-title'
+  | 'feature-updates-link-preview-body'
+  | 'feature-updates-link-preview-title'
   | 'feature-updates-links-body'
   | 'feature-updates-links-title'
   | 'feature-updates-local-examples-body'

@@ -25,6 +25,10 @@ export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlights[] = [
         title: "feature-updates-html-table-math-title",
         body: "feature-updates-html-table-math-body",
       },
+      {
+        title: "feature-updates-link-preview-title",
+        body: "feature-updates-link-preview-body",
+      },
     ],
   },
   {
