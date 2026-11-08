@@ -333,6 +333,7 @@ async function readDocument(
   item: Zotero.Item,
   metadata: PortableNote,
   previous?: NoteDocument,
+  options: { includeLinks?: boolean } = {},
 ): Promise<IndexedNoteDocument> {
   const base = { ...metadata, path: previous?.path };
   let stage: NoteReadFailure["stage"] = "path";
@@ -367,7 +368,9 @@ async function readDocument(
       ...base,
       path,
       content,
-      links: extractNoteLinks(content),
+      ...(options.includeLinks !== false
+        ? { links: extractNoteLinks(content) }
+        : {}),
       ...(stable ? after : {}),
     };
   } catch (error) {
@@ -688,6 +691,19 @@ export function subscribeNoteLibrary(listener: NoteListener): () => void {
   return () => listeners.delete(listener);
 }
 
+/** Existing metadata only; hover lookups must not start a library body scan. */
+export function cachedNoteMetadata(libraryID: number): PortableNote[] {
+  return [...(libraries.get(libraryID)?.notes.values() ?? [])].map(
+    ({ libraryID, key, filename, title, groupID }) => ({
+      libraryID,
+      key,
+      filename,
+      title,
+      ...(groupID !== undefined ? { groupID } : {}),
+    }),
+  );
+}
+
 export function clearNoteLibraries(): void {
   lifecycle++;
   downloads.clear();
@@ -708,9 +724,10 @@ export function clearNoteLibraries(): void {
 /** Read this note's saved file without scanning or updating the library cache. */
 export async function readSavedNote(
   item: Zotero.Item,
+  options: { includeLinks?: boolean } = {},
 ): Promise<IndexedNoteDocument | null> {
   const metadata = noteMetadata(item);
-  return metadata ? readDocument(item, metadata) : null;
+  return metadata ? readDocument(item, metadata, undefined, options) : null;
 }
 
 export async function getNoteBacklinks(item: Zotero.Item): Promise<{

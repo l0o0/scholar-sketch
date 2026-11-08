@@ -29,6 +29,10 @@ import {
 import type { ImageAssetMap } from "./editor-protocol";
 import { navigateDocumentLink, searchDocumentLinks } from "./document-links";
 import { mountNoteBacklinks } from "./backlinks";
+import {
+  createLinkPreviewController,
+  type LinkPreviewController,
+} from "./link-preview";
 import { noteHeadingPosition, type PortableNote } from "./note-links";
 import {
   iconBold,
@@ -184,6 +188,7 @@ class SidebarController {
   private documentSyncRefresh: Promise<void> | null = null;
   private unbindDocumentSync: (() => void) | null = null;
   private unbindBacklinks: (() => void) | null = null;
+  private linkPreview: LinkPreviewController | null = null;
   private setSummary: ((summary: string) => void) | null = null;
   private lastSummary: ((summary: string) => void) | null = null;
   private pendingBody: HTMLElement | null = null;
@@ -363,6 +368,7 @@ class SidebarController {
   setActive(active: boolean): void {
     this.active = active;
     if (active) return;
+    this.linkPreview?.hide();
     this.cancelPendingRender();
     this.pendingBody = null;
     this.closeMoreMenu();
@@ -445,6 +451,7 @@ class SidebarController {
   }
 
   setItem(item: Zotero.Item | null, editable: boolean): void {
+    this.linkPreview?.hide();
     // Bump the render sequence so any in-flight async openEditor for a
     // previously selected item aborts (rapid item-tree navigation).
     const seq = ++this.renderSeq;
@@ -488,6 +495,8 @@ class SidebarController {
    */
   destroy(): Promise<void> {
     if (this.destroyed) return Promise.resolve();
+    this.linkPreview?.dispose();
+    this.linkPreview = null;
     this.destroyed = true;
     this.renderSeq++;
     this.cancelPendingRender();
@@ -557,6 +566,7 @@ class SidebarController {
 
   private setEditorVisible(visible: boolean): void {
     this.editorHost.hidden = !visible;
+    if (!visible) this.linkPreview?.hide();
     // Empty/loading views may retain the previous draft, but its references
     // belong to that editor and must follow its visibility.
     const references = this.root.querySelector<HTMLElement>(".zmd-backlinks");
@@ -796,12 +806,26 @@ class SidebarController {
       this.editor?.revealPosition(from);
       return true;
     };
+    const linkPreview = createLinkPreviewController({
+      root: this.root,
+      currentItem: item,
+      win: this.win,
+      isActive: () => ownsEditor() && !this.editorHost.hidden,
+      onOpen: (href, sourceItemID) => {
+        const source = sourceItemID ? Zotero.Items.get(sourceItemID) : item;
+        if (ownsEditor() && source)
+          navigateDocumentLink(source, this.win, href, { onNavigateNote });
+      },
+    });
+    this.linkPreview = linkPreview;
+    linkPreview.bindLinks(this.root);
     const editor = createMarkdownEditor(this.editorHost, {
       channel: `pane-${item.id}`,
       surface: "sidebar",
       doc: content,
       readOnly: !this.editable,
       onChange: (_value, sources) => {
+        linkPreview.hide();
         if (sources?.length) deletedImages.record(sources);
         this.save?.markChanged();
         documentSyncRegistry.markEdited(sourceID);
@@ -842,6 +866,7 @@ class SidebarController {
         if (!ownsEditor()) return;
         navigateDocumentLink(item, this.win, href, { onNavigateNote });
       },
+      onLinkHover: (target) => linkPreview.show(target),
       onPasteImage: ({ bytes, mimeType }) =>
         this.insertImage(new Uint8Array(bytes), mimeType),
     });
@@ -880,6 +905,8 @@ class SidebarController {
   }
 
   private async destroyEditor(): Promise<void> {
+    this.linkPreview?.dispose();
+    this.linkPreview = null;
     this.unbindBacklinks?.();
     this.unbindBacklinks = null;
     if (this.autosaveTimer != null) {

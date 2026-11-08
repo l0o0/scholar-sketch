@@ -343,7 +343,7 @@ class TableCellWidget extends WidgetType {
       dom.removeAttribute("role");
       dom.removeAttribute("aria-multiline");
       dom.replaceChildren();
-      appendRenderedInline(dom, this.value);
+      appendRenderedInline(dom, this.value, this.from);
     }
     return true;
   }
@@ -509,7 +509,7 @@ class TableCellWidget extends WidgetType {
       };
       cell.ownerDocument.defaultView?.requestAnimationFrame(focus);
     } else {
-      appendRenderedInline(cell, this.value);
+      appendRenderedInline(cell, this.value, this.from);
     }
     return cell;
   }
@@ -705,11 +705,15 @@ class TableEdgeActionsWidget extends WidgetType {
   }
 }
 
-function appendRenderedInline(parent: HTMLElement, value: string) {
+function appendRenderedInline(
+  parent: HTMLElement,
+  value: string,
+  sourceFrom: number,
+) {
   const formulas = parseMathRanges(value);
   const html = parseInlineHtmlRanges(value);
   if (html.length) {
-    appendHtmlInline(parent, value, html, formulas);
+    appendHtmlInline(parent, value, html, formulas, sourceFrom);
     return;
   }
   const ranges = [
@@ -726,6 +730,10 @@ function appendRenderedInline(parent: HTMLElement, value: string) {
     if (range.kind !== "mark") {
       const span = document.createElement("span");
       span.className = `zmd-lp-${range.kind}`;
+      if (range.kind === "link") {
+        span.dataset.zmdLink = "";
+        span.dataset.zmdLinkFrom = String(sourceFrom + range.from);
+      }
       if (range.kind === "math")
         span.innerHTML = renderMath(range.content, range.display);
       else span.textContent = value.slice(range.from, range.to);
@@ -743,6 +751,7 @@ function appendHtmlInline(
   value: string,
   html: InlineHtmlRange[],
   formulas: MathRange[],
+  sourceFrom: number,
 ) {
   const inlines = parseInlineL2(value).filter(
     (range) => !intersects(range.from, range.to, formulas),
@@ -798,6 +807,10 @@ function appendHtmlInline(
       if (format.from > from || format.to < to) continue;
       const element = document.createElement(format.tag);
       element.className = format.className;
+      if ("href" in format && format.href) {
+        element.dataset.zmdLink = "";
+        element.dataset.zmdLinkFrom = String(sourceFrom + format.from);
+      }
       container.append(element);
       container = element;
     }

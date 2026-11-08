@@ -121,6 +121,10 @@ import { documentSyncRegistry } from "./document-sync";
 import { navigateDocumentLink, searchDocumentLinks } from "./document-links";
 import { switchMarkdownSurface } from "./window";
 import { mountBacklinksSidebar, mountNoteBacklinks } from "./backlinks";
+import {
+  createLinkPreviewController,
+  type LinkPreviewController,
+} from "./link-preview";
 import { noteHeadingPosition, type PortableNote } from "./note-links";
 import { invalidateNoteLibrary, updateIndexedNote } from "./note-library";
 import { exportNoteLibrary } from "./export-notes";
@@ -133,6 +137,7 @@ import {
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
+const linkPreviews = new WeakMap<OpenSession, LinkPreviewController>();
 const toolbarVisibilities = new WeakMap<
   OpenSession,
   ToolbarVisibilityController
@@ -1212,6 +1217,18 @@ function mountEditorUI(
   };
   const navigateLink = (href: string) =>
     navigateDocumentLink(item, win, href, { onNavigateNote });
+  const linkPreview = createLinkPreviewController({
+    root,
+    currentItem: item,
+    win,
+    onOpen: (href, sourceItemID) => {
+      const source = sourceItemID ? Zotero.Items.get(sourceItemID) : item;
+      if (source) navigateDocumentLink(source, win, href, { onNavigateNote });
+    },
+    isActive: () => !session.closing && session.isActive(),
+  });
+  linkPreviews.set(session, linkPreview);
+  linkPreview.bindLinks(root);
   const unbindBacklinksSidebar = mountBacklinksSidebar(
     view.root,
     view.backlinksSidebarEl,
@@ -1347,6 +1364,7 @@ function mountEditorUI(
       }
     },
     onChange: (value, deletedImages) => {
+      linkPreview.hide();
       if (deletedImages?.length) session.deletedImages?.record(deletedImages);
       const appliedTitleSync = !!session.applyingTitleSync;
       session.applyingTitleSync = false;
@@ -1399,6 +1417,7 @@ function mountEditorUI(
         currentContent: session.editor?.getValue() ?? content,
       }),
     onOpenLink: navigateLink,
+    onLinkHover: (target) => linkPreview.show(target),
   });
   ztoolkit.log("[Bamboo][EditorDebug] tab-editor-created", {
     tabID: session.tabID,
@@ -1507,6 +1526,7 @@ function applyModeVisibility(
   session: OpenSession,
   mode: "live" | "source" | "preview",
 ) {
+  linkPreviews.get(session)?.hide();
   if (mode !== "preview") {
     session.unbindPreviewOutline?.();
     session.unbindPreviewOutline = undefined;
@@ -3211,6 +3231,8 @@ export async function closeMarkdownSession(
     session.outlineSidebar?.destroy();
     session.unbindBacklinks?.();
     session.unbindPreviewOutline?.();
+    linkPreviews.get(session)?.dispose();
+    linkPreviews.delete(session);
     if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
     session.editor?.destroy();
     await session.deletedImages

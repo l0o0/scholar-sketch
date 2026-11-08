@@ -8,7 +8,7 @@ import {
 } from "./frontmatter";
 import { highlightFencedCode } from "./code-highlight";
 import { parseDocumentLink, isPdfDocumentLink } from "./document-link-shared";
-import { parseNoteLink } from "./note-links";
+import { parseNoteLink, noteHeadingPosition } from "./note-links";
 import { parseHtmlImage } from "./images/html";
 import { parseWikiImage } from "./images/reference";
 import { configureInlineHtml } from "./inline-html";
@@ -357,6 +357,24 @@ export function parseHtmlTableBlocksCore(source: string): HtmlTable[] {
     .parse(source, {})
     .filter((token) => token.type === "zmd_html_table" && token.level === 0)
     .map((token) => (token.meta as { table: HtmlTable }).table);
+}
+
+/** Bounded hover output; heading lookup runs in the rendering worker. */
+export function markdownPreviewFragment(
+  source: string,
+  { maxChars, heading }: { maxChars: number; heading?: string },
+): { source: string; headingFound?: boolean } {
+  const position = heading ? noteHeadingPosition(source, heading) : 0;
+  if (position === null) return { source: "", headingFound: false };
+  const selected = source.slice(position, position + maxChars);
+  const line = selected.lastIndexOf("\n");
+  return {
+    source:
+      selected.length === maxChars && line > 0
+        ? selected.slice(0, line)
+        : selected,
+    ...(heading ? { headingFound: true } : {}),
+  };
 }
 
 export function renderMarkdownCore(source: string, docId?: string): string {

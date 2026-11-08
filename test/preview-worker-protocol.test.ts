@@ -21,4 +21,34 @@ test("validates versioned preview worker messages", () => {
     true,
   );
   assert.equal(isPreviewWorkerResponse({ requestID: 2, ok: true }), false);
+  const request = { version: 1, requestID: 3, source: "# A" };
+  assert.equal(
+    isPreviewWorkerRequest({
+      ...request,
+      fragment: { maxChars: 12000, heading: "A" },
+    }),
+    true,
+  );
+  for (const fragment of [
+    { maxChars: 0 },
+    { maxChars: 1e9 },
+    { maxChars: 12, heading: 3 },
+  ]) {
+    assert.equal(isPreviewWorkerRequest({ ...request, fragment }), false);
+  }
+  const response = {
+    version: 1,
+    requestID: 3,
+    ok: true,
+    title: "A",
+    bodyHtml: "",
+  };
+  assert.equal(
+    isPreviewWorkerResponse({ ...response, headingFound: false }),
+    true,
+  );
+  assert.equal(
+    isPreviewWorkerResponse({ ...response, headingFound: "false" }),
+    false,
+  );
 });

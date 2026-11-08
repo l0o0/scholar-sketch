@@ -20,6 +20,7 @@ import {
 import { editorTableLabels } from "./table-config";
 import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
+import { editorLinkHover } from "./link-hover";
 import {
   normalizeFontFamily,
   normalizeBackgroundColor,
@@ -1179,6 +1180,7 @@ function postToParent(message: {
     | "resolveAsset"
     | "linkSearch"
     | "openLink"
+    | "linkHover"
     | "save"
     | "importImage"
     | "error"
@@ -1297,6 +1299,7 @@ function buildExtensions(
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
 
   return [
+    editorLinkHover((payload) => postToParent({ type: "linkHover", payload })),
     topInsetCompartment.of(topInsetExtension(init.topInset ?? 0)),
     guttersCompartment.of(guttersForMode(runtime.mode)),
     highlightActiveLine(),

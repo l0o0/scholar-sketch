@@ -179,6 +179,7 @@ function executableScheduling() {
                 node.name.text === "titleSaveOwners" ||
                 node.name.text === "responsiveToolbars" ||
                 node.name.text === "modeMenus" ||
+                node.name.text === "linkPreviews" ||
                 node.name.text === "toolbarVisibilities" ||
                 node.name.text === "readOnlySessions"),
           )
@@ -321,6 +322,7 @@ function fixture(initial = "# Untitled\n\nBody") {
   };
   const context = createContext({
     session,
+    linkPreview: { hide() {} },
     requestSave,
     cancelPaperExport,
     SaveCoordinator,
@@ -1052,6 +1054,7 @@ test("the sidebar's actual callbacks pause pending autosave during composition a
   const saves: boolean[] = [];
   const context = createContext({
     sourceID: "sidebar-ime",
+    linkPreview: { hide() {} },
     documentSyncRegistry: { markEdited() {} },
   });
   runInContext(

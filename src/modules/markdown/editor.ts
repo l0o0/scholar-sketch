@@ -24,6 +24,7 @@ import {
   computeStats,
   type EditorLinkCandidate,
   type EditorLinkFilter,
+  type LinkHoverTarget,
   isEditorLinkIcon,
   type EditorMode,
   type EditorOutlineItem,
@@ -199,6 +200,8 @@ export function createMarkdownEditor(
       filter: EditorLinkFilter,
     ) => Promise<EditorLinkCandidate[]>;
     onOpenLink?: (href: string) => void;
+    /** Link bounds are translated to this host window's viewport. */
+    onLinkHover?: (target: LinkHoverTarget | null) => void;
     win?: Window;
     channel?: string;
     surface?: EditorSurface;
@@ -224,6 +227,7 @@ export function createMarkdownEditor(
     onResolveAsset,
     onLinkSearch,
     onOpenLink,
+    onLinkHover,
   } = options;
   let currentReadOnly = readOnly;
   let currentTopInset = options.topInset ?? 0;
@@ -687,6 +691,25 @@ export function createMarkdownEditor(
         onOpenLink?.(data.payload.href);
         break;
       }
+      case "linkHover": {
+        if (data.payload === null) onLinkHover?.(null);
+        else {
+          const frame = iframe.getBoundingClientRect();
+          const { href, rect } = data.payload;
+          const left = frame.left + iframe.clientLeft;
+          const top = frame.top + iframe.clientTop;
+          onLinkHover?.({
+            href,
+            rect: {
+              left: left + rect.left,
+              top: top + rect.top,
+              right: left + rect.right,
+              bottom: top + rect.bottom,
+            },
+          });
+        }
+        break;
+      }
       case "save": {
         onSave?.();
         break;
@@ -988,6 +1011,7 @@ export function createMarkdownEditor(
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      onLinkHover?.(null);
       cancelImageImport();
       composing = false;
       detachNativeDrop();

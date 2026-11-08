@@ -654,6 +654,7 @@ export function mountNoteBacklinks(
         );
       const header = doc.createElement(multiple ? "summary" : "button");
       header.className = "zmd-reference-open";
+      header.dataset.zmdPreviewHref = entry.occurrences[0]?.href ?? "";
       if (!multiple) {
         const button = header as HTMLButtonElement;
         button.type = "button";
@@ -709,6 +710,7 @@ export function mountNoteBacklinks(
           button.type = "button";
           button.className = "zmd-reference-occurrence";
           button.dataset.position = String(occurrence.position);
+          button.dataset.zmdPreviewHref = occurrence.href;
           const ordinal = doc.createElement("span");
           ordinal.className = "zmd-reference-ordinal";
           ordinal.textContent = String(index + 1);
