@@ -91,6 +91,12 @@ export interface EditorLinkCandidate {
   heading?: string;
 }
 
+/** Link bounds in the sender's viewport, in CSS pixels. */
+export interface LinkHoverTarget {
+  href: string;
+  rect: { left: number; top: number; right: number; bottom: number };
+}
+
 export interface EditorAppearance {
   fontFamily: FontFamilyID;
   backgroundColor: string;
@@ -342,6 +348,11 @@ export type EditorToParentMessage = (
       type: "openLink";
       payload: { href: string };
     }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "linkHover";
+      payload: LinkHoverTarget | null;
+    }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "save" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "importImage" }
   | {
@@ -466,6 +477,25 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
     );
   }
   if (data.type === "viewState") return validViewState(data.payload);
+  if (data.type === "linkHover") {
+    if (data.payload === null) return true;
+    const payload = data.payload as Partial<LinkHoverTarget> | undefined;
+    const rect = payload?.rect;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      typeof payload.href === "string" &&
+      payload.href.length > 0 &&
+      payload.href.length <= 4096 &&
+      !!rect &&
+      typeof rect === "object" &&
+      [rect.left, rect.top, rect.right, rect.bottom].every(
+        (value) => typeof value === "number" && Number.isFinite(value),
+      ) &&
+      rect.right >= rect.left &&
+      rect.bottom >= rect.top
+    );
+  }
   if (data.type === "openLink") {
     const payload = data.payload;
     return (

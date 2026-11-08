@@ -1,10 +1,16 @@
 export const PREVIEW_WORKER_PROTOCOL_VERSION = 1 as const;
 
+export interface PreviewWorkerFragment {
+  maxChars: number;
+  heading?: string;
+}
+
 export interface PreviewWorkerRequest {
   version: typeof PREVIEW_WORKER_PROTOCOL_VERSION;
   requestID: number;
   source: string;
   title?: string;
+  fragment?: PreviewWorkerFragment;
 }
 
 export type PreviewWorkerResponse =
@@ -14,6 +20,7 @@ export type PreviewWorkerResponse =
       ok: true;
       title: string;
       bodyHtml: string;
+      headingFound?: boolean;
     }
   | {
       version: typeof PREVIEW_WORKER_PROTOCOL_VERSION;
@@ -38,7 +45,8 @@ export function isPreviewWorkerRequest(
     Number.isInteger(data.requestID) &&
     data.requestID >= 0 &&
     typeof data.source === "string" &&
-    (data.title === undefined || typeof data.title === "string")
+    (data.title === undefined || typeof data.title === "string") &&
+    (data.fragment === undefined || isFragment(data.fragment))
   );
 }
 
@@ -56,7 +64,24 @@ export function isPreviewWorkerResponse(
     return false;
   }
   if (data.ok) {
-    return typeof data.title === "string" && typeof data.bodyHtml === "string";
+    return (
+      typeof data.title === "string" &&
+      typeof data.bodyHtml === "string" &&
+      (data.headingFound === undefined ||
+        typeof data.headingFound === "boolean")
+    );
   }
   return typeof data.error === "string";
+}
+
+function isFragment(value: unknown): value is PreviewWorkerFragment {
+  const data = record(value);
+  return Boolean(
+    data &&
+    typeof data.maxChars === "number" &&
+    Number.isSafeInteger(data.maxChars) &&
+    data.maxChars > 0 &&
+    data.maxChars <= 64 * 1024 &&
+    (data.heading === undefined || typeof data.heading === "string"),
+  );
 }

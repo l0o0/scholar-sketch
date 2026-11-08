@@ -2,6 +2,7 @@ import {
   isPreviewWorkerResponse,
   type PreviewWorkerRequest,
   type PreviewWorkerResponse,
+  type PreviewWorkerFragment,
 } from "./preview-worker-protocol";
 
 export type PreviewWorkerErrorCode =
@@ -78,6 +79,7 @@ export class PreviewWorkerClient {
   render(
     source: string,
     title?: string,
+    fragment?: PreviewWorkerFragment,
   ): Promise<Extract<PreviewWorkerResponse, { ok: true }>> {
     if (this.disposed) {
       return Promise.reject(
@@ -103,6 +105,7 @@ export class PreviewWorkerClient {
       requestID,
       source,
       ...(title ? { title } : {}),
+      ...(fragment ? { fragment } : {}),
     };
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

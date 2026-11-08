@@ -1,5 +1,9 @@
 import type { EditorState } from "@codemirror/state";
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import {
+  ensureSyntaxTree,
+  syntaxTree,
+  syntaxTreeAvailable,
+} from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import MarkdownIt from "markdown-it";
 import { parseInlineL2 } from "./live-preview/inline";
@@ -46,11 +50,31 @@ function frontmatterEnd(state: EditorState): number {
   return end;
 }
 
-/** Resolve only the clicked link from the current document, never a DOM href. */
+export interface EditorLinkRange {
+  href: string;
+  from: number;
+  to: number;
+}
+
+interface LinkTargetOptions {
+  /** Hover must use the background parser's current tree without advancing it. */
+  allowParsing?: boolean;
+}
+
+/** Resolve only the link from the current document, never a DOM href. */
 export function linkTargetAt(
   state: EditorState,
   position: number,
+  options: LinkTargetOptions = {},
 ): string | null {
+  return linkRangeAt(state, position, options)?.href ?? null;
+}
+
+export function linkRangeAt(
+  state: EditorState,
+  position: number,
+  { allowParsing = true }: LinkTargetOptions = {},
+): EditorLinkRange | null {
   if (
     !Number.isInteger(position) ||
     position < 0 ||
@@ -60,7 +84,11 @@ export function linkTargetAt(
   const ignoredEnd = frontmatterEnd(state);
   if (ignoredEnd && position <= ignoredEnd) return null;
   const line = state.doc.lineAt(position);
-  const tree = ensureSyntaxTree(state, line.to, 30);
+  const tree = allowParsing
+    ? ensureSyntaxTree(state, line.to, 30)
+    : syntaxTreeAvailable(state, line.to)
+      ? syntaxTree(state)
+      : null;
   // A partial tree cannot prove that a Wiki-looking string is outside code.
   if (!tree) return null;
   let link: EditorSyntaxNode | null = null;
@@ -82,7 +110,10 @@ export function linkTargetAt(
     if (node.name === "URL" && !bareURL) bareURL = node;
   }
   const url = link?.getChild("URL");
-  if (url) return destination(state.sliceDoc(url.from, url.to)) || null;
+  if (url) {
+    const href = destination(state.sliceDoc(url.from, url.to));
+    return href ? { href, from: link!.from, to: link!.to } : null;
+  }
 
   const wiki = parseInlineL2(line.text).find(
     (range) =>
@@ -91,7 +122,12 @@ export function linkTargetAt(
       position - line.from >= range.from &&
       position - line.from < range.to,
   );
-  if (wiki?.href) return wiki.href;
+  if (wiki?.href)
+    return {
+      href: wiki.href,
+      from: line.from + wiki.from,
+      to: line.from + wiki.to,
+    };
 
   if (link) {
     const marks = link.getChildren("LinkMark");
@@ -109,7 +145,11 @@ export function linkTargetAt(
     if (!targets) {
       // Definitions can follow the clicked reference. Reuse the language's
       // incremental tree; never start a second whole-document parser here.
-      const complete = ensureSyntaxTree(state, state.doc.length, 50);
+      const complete = allowParsing
+        ? ensureSyntaxTree(state, state.doc.length, 50)
+        : syntaxTreeAvailable(state, state.doc.length)
+          ? syntaxTree(state)
+          : null;
       if (!complete) return null;
       targets = new Map();
       complete.iterate({
@@ -125,14 +165,19 @@ export function linkTargetAt(
       });
       definitions.set(state.doc, targets);
     }
-    return targets.get(key) || null;
+    const href = targets.get(key);
+    return href ? { href, from: link.from, to: link.to } : null;
   }
   const automaticURL = autoLink?.getChild("URL") ?? bareURL;
   if (!automaticURL) return null;
   const value = destination(state.sliceDoc(automaticURL.from, automaticURL.to));
-  return autoLink && /^[^\s:]+@[^\s]+$/.test(value)
-    ? `mailto:${value}`
-    : value || null;
+  if (!value) return null;
+  return {
+    href:
+      autoLink && /^[^\s:]+@[^\s]+$/.test(value) ? `mailto:${value}` : value,
+    from: (autoLink ?? automaticURL).from,
+    to: (autoLink ?? automaticURL).to,
+  };
 }
 
 /** Capture the source position before selection reveals hidden Markdown marks. */

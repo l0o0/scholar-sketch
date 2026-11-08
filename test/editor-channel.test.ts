@@ -27,6 +27,53 @@ test("accepts editor messages only from the matching session channel", () => {
   );
 });
 
+test("hover links require an owning channel and finite ordered viewport bounds", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    channel: "hover",
+    type: "linkHover",
+  };
+  const payload = {
+    href: "[[Note--ABCDEFGH]]",
+    rect: { left: -2, top: 0, right: 45.5, bottom: 24 },
+  };
+  for (const target of [payload, null]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: target },
+        "hover",
+      ),
+      true,
+    );
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: target },
+        "other",
+      ),
+      false,
+    );
+  }
+  for (const invalid of [
+    undefined,
+    {},
+    { ...payload, href: "" },
+    { ...payload, href: "x".repeat(4097) },
+    { ...payload, rect: null },
+    { ...payload, rect: { ...payload.rect, right: -3 } },
+    { ...payload, rect: { ...payload.rect, bottom: -1 } },
+    { ...payload, rect: { ...payload.rect, left: NaN } },
+    { ...payload, rect: { ...payload.rect, top: Infinity } },
+    { ...payload, rect: { ...payload.rect, right: "45" } },
+  ])
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: invalid },
+        "hover",
+      ),
+      false,
+    );
+});
+
 test("rejects unscoped editor messages when a channel is required", () => {
   assert.equal(
     isEditorProtocolMessageForChannel(

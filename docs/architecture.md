@@ -69,6 +69,24 @@ PDF links use the current Zotero process's native URI handler, preserving page
 and annotation locations. Dispatch does not imply the asynchronous file open
 succeeded; Zotero owns that operation and its error feedback.
 
+Each mounted Markdown surface owns a host-side link-preview controller. Editor
+iframes publish only the hovered link and its viewport rectangle; the host
+translates coordinates and shares the content loader with reading-preview and
+reference-sidebar links. A single running load and one replaceable pending
+target bound hover work; generation checks reject stale results. Metadata caches
+are bounded and invalidated by item/note updates and window focus. Markdown
+snippets are read afresh, preferring a same-window editor snapshot, and selected
+and rendered in a surface-owned worker. Worker failure falls back to a bounded
+text excerpt. Native PDF previews use Zotero's transient Reader through one
+compatibility adapter; closing a card releases its browser and reader, including
+late initialization. Hover never invokes document navigation or file download.
+The card reserves a placement before loading and bounds its height to the space
+on that side, so asynchronous content cannot move it away from the pointer.
+Item/index notifications invalidate future cached reads while preserving the
+current snapshot. The PDF adapter owns continuous scrolling, its resize handler
+and pointer listeners in both reader documents; the controller uses that
+ownership to keep internal pointer/key events inside the card.
+
 ## Protocol
 
 High-frequency `change` messages carry `{ rev, changes }` instead of the full document. The parent applies those ranges to its shadow copy. Save/flush calls `requestSnapshot` so the written file is the latest iframe document. Image widgets request a single `resolveAsset`; the parent answers with a cached data URL.

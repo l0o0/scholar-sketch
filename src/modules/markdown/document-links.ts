@@ -549,6 +549,51 @@ export async function describeDocumentLinkTargets(
   return candidates;
 }
 
+/** Resolve a file/wiki note destination from metadata, without completion limits or body scans. */
+export async function resolveMarkdownLinkMetadata(
+  currentItem: Zotero.Item,
+  href: string,
+): Promise<DocumentLinkSearchResult> {
+  const Search = Zotero.Search;
+  if (typeof Search !== "function")
+    return { status: "unresolved", candidates: [] };
+  const current: PortableNote = noteMetadata(currentItem) || {
+    libraryID: currentItem.libraryID,
+    key: currentItem.key,
+    filename: "",
+    title: "",
+  };
+  const search = new Search({ libraryID: currentItem.libraryID });
+  search.addCondition("itemType", "is", "attachment");
+  const ids = await search.search();
+  const candidates: DocumentLinkCandidate[] = [];
+  const matches: Zotero.Item[] = [];
+  for (let offset = 0; offset < ids.length; offset += 48) {
+    if (offset) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const items = await loadLinkItems(ids.slice(offset, offset + 48));
+    for (const item of items) {
+      if (item.libraryID !== currentItem.libraryID || !itemAvailable(item))
+        continue;
+      const note = noteMetadata(item);
+      if (!note) continue;
+      const resolved = resolveNoteLink(href, current, [note]);
+      if (resolved.status !== "resolved" || resolved.note.key !== note.key)
+        continue;
+      const candidate = candidateFromItem(item, note, resolved.heading);
+      if (!candidate) continue;
+      candidates.push(candidate);
+      matches.push(item);
+      // Two distinct matches are sufficient to reject an ambiguous hover.
+      if (candidates.length === 2) return { status: "ambiguous", candidates };
+    }
+  }
+  if (!candidates.length) return { status: "unresolved", candidates: [] };
+  await loadCandidateCreators(matches);
+  const author = firstAuthor(matches[0]);
+  if (author) candidates[0].author = author;
+  return { status: "resolved", candidate: candidates[0] };
+}
+
 function candidateMatchesQuery(
   item: Zotero.Item,
   query: string,

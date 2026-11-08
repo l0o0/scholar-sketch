@@ -5,12 +5,29 @@ import { markdown } from "@codemirror/lang-markdown";
 import { GFM } from "@lezer/markdown";
 import { Decoration, EditorView } from "@codemirror/view";
 import { Window } from "happy-dom";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { linkTargetAt, openEditorLink } from "../src/editor/link-target.ts";
 
 const state = (doc: string) =>
   EditorState.create({ doc, extensions: [markdown({ extensions: GFM })] });
 const target = (doc: string, label: string) =>
   linkTargetAt(state(doc), doc.indexOf(label) + 1);
+
+test("hover lookup waits for background syntax without advancing a partial parse", () => {
+  const doc = "Paragraph\n\n".repeat(12_000) + "[[Target--ABCDEFGH]]";
+  const editor = state(doc);
+  const partial = syntaxTree(editor);
+  const position = doc.indexOf("Target");
+  assert.ok(partial.length < editor.doc.length);
+  assert.equal(linkTargetAt(editor, position, { allowParsing: false }), null);
+  assert.equal(syntaxTree(editor), partial);
+  assert.equal(syntaxTree(editor).length, partial.length);
+  ensureSyntaxTree(editor, editor.doc.length, 1000);
+  assert.equal(
+    linkTargetAt(editor, position, { allowParsing: false }),
+    "[[Target--ABCDEFGH]]",
+  );
+});
 
 test("clicks resolve balanced destinations, escapes and titles from syntax, preserving URI escapes", () => {
   for (const [source, expected] of [
