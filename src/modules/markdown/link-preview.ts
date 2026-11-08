@@ -86,7 +86,7 @@ export function createLinkPreviewController(options: {
   open.type = "button";
   open.textContent = labels.open;
   open.style.cssText =
-    "align-self:flex-end;margin:0 14px 10px;padding:2px 8px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:5px;background:transparent";
+    "flex:none;align-self:flex-end;margin:0 14px 10px;padding:2px 8px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:5px;background:transparent";
   panel.append(style, header, body, open);
   (doc.body ?? doc.documentElement).append(panel);
 
@@ -97,6 +97,7 @@ export function createLinkPreviewController(options: {
   let previewItemID: number | undefined;
   let closeTimer: number | undefined;
   let overPanel = false;
+  let placement: "above" | "below" | undefined;
   let pending: { target: LinkHoverTarget; generation: number } | null = null;
   let loading = false;
   let pdf: ReturnType<typeof mountPdfLinkPreview> | undefined;
@@ -122,6 +123,7 @@ export function createLinkPreviewController(options: {
     active = null;
     previewItemID = undefined;
     overPanel = false;
+    placement = undefined;
     releasePdf();
     panel.style.display = "none";
     body.replaceChildren();
@@ -133,13 +135,23 @@ export function createLinkPreviewController(options: {
   }
   function position(target: LinkHoverTarget) {
     const width = Math.min(380, Math.max(0, win.innerWidth - 24));
-    const height = Math.min(panel.getBoundingClientRect().height || 180, 440);
+    const below = Math.max(0, win.innerHeight - target.rect.bottom - 20);
+    const above = Math.max(0, target.rect.top - 20);
+    // Reserve a side for the whole hover, including the initial loading card.
+    // Async content must grow away from the link instead of crossing the cursor.
+    placement ??= below >= 440 || below >= above ? "below" : "above";
+    const available = Math.min(440, placement === "below" ? below : above);
+    panel.style.maxHeight = `${available}px`;
+    const height = Math.min(
+      panel.getBoundingClientRect().height || 180,
+      available,
+    );
     const left = Math.max(
       12,
       Math.min(target.rect.left, win.innerWidth - width - 12),
     );
     const top =
-      target.rect.bottom + 8 + height <= win.innerHeight - 12
+      placement === "below"
         ? target.rect.bottom + 8
         : Math.max(12, target.rect.top - height - 8);
     panel.style.left = `${left}px`;
@@ -148,6 +160,8 @@ export function createLinkPreviewController(options: {
   function render(content: LinkPreviewContent, request: number) {
     releasePdf();
     body.replaceChildren();
+    body.style.display = "block";
+    body.style.overflow = "auto";
     panel.removeAttribute("aria-busy");
     if (content.status !== "resolved") {
       title.textContent = labels[content.status];
@@ -178,15 +192,24 @@ export function createLinkPreviewController(options: {
     }
     if (content.kind === "pdf") {
       body.textContent = labels.loading;
+      body.style.display = "flex";
+      body.style.flexDirection = "column";
+      body.style.overflow = "hidden";
       const pdfHost = element<HTMLElement>("div", "zmd-link-preview-pdf");
       pdfHost.style.cssText =
-        "height:300px;width:100%;margin-top:6px;overflow:hidden";
+        "height:300px;flex:1 1 300px;min-height:0;width:100%;margin-top:6px;overflow:hidden";
       body.append(pdfHost);
       const mounted = (options.mountPdf ?? mountPdfLinkPreview)({
         container: pdfHost,
         itemID: content.attachmentID,
         location: content.location,
         isCurrent: () => current(request),
+        onPointerPresence: (inside) => {
+          if (!current(request)) return;
+          overPanel = inside;
+          if (inside) clearCloseTimer();
+          else leave();
+        },
       });
       pdf = mounted;
       void mounted.ready.then(
@@ -195,10 +218,12 @@ export function createLinkPreviewController(options: {
           if (body.firstChild?.nodeType === 3) body.firstChild.remove();
           if (active) position(active);
         },
-        () => {
+        (error) => {
           if (!current(request)) return;
           releasePdf();
           body.textContent = labels.failed;
+          ztoolkit.log("Failed to load PDF link preview", error);
+          if (active) position(active);
         },
       );
     }
@@ -262,19 +287,29 @@ export function createLinkPreviewController(options: {
   // Index scans also publish completion without changing the hovered target.
   // Drop cached metadata without tearing down the card's current snapshot.
   const unsubscribe = subscribeNoteLibrary(() => cache.clear());
+  // Item refreshes also come from unrelated saves and native PDF initialization.
+  // Keep the current snapshot; subsequent hovers read the invalidated metadata.
   const observer =
     typeof Zotero !== "undefined" && Zotero.Notifier
       ? Zotero.Notifier.registerObserver(
-          { notify: invalidate },
+          { notify: () => cache.clear() },
           ["item"],
           "sketch-link-preview",
         )
       : undefined;
+  function isPreviewTarget(target: EventTarget | null): boolean {
+    if (pdf?.containsEventTarget(target)) return true;
+    return (
+      !!target &&
+      typeof (target as Node).nodeType === "number" &&
+      panel.contains(target as Node)
+    );
+  }
   const onPointerDown = (event: Event) => {
-    if (!panel.contains(event.target as Node)) hide();
+    if (!isPreviewTarget(event.target)) hide();
   };
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape" || !panel.contains(event.target as Node)) hide();
+    if (event.key === "Escape" || !isPreviewTarget(event.target)) hide();
   };
   const onScroll = (event: Event) => {
     const target = event.target as Node;
@@ -287,13 +322,20 @@ export function createLinkPreviewController(options: {
     if (event.target === win) hide();
   };
   const onWindowFocus = (event: Event) => {
-    if (event.target === win) invalidate();
+    if (event.target !== win) return;
+    if (isPreviewTarget(doc.activeElement)) cache.clear();
+    else invalidate();
   };
   panel.addEventListener("mouseenter", () => {
     overPanel = true;
     clearCloseTimer();
   });
-  panel.addEventListener("mouseleave", () => {
+  panel.addEventListener("mouseover", () => {
+    overPanel = true;
+    clearCloseTimer();
+  });
+  panel.addEventListener("mouseleave", (event) => {
+    if (isPreviewTarget(event.relatedTarget)) return;
     overPanel = false;
     leave();
   });
@@ -321,7 +363,8 @@ export function createLinkPreviewController(options: {
   doc.addEventListener("keydown", onKeyDown, true);
   doc.addEventListener("scroll", onScroll, true);
   win.addEventListener("resize", onWindowDismiss);
-  win.addEventListener("blur", onWindowDismiss);
+  // Focusing the embedded PDF blurs chrome without deactivating its window.
+  win.addEventListener("deactivate", onWindowDismiss);
   win.addEventListener("focus", onWindowFocus);
 
   function bindLinks(host: HTMLElement) {
@@ -381,7 +424,7 @@ export function createLinkPreviewController(options: {
     doc.removeEventListener("keydown", onKeyDown, true);
     doc.removeEventListener("scroll", onScroll, true);
     win.removeEventListener("resize", onWindowDismiss);
-    win.removeEventListener("blur", onWindowDismiss);
+    win.removeEventListener("deactivate", onWindowDismiss);
     win.removeEventListener("focus", onWindowFocus);
     panel.remove();
   }

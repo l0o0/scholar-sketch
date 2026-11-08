@@ -80,6 +80,12 @@ and rendered in a surface-owned worker. Worker failure falls back to a bounded
 text excerpt. Native PDF previews use Zotero's transient Reader through one
 compatibility adapter; closing a card releases its browser and reader, including
 late initialization. Hover never invokes document navigation or file download.
+The card reserves a placement before loading and bounds its height to the space
+on that side, so asynchronous content cannot move it away from the pointer.
+Item/index notifications invalidate future cached reads while preserving the
+current snapshot. The PDF adapter owns continuous scrolling, its resize handler
+and pointer listeners in both reader documents; the controller uses that
+ownership to keep internal pointer/key events inside the card.
 
 ## Protocol
 

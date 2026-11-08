@@ -105,6 +105,8 @@ Paper links are opened by Zotero. Links to Markdown notes or whiteboards open th
 
 Hover briefly over a paper, note, or PDF link to see a preview card. Links in the references sidebar also support previews. Cards show item details, a note excerpt, or the linked PDF page. Move into the card to keep reading, choose **Open** for the full content, or press `Esc` to close. Markdown excerpts support formulas and tables. For a target note already open in the same window, the preview uses its editor content; otherwise it reads the saved file. Attachments that have not been downloaded show an unavailable state; hovering does not download them.
 
+Use the mouse wheel or trackpad inside a PDF card to read consecutive pages without scrolling the note. Cards keep their placement while content loads, and background item refreshes do not interrupt the current preview.
+
 ### Link to a heading in a note
 
 After `[[`, enter a note name followed by `#` to choose a heading in that note. For example:

@@ -22,6 +22,69 @@ const item = (name: string): LinkPreviewContent => ({
   text: `Abstract ${name}`,
 });
 
+test("an asynchronously enlarged PDF card keeps the pointer inside the card near the viewport bottom", async (t) => {
+  const content = deferred<LinkPreviewContent>();
+  const ready = deferred<void>();
+  const app = setup(
+    t,
+    () => content.promise,
+    () => ({
+      ready: ready.promise,
+      containsEventTarget: () => false,
+      dispose() {},
+    }),
+  );
+  Object.defineProperty(app.win, "innerHeight", { value: 768 });
+  // Happy DOM supplies no layout. Model only the browser's measured height;
+  // the controller still chooses and updates its own viewport position.
+  t.mock.method(app.panel, "getBoundingClientRect", () => {
+    const top = Number.parseFloat(app.panel.style.top) || 0;
+    const left = Number.parseFloat(app.panel.style.left) || 0;
+    const height = app.body().querySelector(".zmd-link-preview-pdf")
+      ? 400
+      : 100;
+    return {
+      left,
+      top,
+      right: left + 380,
+      bottom: top + height,
+      height,
+      width: 380,
+    } as DOMRect;
+  });
+  app.controller.show({
+    href: "zotero://open-pdf/library/items/ABCDEFGH?page=2",
+    rect: { left: 40, top: 500, right: 200, bottom: 524 },
+  });
+  const loadingRect = app.panel.getBoundingClientRect();
+  const pointer = { x: loadingRect.left + 20, y: loadingRect.top + 50 };
+  app.panel.dispatchEvent(
+    new app.win.MouseEvent("mouseenter", {
+      clientX: pointer.x,
+      clientY: pointer.y,
+    }),
+  );
+  // The iframe's delayed leave message follows entry into the host-owned card.
+  app.controller.show(null);
+  content.resolve({
+    status: "resolved",
+    kind: "pdf",
+    sourceItemID: 42,
+    attachmentID: 42,
+    href: "zotero://open-pdf/library/items/ABCDEFGH?page=2",
+    title: "PDF",
+    location: { pageIndex: 1 },
+  });
+  await flush();
+  const pdfRect = app.panel.getBoundingClientRect();
+  assert.ok(
+    pointer.y >= pdfRect.top && pointer.y <= pdfRect.bottom,
+    `loading card at ${loadingRect.top} moved away from pointer ${pointer.y} to PDF card at ${pdfRect.top}`,
+  );
+  app.advance(150);
+  assert.equal(app.panel.style.display, "flex");
+});
+
 test("native PDF subdocument layout events keep their owning card open", async (t) => {
   const app = setup(t, async () => item("PDF"));
   app.controller.show(target("PDF"));
@@ -45,6 +108,25 @@ test("native PDF subdocument layout events keep their owning card open", async (
   assert.equal(app.panel.style.display, "none");
 });
 
+test("PDF canvas focus keeps the popup open until its chrome window deactivates", async (t) => {
+  const app = setup(t, async () => item("PDF"));
+  app.controller.show(target("PDF"));
+  await flush();
+  // Native PDF canvas focus blurs the top window and makes hasFocus false
+  // without deactivating its chrome window.
+  t.mock.method(app.win.document, "hasFocus", () => false);
+  app.win.dispatchEvent(new app.win.Event("blur"));
+  assert.equal(app.panel.style.display, "flex");
+  const pdfWindow = new Window();
+  t.after(() => pdfWindow.happyDOM.close());
+  const foreign = new app.win.Event("deactivate");
+  Object.defineProperty(foreign, "target", { value: pdfWindow });
+  app.win.dispatchEvent(foreign);
+  assert.equal(app.panel.style.display, "flex");
+  app.win.dispatchEvent(new app.win.Event("deactivate"));
+  assert.equal(app.panel.style.display, "none");
+});
+
 test("background note-index completion invalidates cache without closing the current card", async (t) => {
   let loads = 0;
   const app = setup(t, async () => {
@@ -60,6 +142,25 @@ test("background note-index completion invalidates cache without closing the cur
   await flush();
   assert.equal(loads, 2);
 });
+
+test("unrelated item modifications and refreshes clear cached metadata without dismissing the card", async (t) => {
+  let loads = 0;
+  const app = setup(t, async () => {
+    loads++;
+    return item("Target");
+  });
+  app.controller.show(target("Target"));
+  await flush();
+  for (const event of ["modify", "refresh"]) {
+    app.notify(event, "item", [999]);
+    assert.equal(app.panel.style.display, "flex", event);
+  }
+  app.controller.hide();
+  app.controller.show(target("Target"));
+  await flush();
+  assert.equal(loads, 2);
+});
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -75,6 +176,7 @@ function setup(
   load: (value: string) => Promise<LinkPreviewContent>,
   mountPdf?: (options: PdfLinkPreviewOptions) => {
     ready: Promise<void>;
+    containsEventTarget(target: EventTarget | null): boolean;
     dispose(): void;
   },
 ) {
@@ -85,7 +187,8 @@ function setup(
       Object.getOwnPropertyDescriptor(globals, key),
     ]),
   );
-  let observer: { notify(): void } | undefined;
+  let observer:
+    { notify(event?: string, type?: string, ids?: number[]): void } | undefined;
   let unregisters = 0;
   globals.Zotero = {
     Notifier: {
@@ -174,7 +277,8 @@ function setup(
     advance,
     opened,
     openedSources,
-    notify: () => observer?.notify(),
+    notify: (event?: string, type?: string, ids?: number[]) =>
+      observer?.notify(event, type, ids),
     deactivate: () => {
       active = false;
     },
@@ -277,7 +381,11 @@ test("PDF previews own their mounts and ignore readiness from released readers",
     (options) => {
       const mount = { options, result: deferred<void>(), disposed: 0 };
       mounts.push(mount);
-      return { ready: mount.result.promise, dispose: () => mount.disposed++ };
+      return {
+        ready: mount.result.promise,
+        containsEventTarget: () => false,
+        dispose: () => mount.disposed++,
+      };
     },
   );
   app.controller.show(target("PDF"));
@@ -312,6 +420,61 @@ test("PDF previews own their mounts and ignore readiness from released readers",
   assert.equal(app.panel.isConnected, false);
 });
 
+test("PDF pointer handoff and owned subdocument input preserve the card until exit or Escape", async (t) => {
+  const pdfWindow = new Window();
+  t.after(() => pdfWindow.happyDOM.close());
+  const viewer = pdfWindow.document.createElement("div");
+  pdfWindow.document.body.append(viewer);
+  const owned = new Set<EventTarget>([viewer]);
+  let presence: PdfLinkPreviewOptions["onPointerPresence"];
+  const app = setup(
+    t,
+    async (value) => ({
+      status: "resolved",
+      kind: "pdf",
+      sourceItemID: 42,
+      href: value,
+      title: "PDF",
+      attachmentID: 42,
+    }),
+    (options) => {
+      presence = options.onPointerPresence;
+      return {
+        ready: Promise.resolve(),
+        containsEventTarget: (target) => target !== null && owned.has(target),
+        dispose() {},
+      };
+    },
+  );
+  const forward = (type: "pointerdown" | "keydown", key?: string) => {
+    const event =
+      type === "keydown"
+        ? new app.win.KeyboardEvent(type, { key, bubbles: true })
+        : new app.win.Event(type, { bubbles: true });
+    Object.defineProperty(event, "target", { value: viewer });
+    app.win.document.dispatchEvent(event);
+  };
+  app.controller.show(target("PDF"));
+  await flush();
+  assert.equal(typeof presence, "function");
+  app.controller.leave();
+  app.advance(100);
+  presence!(true);
+  app.advance(100);
+  assert.equal(app.panel.style.display, "flex");
+  forward("pointerdown");
+  forward("keydown", "PageDown");
+  assert.equal(app.panel.style.display, "flex");
+  presence!(false);
+  app.advance(150);
+  assert.equal(app.panel.style.display, "none");
+  app.controller.show(target("PDF"));
+  await flush();
+  presence!(true);
+  forward("keydown", "Escape");
+  assert.equal(app.panel.style.display, "none");
+});
+
 test("metadata is reused until invalidation while Markdown content is read again", async (t) => {
   const counts = new Map<string, number>();
   const app = setup(t, async (value) => {
@@ -335,7 +498,9 @@ test("metadata is reused until invalidation while Markdown content is read again
   await flush();
   assert.equal(counts.get(href("Metadata")), 1);
   app.notify();
-  assert.equal(app.panel.style.display, "none");
+  assert.equal(app.panel.style.display, "flex");
+  assert.equal(app.title(), "Metadata 1");
+  app.controller.hide();
   app.controller.show(target("Metadata"));
   await flush();
   assert.equal(app.title(), "Metadata 2");

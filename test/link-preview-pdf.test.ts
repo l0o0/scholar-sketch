@@ -15,14 +15,51 @@ function deferred<T>() {
 
 function host(t: TestContext, readers: object) {
   const win = new Window();
+  const childWindows: Window[] = [];
+  const pdfViewer = { scrollMode: 3, currentScaleValue: "page-height" };
+  let pdfWindow: Window;
+  let nativeLayouts = 0;
   const globals = globalThis as any;
   const previous = globals.Zotero;
   globals.Zotero = {
     Reader: readers,
     logError: (error: unknown) => assert.fail(String(error)),
   };
+  const nativeAPI = readers as { openPreview?: (...args: any[]) => any };
+  if (nativeAPI.openPreview) {
+    globals.Zotero.Reader = {
+      ...readers,
+      async openPreview(...args: any[]) {
+        const preview = await nativeAPI.openPreview!.apply(readers, args);
+        const updatePDFAttr = () => {
+          nativeLayouts++;
+          pdfViewer.scrollMode = 3;
+          pdfViewer.currentScaleValue = "page-height";
+        };
+        return {
+          ...preview,
+          updatePDFAttr,
+          async _open(options: unknown) {
+            const success = await preview._open(options);
+            if (success) {
+              // Native ReaderPreview owns this thumbnail layout until the
+              // production adapter takes over its continuous scrolling view.
+              pdfWindow.addEventListener("resize", updatePDFAttr);
+              updatePDFAttr();
+            }
+            return success;
+          },
+          uninit() {
+            pdfWindow.removeEventListener("resize", updatePDFAttr);
+            preview.uninit();
+          },
+        };
+      },
+    };
+  }
   t.after(() => {
     globals.Zotero = previous;
+    for (const child of childWindows) child.close();
     win.close();
   });
   const container = win.document.createElement("div");
@@ -44,11 +81,27 @@ function host(t: TestContext, readers: object) {
     },
   });
   const loaded = () => {
-    readerDocument = win.document.implementation.createHTMLDocument();
+    const readerWindow = new Window();
+    childWindows.push(readerWindow);
+    readerDocument = readerWindow.document;
     Object.defineProperties(readerDocument, {
       documentURI: { value: "resource://zotero/reader/reader.html" },
       readyState: { value: "interactive" },
     });
+    const primary = readerDocument.createElement("div");
+    primary.id = "primary-view";
+    const pdfFrame = readerDocument.createElement("iframe");
+    primary.append(pdfFrame);
+    readerDocument.body.append(primary);
+    pdfWindow = pdfFrame.contentWindow!;
+    // Gecko chrome sees a DOM Window; script-owned globals are exposed only
+    // by the trusted content window's wrappedJSObject, not by its Xray.
+    Object.assign(pdfWindow, {
+      wrappedJSObject: { PDFViewerApplication: { pdfViewer } },
+    });
+    const viewport = pdfWindow.document.createElement("div");
+    viewport.id = "viewerContainer";
+    pdfWindow.document.body.append(viewport);
     const event = new win.Event("DOMContentLoaded");
     Object.defineProperty(event, "target", { value: readerDocument });
     frame.dispatchEvent(event);
@@ -58,6 +111,16 @@ function host(t: TestContext, readers: object) {
     win,
     input,
     loaded,
+    pdfViewer,
+    get pdfWindow() {
+      return pdfWindow;
+    },
+    get readerDocument() {
+      return readerDocument!;
+    },
+    get nativeLayouts() {
+      return nativeLayouts;
+    },
     get frame() {
       return frame;
     },
@@ -116,6 +179,139 @@ test("PDF hover mounts a read-only native preview at its location without changi
   preview.dispose();
   assert.equal(released, 1);
   assert.equal(h.container.childElementCount, 0);
+});
+
+test("PDF scrolling uses the native continuous viewport and retains its layout after resize", async (t) => {
+  const h = host(t, {
+    async openPreview() {
+      return {
+        async _open() {
+          return true;
+        },
+        async navigate(location: unknown) {
+          assert.equal(h.pdfViewer.scrollMode, 0);
+          assert.equal(h.pdfViewer.currentScaleValue, "page-width");
+          assert.deepEqual(location, { pageIndex: 1 });
+        },
+        uninit() {},
+      };
+    },
+  });
+  const preview = mountPdfLinkPreview({
+    container: h.container,
+    itemID: 42,
+    location: { pageIndex: 1 },
+    isCurrent: () => true,
+  });
+  h.loaded();
+  await preview.ready;
+  const viewport = h.pdfWindow.document.getElementById("viewerContainer")!;
+  assert.equal("PDFViewerApplication" in h.pdfWindow, false);
+  assert.equal(viewport.style.overflow, "auto");
+  assert.equal(viewport.style.overscrollBehavior, "contain");
+  assert.notEqual(h.frame.style.pointerEvents, "none");
+  assert.equal(h.win.document.activeElement, h.input);
+  assert.equal(h.nativeLayouts, 1);
+  viewport.scrollTop = 420;
+  viewport.dispatchEvent(new h.pdfWindow.Event("scroll"));
+  h.pdfWindow.dispatchEvent(new h.pdfWindow.Event("resize"));
+  assert.equal(h.pdfViewer.scrollMode, 0);
+  assert.equal(h.pdfViewer.currentScaleValue, "page-width");
+  assert.equal(h.nativeLayouts, 1, "the thumbnail resize handler is detached");
+  assert.equal(viewport.scrollTop, 420);
+  preview.dispose();
+  h.pdfViewer.scrollMode = 3;
+  h.pdfViewer.currentScaleValue = "page-height";
+  h.pdfWindow.dispatchEvent(new h.pdfWindow.Event("resize"));
+  assert.equal(
+    h.pdfViewer.scrollMode,
+    3,
+    "disposed layout listeners are removed",
+  );
+  assert.equal(h.nativeLayouts, 1);
+});
+
+test("PDF pointer presence and event ownership cover both documents without outliving the preview", async (t) => {
+  const opening = deferred<void>();
+  const complete = deferred<boolean>();
+  const presence: boolean[] = [];
+  const h = host(t, {
+    async openPreview() {
+      return {
+        async _open() {
+          opening.resolve();
+          return complete.promise;
+        },
+        uninit() {},
+      };
+    },
+  });
+  const preview = mountPdfLinkPreview({
+    container: h.container,
+    itemID: 42,
+    isCurrent: () => true,
+    onPointerPresence: (inside) => presence.push(inside),
+  });
+  h.loaded();
+  await opening.promise;
+  const readerDocument = h.readerDocument;
+  const outerNode = readerDocument.body;
+  outerNode.dispatchEvent(
+    new h.win.MouseEvent("pointerover", { bubbles: true }),
+  );
+  assert.deepEqual(
+    presence,
+    [true],
+    "outer reader is owned while the PDF loads",
+  );
+  assert.equal(preview.containsEventTarget(h.frame), true);
+  assert.equal(preview.containsEventTarget(readerDocument as never), true);
+  assert.equal(
+    preview.containsEventTarget(readerDocument.defaultView as never),
+    true,
+  );
+  assert.equal(preview.containsEventTarget(outerNode as never), true);
+  assert.equal(preview.containsEventTarget(h.win as never), false);
+  complete.resolve(true);
+  await preview.ready;
+  const innerDocument = h.pdfWindow.document;
+  const innerNode = innerDocument.getElementById("viewerContainer")!;
+  assert.equal(preview.containsEventTarget(innerDocument as never), true);
+  assert.equal(preview.containsEventTarget(h.pdfWindow as never), true);
+  assert.equal(preview.containsEventTarget(innerNode as never), true);
+  assert.equal(preview.containsEventTarget(h.input as never), false);
+  outerNode.dispatchEvent(
+    new h.win.MouseEvent("pointerout", {
+      bubbles: true,
+      relatedTarget: innerNode,
+    }),
+  );
+  assert.deepEqual(
+    presence,
+    [true],
+    "moving between owned documents stays inside",
+  );
+  innerNode.dispatchEvent(
+    new h.pdfWindow.MouseEvent("pointerover", { bubbles: true }),
+  );
+  innerNode.dispatchEvent(
+    new h.pdfWindow.MouseEvent("pointerout", {
+      bubbles: true,
+      relatedTarget: h.input,
+    }),
+  );
+  assert.deepEqual(presence, [true, true, false]);
+  preview.dispose();
+  const count = presence.length;
+  outerNode.dispatchEvent(
+    new h.win.MouseEvent("pointerover", { bubbles: true }),
+  );
+  innerNode.dispatchEvent(
+    new h.pdfWindow.MouseEvent("pointerover", { bubbles: true }),
+  );
+  assert.equal(presence.length, count);
+  assert.equal(preview.containsEventTarget(innerNode as never), false);
+  assert.equal(preview.containsEventTarget(readerDocument as never), false);
 });
 
 test("closing a PDF preview before reader.html loads removes its listener and settles ready", async (t) => {
