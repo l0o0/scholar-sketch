@@ -38,7 +38,7 @@ function host(t: TestContext, readers: object) {
       assert.equal(name, "browser");
       frame = win.document.createElement("div");
       Object.defineProperty(frame, "contentDocument", {
-        get: () => readerDocument,
+        get: () => (frame.isConnected ? readerDocument : null),
       });
       return frame;
     },
@@ -104,7 +104,12 @@ test("PDF hover mounts a read-only native preview at its location without changi
   assert.equal(opened.length, 0, "unrelated load events are ignored");
   h.loaded();
   await preview.ready;
-  assert.deepEqual(opened, [[42, h.frame], {}, ["navigate", location]]);
+  assert.deepEqual(opened, [
+    [42, h.frame],
+    {},
+    ["navigate", { pageIndex: 4 }],
+    ["navigate", { annotationID: "ANNO0001" }],
+  ]);
   assert.equal(h.win.document.activeElement, h.input);
   assert.equal(h.frame.getAttribute("tabindex"), "-1");
   preview.dispose();
@@ -236,12 +241,84 @@ test("native PDF failures reject ready and release the browser and reader", asyn
   assert.equal(h.container.childElementCount, 0);
 });
 
-test("PDF readiness waits for post-load navigation and closes a reader released during navigation", async (t) => {
+test("native annotation announcements have an owned accessible live region", async (t) => {
+  for (const existing of [false, true]) {
+    await t.test(
+      existing
+        ? "reuses the native region"
+        : "creates the missing preview region",
+      async (t) => {
+        let region: HTMLElement | null = null;
+        let nativeDocument: Document;
+        let nativeFrame: { contentDocument: Document | null };
+        const h = host(t, {
+          async openPreview(_itemID: number, frame: unknown) {
+            nativeFrame = frame as typeof nativeFrame;
+            nativeDocument = nativeFrame.contentDocument!;
+            return {
+              async _open() {
+                if (existing) {
+                  region = nativeDocument.createElement("div");
+                  region.id = "a11yAnnouncement";
+                  region.setAttribute("aria-live", "polite");
+                  region.dataset.nativeRegion = "retained";
+                  region.innerText = "Previous native announcement";
+                  nativeDocument.body.append(region);
+                }
+                return true;
+              },
+              async navigate(location: { annotationID?: string }) {
+                if (!location.annotationID) return;
+                const announcement =
+                  nativeDocument.getElementById("a11yAnnouncement")!;
+                assert.ok(announcement);
+                assert.equal(announcement.ownerDocument, nativeDocument);
+                assert.equal(announcement.getAttribute("aria-live"), "polite");
+                assert.equal(announcement.hidden, false);
+                if (existing) {
+                  assert.equal(announcement, region);
+                  assert.equal(announcement.dataset.nativeRegion, "retained");
+                  assert.equal(
+                    announcement.innerText,
+                    "Previous native announcement",
+                  );
+                }
+                // Zotero's native setA11yMessage uses this exact DOM operation.
+                announcement.innerText = "Highlight annotation selected";
+                region = announcement;
+              },
+              uninit() {},
+            };
+          },
+        });
+        const preview = mountPdfLinkPreview({
+          container: h.container,
+          itemID: 42,
+          location: { pageIndex: 1, annotationID: "ANNO0001" },
+          isCurrent: () => true,
+        });
+        h.loaded();
+        await preview.ready;
+        assert.equal(region!.innerText, "Highlight annotation selected");
+        assert.equal(
+          h.container.ownerDocument.getElementById("a11yAnnouncement"),
+          null,
+        );
+        preview.dispose();
+        assert.equal(h.container.childElementCount, 0);
+        assert.equal(nativeFrame!.contentDocument, null);
+      },
+    );
+  }
+});
+
+test("closing between PDF page and annotation navigation releases the reader without selecting an old annotation", async (t) => {
   const navigating = deferred<void>();
   const complete = deferred<void>();
   const released = deferred<void>();
   let loaded = false;
   let uninitializations = 0;
+  const locations: unknown[] = [];
   const h = host(t, {
     async openPreview() {
       return {
@@ -252,6 +329,7 @@ test("PDF readiness waits for post-load navigation and closes a reader released 
         },
         async navigate(location: unknown) {
           assert.equal(loaded, true);
+          locations.push(location);
           assert.deepEqual(location, { pageIndex: 1 });
           navigating.resolve();
           await complete.promise;
@@ -266,7 +344,7 @@ test("PDF readiness waits for post-load navigation and closes a reader released 
   const preview = mountPdfLinkPreview({
     container: h.container,
     itemID: 42,
-    location: { pageIndex: 1 },
+    location: { pageIndex: 1, annotationID: "ANNO0001" },
     isCurrent: () => true,
   });
   let ready = false;
@@ -283,6 +361,7 @@ test("PDF readiness waits for post-load navigation and closes a reader released 
   complete.resolve();
   await released.promise;
   assert.equal(uninitializations, 1);
+  assert.deepEqual(locations, [{ pageIndex: 1 }]);
 });
 
 test("a requested PDF location fails accurately when native navigation is unavailable", async (t) => {

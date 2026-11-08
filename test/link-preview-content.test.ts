@@ -219,7 +219,12 @@ test("previews item and native note text without reading attachment bodies", asy
 
 test("returns host-only PDF input and preserves group, page and annotation", async (t) => {
   const pdf = item(3, "pdf", { title: "Group paper" }, 7);
-  install(t, [pdf]);
+  const annotation = item(30, "annotation", {}, 7);
+  annotation.key = "ANNO0001";
+  annotation.isAnnotation = () => true;
+  annotation.parentID = pdf.id;
+  annotation.annotationPosition = JSON.stringify({ pageIndex: 6 });
+  install(t, [pdf, annotation]);
   const loader = createLinkPreviewContentLoader();
   t.after(() => loader.dispose());
   const result = resolved(
@@ -236,6 +241,62 @@ test("returns host-only PDF input and preserves group, page and annotation", asy
   assert.equal(result.title, "Group paper");
   pdf.fileExists = async () => false;
   assert.equal((await loader.load(href(pdf), context)).status, "unavailable");
+});
+
+test("resolves PDF annotation pages from the verified native annotation, including annotation-only links", async (t) => {
+  const pdf = item(15, "pdf", { title: "Annotated PDF" }, 7);
+  const annotation = item(31, "annotation", {}, 7);
+  annotation.key = "ANNO0002";
+  annotation.isAnnotation = () => true;
+  annotation.parentID = pdf.id;
+  const loads: string[] = [];
+  annotation.loadDataType = async (type: string) => {
+    loads.push(type);
+  };
+  Object.defineProperty(annotation, "annotationPosition", {
+    get() {
+      assert.equal(loads.at(-1), "annotationDeferred");
+      return JSON.stringify({ pageIndex: 1 });
+    },
+  });
+  const wrongParent = item(32, "annotation", {}, 7);
+  wrongParent.key = "ANNO0003";
+  wrongParent.isAnnotation = () => true;
+  wrongParent.parentID = pdf.id + 1;
+  const wrongLibrary = item(33, "annotation", {}, 1);
+  wrongLibrary.key = "ANNO0004";
+  wrongLibrary.isAnnotation = () => true;
+  wrongLibrary.parentID = pdf.id;
+  const malformed = item(34, "annotation", {}, 7);
+  malformed.key = "ANNO0005";
+  malformed.isAnnotation = () => true;
+  malformed.parentID = pdf.id;
+  malformed.annotationPosition = JSON.stringify({ pageIndex: -1 });
+  install(t, [pdf, annotation, wrongParent, wrongLibrary, malformed]);
+  const loader = createLinkPreviewContentLoader();
+  t.after(() => loader.dispose());
+  const prefix = `zotero://open-pdf/groups/42/items/${pdf.key}?`;
+  for (const query of ["annotation=ANNO0002", "page=7&annotation=ANNO0002"]) {
+    const result = resolved(await loader.load(prefix + query, context));
+    assert.equal(result.kind, "pdf");
+    if (result.kind !== "pdf") throw new Error("expected a PDF");
+    assert.deepEqual(result.location, {
+      pageIndex: 1,
+      annotationID: "ANNO0002",
+    });
+  }
+  assert.deepEqual(loads, ["annotationDeferred", "annotationDeferred"]);
+  for (const key of ["ANNO0003", "ANNO0004", "MISSING1"]) {
+    assert.equal(
+      (await loader.load(prefix + `annotation=${key}`, context)).status,
+      "unresolved",
+      key,
+    );
+  }
+  assert.equal(
+    (await loader.load(prefix + "annotation=ANNO0005", context)).status,
+    "unavailable",
+  );
 });
 
 test("renders only the target saved Markdown through its worker with math and HTML", async (t) => {

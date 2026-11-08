@@ -193,6 +193,39 @@ function textField(item: Zotero.Item, field: string): string {
   return String(item.getField(field) || "").trim();
 }
 
+async function pdfAnnotationPageIndex(
+  attachment: Zotero.Item,
+  key: string,
+): Promise<number | "unresolved" | "unavailable"> {
+  const id = Zotero.Items.getIDFromLibraryAndKey(attachment.libraryID, key);
+  if (!id) return "unresolved";
+  const annotation = await Zotero.Items.getAsync(id);
+  if (
+    !annotation ||
+    annotation.libraryID !== attachment.libraryID ||
+    annotation.key !== key ||
+    !annotation.isAnnotation() ||
+    annotation.parentID !== attachment.id ||
+    annotation.deleted
+  )
+    return "unresolved";
+  // Position is deferred annotation data, separate from the annotation text.
+  await annotation.loadDataType("annotationDeferred");
+  if (annotation.parentID !== attachment.id || annotation.deleted)
+    return "unresolved";
+  const position: unknown = JSON.parse(annotation.annotationPosition);
+  if (
+    !position ||
+    typeof position !== "object" ||
+    !("pageIndex" in position) ||
+    typeof position.pageIndex !== "number" ||
+    !Number.isSafeInteger(position.pageIndex) ||
+    position.pageIndex < 0
+  )
+    return "unavailable";
+  return position.pageIndex;
+}
+
 /** One mounted host view owns this worker and disposes it when that view closes. */
 export function createLinkPreviewContentLoader(
   options: { workerFactory?: WorkerFactory } = {},
@@ -295,13 +328,23 @@ export function createLinkPreviewContentLoader(
           const pdf = item.isPDFAttachment();
           if (pdf && !(await item.fileExists()))
             return { status: "unavailable", href };
+          let location = target.location;
+          if (pdf && location?.annotationID) {
+            const pageIndex = await pdfAnnotationPageIndex(
+              item,
+              location.annotationID,
+            );
+            if (typeof pageIndex === "string")
+              return { status: pageIndex, href };
+            location = { ...location, pageIndex };
+          }
           if (disposed) return { status: "unavailable", href };
           return pdf
             ? {
                 ...base,
                 kind: "pdf",
                 attachmentID: item.id,
-                ...(target.location ? { location: target.location } : {}),
+                ...(location ? { location } : {}),
                 text: item.attachmentFilename || "",
               }
             : {

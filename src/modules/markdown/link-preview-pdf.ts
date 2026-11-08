@@ -142,7 +142,28 @@ export function mountPdfLinkPreview({
           if (typeof reader.navigate !== "function") {
             throw new Error("Native PDF preview navigation is unavailable");
           }
-          await reader.navigate(location);
+          if (location.pageIndex !== undefined && location.annotationID) {
+            // Native annotation navigation only scrolls the annotation's rect.
+            // Single-page preview mode must mount its page before that scroll.
+            await reader.navigate({ pageIndex: location.pageIndex });
+            if (!current()) return;
+          }
+          if (location.annotationID) {
+            // Preview omits ReaderUI, which normally owns this live region.
+            // Native annotation selection still announces into it afterwards.
+            const previewDocument = frame.contentDocument!;
+            if (!previewDocument.getElementById("a11yAnnouncement")) {
+              const announcement = previewDocument.createElement("div");
+              announcement.id = "a11yAnnouncement";
+              announcement.setAttribute("aria-live", "polite");
+              announcement.style.cssText =
+                "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0";
+              previewDocument.body.append(announcement);
+            }
+            await reader.navigate({ annotationID: location.annotationID });
+          } else {
+            await reader.navigate(location);
+          }
           current();
         }
       } finally {
