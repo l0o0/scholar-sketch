@@ -1,6 +1,10 @@
-import type { ReadingTranslationResult } from "./reading-translation";
+import type {
+  ReadingTranslationResult,
+  ReadingTranslationServices,
+} from "./reading-translation";
 import type { EditorTextSelection } from "./editor-protocol";
-import { iconReset, iconTranslate } from "./icons";
+import { iconMore, iconReset, iconTranslate } from "./icons";
+import { moveMenuFocus } from "../../utils/menu-keyboard";
 
 interface PreviewSelectionSnapshot {
   source: "preview";
@@ -23,7 +27,11 @@ export interface ReadingSelectionPopup {
 export function mountReadingSelectionPopup(options: {
   root: HTMLElement;
   isActive(source: "preview" | "editor"): boolean;
-  translate(text: string): Promise<ReadingTranslationResult>;
+  translate(
+    text: string,
+    serviceID?: string,
+  ): Promise<ReadingTranslationResult>;
+  getServices(): ReadingTranslationServices;
   onShow?(): void;
   labels: {
     translate: string;
@@ -33,6 +41,11 @@ export function mountReadingSelectionPopup(options: {
     failed: string;
     close: string;
     region: string;
+    services: string;
+    defaultService: string;
+    servicesUnavailable: string;
+    servicesFailed: string;
+    servicesEmpty: string;
   };
 }): ReadingSelectionPopup {
   const { root, labels } = options;
@@ -58,6 +71,12 @@ export function mountReadingSelectionPopup(options: {
 .zmd-reading-selection-popup button:focus-visible { outline:2px solid Highlight; outline-offset:-2px; }
 .zmd-reading-selection-popup button:disabled { opacity:.5; cursor:wait; }
 .zmd-reading-selection-popup .zmd-icon { display:block; width:18px; height:18px; background-color:currentColor; mask-image:var(--zmd-icon-url); mask-mode:alpha; mask-repeat:no-repeat; mask-position:center; mask-size:contain; }
+.zmd-reading-selection-service-menu { position:fixed; z-index:2147483002; box-sizing:border-box; width:220px; max-width:calc(100vw - 24px); padding:4px; overflow:auto; border:1px solid color-mix(in srgb,CanvasText 16%,Canvas); border-radius:8px; background:Canvas; color:CanvasText; box-shadow:0 4px 16px #0002; }
+.zmd-reading-selection-popup .zmd-reading-selection-service-menu button { display:flex; gap:8px; width:100%; height:auto; min-height:30px; padding:5px 8px; text-align:start; }
+.zmd-reading-selection-service-menu button::before { content:""; flex:0 0 14px; }
+.zmd-reading-selection-service-menu button[aria-checked="true"]::before { content:"✓"; color:Highlight; }
+.zmd-reading-selection-service-menu .zmd-reading-selection-service-name { overflow-wrap:anywhere; }
+.zmd-reading-selection-service-status { margin:4px 8px; color:color-mix(in srgb,CanvasText 65%,Canvas); }
 `;
   const controls = element<HTMLElement>("div", "zmd-reading-selection-actions");
   controls.style.cssText = "display:flex;align-items:center;gap:6px";
@@ -74,6 +93,25 @@ export function mountReadingSelectionPopup(options: {
     action.innerHTML = retry ? iconReset() : iconTranslate();
   }
   actionIcon();
+  const services = element<HTMLButtonElement>(
+    "button",
+    "zmd-reading-selection-services",
+  );
+  services.type = "button";
+  services.title = labels.services;
+  services.setAttribute("aria-label", labels.services);
+  services.setAttribute("aria-haspopup", "menu");
+  services.setAttribute("aria-expanded", "false");
+  services.innerHTML = iconMore();
+  services.style.cssText =
+    "border-inline-start:1px solid color-mix(in srgb,CanvasText 12%,Canvas);border-radius:0 5px 5px 0";
+  const serviceMenu = element<HTMLElement>(
+    "div",
+    "zmd-reading-selection-service-menu",
+  );
+  serviceMenu.hidden = true;
+  serviceMenu.setAttribute("role", "menu");
+  serviceMenu.setAttribute("aria-label", labels.services);
   const close = element<HTMLButtonElement>(
     "button",
     "zmd-reading-selection-close",
@@ -90,8 +128,8 @@ export function mountReadingSelectionPopup(options: {
   result.style.cssText =
     "margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:344px;user-select:text";
   result.hidden = true;
-  controls.append(action, close);
-  panel.append(style, controls, result);
+  controls.append(action, services, close);
+  panel.append(style, controls, result, serviceMenu);
   (doc.body ?? doc.documentElement).append(panel);
 
   let disposed = false;
@@ -100,7 +138,14 @@ export function mountReadingSelectionPopup(options: {
   let selecting = false;
   let generation = 0;
   let running = false;
-  let pending: { text: string; generation: number } | null = null;
+  let pending: {
+    text: string;
+    serviceID?: string;
+    generation: number;
+  } | null = null;
+  // A surface-local override never changes the provider's global default.
+  let selectedServiceID: string | undefined;
+  let serviceButtons: HTMLButtonElement[] = [];
   let placement: "above" | "below" | undefined;
 
   const inPanel = (target: EventTarget | null) =>
@@ -192,6 +237,7 @@ export function mountReadingSelectionPopup(options: {
     panel.style.display = "none";
     panel.removeAttribute("aria-busy");
     result.textContent = "";
+    closeServices();
   }
   function position() {
     if (!snapshot || !valid(snapshot)) return hide();
@@ -218,7 +264,89 @@ export function mountReadingSelectionPopup(options: {
     );
     panel.style.left = `${Math.max(12, Math.min(anchor.left, win.innerWidth - width - 12))}px`;
     panel.style.top = `${placement === "below" ? anchor.bottom + 8 : Math.max(12, anchor.top - height - 8)}px`;
+    positionServices();
   }
+  function closeServices(restoreFocus = false) {
+    serviceMenu.hidden = true;
+    services.setAttribute("aria-expanded", "false");
+    if (restoreFocus) services.focus({ preventScroll: true });
+  }
+  function positionServices() {
+    if (serviceMenu.hidden) return;
+    const anchor = services.getBoundingClientRect();
+    const above = Math.max(0, anchor.top - 20);
+    const below = Math.max(0, win.innerHeight - anchor.bottom - 20);
+    const belowMenu = below >= 240 || below >= above;
+    serviceMenu.style.maxHeight = `${Math.min(240, belowMenu ? below : above)}px`;
+    const rect = serviceMenu.getBoundingClientRect();
+    serviceMenu.style.left = `${Math.max(12, Math.min(anchor.right - rect.width, win.innerWidth - rect.width - 12))}px`;
+    serviceMenu.style.top = `${belowMenu ? anchor.bottom + 6 : Math.max(12, anchor.top - rect.height - 6)}px`;
+  }
+  function openServices() {
+    updateSelection();
+    if (!snapshot || !valid(snapshot) || !selectionMatches()) return;
+    const available = options.getServices();
+    serviceMenu.replaceChildren();
+    serviceButtons = [];
+    const entries = [
+      { id: "", name: labels.defaultService },
+      ...(available.status === "available" ? available.services : []),
+    ];
+    for (const entry of entries) {
+      const button = element<HTMLButtonElement>("button", "");
+      button.type = "button";
+      button.dataset.serviceId = entry.id;
+      button.setAttribute("role", "menuitemradio");
+      const checked = entry.id === (selectedServiceID ?? "");
+      button.setAttribute("aria-checked", String(checked));
+      button.tabIndex = checked ? 0 : -1;
+      const name = element<HTMLElement>(
+        "span",
+        "zmd-reading-selection-service-name",
+      );
+      name.textContent = entry.name;
+      button.append(name);
+      serviceButtons.push(button);
+      serviceMenu.append(button);
+    }
+    if (available.status !== "available" || !available.services.length) {
+      const status = element<HTMLElement>(
+        "div",
+        "zmd-reading-selection-service-status",
+      );
+      status.setAttribute("role", "status");
+      status.textContent =
+        available.status === "unavailable"
+          ? labels.servicesUnavailable
+          : available.status === "failed"
+            ? labels.servicesFailed
+            : labels.servicesEmpty;
+      serviceMenu.append(status);
+    }
+    serviceMenu.hidden = false;
+    services.setAttribute("aria-expanded", "true");
+    positionServices();
+    const focused =
+      serviceButtons.find((button) => button.tabIndex === 0) ??
+      serviceButtons[0];
+    focused.tabIndex = 0;
+    focused.focus({ preventScroll: true });
+  }
+  const onServicesClick = () => {
+    if (serviceMenu.hidden) openServices();
+    else closeServices(true);
+  };
+  const onServiceClick = (event: MouseEvent) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>(
+      "[data-service-id]",
+    );
+    if (!button || !serviceButtons.includes(button)) return;
+    selectedServiceID = button.dataset.serviceId || undefined;
+    closeServices(true);
+    generation++;
+    pending = null;
+    request();
+  };
   function updateSelection() {
     if (disposed || selecting) return;
     if (snapshot?.source === "editor") {
@@ -246,6 +374,7 @@ export function mountReadingSelectionPopup(options: {
     if (dismissed && same(dismissed, next)) return;
     generation++;
     pending = null;
+    closeServices();
     snapshot = next;
     dismissed = null;
     placement = undefined;
@@ -285,7 +414,7 @@ export function mountReadingSelectionPopup(options: {
     running = true;
     let value: ReadingTranslationResult;
     try {
-      value = await options.translate(job.text);
+      value = await options.translate(job.text, job.serviceID);
     } catch {
       value = { status: "failed" };
     }
@@ -303,7 +432,8 @@ export function mountReadingSelectionPopup(options: {
   function request() {
     updateSelection();
     if (!snapshot || !valid(snapshot) || !selectionMatches()) return;
-    pending = { text: snapshot.text, generation };
+    closeServices();
+    pending = { text: snapshot.text, serviceID: selectedServiceID, generation };
     panel.classList.add("is-expanded");
     close.hidden = false;
     action.disabled = true;
@@ -332,6 +462,27 @@ export function mountReadingSelectionPopup(options: {
     if (selecting) hide();
   };
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (
+      doc.activeElement === services &&
+      (event.key === "ArrowDown" || event.key === "ArrowUp")
+    ) {
+      event.preventDefault();
+      openServices();
+      return;
+    }
+    if (!serviceMenu.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeServices(true);
+        return;
+      }
+      if (serviceMenu.contains(doc.activeElement)) {
+        if (event.key === "Tab") closeServices(true);
+        else if (moveMenuFocus(event, serviceButtons)) return;
+      }
+    }
     if (event.key !== "Escape" || event.isComposing || !snapshot) return;
     if (snapshot.source === "preview") {
       event.preventDefault();
@@ -362,7 +513,14 @@ export function mountReadingSelectionPopup(options: {
   const preserveSelection = (event: MouseEvent) => {
     if ((event.target as Element).closest("button")) event.preventDefault();
   };
+  const onServiceFocusOut = (event: FocusEvent) => {
+    if (!serviceMenu.contains(event.relatedTarget as Node | null))
+      closeServices();
+  };
   action.addEventListener("click", request);
+  services.addEventListener("click", onServicesClick);
+  serviceMenu.addEventListener("click", onServiceClick);
+  serviceMenu.addEventListener("focusout", onServiceFocusOut);
   close.addEventListener("click", hide);
   panel.addEventListener("mousedown", preserveSelection);
   doc.addEventListener("selectionchange", onSelectionChange);
@@ -395,6 +553,9 @@ export function mountReadingSelectionPopup(options: {
       win.removeEventListener("deactivate", onDeactivate);
       panel.removeEventListener("mousedown", preserveSelection);
       action.removeEventListener("click", request);
+      services.removeEventListener("click", onServicesClick);
+      serviceMenu.removeEventListener("click", onServiceClick);
+      serviceMenu.removeEventListener("focusout", onServiceFocusOut);
       close.removeEventListener("click", hide);
       panel.remove();
     },

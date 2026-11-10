@@ -103,6 +103,7 @@ async function fixture(t: TestContext, surface: "tab" | "window") {
       },
       PDFTranslate: {
         api: {
+          getServices: () => [{ id: "cnki", name: "CNKI", type: "sentence" }],
           translate: (text: string, options: unknown) =>
             new Promise((finish) => {
               requests.push({ text, options, finish });
@@ -334,6 +335,38 @@ for (const surface of ["tab", "window"] as const) {
     );
   });
 }
+
+test("the service menu reaches the public provider with a request-local override", async (t) => {
+  const app = await fixture(t, "tab");
+  await app.mode("preview");
+  app.select();
+  const panel = app.win.document.querySelector<HTMLElement>(
+    ".zmd-reading-selection-popup",
+  )!;
+  panel
+    .querySelector<HTMLButtonElement>(".zmd-reading-selection-services")!
+    .click();
+  const cnki = panel.querySelector<HTMLButtonElement>(
+    '[data-service-id="cnki"]',
+  )!;
+  assert.equal(cnki.textContent, "CNKI");
+  assert.equal(app.requests.length, 0);
+  cnki.click();
+  assert.equal(app.requests.length, 1);
+  assert.equal(app.requests[0].text, "Selected reading sentence.");
+  assert.deepEqual(app.requests[0].options, {
+    pluginID: "bamboo@@linxzh.com",
+    service: "cnki",
+  });
+  app.requests[0].finish({ status: "success", result: "所选服务的译文" });
+  await flush();
+  assert.equal(
+    panel.querySelector(".zmd-reading-selection-result")!.textContent,
+    "所选服务的译文",
+  );
+  assert.equal(app.session.editor!.getValue(), app.source);
+  assert.equal(app.session.save.dirty, false);
+});
 
 test("a failed standalone close hides stale results while retaining the translation surface", async (t) => {
   const app = await fixture(t, "window");

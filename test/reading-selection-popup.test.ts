@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
 import { mountReadingSelectionPopup } from "../src/modules/markdown/reading-selection-popup.ts";
-import type { ReadingTranslationResult } from "../src/modules/markdown/reading-translation.ts";
+import type {
+  ReadingTranslationResult,
+  ReadingTranslationServices,
+} from "../src/modules/markdown/reading-translation.ts";
 import type { EditorTextSelection } from "../src/modules/markdown/editor-protocol.ts";
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -16,7 +19,18 @@ function deferred<T>() {
 
 function setup(
   t: TestContext,
-  translate: (text: string) => Promise<ReadingTranslationResult>,
+  translate: (
+    text: string,
+    serviceID?: string,
+  ) => Promise<ReadingTranslationResult>,
+  getServices: () => ReadingTranslationServices = () => ({
+    status: "available",
+    services: [
+      { id: "A", name: "Service A" },
+      { id: "B", name: "Service B" },
+      { id: "C", name: "Service C" },
+    ],
+  }),
 ) {
   const win = new Window({ url: "https://reading.example/" });
   const doc = win.document;
@@ -46,6 +60,7 @@ function setup(
     root: root as unknown as HTMLElement,
     isActive: (kind) => active && kind === source,
     translate,
+    getServices,
     onShow: () => {
       shows++;
     },
@@ -57,6 +72,11 @@ function setup(
       failed: "Failed",
       close: "Close",
       region: "Selection translation",
+      services: "Translation service",
+      defaultService: "Follow plugin default",
+      servicesUnavailable: "Services unavailable",
+      servicesFailed: "Failed to load services",
+      servicesEmpty: "No services",
     },
   });
   const panel = doc.querySelector<HTMLElement>(".zmd-reading-selection-popup")!;
@@ -109,6 +129,16 @@ function setup(
     action,
     close,
     result,
+    services: () =>
+      panel.querySelector<HTMLButtonElement>(
+        ".zmd-reading-selection-services",
+      )!,
+    serviceMenu: () =>
+      panel.querySelector<HTMLElement>(".zmd-reading-selection-service-menu")!,
+    service: (id: string) =>
+      [...panel.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+        (entry) => entry.dataset.serviceId === id,
+      )!,
     select,
     deactivate: () => {
       active = false;
@@ -137,6 +167,216 @@ function editorSelection(
     rect: { left: 80, top: 100, right: 190, bottom: 120 },
   };
 }
+
+test("the service menu exposes the checked service and supports keyboard navigation, Escape and an untrapped Tab exit", async (t) => {
+  const calls: (string | undefined)[] = [];
+  const app = setup(t, async (_text, serviceID) => {
+    calls.push(serviceID);
+    return { status: "translated", text: "Translated" };
+  });
+  app.select();
+  const trigger = app.services();
+  assert.equal(trigger.getAttribute("aria-label"), "Translation service");
+  assert.equal(trigger.getAttribute("aria-haspopup"), "menu");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  const key = (value: string) => {
+    const focused = app.doc.activeElement!;
+    const event = new app.win.KeyboardEvent("keydown", {
+      key: value,
+      bubbles: true,
+      cancelable: true,
+    });
+    focused.dispatchEvent(event);
+    // Happy DOM does not synthesize a button's native Enter click. Emulate
+    // only that browser default when the real handler has not consumed it.
+    if (
+      value === "Enter" &&
+      !event.defaultPrevented &&
+      focused.tagName === "BUTTON"
+    )
+      (focused as HTMLButtonElement).click();
+    return event;
+  };
+  trigger.focus();
+  key("ArrowDown");
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  assert.equal(app.serviceMenu().getAttribute("role"), "menu");
+  assert.equal(app.doc.activeElement, app.service(""));
+  assert.equal(app.service("").getAttribute("aria-checked"), "true");
+  key("End");
+  assert.equal(app.doc.activeElement, app.service("C"));
+  key("Home");
+  key("ArrowDown");
+  assert.equal(app.doc.activeElement, app.service("A"));
+  key("Enter");
+  await flush();
+  assert.deepEqual(calls, ["A"]);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(app.doc.activeElement, trigger);
+  trigger.click();
+  assert.equal(app.service("A").getAttribute("aria-checked"), "true");
+  const escape = key("Escape");
+  assert.equal(escape.defaultPrevented, true);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(app.doc.activeElement, trigger);
+  assert.equal(
+    app.controller.isOpen(),
+    true,
+    "the first Escape closes only the menu",
+  );
+  trigger.click();
+  const tab = key("Tab");
+  assert.equal(tab.defaultPrevented, false);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(app.controller.isOpen(), true);
+  trigger.click();
+  trigger.dispatchEvent(
+    new app.win.MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+  );
+  trigger.click();
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(
+    app.doc.activeElement === trigger,
+    true,
+    "mouse toggle restores focus",
+  );
+  trigger.click();
+  app.outside.dispatchEvent(
+    new app.win.PointerEvent("pointerdown", { bubbles: true }),
+  );
+  assert.equal(app.controller.isOpen(), false);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+});
+
+test("service choices preserve preview and editor snapshots, persist per surface, and refresh the menu on every opening", async (t) => {
+  for (const source of ["preview", "editor"] as const) {
+    await t.test(source, async (t) => {
+      const calls: { text: string; serviceID?: string }[] = [];
+      let reads = 0;
+      const app = setup(
+        t,
+        async (text, serviceID) => {
+          calls.push({ text, serviceID });
+          return { status: "translated", text: "Translated" };
+        },
+        () => ({
+          status: "available",
+          services:
+            ++reads === 1
+              ? [
+                  { id: "A", name: "Service A" },
+                  { id: "B", name: "Service B" },
+                ]
+              : [
+                  { id: "B", name: "Service B" },
+                  { id: "C", name: "New service C" },
+                ],
+        }),
+      );
+      const first =
+        source === "preview" ? "  Alpha text  " : "  Live selection  ";
+      if (source === "preview") app.select();
+      else {
+        app.useSource("editor");
+        app.controller.showEditorSelection(editorSelection());
+      }
+      app.services().click();
+      const down = new app.win.MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+      });
+      app.service("B").dispatchEvent(down);
+      assert.equal(down.defaultPrevented, true);
+      app.service("B").focus();
+      app.doc.getSelection()!.removeAllRanges();
+      app.doc.dispatchEvent(new app.win.Event("selectionchange"));
+      assert.equal(app.controller.isOpen(), true);
+      app.service("B").click();
+      await flush();
+      assert.deepEqual(calls, [{ text: first, serviceID: "B" }]);
+      assert.equal(app.doc.activeElement, app.services());
+      if (source === "preview") app.select(app.paragraphs[1]);
+      else app.controller.showEditorSelection(editorSelection("Beta text", 2));
+      app.services().click();
+      assert.equal(reads, 2);
+      assert.equal(app.service("B").getAttribute("aria-checked"), "true");
+      assert.equal(app.service("A"), undefined);
+      assert.equal(app.service("C").textContent, "New service C");
+      app.service("B").click();
+      await flush();
+      assert.deepEqual(calls[1], { text: "Beta text", serviceID: "B" });
+      app.services().click();
+      app.service("").click();
+      await flush();
+      assert.deepEqual(calls[2], { text: "Beta text", serviceID: undefined });
+    });
+  }
+});
+
+test("switching services replaces pending work and cannot display results from the old service or a closed menu", async (t) => {
+  const calls: string[] = [];
+  const jobs: ReturnType<typeof deferred<ReadingTranslationResult>>[] = [];
+  const app = setup(t, (_text, serviceID) => {
+    calls.push(serviceID!);
+    const job = deferred<ReadingTranslationResult>();
+    jobs.push(job);
+    return job.promise;
+  });
+  app.select();
+  for (const id of ["A", "B", "C"]) {
+    app.services().click();
+    app.service(id).click();
+  }
+  assert.deepEqual(calls, ["A"]);
+  jobs[0].resolve({ status: "translated", text: "Old service A result" });
+  await flush();
+  assert.deepEqual(calls, ["A", "C"]);
+  assert.equal(app.result.textContent, "Loading");
+  jobs[1].resolve({ status: "translated", text: "Current service C result" });
+  await flush();
+  assert.equal(app.result.textContent, "Current service C result");
+  app.services().click();
+  app.service("A").click();
+  app.services().click();
+  app.service("B").click();
+  app.controller.dispose();
+  jobs[2].resolve({ status: "translated", text: "After disposal" });
+  await flush();
+  assert.deepEqual(calls, ["A", "C", "A"]);
+  assert.equal(app.panel.isConnected, false);
+  assert.doesNotMatch(app.panel.textContent, /After disposal/);
+});
+
+test("service-list errors and empty lists leave the plugin-default translation available", async (t) => {
+  for (const [state, label] of [
+    [{ status: "unavailable" }, "Services unavailable"],
+    [{ status: "failed" }, "Failed to load services"],
+    [{ status: "available", services: [] }, "No services"],
+  ] as const) {
+    await t.test(
+      state.status + ("services" in state ? " empty" : ""),
+      async (t) => {
+        const calls: (string | undefined)[] = [];
+        const app = setup(
+          t,
+          async (_text, serviceID) => {
+            calls.push(serviceID);
+            return { status: "translated", text: "Default result" };
+          },
+          () => state as ReadingTranslationServices,
+        );
+        app.select();
+        app.services().click();
+        assert.ok(app.serviceMenu().textContent.includes(label));
+        assert.deepEqual(calls, []);
+        app.service("").click();
+        await flush();
+        assert.deepEqual(calls, [undefined]);
+        assert.equal(app.result.textContent, "Default result");
+      },
+    );
+  }
+});
 
 test("Live selection uses the raw iframe snapshot while its reading root is hidden, and rectangle updates retain the translation", async (t) => {
   const calls: string[] = [];
@@ -283,9 +523,10 @@ test("only nonempty selections in this reading article show an idle popup outsid
   );
   assert.equal(app.close.hidden, true);
   assert.equal(
-    [...app.panel.querySelectorAll("button")].filter((button) => !button.hidden)
-      .length,
-    1,
+    [
+      ...app.panel.querySelectorAll(".zmd-reading-selection-actions > button"),
+    ].filter((button) => !button.hidden).length,
+    2,
   );
   assert.equal(app.result.hidden, true);
   assert.deepEqual(calls, []);

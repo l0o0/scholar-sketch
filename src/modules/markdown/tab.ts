@@ -126,7 +126,10 @@ import {
   type LinkPreviewController,
 } from "./link-preview";
 import { mountReadingSelectionPopup } from "./reading-selection-popup";
-import { translateReadingSelection } from "./reading-translation";
+import {
+  getReadingTranslationServices,
+  translateReadingSelection,
+} from "./reading-translation";
 import { noteHeadingPosition, type PortableNote } from "./note-links";
 import { invalidateNoteLibrary, updateIndexedNote } from "./note-library";
 import { exportNoteLibrary } from "./export-notes";
@@ -1253,6 +1256,7 @@ function mountEditorUI(
         : session.mode !== "preview") &&
       session.isActive(),
     translate: translateReadingSelection,
+    getServices: getReadingTranslationServices,
     onShow: () => linkPreview.hide(),
     labels: {
       translate: getString("selection-translate-action"),
@@ -1262,6 +1266,13 @@ function mountEditorUI(
       failed: getString("selection-translate-failed"),
       close: getString("selection-translate-close"),
       region: getString("selection-translate-title"),
+      services: getString("selection-translate-services"),
+      defaultService: getString("selection-translate-default-service"),
+      servicesUnavailable: getString(
+        "selection-translate-services-unavailable",
+      ),
+      servicesFailed: getString("selection-translate-services-failed"),
+      servicesEmpty: getString("selection-translate-services-empty"),
     },
   });
   const readingSelectionObserver =

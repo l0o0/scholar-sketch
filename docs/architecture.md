@@ -95,7 +95,12 @@ The host maps those coordinates and rejects stale revisions or text that no long
 matches the buffer. Typing, composition
 and clearing the editor selection dismiss its popup without changing the buffer.
 Clicking the compact translation icon submits a text snapshot to Translate for Zotero's public
-custom-text API. Its service and language configuration remain authoritative.
+custom-text API. The three-dot menu projects sentence-service IDs/names from its
+public `getServices()` API; absent names fall back to IDs. A surface-local service
+override is captured in each request, while an omitted override follows the
+provider default. Language and service credentials remain owned by the provider;
+the menu does not change its preferences. Service changes invalidate old results
+and replace pending work just like selection changes.
 The adapter omits item context because the provider's language inference can
 modify item fields. It extracts only successful result text, retaining no provider
 tasks or credentials. Results are displayed as plain text. One running request
