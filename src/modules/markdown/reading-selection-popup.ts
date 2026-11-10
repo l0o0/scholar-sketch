@@ -66,7 +66,7 @@ export function mountReadingSelectionPopup(options: {
   result.setAttribute("role", "status");
   result.setAttribute("aria-live", "polite");
   result.style.cssText =
-    "margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:344px";
+    "margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:344px;user-select:text";
   result.hidden = true;
   controls.append(action, close);
   panel.append(controls, result);
