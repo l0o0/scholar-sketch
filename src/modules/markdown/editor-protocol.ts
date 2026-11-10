@@ -97,6 +97,15 @@ export interface LinkHoverTarget {
   rect: { left: number; top: number; right: number; bottom: number };
 }
 
+/** A settled CodeMirror selection and its head in the sender's viewport. */
+export interface EditorTextSelection {
+  rev: number;
+  from: number;
+  to: number;
+  text: string;
+  rect: { left: number; top: number; right: number; bottom: number };
+}
+
 export interface EditorAppearance {
   fontFamily: FontFamilyID;
   backgroundColor: string;
@@ -353,6 +362,11 @@ export type EditorToParentMessage = (
       type: "linkHover";
       payload: LinkHoverTarget | null;
     }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "textSelection";
+      payload: EditorTextSelection | null;
+    }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "save" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "importImage" }
   | {
@@ -477,6 +491,34 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
     );
   }
   if (data.type === "viewState") return validViewState(data.payload);
+  if (data.type === "textSelection") {
+    if (data.payload === null) return true;
+    const payload = data.payload as Partial<EditorTextSelection> | undefined;
+    const rect = payload?.rect;
+    return (
+      !!payload &&
+      typeof payload === "object" &&
+      typeof payload.rev === "number" &&
+      Number.isSafeInteger(payload.rev) &&
+      payload.rev >= 0 &&
+      typeof payload.from === "number" &&
+      Number.isSafeInteger(payload.from) &&
+      payload.from >= 0 &&
+      typeof payload.to === "number" &&
+      Number.isSafeInteger(payload.to) &&
+      payload.to > payload.from &&
+      typeof payload.text === "string" &&
+      payload.text.trim().length > 0 &&
+      payload.text.length === payload.to - payload.from &&
+      !!rect &&
+      typeof rect === "object" &&
+      [rect.left, rect.top, rect.right, rect.bottom].every(
+        (value) => typeof value === "number" && Number.isFinite(value),
+      ) &&
+      rect.right >= rect.left &&
+      rect.bottom >= rect.top
+    );
+  }
   if (data.type === "linkHover") {
     if (data.payload === null) return true;
     const payload = data.payload as Partial<LinkHoverTarget> | undefined;

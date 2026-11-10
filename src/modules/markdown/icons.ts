@@ -170,3 +170,4 @@ export const iconCanvas = () => iconAsset("canvas");
 
 export const iconPalette = () => iconAsset("palette");
 export const iconReset = () => iconAsset("reset");
+export const iconTranslate = () => iconAsset("translate");

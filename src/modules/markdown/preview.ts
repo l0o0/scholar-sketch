@@ -82,6 +82,7 @@ ${mermaidStyles()}
   line-height: 1.7;
 }
 .zotero-markdown-preview-inner {
+  user-select: text;
   max-width: 760px;
   margin: 0 auto;
   padding: 28px 32px;

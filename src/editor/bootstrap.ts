@@ -21,6 +21,7 @@ import { editorTableLabels } from "./table-config";
 import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
 import { editorLinkHover } from "./link-hover";
+import { editorTextSelection } from "./text-selection";
 import {
   normalizeFontFamily,
   normalizeBackgroundColor,
@@ -1181,6 +1182,7 @@ function postToParent(message: {
     | "linkSearch"
     | "openLink"
     | "linkHover"
+    | "textSelection"
     | "save"
     | "importImage"
     | "error"
@@ -1300,6 +1302,11 @@ function buildExtensions(
 
   return [
     editorLinkHover((payload) => postToParent({ type: "linkHover", payload })),
+    editorTextSelection({
+      getRevision: () => runtime.docRev,
+      isComposing: () => runtime.composing,
+      publish: (payload) => postToParent({ type: "textSelection", payload }),
+    }),
     topInsetCompartment.of(topInsetExtension(init.topInset ?? 0)),
     guttersCompartment.of(guttersForMode(runtime.mode)),
     highlightActiveLine(),

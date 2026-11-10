@@ -180,6 +180,7 @@ function executableScheduling() {
                 node.name.text === "responsiveToolbars" ||
                 node.name.text === "modeMenus" ||
                 node.name.text === "linkPreviews" ||
+                node.name.text === "readingSelections" ||
                 node.name.text === "toolbarVisibilities" ||
                 node.name.text === "readOnlySessions"),
           )

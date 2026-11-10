@@ -107,6 +107,12 @@ Hover briefly over a paper, note, or PDF link to see a preview card. Links in th
 
 Use the mouse wheel or trackpad inside a PDF card to read consecutive pages without scrolling the note. Cards keep their placement while content loads, and background item refreshes do not interrupt the current preview.
 
+### Translate selected text
+
+Select text in Markdown's Live, Source, or reading-preview mode and choose the translation icon beside the selection. This works in tabs and standalone windows. The icon's tooltip is **Translate**; the compact popup expands when loading a result. It requires **Translate for Zotero (Zotero PDF Translate)** and initially uses that plugin's configured service, source language, and target language. Open the vertical three-dot menu to choose a translation service provided by the plugin. Choosing one immediately translates the current selection and remembers the choice in this document window. **Follow plugin default** restores the default behavior without changing the plugin's global settings. Configure any required credentials in the translation plugin. Selecting text alone sends no translation request. Choosing the icon loads the result asynchronously while you continue reading and scrolling. Typing and input-method composition dismiss the popup.
+
+Press `Esc` or use the close button to dismiss the popup. Changing the selection, switching modes, or closing the document prevents old results from appearing again. If the plugin is unavailable or translation fails, enable the plugin or check its service settings, then retry.
+
 ### Link to a heading in a note
 
 After `[[`, enter a note name followed by `#` to choose a heading in that note. For example:
