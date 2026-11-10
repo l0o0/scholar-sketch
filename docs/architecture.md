@@ -87,6 +87,28 @@ current snapshot. The PDF adapter owns continuous scrolling, its resize handler
 and pointer listeners in both reader documents; the controller uses that
 ownership to keep internal pointer/key events inside the card.
 
+Reading selections have a separate surface-owned popup shared by Markdown tabs
+and standalone windows. Reading-preview selections are scoped to the rendered
+article; Live/Source selections are reported by CodeMirror through the owning
+iframe channel with canonical text, revision, range and viewport coordinates.
+The host maps those coordinates and rejects stale revisions or text that no longer
+matches the buffer. Typing, composition
+and clearing the editor selection dismiss its popup without changing the buffer.
+Clicking the compact translation icon submits a text snapshot to Translate for Zotero's public
+custom-text API. The three-dot menu projects sentence-service IDs/names from its
+public `getServices()` API; absent names fall back to IDs. A surface-local service
+override is captured in each request, while an omitted override follows the
+provider default. Language and service credentials remain owned by the provider;
+the menu does not change its preferences. Service changes invalidate old results
+and replace pending work just like selection changes.
+The adapter omits item context because the provider's language inference can
+modify item fields. It extracts only successful result text, retaining no provider
+tasks or credentials. Results are displayed as plain text. One running request
+and one replaceable pending request bound work; selection/session changes and
+teardown invalidate late results. The provider exposes no transport cancellation.
+Selection popups take precedence over link-hover cards and are excluded from
+the exported document.
+
 ## Markdown appearance
 
 Named style presets live in the plugin-local `markdownStyles` preference as a

@@ -150,6 +150,7 @@ ${mermaidStyles()}
 }
 .zotero-markdown-preview-inner {
   box-sizing: border-box;
+  user-select: text;
   max-width: var(--zmd-style-width, 760px);
   margin: 0 auto;
   padding: 28px 32px;

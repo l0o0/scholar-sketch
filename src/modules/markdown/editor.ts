@@ -21,6 +21,7 @@ import {
   computeStats,
   type EditorLinkCandidate,
   type EditorLinkFilter,
+  type EditorTextSelection,
   type LinkHoverTarget,
   isEditorLinkIcon,
   type EditorMode,
@@ -194,6 +195,8 @@ export function createMarkdownEditor(
     onOpenLink?: (href: string) => void;
     /** Link bounds are translated to this host window's viewport. */
     onLinkHover?: (target: LinkHoverTarget | null) => void;
+    /** Selection snapshots are positioned in this host window's viewport. */
+    onTextSelection?: (selection: EditorTextSelection | null) => void;
     win?: Window;
     channel?: string;
     surface?: EditorSurface;
@@ -220,6 +223,7 @@ export function createMarkdownEditor(
     onLinkSearch,
     onOpenLink,
     onLinkHover,
+    onTextSelection,
   } = options;
   let currentReadOnly = readOnly;
   let currentTopInset = options.topInset ?? 0;
@@ -289,6 +293,7 @@ export function createMarkdownEditor(
   );
   let iframeReady = false;
   let lastValue = doc;
+  let lastRevision = 0;
   let composing = false;
   let lastStats: EditorStats | undefined;
   // Input changes only invalidate. Metadata callers can throttle their reads;
@@ -493,6 +498,7 @@ export function createMarkdownEditor(
         break;
       }
       case "ready": {
+        lastRevision = 0;
         ztoolkit.log("[Bamboo][EditorDebug] iframe-ready", { channel });
         iframeReady = true;
         if (readyTimer != null) {
@@ -580,6 +586,8 @@ export function createMarkdownEditor(
         break;
       }
       case "change": {
+        lastRevision = data.payload.rev;
+        onTextSelection?.(null);
         lastValue = applyDocChanges(lastValue, data.payload.changes);
         lastStats = undefined;
         onChange?.(lastValue, data.payload.deletedImages);
@@ -606,6 +614,7 @@ export function createMarkdownEditor(
         options.onViewState?.(data.payload);
         break;
       case "snapshot": {
+        lastRevision = data.payload.rev;
         lastValue = data.payload.value;
         lastStats = data.payload.stats;
         const pendingSnapshot = pendingSnapshots.get(data.payload.requestId);
@@ -696,6 +705,35 @@ export function createMarkdownEditor(
           const top = frame.top + iframe.clientTop;
           onLinkHover?.({
             href,
+            rect: {
+              left: left + rect.left,
+              top: top + rect.top,
+              right: left + rect.right,
+              bottom: top + rect.bottom,
+            },
+          });
+        }
+        break;
+      }
+      case "textSelection": {
+        if (data.payload === null) onTextSelection?.(null);
+        else if (data.payload.rev === lastRevision) {
+          // CodeMirror positions count LF-normalized text, including CRLF files.
+          // Parent replacements can keep the same iframe revision, so compare
+          // against the current buffer before exposing an in-flight selection.
+          const current = lastValue.replace(/\r\n?/g, "\n");
+          if (
+            data.payload.to > current.length ||
+            current.slice(data.payload.from, data.payload.to) !==
+              data.payload.text
+          )
+            break;
+          const frame = iframe.getBoundingClientRect();
+          const left = frame.left + iframe.clientLeft;
+          const top = frame.top + iframe.clientTop;
+          const { rect } = data.payload;
+          onTextSelection?.({
+            ...data.payload,
             rect: {
               left: left + rect.left,
               top: top + rect.top,
@@ -863,6 +901,7 @@ export function createMarkdownEditor(
       });
     },
     setValue: (value: string) => {
+      onTextSelection?.(null);
       lastValue = value;
       lastStats = undefined;
       sendOrQueue({
