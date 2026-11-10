@@ -125,6 +125,8 @@ import {
   createLinkPreviewController,
   type LinkPreviewController,
 } from "./link-preview";
+import { mountReadingSelectionPopup } from "./reading-selection-popup";
+import { translateReadingSelection } from "./reading-translation";
 import { noteHeadingPosition, type PortableNote } from "./note-links";
 import { invalidateNoteLibrary, updateIndexedNote } from "./note-library";
 import { exportNoteLibrary } from "./export-notes";
@@ -138,6 +140,10 @@ import {
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
 const linkPreviews = new WeakMap<OpenSession, LinkPreviewController>();
+const readingSelections = new WeakMap<
+  OpenSession,
+  { popup: ReturnType<typeof mountReadingSelectionPopup>; dispose(): void }
+>();
 const toolbarVisibilities = new WeakMap<
   OpenSession,
   ToolbarVisibilityController
@@ -171,6 +177,8 @@ export interface MarkdownEditorSurfaceOptions {
 export function mountMarkdownEditorSurface(
   options: MarkdownEditorSurfaceOptions,
 ): OpenSession {
+  const previous = sessionRegistry.get(options.sessionID);
+  if (previous) readingSelections.get(previous)?.popup.hide();
   const session: OpenSession = {
     tabID: options.sessionID,
     surface: options.surface,
@@ -225,6 +233,8 @@ export function mountMarkdownEditorSurface(
     }
     return session;
   } catch (error) {
+    readingSelections.get(session)?.dispose();
+    readingSelections.delete(session);
     sessionRegistry.unregister(options.sessionID);
     void session.deletedImages?.release().catch((error) => ztoolkit.log(error));
     throw error;
@@ -545,6 +555,7 @@ function applyPersistedToSession(session: OpenSession, value: string) {
   session.fileRevision = { content: value };
   if (editor.getValue() === value) return;
 
+  readingSelections.get(session)?.popup.hide();
   editor.setValue(value);
   session.save.adoptPersistedSnapshot();
   updateMeta(session);
@@ -1225,10 +1236,53 @@ function mountEditorUI(
       const source = sourceItemID ? Zotero.Items.get(sourceItemID) : item;
       if (source) navigateDocumentLink(source, win, href, { onNavigateNote });
     },
-    isActive: () => !session.closing && session.isActive(),
+    isActive: () =>
+      !session.closing &&
+      session.isActive() &&
+      !readingSelections.get(session)?.popup.isOpen(),
   });
   linkPreviews.set(session, linkPreview);
   linkPreview.bindLinks(root);
+  const readingSelection = mountReadingSelectionPopup({
+    root: view.previewEl,
+    isActive: () =>
+      !session.closing &&
+      sessionRegistry.get(session.tabID) === session &&
+      session.mode === "preview" &&
+      session.isActive(),
+    translate: translateReadingSelection,
+    onShow: () => linkPreview.hide(),
+    labels: {
+      translate: getString("selection-translate-action"),
+      loading: getString("selection-translate-loading"),
+      retry: getString("selection-translate-retry"),
+      unavailable: getString("selection-translate-unavailable"),
+      failed: getString("selection-translate-failed"),
+      close: getString("selection-translate-close"),
+      region: getString("selection-translate-title"),
+    },
+  });
+  const readingSelectionObserver =
+    session.surface === "tab"
+      ? Zotero.Notifier.registerObserver(
+          {
+            notify: (event, type) => {
+              if (event === "select" && type === "tab" && !session.isActive())
+                readingSelection.hide();
+            },
+          },
+          ["tab"],
+          "sketch-reading-selection",
+        )
+      : undefined;
+  readingSelections.set(session, {
+    popup: readingSelection,
+    dispose: () => {
+      if (readingSelectionObserver !== undefined)
+        Zotero.Notifier.unregisterObserver(readingSelectionObserver);
+      readingSelection.dispose();
+    },
+  });
   const unbindBacklinksSidebar = mountBacklinksSidebar(
     view.root,
     view.backlinksSidebarEl,
@@ -1527,6 +1581,7 @@ function applyModeVisibility(
   mode: "live" | "source" | "preview",
 ) {
   linkPreviews.get(session)?.hide();
+  readingSelections.get(session)?.popup.hide();
   if (mode !== "preview") {
     session.unbindPreviewOutline?.();
     session.unbindPreviewOutline = undefined;
@@ -2622,6 +2677,7 @@ function setMode(session: OpenSession, mode: "live" | "source" | "preview") {
 }
 
 async function showReadOnlyPreview(session: OpenSession) {
+  readingSelections.get(session)?.popup.hide();
   session.unbindPreviewOutline?.();
   session.unbindPreviewOutline = undefined;
   if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
@@ -2648,6 +2704,7 @@ async function showReadOnlyPreview(session: OpenSession) {
     ) {
       return;
     }
+    readingSelections.get(session)?.popup.hide();
     mountPreviewHtml(
       session.view.previewEl,
       rendered,
@@ -2660,6 +2717,7 @@ async function showReadOnlyPreview(session: OpenSession) {
     ztoolkit.log("Preview render error", e);
     if (session.mode === "preview") {
       const host = session.view.previewEl;
+      readingSelections.get(session)?.popup.hide();
       host.replaceChildren();
       const errorBox = host.ownerDocument.createElement("div");
       errorBox.className = "zotero-markdown-preview-error-state";
@@ -3180,6 +3238,7 @@ export async function closeMarkdownSession(
   }
 
   session.closing = true;
+  readingSelections.get(session)?.popup.hide();
   cancelPaperExport(session);
   session.closePromise = (async () => {
     if (opts.flush) {
@@ -3233,6 +3292,8 @@ export async function closeMarkdownSession(
     session.unbindPreviewOutline?.();
     linkPreviews.get(session)?.dispose();
     linkPreviews.delete(session);
+    readingSelections.get(session)?.dispose();
+    readingSelections.delete(session);
     if (session.view?.previewEl) disposePreviewMermaid(session.view.previewEl);
     session.editor?.destroy();
     await session.deletedImages

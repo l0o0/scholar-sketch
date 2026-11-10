@@ -87,6 +87,18 @@ current snapshot. The PDF adapter owns continuous scrolling, its resize handler
 and pointer listeners in both reader documents; the controller uses that
 ownership to keep internal pointer/key events inside the card.
 
+Reading selections have a separate surface-owned popup shared by Markdown tabs
+and standalone windows. Only selections inside the rendered article are eligible;
+clicking Translate submits a text snapshot to Translate for Zotero's public
+custom-text API. Its service and language configuration remain authoritative.
+The adapter omits item context because the provider's language inference can
+modify item fields. It extracts only successful result text, retaining no provider
+tasks or credentials. Results are displayed as plain text. One running request
+and one replaceable pending request bound work; selection/session changes and
+teardown invalidate late results. The provider exposes no transport cancellation.
+Selection popups take precedence over link-hover cards and are excluded from
+the exported document.
+
 ## Protocol
 
 High-frequency `change` messages carry `{ rev, changes }` instead of the full document. The parent applies those ranges to its shadow copy. Save/flush calls `requestSnapshot` so the written file is the latest iframe document. Image widgets request a single `resolveAsset`; the parent answers with a cached data URL.
