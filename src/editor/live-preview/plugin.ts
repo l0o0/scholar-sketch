@@ -1426,8 +1426,9 @@ function canUpdateLocally(transaction: Transaction): boolean {
     }
     // Plain paragraph edits are line-local. Structural Markdown, indentation,
     // table pipes and image/definition syntax can affect neighboring lines.
+    // Even a single = or - can turn the preceding paragraph into a heading.
     const structural =
-      /(?:!\[|<[!/?a-z]|-->|\?>|\]\]>|\]:|\||\$|\\[()[\]])|^\s*(?:>|`|~|#{1,6}(?:\s|$)|(?:[-+*]|\d{1,9}[.)])\s|[-=_*]{3,})|^[ \t]{4}/i;
+      /(?:!\[|<[!/?a-z]|-->|\?>|\]\]>|\]:|\||\$|\\[()[\]])|^\s*(?:>|`|~|#{1,6}(?:\s|$)|(?:[-+*]|\d{1,9}[.)])\s|[-=_*]{3,})|^[ \t]{4}|^ {0,3}(?:=+|-+)[ \t]*$/i;
     if (structural.test(beforeText) || structural.test(afterText))
       local = false;
   });
@@ -1448,6 +1449,9 @@ const liveStructure = StateField.define<LiveStructure>({
               ? structure.mappedEdits + 1
               : 0,
             tree: syntaxTree(transaction.state),
+            syntaxPending:
+              syntaxTree(transaction.state).length <
+              transaction.state.doc.length,
           }
         : buildStructure(transaction.state);
     }
