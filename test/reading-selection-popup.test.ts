@@ -3,6 +3,7 @@ import test, { type TestContext } from "node:test";
 import { Window } from "happy-dom";
 import { mountReadingSelectionPopup } from "../src/modules/markdown/reading-selection-popup.ts";
 import type { ReadingTranslationResult } from "../src/modules/markdown/reading-translation.ts";
+import type { EditorTextSelection } from "../src/modules/markdown/editor-protocol.ts";
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 function deferred<T>() {
@@ -39,10 +40,11 @@ function setup(
     getBoundingClientRect: { configurable: true, value: () => geometry },
   });
   let active = true;
+  let source: "preview" | "editor" = "preview";
   let shows = 0;
   const controller = mountReadingSelectionPopup({
     root: root as unknown as HTMLElement,
-    isActive: () => active,
+    isActive: (kind) => active && kind === source,
     translate,
     onShow: () => {
       shows++;
@@ -111,12 +113,152 @@ function setup(
     deactivate: () => {
       active = false;
     },
+    useSource: (kind: typeof source) => {
+      source = kind;
+      root.style.display = kind === "editor" ? "none" : "block";
+    },
     moveGeometry: (value: typeof geometry) => {
       geometry = value;
     },
     shows: () => shows,
   };
 }
+
+function editorSelection(
+  text = "  Live selection  ",
+  rev = 1,
+  from = 2,
+): EditorTextSelection {
+  return {
+    rev,
+    from,
+    to: from + text.length,
+    text,
+    rect: { left: 80, top: 100, right: 190, bottom: 120 },
+  };
+}
+
+test("Live selection uses the raw iframe snapshot while its reading root is hidden, and rectangle updates retain the translation", async (t) => {
+  const calls: string[] = [];
+  const app = setup(t, async (text) => {
+    calls.push(text);
+    return { status: "translated", text: "Live translated" };
+  });
+  app.useSource("editor");
+  const selection = editorSelection();
+  app.controller.showEditorSelection(selection);
+  assert.equal(app.root.style.display, "none");
+  assert.equal(app.controller.isOpen(), true);
+  assert.equal(app.result.hidden, true);
+  assert.deepEqual(calls, []);
+  app.doc.getSelection()!.removeAllRanges();
+  app.doc.dispatchEvent(new app.win.Event("selectionchange"));
+  app.doc.body.dispatchEvent(
+    new app.win.KeyboardEvent("keyup", { key: "ArrowRight", bubbles: true }),
+  );
+  assert.equal(
+    app.controller.isOpen(),
+    true,
+    "host DOM selection events cannot clear the iframe snapshot",
+  );
+  const down = new app.win.MouseEvent("mousedown", {
+    bubbles: true,
+    cancelable: true,
+  });
+  app.action.dispatchEvent(down);
+  assert.equal(down.defaultPrevented, true);
+  app.action.click();
+  await flush();
+  assert.deepEqual(calls, [selection.text]);
+  assert.equal(app.result.textContent, "Live translated");
+  const previousTop = app.panel.style.top;
+  app.controller.showEditorSelection({
+    ...selection,
+    rect: { left: 80, top: 200, right: 190, bottom: 220 },
+  });
+  assert.notEqual(app.panel.style.top, previousTop);
+  assert.equal(app.result.textContent, "Live translated");
+  assert.equal(app.result.hidden, false);
+  assert.deepEqual(calls, [selection.text]);
+});
+
+test("editor revisions invalidate old results and keep only the latest pending selection", async (t) => {
+  const calls: string[] = [];
+  const jobs: ReturnType<typeof deferred<ReadingTranslationResult>>[] = [];
+  const app = setup(t, (text) => {
+    calls.push(text);
+    const job = deferred<ReadingTranslationResult>();
+    jobs.push(job);
+    return job.promise;
+  });
+  app.useSource("editor");
+  const first = editorSelection("First text");
+  app.controller.showEditorSelection(first);
+  app.action.click();
+  app.controller.showEditorSelection({ ...first, rev: 2 });
+  assert.equal(app.result.hidden, true);
+  assert.equal(app.action.disabled, false);
+  app.action.click();
+  app.controller.showEditorSelection(editorSelection("Latest text", 2, 30));
+  app.action.click();
+  assert.deepEqual(calls, ["First text"]);
+  jobs[0].resolve({ status: "translated", text: "Outdated" });
+  await flush();
+  assert.deepEqual(calls, ["First text", "Latest text"]);
+  assert.equal(app.result.textContent, "Loading");
+  app.controller.showEditorSelection(null);
+  jobs[1].resolve({ status: "translated", text: "Cleared selection" });
+  await flush();
+  assert.equal(app.controller.isOpen(), false);
+  assert.doesNotMatch(app.panel.textContent, /Cleared selection|Outdated/);
+  app.controller.showEditorSelection(first);
+  assert.equal(
+    app.controller.isOpen(),
+    true,
+    "clearing allows the same selection to be selected again",
+  );
+  app.action.click();
+  app.controller.dispose();
+  jobs[2].resolve({ status: "translated", text: "Disposed selection" });
+  await flush();
+  app.controller.showEditorSelection(editorSelection("After dispose", 3));
+  assert.equal(app.panel.isConnected, false);
+  assert.equal(app.controller.isOpen(), false);
+});
+
+test("editor clears stay source-scoped and editor Escape does not consume native shortcuts", (t) => {
+  const app = setup(t, async () => ({ status: "unavailable" }));
+  app.select();
+  app.controller.showEditorSelection(null);
+  assert.equal(app.controller.isOpen(), true);
+  app.controller.showEditorSelection(editorSelection());
+  assert.equal(
+    app.controller.isOpen(),
+    true,
+    "inactive editor messages cannot replace a preview selection",
+  );
+  app.controller.hide();
+  app.useSource("editor");
+  app.controller.showEditorSelection(editorSelection());
+  const escape = new app.win.KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  let received = false;
+  app.doc.body.addEventListener("keydown", () => {
+    received = true;
+  });
+  app.doc.body.dispatchEvent(escape);
+  assert.equal(app.controller.isOpen(), false);
+  assert.equal(escape.defaultPrevented, false);
+  assert.equal(received, true);
+  app.controller.showEditorSelection(editorSelection("New selection", 2));
+  app.outside.dispatchEvent(
+    new app.win.PointerEvent("pointerdown", { bubbles: true }),
+  );
+  assert.equal(app.controller.isOpen(), false);
+});
 
 test("only nonempty selections in this reading article show an idle popup outside the exportable article", (t) => {
   const calls: string[] = [];
@@ -132,7 +274,19 @@ test("only nonempty selections in this reading article show an idle popup outsid
   assert.equal(app.controller.isOpen(), false);
   app.select();
   assert.equal(app.controller.isOpen(), true);
-  assert.equal(app.action.textContent, "Translate");
+  assert.equal(app.action.getAttribute("aria-label"), "Translate");
+  assert.equal(app.action.title, "Translate");
+  assert.equal(app.action.textContent, "");
+  assert.equal(
+    app.action.querySelector(".zmd-icon")?.getAttribute("aria-hidden"),
+    "true",
+  );
+  assert.equal(app.close.hidden, true);
+  assert.equal(
+    [...app.panel.querySelectorAll("button")].filter((button) => !button.hidden)
+      .length,
+    1,
+  );
   assert.equal(app.result.hidden, true);
   assert.deepEqual(calls, []);
   assert.equal(app.root.querySelector("article")!.contains(app.panel), false);
@@ -218,6 +372,7 @@ test("popup button focus preserves the raw selection snapshot and renders transl
   assert.equal(app.controller.isOpen(), true);
   app.action.click();
   assert.equal(app.result.textContent, "Loading");
+  assert.equal(app.close.hidden, false);
   await flush();
   assert.deepEqual(calls, ["  Alpha text  "]);
   assert.equal(app.result.textContent, "<img src=x>\nTranslation");
@@ -305,7 +460,7 @@ test("unavailable and failed translations expose an explicit retry action", asyn
     assert.equal(app.result.textContent, expected);
     assert.equal(app.action.disabled, false);
     assert.equal(
-      app.action.textContent,
+      app.action.getAttribute("aria-label"),
       expected === "Recovered" ? "Translate" : "Retry",
     );
   }

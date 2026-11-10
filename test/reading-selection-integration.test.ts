@@ -164,13 +164,14 @@ async function fixture(t: TestContext, surface: "tab" | "window") {
     if (command.type === "requestSnapshot")
       message("snapshot", {
         requestId: command.payload.requestId,
+        rev: 0,
         value: source,
         stats: computeStats(source),
       });
   });
   message("ready");
   await session.editor!.ready;
-  const mode = async (value: "live" | "preview") => {
+  const mode = async (value: "live" | "source" | "preview") => {
     session
       .view!.root.querySelector<HTMLButtonElement>(
         ".zotero-markdown-mode-toggle",
@@ -207,6 +208,8 @@ async function fixture(t: TestContext, surface: "tab" | "window") {
     requests,
     mode,
     select,
+    message,
+    source,
     setActive: (value: boolean) => {
       active = value;
       for (const observer of observers.values())
@@ -216,6 +219,50 @@ async function fixture(t: TestContext, surface: "tab" | "window") {
 }
 
 for (const surface of ["tab", "window"] as const) {
+  test(`${surface} Live and Source selections open the translator without changing editor content`, async (t) => {
+    const app = await fixture(t, surface);
+    const panel = app.win.document.querySelector<HTMLElement>(
+      ".zmd-reading-selection-popup",
+    )!;
+    const button = panel.querySelector<HTMLButtonElement>(
+      ".zmd-reading-selection-translate",
+    )!;
+    const text = "Selected reading sentence.";
+    const from = app.source.indexOf(text);
+    const selection = {
+      rev: 0,
+      from,
+      to: from + text.length,
+      text,
+      rect: { left: 30, top: 60, right: 200, bottom: 82 },
+    };
+    for (const mode of ["live", "source"] as const) {
+      await app.mode(mode);
+      app.message("textSelection", selection);
+      assert.equal(panel.style.display, "block", mode);
+      const count = app.requests.length;
+      button.click();
+      assert.equal(app.requests.length, count + 1);
+      assert.equal(app.requests[count].text, text);
+      app.requests[count].finish({ status: "success", result: `译文 ${mode}` });
+      await flush();
+      assert.equal(
+        panel.querySelector(".zmd-reading-selection-result")!.textContent,
+        `译文 ${mode}`,
+      );
+      assert.equal(app.session.editor!.getValue(), app.source);
+      assert.equal(app.session.save.dirty, false);
+      app.message("textSelection", null);
+      assert.equal(panel.style.display, "none");
+    }
+    app.message("textSelection", { ...selection, rev: 99 });
+    assert.equal(
+      panel.style.display,
+      "none",
+      "outdated revisions cannot open a popup",
+    );
+  });
+
   test(`${surface} reading selection reaches the configured translator and rejects mode/close responses`, async (t) => {
     const app = await fixture(t, surface);
     await app.mode("preview");

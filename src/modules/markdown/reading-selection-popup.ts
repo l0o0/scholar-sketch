@@ -1,22 +1,28 @@
 import type { ReadingTranslationResult } from "./reading-translation";
+import type { EditorTextSelection } from "./editor-protocol";
+import { iconReset, iconTranslate } from "./icons";
 
-interface SelectionSnapshot {
+interface PreviewSelectionSnapshot {
+  source: "preview";
   article: HTMLElement;
   range: Range;
   text: string;
   sourceText: string;
 }
+type SelectionSnapshot =
+  PreviewSelectionSnapshot | ({ source: "editor" } & EditorTextSelection);
 
 export interface ReadingSelectionPopup {
   hide(): void;
   dispose(): void;
   isOpen(): boolean;
+  showEditorSelection(target: EditorTextSelection | null): void;
 }
 
 /** A reading surface owns its selected text, queued translation and host popup. */
 export function mountReadingSelectionPopup(options: {
   root: HTMLElement;
-  isActive(): boolean;
+  isActive(source: "preview" | "editor"): boolean;
   translate(text: string): Promise<ReadingTranslationResult>;
   onShow?(): void;
   labels: {
@@ -41,15 +47,33 @@ export function mountReadingSelectionPopup(options: {
   panel.setAttribute("role", "region");
   panel.setAttribute("aria-label", labels.region);
   panel.style.cssText =
-    "position:fixed;z-index:2147483001;display:none;box-sizing:border-box;max-width:calc(100vw - 24px);max-height:320px;padding:8px;overflow:auto;border:1px solid color-mix(in srgb,CanvasText 18%,Canvas);border-radius:8px;background:Canvas;color:CanvasText;box-shadow:0 6px 24px #0003;font:13px/1.6 system-ui,sans-serif;text-align:start";
+    "position:fixed;z-index:2147483001;display:none;box-sizing:border-box;max-width:calc(100vw - 24px);max-height:320px;overflow:auto;border:1px solid color-mix(in srgb,CanvasText 16%,Canvas);border-radius:8px;background:Canvas;color:CanvasText;box-shadow:0 3px 12px #0002;font:13px/1.6 system-ui,sans-serif;text-align:start";
+  const style = element<HTMLStyleElement>("style", "");
+  style.textContent = `
+.zmd-reading-selection-popup { padding:2px; }
+.zmd-reading-selection-popup.is-expanded { width:360px; padding:8px; }
+.zmd-reading-selection-popup [hidden] { display:none; }
+.zmd-reading-selection-popup button { appearance:none; -moz-appearance:none; display:grid; place-items:center; box-sizing:border-box; width:28px; height:28px; min-width:0; min-height:0; margin:0; padding:0; border:0; border-radius:5px; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+.zmd-reading-selection-popup button:hover:not(:disabled) { background:color-mix(in srgb,CanvasText 7%,Canvas); }
+.zmd-reading-selection-popup button:focus-visible { outline:2px solid Highlight; outline-offset:-2px; }
+.zmd-reading-selection-popup button:disabled { opacity:.5; cursor:wait; }
+.zmd-reading-selection-popup .zmd-icon { display:block; width:18px; height:18px; background-color:currentColor; mask-image:var(--zmd-icon-url); mask-mode:alpha; mask-repeat:no-repeat; mask-position:center; mask-size:contain; }
+`;
   const controls = element<HTMLElement>("div", "zmd-reading-selection-actions");
-  controls.style.cssText = "display:flex;align-items:center;gap:8px";
+  controls.style.cssText = "display:flex;align-items:center;gap:6px";
   const action = element<HTMLButtonElement>(
     "button",
     "zmd-reading-selection-translate",
   );
   action.type = "button";
-  action.textContent = labels.translate;
+  function actionIcon(retry = false) {
+    const label = retry ? labels.retry : labels.translate;
+    action.title = label;
+    action.setAttribute("aria-label", label);
+    // icons.ts emits trusted spans with external masks, never inline SVG.
+    action.innerHTML = retry ? iconReset() : iconTranslate();
+  }
+  actionIcon();
   const close = element<HTMLButtonElement>(
     "button",
     "zmd-reading-selection-close",
@@ -59,9 +83,7 @@ export function mountReadingSelectionPopup(options: {
   close.title = labels.close;
   close.setAttribute("aria-label", labels.close);
   close.style.marginInlineStart = "auto";
-  for (const button of [action, close])
-    button.style.cssText +=
-      ";color:inherit;font:inherit;cursor:pointer;padding:2px 8px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:4px;background:transparent";
+  close.hidden = true;
   const result = element<HTMLElement>("div", "zmd-reading-selection-result");
   result.setAttribute("role", "status");
   result.setAttribute("aria-live", "polite");
@@ -69,7 +91,7 @@ export function mountReadingSelectionPopup(options: {
     "margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:344px;user-select:text";
   result.hidden = true;
   controls.append(action, close);
-  panel.append(controls, result);
+  panel.append(style, controls, result);
   (doc.body ?? doc.documentElement).append(panel);
 
   let disposed = false;
@@ -85,12 +107,13 @@ export function mountReadingSelectionPopup(options: {
     !!target &&
     typeof (target as Node).nodeType === "number" &&
     panel.contains(target as Node);
-  const active = () => !disposed && root.isConnected && options.isActive();
+  const active = (source: SelectionSnapshot["source"]) =>
+    !disposed && root.isConnected && options.isActive(source);
   const inDocument = (target: EventTarget | null) =>
     target === doc ||
     (!!target && "ownerDocument" in target && target.ownerDocument === doc);
 
-  function selected(): SelectionSnapshot | null {
+  function selected(): PreviewSelectionSnapshot | null {
     const selection = doc.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount !== 1)
       return null;
@@ -112,6 +135,7 @@ export function mountReadingSelectionPopup(options: {
     const text = selection.toString();
     if (!text.trim()) return null;
     return {
+      source: "preview",
       article,
       range: range.cloneRange(),
       text,
@@ -119,7 +143,16 @@ export function mountReadingSelectionPopup(options: {
     };
   }
   function same(a: SelectionSnapshot, b: SelectionSnapshot): boolean {
+    if (a.source === "editor")
+      return (
+        b.source === "editor" &&
+        a.rev === b.rev &&
+        a.from === b.from &&
+        a.to === b.to &&
+        a.text === b.text
+      );
     return (
+      b.source === "preview" &&
       a.article === b.article &&
       a.text === b.text &&
       a.range.startContainer === b.range.startContainer &&
@@ -129,8 +162,9 @@ export function mountReadingSelectionPopup(options: {
     );
   }
   function valid(value: SelectionSnapshot): boolean {
+    if (!active(value.source)) return false;
+    if (value.source === "editor") return true;
     return (
-      active() &&
       value.article.isConnected &&
       root.contains(value.article) &&
       value.article.contains(value.range.startContainer) &&
@@ -140,6 +174,7 @@ export function mountReadingSelectionPopup(options: {
   }
   function selectionMatches(): boolean {
     if (!snapshot) return false;
+    if (snapshot.source === "editor") return true;
     const current = selected();
     if (current) return same(snapshot, current);
     const selection = doc.getSelection();
@@ -160,10 +195,14 @@ export function mountReadingSelectionPopup(options: {
   }
   function position() {
     if (!snapshot || !valid(snapshot)) return hide();
-    const rects = snapshot.range.getClientRects();
-    const anchor = rects?.length
-      ? rects[rects.length - 1]
-      : snapshot.range.getBoundingClientRect();
+    let anchor: { left: number; top: number; right: number; bottom: number };
+    if (snapshot.source === "editor") anchor = snapshot.rect;
+    else {
+      const rects = snapshot.range.getClientRects();
+      anchor = rects?.length
+        ? rects[rects.length - 1]
+        : snapshot.range.getBoundingClientRect();
+    }
     const width = Math.min(
       panel.getBoundingClientRect().width || 120,
       win.innerWidth - 24,
@@ -182,7 +221,14 @@ export function mountReadingSelectionPopup(options: {
   }
   function updateSelection() {
     if (disposed || selecting) return;
-    if (!active()) return hide();
+    if (snapshot?.source === "editor") {
+      if (valid(snapshot)) return;
+      hide();
+    }
+    if (!active("preview")) {
+      if (snapshot?.source === "preview") hide();
+      return;
+    }
     const next = selected();
     if (!next) {
       if (snapshot && valid(snapshot) && selectionMatches()) return;
@@ -190,7 +236,13 @@ export function mountReadingSelectionPopup(options: {
       dismissed = null;
       return;
     }
-    if (snapshot && same(snapshot, next)) return position();
+    show(next);
+  }
+  function show(next: SelectionSnapshot) {
+    if (snapshot && same(snapshot, next)) {
+      snapshot = next;
+      return position();
+    }
     if (dismissed && same(dismissed, next)) return;
     generation++;
     pending = null;
@@ -198,13 +250,28 @@ export function mountReadingSelectionPopup(options: {
     dismissed = null;
     placement = undefined;
     action.disabled = false;
-    action.textContent = labels.translate;
+    actionIcon();
+    close.hidden = true;
+    panel.classList.remove("is-expanded");
     panel.removeAttribute("aria-busy");
     result.hidden = true;
     result.textContent = "";
     panel.style.display = "block";
     position();
     options.onShow?.();
+  }
+  function showEditorSelection(target: EditorTextSelection | null) {
+    if (disposed) return;
+    if (!target || !target.text.trim()) {
+      if (snapshot?.source === "editor") hide();
+      if (dismissed?.source === "editor") dismissed = null;
+      return;
+    }
+    if (!active("editor")) {
+      if (snapshot?.source === "editor") hide();
+      return;
+    }
+    show({ source: "editor", ...target, rect: { ...target.rect } });
   }
   const current = (job: { generation: number }) =>
     snapshot !== null &&
@@ -225,8 +292,7 @@ export function mountReadingSelectionPopup(options: {
     if (current(job)) {
       panel.removeAttribute("aria-busy");
       action.disabled = false;
-      action.textContent =
-        value.status === "translated" ? labels.translate : labels.retry;
+      actionIcon(value.status !== "translated");
       result.textContent =
         value.status === "translated" ? value.text : labels[value.status];
       position();
@@ -238,6 +304,8 @@ export function mountReadingSelectionPopup(options: {
     updateSelection();
     if (!snapshot || !valid(snapshot) || !selectionMatches()) return;
     pending = { text: snapshot.text, generation };
+    panel.classList.add("is-expanded");
+    close.hidden = false;
     action.disabled = true;
     result.hidden = false;
     result.textContent = labels.loading;
@@ -265,8 +333,10 @@ export function mountReadingSelectionPopup(options: {
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.isComposing || !snapshot) return;
-    event.preventDefault();
-    event.stopPropagation();
+    if (snapshot.source === "preview") {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     hide();
   };
   const onKeyUp = (event: KeyboardEvent) => {
@@ -307,6 +377,7 @@ export function mountReadingSelectionPopup(options: {
 
   return {
     hide,
+    showEditorSelection,
     isOpen: () => snapshot !== null && !disposed,
     dispose() {
       if (disposed) return;

@@ -1245,10 +1245,12 @@ function mountEditorUI(
   linkPreview.bindLinks(root);
   const readingSelection = mountReadingSelectionPopup({
     root: view.previewEl,
-    isActive: () =>
+    isActive: (source) =>
       !session.closing &&
       sessionRegistry.get(session.tabID) === session &&
-      session.mode === "preview" &&
+      (source === "preview"
+        ? session.mode === "preview"
+        : session.mode !== "preview") &&
       session.isActive(),
     translate: translateReadingSelection,
     onShow: () => linkPreview.hide(),
@@ -1472,6 +1474,8 @@ function mountEditorUI(
       }),
     onOpenLink: navigateLink,
     onLinkHover: (target) => linkPreview.show(target),
+    onTextSelection: (selection) =>
+      readingSelection.showEditorSelection(selection),
   });
   ztoolkit.log("[Bamboo][EditorDebug] tab-editor-created", {
     tabID: session.tabID,

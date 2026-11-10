@@ -74,6 +74,60 @@ test("hover links require an owning channel and finite ordered viewport bounds",
     );
 });
 
+test("text selections require their revision, exact nonempty range and finite ordered head bounds", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    channel: "selected",
+    type: "textSelection",
+  };
+  const payload = {
+    rev: 0,
+    from: 3,
+    to: 7,
+    text: "text",
+    rect: { left: 10, top: 20, right: 10, bottom: 42 },
+  };
+  for (const value of [payload, null]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: value },
+        "selected",
+      ),
+      true,
+    );
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: value },
+        "other",
+      ),
+      false,
+    );
+  }
+  for (const invalid of [
+    undefined,
+    {},
+    { ...payload, rev: -1 },
+    { ...payload, rev: 1.5 },
+    { ...payload, from: -1 },
+    { ...payload, to: 3 },
+    { ...payload, to: 7.5 },
+    { ...payload, text: "" },
+    { ...payload, text: "    " },
+    { ...payload, text: "mismatch" },
+    { ...payload, rect: { ...payload.rect, left: Infinity } },
+    { ...payload, rect: { ...payload.rect, right: 9 } },
+    { ...payload, rect: { ...payload.rect, bottom: 19 } },
+  ]) {
+    assert.equal(
+      isEditorProtocolMessageForChannel(
+        { ...message, payload: invalid },
+        "selected",
+      ),
+      false,
+    );
+  }
+});
+
 test("rejects unscoped editor messages when a channel is required", () => {
   assert.equal(
     isEditorProtocolMessageForChannel(

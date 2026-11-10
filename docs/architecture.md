@@ -88,8 +88,13 @@ and pointer listeners in both reader documents; the controller uses that
 ownership to keep internal pointer/key events inside the card.
 
 Reading selections have a separate surface-owned popup shared by Markdown tabs
-and standalone windows. Only selections inside the rendered article are eligible;
-clicking Translate submits a text snapshot to Translate for Zotero's public
+and standalone windows. Reading-preview selections are scoped to the rendered
+article; Live/Source selections are reported by CodeMirror through the owning
+iframe channel with canonical text, revision, range and viewport coordinates.
+The host maps those coordinates and rejects stale revisions or text that no longer
+matches the buffer. Typing, composition
+and clearing the editor selection dismiss its popup without changing the buffer.
+Clicking the compact translation icon submits a text snapshot to Translate for Zotero's public
 custom-text API. Its service and language configuration remain authoritative.
 The adapter omits item context because the provider's language inference can
 modify item fields. It extracts only successful result text, retaining no provider

@@ -30,6 +30,7 @@ export const testSuites = {
       "test/editor-keyboard-shortcuts.test.ts",
       "test/editor-link-completion.test.ts",
       "test/editor-link-hover.test.ts",
+      "test/editor-text-selection.test.ts",
       "test/editor-link-target.test.ts",
       "test/editor-outline-bridge.test.ts",
       "test/editor-outline.test.ts",
