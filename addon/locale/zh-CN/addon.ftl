@@ -1078,28 +1078,6 @@ settings-style-name-required = 请输入方案名称
 settings-style-name-duplicate = 此名称已存在，请使用其他名称
 settings-style-builtin-hint = 内置方案，另存为后可编辑
 settings-style-preview = 样式预览
-settings-style-body = 正文
-settings-style-headings = 标题
-settings-style-colors = 配色
-settings-style-font-size = 字号 · px
-settings-style-line-height = 行距 · 倍
-settings-style-paragraph-spacing = 段间距 · em
-settings-style-content-width = 正文宽度 · px
-settings-style-heading-level = 标题层级
-settings-style-heading-size = 大小 · em
-settings-style-heading-weight = 字重
-settings-style-heading-before = 上间距 · em
-settings-style-heading-after = 下间距 · em
-settings-style-color-text = 正文
-settings-style-color-heading = 标题
-settings-style-color-link = 链接
-settings-style-color-accent = 强调色
-settings-style-color-quote-background = 引用背景
-settings-style-color-quote-border = 引用边框
-settings-style-color-code-background = 代码背景
-settings-style-color-code-border = 代码边框
-settings-style-color-table-header = 表头背景
-settings-style-color-table-border = 表格边框
 settings-style-sample =
     # 研究笔记
 
@@ -1131,3 +1109,21 @@ settings-style-sample =
 
     保留参考文献。
 settings-style-copy-name = { $name } 副本
+
+settings-style-copy-prompt = 复制 AI 提示词
+settings-style-reset-css = 恢复默认
+settings-style-prompt-copied = 提示词已复制
+settings-style-prompt-copy-failed = 复制失败，请重试
+settings-style-css-preview-unchanged = CSS 无效，预览未应用此草稿
+settings-style-css-diagnostic = 第 { $line } 行：{ $message }
+settings-style-css-syntax = CSS 语法不完整或有误
+settings-style-css-selector = 不支持此选择器
+settings-style-css-property = 不支持此属性
+settings-style-css-value = 属性值无效或超出范围
+settings-style-css-variable = 变量未定义或不受支持
+settings-style-css-at-rule = 不支持此 CSS 指令
+settings-style-css-limit = CSS 超出支持的长度或复杂度
+settings-style-prompt-instructions = 你正在为 Scholar Sketch 的 Markdown 编辑器设计样式。请根据下面的需求修改当前 CSS。严格使用支持的选择器、属性、变量和数值范围，同时提供协调的浅色与深色配色。不得引入外部字体、图片、URL 或其他网络资源。只输出完整 CSS，不要解释、Markdown 代码围栏或 JavaScript。
+settings-style-prompt-request = 我的需求：[在此填写希望的字体、配色和排版风格]
+settings-style-prompt-current = 当前 CSS：
+settings-style-prompt-sample = 用于检查效果的 Markdown 示例：

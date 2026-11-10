@@ -4,6 +4,8 @@ import { Window } from "happy-dom";
 import { EditorView } from "@codemirror/view";
 import { editorThemeExtension } from "../src/editor/theme.ts";
 import { THEME_TOKENS } from "../src/modules/markdown/theme-tokens.ts";
+import { compileMarkdownStyleCss } from "../src/modules/markdown/style-css.ts";
+import { GFM } from "@lezer/markdown";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
@@ -78,6 +80,9 @@ test("standalone HTML contains the selected typography and both screen and print
   style.fontSize = 19;
   style.light.background = "#fff9ed";
   style.dark.background = "#102030";
+  style.decorations = [
+    { theme: "dark", target: "h1", declarations: { color: "#abcdef" } },
+  ];
   Object.assign(style.dark, {
     unknown: "</style><script>unexpected()</script>",
   });
@@ -88,6 +93,21 @@ test("standalone HTML contains the selected typography and both screen and print
   const article = browser.document.querySelector("article")!;
   assert.equal(article.querySelector("h1")!.textContent, "A heading");
   assert.equal(browser.getComputedStyle(article).fontSize, "19px");
+  assert.equal(
+    browser.getComputedStyle(article.querySelector("h1")!).color,
+    "#abcdef",
+  );
+  const printBrowser = new Window({
+    settings: { device: { mediaType: "print" } },
+  });
+  t.after(() => printBrowser.happyDOM.close());
+  printBrowser.document.write(document.standaloneHtml);
+  assert.equal(
+    printBrowser.getComputedStyle(printBrowser.document.querySelector("h1")!)
+      .color,
+    style.light.heading,
+    "dark-only decorations must not override the light print palette",
+  );
   // The exported stylesheet is self-contained; printing chooses the preset's
   // light palette rather than white paper with the dark palette's pale text.
   const css = browser.document.querySelector("style")!.textContent!;
@@ -210,4 +230,128 @@ test("code remains readable when its background differs from the surrounding doc
       THEME_TOKENS.light.text,
     );
   }
+});
+
+test("compiled decoration CSS reaches Live and Reading without hiding table selection", async (t) => {
+  const browser = new Window();
+  const previous = new Map<string, PropertyDescriptor | undefined>();
+  for (const [key, value] of Object.entries({
+    window: browser,
+    document: browser.document,
+    Node: browser.Node,
+    Element: browser.Element,
+    HTMLElement: browser.HTMLElement,
+    MutationObserver: browser.MutationObserver,
+    ResizeObserver: browser.ResizeObserver,
+    getComputedStyle: browser.getComputedStyle.bind(browser),
+  })) {
+    previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, {
+      configurable: true,
+      writable: true,
+      value,
+    });
+  }
+  const api = await import("../src/editor/live-preview/plugin.ts");
+  const result = compileMarkdownStyleCss(`
+.markdown[data-theme="dark"] h1 { color: #abcdef; }
+.markdown h1 { color: #123456; text-align: center; font-style: italic; }
+.markdown code { color: #bbccdd; }
+.markdown pre { color: #ff0000; border-radius: 12px; }
+.markdown td { background-color: #334455; font-style: italic; }
+`);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const style = result.style;
+  const doc =
+    "# Heading\n\nBody `inline`\n\n```\nplain code\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nEnd";
+  browser.document.head.innerHTML = `<style>${previewDocumentCss()}</style>`;
+  const preview = browser.document.createElement("section");
+  preview.innerHTML = `<article class="zotero-markdown-preview-inner">${renderMarkdown(doc)}</article>`;
+  browser.document.body.append(preview);
+  applyPreviewStyle(preview as unknown as HTMLElement, style, "dark");
+  const parent = browser.document.createElement("div");
+  browser.document.body.append(parent);
+  const view = new EditorView({
+    parent: parent as unknown as HTMLElement,
+    state: EditorState.create({
+      doc,
+      selection: { anchor: doc.length },
+      extensions: [
+        markdown({ extensions: GFM }),
+        api.livePreviewPlugin(),
+        editorThemeExtension("dark", style.fontSize, "live", "default", {
+          fontFamily: style.fontFamily,
+          backgroundColor: "",
+          style,
+        }),
+      ],
+    }),
+  });
+  t.after(async () => {
+    view.destroy();
+    await browser.happyDOM.close();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  for (const heading of [
+    preview.querySelector("h1")!,
+    parent.querySelector(".zmd-lp-h1")!,
+  ]) {
+    const computed = browser.getComputedStyle(heading);
+    assert.equal(computed.color, "#abcdef");
+    assert.equal(computed.textAlign, "center");
+    assert.equal(computed.fontStyle, "italic");
+  }
+  for (const code of [
+    preview.querySelector("pre code")!,
+    preview.querySelector("p code")!,
+    parent.querySelector(".zmd-lp-code-block")!,
+    parent.querySelector(".zmd-lp-code")!,
+  ]) {
+    assert.equal(browser.getComputedStyle(code).color, "#bbccdd");
+  }
+  assert.equal(
+    browser.getComputedStyle(preview.querySelector("pre")!).borderRadius,
+    "12px",
+  );
+  assert.equal(
+    browser.getComputedStyle(parent.querySelector(".zmd-lp-code-fence-open")!)
+      .borderTopLeftRadius,
+    "12px",
+  );
+  const idleCell = parent.querySelector(
+    ".zmd-lp-table-cell:not(.zmd-lp-table-header-cell)",
+  )!;
+  assert.equal(browser.getComputedStyle(idleCell).backgroundColor, "#334455");
+  view.dispatch({
+    effects: api.setLiveTableSelection.of({
+      kind: "row",
+      tableFrom: doc.indexOf("| A"),
+      rowIndex: 1,
+    }),
+  });
+  const selectedCell = parent.querySelector(".zmd-lp-table-cell-selected")!;
+  assert.ok(selectedCell);
+  assert.equal(
+    browser.getComputedStyle(selectedCell).backgroundColor,
+    `${style.dark.accent}26`,
+  );
+  assert.equal(browser.getComputedStyle(selectedCell).fontStyle, "italic");
+  const heading = preview.querySelector("h1");
+  applyPreviewStyle(preview as unknown as HTMLElement, style, "light");
+  assert.equal(preview.querySelector("h1"), heading);
+  assert.equal(browser.getComputedStyle(heading!).color, "#123456");
+  applyPreviewStyle(
+    preview as unknown as HTMLElement,
+    DEFAULT_MARKDOWN_STYLE,
+    "light",
+  );
+  assert.equal(preview.querySelector("style[data-zmd-style-decoration]"), null);
+  assert.equal(
+    browser.getComputedStyle(heading!).color,
+    DEFAULT_MARKDOWN_STYLE.light.heading,
+  );
 });

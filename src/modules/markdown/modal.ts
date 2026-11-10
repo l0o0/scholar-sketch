@@ -50,10 +50,8 @@ import {
   type SlashSearchLanguage,
 } from "./preferences";
 
-import {
-  cloneMarkdownStyle,
-  type MarkdownStyleSettings,
-} from "./style-presets";
+import type { MarkdownStyleSettings } from "./style-settings";
+import { compileMarkdownStyleCss } from "./style-css";
 import {
   readMarkdownStyleSettings,
   writeMarkdownStyleSettings,
@@ -173,10 +171,7 @@ export function settingsFromPrefs(
     frontmatter: Boolean(prefs.frontmatter),
     markdownStyles: {
       ...prefs.markdownStyles,
-      presets: prefs.markdownStyles.presets.map((preset) => ({
-        ...preset,
-        style: cloneMarkdownStyle(preset.style),
-      })),
+      presets: prefs.markdownStyles.presets.map((preset) => ({ ...preset })),
     },
     theme: normalizeAppearanceTheme(prefs.theme),
     markdownToolbarMode: resolveMarkdownToolbarMode(
@@ -296,6 +291,8 @@ export function createMarkdownModalController(
   let restoreFocus: HTMLElement | null = null;
   let pendingSettings: SettingsModalData | null = null;
   let savingSettings = false;
+  let selectSettingsPage:
+    ((page: SettingsPageID, focusHeading?: boolean) => void) | null = null;
 
   const closeModal = () => {
     if (backdrop.hidden || savingSettings) return;
@@ -1134,6 +1131,7 @@ export function createMarkdownModalController(
       navigation.appendChild(item);
     }
 
+    selectSettingsPage = selectPage;
     body.appendChild(workspace);
     const initialPage = SETTINGS_PAGES.some(
       ({ id }) => id === initialSettingsPage,
@@ -1207,10 +1205,23 @@ export function createMarkdownModalController(
       return;
     }
     if (action === "save-settings") {
+      if (savingSettings) return;
+      const invalid = pendingSettings!.markdownStyles.presets.find(
+        (preset) => !compileMarkdownStyleCss(preset.css).ok,
+      );
+      if (invalid) {
+        pendingSettings!.markdownStyles.selectedId = invalid.id;
+        selectSettingsPage!("editor", true);
+        body
+          .querySelector<HTMLTextAreaElement>(
+            'textarea[name="markdownStyleCss"]',
+          )!
+          .focus();
+        return;
+      }
       const settings = prefsFromSettings(
         pendingSettings || settingsFromPrefs(),
       );
-      if (savingSettings) return;
       savingSettings = true;
       const saveButton = body.querySelector<HTMLButtonElement>(
         '[data-modal-action="save-settings"]',
@@ -1239,7 +1250,7 @@ export function createMarkdownModalController(
         ) || dialog;
       const controls = [
         ...focusScope.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
         ),
       ].filter(
         (element) => !element.closest("[hidden]") && element.tabIndex >= 0,

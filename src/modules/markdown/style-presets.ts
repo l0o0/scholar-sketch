@@ -1,3 +1,7 @@
+import {
+  isMarkdownStyleDecorations,
+  type MarkdownStyleDecoration,
+} from "./style-decoration";
 import type { FontFamilyID } from "./preferences";
 
 export interface MarkdownHeadingStyle {
@@ -23,6 +27,7 @@ export interface MarkdownStyleColors {
 
 /** Typography is shared; palettes follow the host's current light/dark mode. */
 export interface MarkdownStyle {
+  decorations?: MarkdownStyleDecoration[];
   fontFamily: FontFamilyID;
   fontSize: number;
   lineHeight: number;
@@ -93,6 +98,14 @@ export function cloneMarkdownStyle(style: MarkdownStyle): MarkdownStyle {
     headings: style.headings.map((heading) => ({ ...heading })),
     light: { ...style.light },
     dark: { ...style.dark },
+    ...(style.decorations
+      ? {
+          decorations: style.decorations.map((rule) => ({
+            ...rule,
+            declarations: { ...rule.declarations },
+          })),
+        }
+      : {}),
   };
 }
 
@@ -239,7 +252,9 @@ export function isMarkdownStyle(value: unknown): value is MarkdownStyle {
         within(heading.after, 0, 2),
     ) &&
     validColors(value.light) &&
-    validColors(value.dark)
+    validColors(value.dark) &&
+    (value.decorations === undefined ||
+      isMarkdownStyleDecorations(value.decorations))
   );
 }
 

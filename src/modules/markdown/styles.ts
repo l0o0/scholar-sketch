@@ -1333,36 +1333,27 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
 .zmd-style-naming[hidden], .zmd-style-locked[hidden] { display: none; }
 .zmd-style-naming input { min-inline-size: 0; flex: 1; }
 .zmd-style-locked { color: var(--zmd-text-muted); margin: 10px 0 0; font-size: 12px; }
-.zmd-style-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-block-start: 16px; align-items: start; }
-.zmd-style-controls { min-inline-size: 0; }
+.zmd-style-css-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-block: 14px 8px; }
+.zmd-style-css-tools > label { flex: 1; font-weight: 600; }
+.zmd-style-css-tools > button:disabled { opacity: .45; cursor: default; }
+.zmd-style-css { box-sizing: border-box; display: block; inline-size: 100%; block-size: 240px; min-block-size: 160px; resize: vertical; padding: 12px; border: 1px solid var(--zmd-border-strong); border-radius: 8px; background: var(--zmd-bg); color: var(--zmd-text); font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; }
+.zmd-style-css[readonly] { color: var(--zmd-text-muted); }
+.zmd-style-css[aria-invalid="true"] { border-color: var(--zmd-danger, #b42318); }
+.zmd-style-css-diagnostics { margin-block: 8px; color: var(--zmd-danger, #b42318); font-size: 12px; }
+.zmd-style-css-diagnostics p { margin: 0 0 4px; }
+.zmd-style-css-diagnostics ul { margin: 0; padding-inline-start: 18px; overflow-wrap: anywhere; }
+.zmd-style-copy-status { margin: 8px 0; color: var(--zmd-text-muted); font-size: 12px; }
+.zmd-style-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 16px 8px; }
 .zmd-style-segments { display: flex; gap: 3px; padding: 3px; border-radius: 7px; background: var(--zmd-bg); }
 .zmd-style-segments > button { flex: 1; min-inline-size: 0; border: 0; background: transparent; color: var(--zmd-text-muted); }
-.zmd-style-segments > button[aria-selected="true"],
 .zmd-style-segments > button[aria-pressed="true"] { background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.zmd-style-fields, .zmd-style-editable-fields { border: 0; padding: 0; margin: 10px 0 0; min-inline-size: 0; }
-.zmd-style-fields > .zmd-style-editable-fields { margin-block-start: 0; }
-.zmd-style-field { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-block-size: 42px; }
-.zmd-style-field > span { min-inline-size: 0; }
-.zmd-style-field > select { inline-size: 120px; min-inline-size: 0; }
-.zmd-style-field > input[type="number"] { inline-size: 78px; flex: 0 0 78px; }
-.zmd-style-editable-fields:disabled { opacity: .6; }
-.zmd-style-editable-fields:disabled input, .zmd-style-editable-fields:disabled select { cursor: default; }
-.zmd-style-field input[type="color"] { appearance: none; inline-size: 34px; block-size: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; flex: 0 0 34px; cursor: pointer; }
-.zmd-style-field input[type="color"]::-moz-color-swatch { border: 1px solid var(--zmd-border-strong); border-radius: 6px; }
-.zmd-style-field input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-.zmd-style-field input[type="color"]::-webkit-color-swatch { border: 1px solid var(--zmd-border-strong); border-radius: 6px; }
-.zmd-style-palettes { margin-block: 12px 6px; }
 .zmd-style-preview { box-sizing: border-box; min-inline-size: 0; block-size: 280px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--zmd-border); border-radius: 8px; }
 .zmd-style-preview .zotero-markdown-preview-inner { padding: 18px; box-sizing: border-box; }
 .zmd-style-preview a { pointer-events: none; }
 .zmd-style-settings :focus-visible { outline: 2px solid var(--zmd-accent); outline-offset: 2px; }
-@container (max-width: 540px) {
-  .zmd-style-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
-}
 @container (max-width: 340px) {
   .zmd-style-toolbar > select { flex-basis: 100%; inline-size: 100%; }
-  .zmd-style-colors { grid-template-columns: minmax(0, 1fr); }
-  .zmd-style-field > select { inline-size: 100px; }
+  .zmd-style-css-tools > label { flex-basis: 100%; }
 }
 
 .zotero-markdown-paper-dialog h2 { margin: 0; font-size: 18px; }

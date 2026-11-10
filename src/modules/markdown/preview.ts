@@ -1,3 +1,4 @@
+import { resolvedMarkdownDecorations } from "./style-decoration";
 import { DEFAULT_MARKDOWN_STYLE, type MarkdownStyle } from "./style-presets";
 import { appearanceFontFamily } from "./preferences";
 import { CODE_FONT_FAMILY } from "../../ui/theme";
@@ -110,6 +111,26 @@ function previewStyleVariables(style: MarkdownStyle, theme: "light" | "dark") {
   return values;
 }
 
+function previewDecorationCss(
+  style: MarkdownStyle,
+  theme: "light" | "dark",
+  scope: string,
+): string {
+  return Object.entries(resolvedMarkdownDecorations(style, theme))
+    .map(([target, declarations]) => {
+      const selector =
+        target === "code"
+          ? `${scope} code, ${scope} :not(pre) > code`
+          : `${scope} ${target}`;
+      return `${selector} { ${Object.entries(declarations)
+        .map(([name, value]) => `${name}: ${value};`)
+        .join(" ")} }`;
+    })
+    .join("\n");
+}
+
+let previewStyleScope = 0;
+
 /** Update document variables without replacing images, selection or scroll. */
 export function applyPreviewStyle(
   host: HTMLElement,
@@ -121,6 +142,33 @@ export function applyPreviewStyle(
   )) {
     host.style.setProperty(name, value);
   }
+  let stylesheet = host.querySelector<HTMLStyleElement>(
+    ":scope > style[data-zmd-style-decoration]",
+  );
+  if (!style.decorations?.length) {
+    stylesheet?.remove();
+    return;
+  }
+  if (!host.dataset.zmdStyleScope)
+    host.dataset.zmdStyleScope = String(++previewStyleScope);
+  if (!stylesheet) {
+    stylesheet = host.ownerDocument.createElement("style");
+    stylesheet.dataset.zmdStyleDecoration = "";
+    host.appendChild(stylesheet);
+  }
+  const scope = `[data-zmd-style-scope="${host.dataset.zmdStyleScope}"]`;
+  stylesheet.textContent =
+    previewDecorationCss(
+      style,
+      theme,
+      `${scope} .zotero-markdown-preview-inner`,
+    ) +
+    "\n" +
+    previewDecorationCss(
+      style,
+      theme,
+      `${scope}.zotero-markdown-preview-inner`,
+    );
 }
 
 function previewStyleCss(
@@ -377,7 +425,8 @@ export function buildStandaloneDocumentFromRendered(options: {
 ${themeTokenCss(":root", tokens)}
 ${previewDocumentCss()}
 ${options.style ? `.zotero-markdown-preview-page { ${previewStyleCss(options.style, options.theme ?? "light")} }` : ""}
-${options.style ? `@media print { .zotero-markdown-preview-page { ${previewStyleCss(options.style, "light")} } }` : ""}
+${options.style ? `@media screen { ${previewDecorationCss(options.style, options.theme ?? "light", ".zotero-markdown-preview-inner")} }` : ""}
+${options.style ? `@media print { .zotero-markdown-preview-page { ${previewStyleCss(options.style, "light")} } ${previewDecorationCss(options.style, "light", ".zotero-markdown-preview-inner")} }` : ""}
 body { padding: 28px 32px 48px; }
 </style>
 </head>

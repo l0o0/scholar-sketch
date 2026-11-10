@@ -11,9 +11,8 @@ import {
 } from "../src/modules/markdown/modal.ts";
 import {
   createMarkdownStyleSettings,
-  cloneMarkdownStyle,
-  DEFAULT_MARKDOWN_STYLE,
-} from "../src/modules/markdown/style-presets.ts";
+  BUILTIN_CSS_PRESETS,
+} from "../src/modules/markdown/style-settings.ts";
 import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
 import { version } from "../package.json";
 import { releaseHighlights } from "../src/modules/release-highlights.ts";
@@ -181,7 +180,7 @@ test("maps plugin preferences to independent settings drafts", () => {
   markdownStyles.presets.push({
     id: "custom-test",
     name: "Reading",
-    style: cloneMarkdownStyle(DEFAULT_MARKDOWN_STYLE),
+    css: BUILTIN_CSS_PRESETS[0].css,
   });
   markdownStyles.selectedId = "custom-test";
   const input = {
@@ -198,17 +197,13 @@ test("maps plugin preferences to independent settings drafts", () => {
   };
   const settings = settingsFromPrefs(input);
   assert.deepEqual(settings, input);
-  settings.markdownStyles.presets[0].style.fontSize = 18;
-  settings.markdownStyles.presets[0].style.dark.text = "#123456";
-  assert.equal(input.markdownStyles.presets[0].style.fontSize, 15);
-  assert.equal(
-    input.markdownStyles.presets[0].style.dark.text,
-    DEFAULT_MARKDOWN_STYLE.dark.text,
-  );
+  settings.markdownStyles.presets[0].css =
+    ".markdown { --zmd-style-size: 18px; }";
+  assert.equal(input.markdownStyles.presets[0].css, BUILTIN_CSS_PRESETS[0].css);
   assert.deepEqual(prefsFromSettings(settings), settings);
   assert.notEqual(
-    prefsFromSettings(settings).markdownStyles.presets[0].style,
-    settings.markdownStyles.presets[0].style,
+    prefsFromSettings(settings).markdownStyles.presets[0],
+    settings.markdownStyles.presets[0],
   );
   assert.equal(
     settingsFromPrefs({
@@ -954,19 +949,79 @@ test("settings retain focus and remain open during a failed save", async (t) => 
   );
 });
 
-test("Markdown style presets stay local to the settings draft until Done and reopen with their palettes", async (t) => {
+test("CSS style drafts preview, copy prompts and validate all presets before saving", async (t) => {
   const { Window } = await import("happy-dom");
   const { createMarkdownModalController, applySettings } =
     await import("../src/modules/markdown/modal.ts");
   const win = new Window({ url: "https://settings.test" });
   const stored = new Map<string, unknown>();
-  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const clipboard: string[] = [];
+  let clipboardFailure = false;
+  let locale = "en-US";
+  // Zotero's native Fluent and clipboard services are the only host boundaries here.
+  const translations = new Map(
+    ["en-US", "zh-CN"].map((id) => [
+      id,
+      new Map(
+        [
+          ...readFileSync(`addon/locale/${id}/addon.ftl`, "utf8").matchAll(
+            /^([\w-]+) = (.+)$/gm,
+          ),
+        ].map((match) => [`bamboo-${match[1]}`, match[2]]),
+      ),
+    ]),
+  );
+  const previous = new Map(
+    ["Zotero", "ztoolkit", "addon"].map((key) => [
+      key,
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    ]),
+  );
   Object.defineProperty(globalThis, "Zotero", {
     configurable: true,
     value: {
       Prefs: {
         get: (key: string) => stored.get(key),
         set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  Object.defineProperty(globalThis, "ztoolkit", {
+    configurable: true,
+    value: {
+      Clipboard: class {
+        value = "";
+        addText(value: string, mime: string) {
+          assert.equal(mime, "text/unicode");
+          this.value = value;
+          return this;
+        }
+        copy() {
+          if (clipboardFailure) throw new Error("Clipboard unavailable");
+          clipboard.push(this.value);
+          return this;
+        }
+      },
+    },
+  });
+  Object.defineProperty(globalThis, "addon", {
+    configurable: true,
+    value: {
+      data: {
+        locale: {
+          current: {
+            formatMessagesSync: (
+              messages: Array<{ id: string; args?: Record<string, unknown> }>,
+            ) =>
+              messages.map(({ id, args }) => ({
+                value: (translations.get(locale)!.get(id) ?? id).replace(
+                  /\{ \$(\w+) \}/g,
+                  (_match, key) => String(args?.[key] ?? ""),
+                ),
+                attributes: null,
+              })),
+          },
+        },
       },
     },
   });
@@ -978,8 +1033,10 @@ test("Markdown style presets stay local to the settings draft until Done and reo
   t.after(async () => {
     controller.destroy();
     await win.happyDOM.close();
-    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
-    else Reflect.deleteProperty(globalThis, "Zotero");
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
   });
   const action = (name: string) => {
     const element = win.document.querySelector<HTMLButtonElement>(
@@ -990,7 +1047,7 @@ test("Markdown style presets stay local to the settings draft until Done and reo
   };
   const change = (name: string, value: string, event = "change") => {
     const input = win.document.querySelector<
-      HTMLInputElement | HTMLSelectElement
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >(`[name="${name}"]`);
     assert.ok(input, `Missing ${name} control`);
     input.value = value;
@@ -1004,6 +1061,18 @@ test("Markdown style presets stay local to the settings draft until Done and reo
   };
   const preview = () =>
     win.document.querySelector<HTMLElement>(".zmd-style-preview")!;
+  const editor = () =>
+    win.document.querySelector<HTMLTextAreaElement>(
+      '[name="markdownStyleCss"]',
+    )!;
+  const currentId = () =>
+    win.document.querySelector<HTMLSelectElement>(
+      '[name="markdownStylePreset"]',
+    )!.value;
+  const openPage = (page: string) =>
+    win.document
+      .querySelector<HTMLButtonElement>(`[data-settings-page="${page}"]`)!
+      .click();
   const save = async () => {
     win.document
       .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
@@ -1011,41 +1080,15 @@ test("Markdown style presets stay local to the settings draft until Done and reo
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   controller.open("settings");
-  win.document
-    .querySelector<HTMLButtonElement>('[data-settings-page="general"]')!
-    .click();
-  win.document
-    .querySelector<HTMLButtonElement>('[data-settings-page="editor"]')!
-    .click();
   change("markdownStylePreset", "paper");
-  assert.equal(
-    win.document.querySelector<HTMLFieldSetElement>(
-      ".zmd-style-editable-fields",
-    )!.disabled,
-    true,
-  );
-  change("fontSize", "31");
+  assert.equal(editor().readOnly, true);
   assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "17px");
-  const bodyTab = win.document.querySelector<HTMLButtonElement>(
-    '[data-style-action="category-body"]',
-  )!;
-  bodyTab.dispatchEvent(
-    new win.KeyboardEvent("keydown", {
-      key: "ArrowRight",
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-  const headingLevel = change("styleHeadingLevel", "2");
-  assert.equal(headingLevel.matches(":disabled"), false);
-  action("category-colors");
   action("palette-dark");
   assert.equal(
     preview().style.getPropertyValue("--zmd-style-background"),
     "#24221f",
   );
   action("palette-light");
-  action("category-body");
   action("copy");
   const composingName = change("markdownStyleName", "yanjiu", "input");
   const candidateEnter = new win.KeyboardEvent("keydown", {
@@ -1086,66 +1129,90 @@ test("Markdown style presets stay local to the settings draft until Done and reo
       cancelable: true,
     }),
   );
-  assert.equal(
-    win.document.querySelector<HTMLElement>(".zmd-style-naming")!.hidden,
-    true,
-  );
-  assert.equal(
-    win.document.querySelector<HTMLFieldSetElement>(
-      ".zmd-style-editable-fields",
-    )!.disabled,
-    false,
-  );
-  change("fontSize", "22");
-  change("fontSize", "");
-  assert.equal(
-    (win.document.querySelector('[name="fontSize"]') as HTMLInputElement).value,
-    "22",
-  );
-  change("lineHeight", "1.6");
+  assert.equal(editor().readOnly, false);
+  const labId = currentId();
+  const validCss =
+    '.markdown { --zmd-style-size: 22px; --zmd-style-h2-size: 1.8em; }\n.markdown[data-theme="dark"] { --zmd-style-background: #223344; }\n.markdown h2 { text-align: center; }';
+  change("markdownStyleCss", validCss, "input");
   assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "22px");
-  action("category-heading");
-  change("styleHeadingLevel", "1");
-  change("heading-size", "1.8");
-  action("category-colors");
   action("palette-dark");
-  change("styleColor-background", "#223344", "input");
   assert.equal(
     preview().style.getPropertyValue("--zmd-style-background"),
     "#223344",
   );
-  action("palette-light");
-  assert.equal(
-    preview().style.getPropertyValue("--zmd-style-background"),
-    "#faf7ef",
+  action("copy-prompt");
+  assert.ok(clipboard[0].includes(validCss));
+  assert.match(clipboard[0], /My request:/);
+  assert.match(clipboard[0], /\.markdown/);
+  assert.match(clipboard[0], /Markdown sample/);
+  assert.match(
+    win.document.querySelector(".zmd-style-copy-status")!.textContent,
+    /Prompt copied/,
   );
-  assert.equal(stored.size, 0, "preview edits must not write preferences");
+  locale = "zh-CN";
+  action("copy-prompt");
+  assert.match(clipboard[1], /我的需求/);
+  assert.ok(clipboard[1].includes(validCss));
+  locale = "en-US";
+  clipboardFailure = true;
+  action("copy-prompt");
+  assert.match(
+    win.document.querySelector(".zmd-style-copy-status")!.textContent,
+    /Could not copy/,
+  );
+  assert.equal(clipboard.length, 2);
+  const invalidCss = ".markdown {\n  position: fixed;\n}";
+  change("markdownStyleCss", invalidCss, "input");
+  assert.equal(editor().getAttribute("aria-invalid"), "true");
+  assert.equal(
+    preview().style.getPropertyValue("--zmd-style-size"),
+    "22px",
+    "invalid CSS retains the last valid preview",
+  );
+  assert.match(
+    win.document.querySelector(".zmd-style-css-diagnostics")!.textContent,
+    /Line 2/,
+  );
+  change("markdownStylePreset", "compact");
+  openPage("general");
+  await save();
+  assert.equal(
+    currentId(),
+    labId,
+    "Done returns to an invalid unselected preset",
+  );
+  assert.equal(
+    editor().value,
+    invalidCss,
+    "invalid drafts survive both scheme and page changes",
+  );
+  assert.equal(stored.size, 0);
+  change("markdownStyleCss", validCss, "input");
   await save();
   const persisted = String(
     stored.get("extensions.zotero.bamboo.markdownStyles"),
   );
   const parsed = JSON.parse(persisted);
-  assert.equal(parsed.presets.length, 1);
-  assert.equal(parsed.presets[0].name, "Lab notes");
-  assert.equal(parsed.presets[0].style.fontSize, 22);
-  assert.equal(parsed.presets[0].style.headings[1].size, 1.8);
-  assert.equal(parsed.presets[0].style.dark.background, "#223344");
+  assert.equal(parsed.version, 2);
+  assert.equal(parsed.presets[0].css, validCss);
+  assert.equal("style" in parsed.presets[0], false);
   assert.equal(stored.has("extensions.zotero.bamboo.fontSize"), false);
-  assert.equal(stored.get("extensions.zotero.bamboo.theme"), "system");
   controller.open("settings");
+  assert.equal(editor().value, validCss);
   assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "22px");
-  copy("Temporary");
-  change("fontSize", "19");
-  controller.close();
+  action("reset-css");
+  assert.equal(editor().value, BUILTIN_CSS_PRESETS[0].css);
+  assert.equal(currentId(), labId);
   assert.equal(
     stored.get("extensions.zotero.bamboo.markdownStyles"),
     persisted,
   );
+  controller.close();
   controller.open("settings");
   assert.equal(
-    win.document.querySelectorAll('select[name="markdownStylePreset"] option')
-      .length,
-    4,
+    editor().value,
+    validCss,
+    "cancel restores saved CSS after reset",
   );
   action("rename");
   change("markdownStyleName", "Research", "input");
@@ -1167,19 +1234,11 @@ test("Markdown style presets stay local to the settings draft until Done and reo
   );
   controller.open("settings");
   action("delete");
-  assert.equal(
-    (
-      win.document.querySelector(
-        '[name="markdownStylePreset"]',
-      ) as HTMLSelectElement
-    ).value,
-    "default",
-  );
+  assert.equal(currentId(), "default");
   await save();
   const afterDelete = JSON.parse(
     String(stored.get("extensions.zotero.bamboo.markdownStyles")),
   );
   assert.equal(afterDelete.presets.length, 1);
   assert.equal(afterDelete.presets[0].name, "Research");
-  assert.equal(afterDelete.selectedId, "default");
 });

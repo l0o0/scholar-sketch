@@ -1078,28 +1078,6 @@ settings-style-name-required = Enter a preset name
 settings-style-name-duplicate = This name is already in use
 settings-style-builtin-hint = Save a copy to customize this built-in preset
 settings-style-preview = Style preview
-settings-style-body = Text
-settings-style-headings = Headings
-settings-style-colors = Colors
-settings-style-font-size = Font size · px
-settings-style-line-height = Line height · ×
-settings-style-paragraph-spacing = Paragraph spacing · em
-settings-style-content-width = Content width · px
-settings-style-heading-level = Heading level
-settings-style-heading-size = Size · em
-settings-style-heading-weight = Weight
-settings-style-heading-before = Space before · em
-settings-style-heading-after = Space after · em
-settings-style-color-text = Text
-settings-style-color-heading = Headings
-settings-style-color-link = Links
-settings-style-color-accent = Accent
-settings-style-color-quote-background = Quote background
-settings-style-color-quote-border = Quote border
-settings-style-color-code-background = Code background
-settings-style-color-code-border = Code border
-settings-style-color-table-header = Table header
-settings-style-color-table-border = Table border
 settings-style-sample =
     # Research notes
 
@@ -1131,3 +1109,21 @@ settings-style-sample =
 
     Keep the references.
 settings-style-copy-name = { $name } copy
+
+settings-style-copy-prompt = Copy AI prompt
+settings-style-reset-css = Restore default
+settings-style-prompt-copied = Prompt copied
+settings-style-prompt-copy-failed = Could not copy. Please retry.
+settings-style-css-preview-unchanged = Invalid CSS. This draft is not applied to the preview.
+settings-style-css-diagnostic = Line { $line }: { $message }
+settings-style-css-syntax = Invalid or incomplete CSS syntax
+settings-style-css-selector = Unsupported selector
+settings-style-css-property = Unsupported property
+settings-style-css-value = Invalid or out-of-range value
+settings-style-css-variable = Undefined or unsupported variable
+settings-style-css-at-rule = Unsupported CSS at-rule
+settings-style-css-limit = CSS exceeds the supported size or complexity
+settings-style-prompt-instructions = You are designing a Markdown style for Scholar Sketch. Modify the current CSS for the request below. Use only the supported selectors, properties, variables, and value ranges. Provide coordinated light and dark palettes. Do not introduce external fonts, images, URLs, or other network resources. Return complete CSS only, without explanations, Markdown code fences, or JavaScript.
+settings-style-prompt-request = My request: [Describe the desired typography, colors, and layout here]
+settings-style-prompt-current = Current CSS:
+settings-style-prompt-sample = Markdown sample for checking the result:

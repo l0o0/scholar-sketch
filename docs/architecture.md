@@ -111,16 +111,35 @@ the exported document.
 
 ## Markdown appearance
 
-Named style presets live in the plugin-local `markdownStyles` preference as a
-versioned list of custom presets and a selected ID. Built-in presets remain in
-code. Until that preference is saved, the existing font, size, and background
-preferences seed the current appearance; they are not a second live source once
-the preset configuration exists. Settings edits stay in the dialog draft until
-Done. The existing editor refresh registry updates all mounted views via theme
+Named style presets live in the plugin-local `markdownStyles` preference. Version
+2 stores the selected ID and each custom preset's name and CSS source; compiled
+appearance values are derived, not another persisted authority. Built-in presets
+remain in code. Version-1 appearance values, or the older font, size and background
+preferences when no preset configuration exists, are converted into editable CSS
+templates without writing preferences during loading. Settings edits stay in the
+dialog draft until Done; closing the dialog leaves the previous preferences intact.
+
+CSS is an authoring format for a defined subset of shared typography/color
+variables and document-element decorations. The compiler consumes the complete
+source and rejects unsupported selectors, declarations and values with a source
+line. External resources and arbitrary layout CSS are not accepted. Only the
+compiled, validated appearance model reaches CodeMirror and the reading/export
+renderers; user CSS is never inserted as a stylesheet. Every custom preset in the
+draft is validated before saving, including presets other than the selected one,
+so switching a preset or settings page cannot bypass an error.
+
+The existing editor refresh registry updates all mounted views via theme
 compartment reconfiguration, preserving document and undo state. Reading preview
 uses scoped style variables on its existing host, and HTML export embeds those
-same variables; printing selects the preset's light palette. Presets do not alter
-Markdown files, the shared application theme, or Word templates.
+same generated variables and supported decorations; printing selects the preset's
+light palette. Presets do not alter Markdown files, the shared application theme,
+or Word templates. The settings preview stays below the CSS editor in a bounded
+scrollable region, without changing the settings dialog's dimensions.
+
+The AI-prompt action copies the supported CSS contract, the current CSS source
+and a generic example to the clipboard. It does not read note text or editor
+selections, submit a network request, or integrate an AI provider. Users paste
+the resulting CSS back into the same compiler and draft-validation flow.
 
 ## Protocol
 

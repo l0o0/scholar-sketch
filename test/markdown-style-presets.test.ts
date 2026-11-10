@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  BUILTIN_STYLE_PRESETS,
   cloneMarkdownStyle,
-  createMarkdownStyleSettings,
+  createMarkdownStyleSettings as createLegacyStyleSettings,
   DEFAULT_MARKDOWN_STYLE,
-  isMarkdownStyleSettings,
-  resolveSelectedStyle,
 } from "../src/modules/markdown/style-presets.ts";
+import {
+  BUILTIN_CSS_PRESETS,
+  createMarkdownStyleSettings,
+  isMarkdownStyleSettings,
+  normalizeMarkdownStyleSettings,
+  resolveSelectedStyle,
+} from "../src/modules/markdown/style-settings.ts";
+import { serializeMarkdownStyleCss } from "../src/modules/markdown/style-css.ts";
 import {
   isEditorProtocolMessage,
   EDITOR_MESSAGE_SOURCE,
@@ -36,7 +41,7 @@ test("legacy appearance survives as an editable local preset without changing ei
   );
   assert.equal(dark.light.text, DEFAULT_MARKDOWN_STYLE.dark.text);
   assert.deepEqual(createMarkdownStyleSettings(), {
-    version: 1,
+    version: 2,
     selectedId: "default",
     presets: [],
   });
@@ -66,15 +71,25 @@ test("saved selections and multiple independent presets reload from plugin prefe
   copied.fontSize = 22;
   copied.headings[0].size = 2.5;
   copied.dark.link = "#ffcc88";
-  settings.presets.push({ id: "research", name: "论文阅读", style: copied });
+  settings.presets.push({
+    id: "research",
+    name: "论文阅读",
+    css: "/* My reading style */\n" + serializeMarkdownStyleCss(copied),
+  });
   settings.selectedId = "research";
   writeMarkdownStyleSettings(settings);
   const reloaded = readMarkdownStyleSettings();
   assert.deepEqual(reloaded, settings);
   assert.equal(reloaded.presets.length, 2);
   assert.equal(resolveSelectedStyle(reloaded).headings[0].size, 2.5);
-  assert.equal(reloaded.presets[0].style.fontSize, 18);
-  reloaded.presets[1].style.fontSize = 26;
+  assert.equal(
+    resolveSelectedStyle({ ...reloaded, selectedId: reloaded.presets[0].id })
+      .fontSize,
+    18,
+  );
+  const changedStyle = cloneMarkdownStyle(copied);
+  changedStyle.fontSize = 26;
+  reloaded.presets[1].css = serializeMarkdownStyleCss(changedStyle);
   assert.equal(
     resolveSelectedStyle(readMarkdownStyleSettings()).fontSize,
     22,
@@ -96,10 +111,10 @@ test("saved selections and multiple independent presets reload from plugin prefe
 });
 
 test("preset and iframe boundaries reject invalid CSS values and broken preset references", () => {
-  for (const preset of BUILTIN_STYLE_PRESETS) {
+  for (const preset of BUILTIN_CSS_PRESETS) {
     assert.ok(
       isMarkdownStyleSettings({
-        version: 1,
+        version: 2,
         selectedId: preset.id,
         presets: [],
       }),
@@ -109,7 +124,7 @@ test("preset and iframe boundaries reject invalid CSS values and broken preset r
   const appearance = {
     fontFamily: "system",
     backgroundColor: "",
-    style: settings.presets[0].style,
+    style: resolveSelectedStyle(settings),
   };
   const message = {
     source: EDITOR_MESSAGE_SOURCE,
@@ -125,6 +140,7 @@ test("preset and iframe boundaries reject invalid CSS values and broken preset r
     }),
   );
   appearance.style.dark.background = "red;display:none";
+  settings.presets[0].css += "\n.markdown { position: fixed; }";
   assert.equal(isMarkdownStyleSettings(settings), false);
   assert.equal(isEditorProtocolMessage(message), false);
   assert.equal(
@@ -136,16 +152,44 @@ test("preset and iframe boundaries reject invalid CSS values and broken preset r
     false,
   );
   assert.equal(
-    isMarkdownStyleSettings({ version: 1, selectedId: "missing", presets: [] }),
+    isMarkdownStyleSettings({ version: 2, selectedId: "missing", presets: [] }),
     false,
   );
   assert.equal(
     isMarkdownStyleSettings({
       ...settings,
       presets: [
-        { id: "default", name: "override", style: DEFAULT_MARKDOWN_STYLE },
+        { id: "default", name: "override", css: BUILTIN_CSS_PRESETS[0].css },
       ],
     }),
     false,
+  );
+});
+
+test("parameter presets upgrade to CSS in memory without losing names, selection or appearance", () => {
+  const legacy = createLegacyStyleSettings({ fontSize: 19, name: "保留外观" });
+  const secondStyle = cloneMarkdownStyle(DEFAULT_MARKDOWN_STYLE);
+  secondStyle.headings[2].before = 1.3;
+  secondStyle.dark.quoteBorder = "#123abc";
+  legacy.presets.push({ id: "second", name: "研究摘记", style: secondStyle });
+  legacy.selectedId = "second";
+  const original = JSON.stringify(legacy);
+  const migrated = normalizeMarkdownStyleSettings(JSON.parse(original));
+  assert.equal(migrated.version, 2);
+  assert.equal(migrated.selectedId, "second");
+  assert.deepEqual(
+    migrated.presets.map(({ name }) => name),
+    ["保留外观", "研究摘记"],
+  );
+  assert.deepEqual(resolveSelectedStyle(migrated), secondStyle);
+  assert.deepEqual(
+    resolveSelectedStyle({ ...migrated, selectedId: migrated.presets[0].id }),
+    legacy.presets[0].style,
+  );
+  assert.equal(JSON.stringify(legacy), original);
+  assert.ok(
+    migrated.presets.every(
+      (preset) => typeof preset.css === "string" && !("style" in preset),
+    ),
   );
 });

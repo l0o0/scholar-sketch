@@ -2,18 +2,16 @@ import { getPref, setPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import {
   createMarkdownStyleSettings,
-  isMarkdownStyleSettings,
+  normalizeMarkdownStyleSettings,
   resolveSelectedStyle,
   type MarkdownStyleSettings,
-} from "./style-presets";
+} from "./style-settings";
 
 export function readMarkdownStyleSettings(): MarkdownStyleSettings {
   const saved = getPref("markdownStyles");
   if (saved) {
     const value: unknown = JSON.parse(saved);
-    if (!isMarkdownStyleSettings(value))
-      throw new Error("Invalid Markdown style settings");
-    return value;
+    return normalizeMarkdownStyleSettings(value);
   }
   return createMarkdownStyleSettings({
     fontSize: getPref("fontSize"),

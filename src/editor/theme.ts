@@ -1,3 +1,8 @@
+import {
+  resolvedMarkdownDecorations,
+  type MarkdownDecorationTarget,
+  type MarkdownDecorationDeclarations,
+} from "../modules/markdown/style-decoration";
 import type { MarkdownStyle } from "../modules/markdown/style-presets";
 import type { EditorAppearance } from "../modules/markdown/editor-protocol";
 import {
@@ -859,7 +864,13 @@ export function editorThemeExtension(
     surface,
     style ? { fontFamily: style.fontFamily, backgroundColor: "" } : appearance,
   );
-  return style ? [markdownStyleTheme(style, theme, mode), base] : base;
+  return style
+    ? [
+        mode === "live" ? markdownDecorationTheme(style, theme) : [],
+        markdownStyleTheme(style, theme, mode),
+        base,
+      ]
+    : base;
 }
 
 function markdownStyleTheme(
@@ -945,4 +956,80 @@ function markdownStyleTheme(
         }
       : {}),
   });
+}
+
+function markdownDecorationTheme(
+  style: MarkdownStyle,
+  theme: EditorTheme,
+): Extension {
+  const rules = resolvedMarkdownDecorations(style, theme);
+  const selectors: Record<MarkdownDecorationTarget, string> = {
+    h1: ".cm-line.zmd-lp-h1",
+    h2: ".cm-line.zmd-lp-h2",
+    h3: ".cm-line.zmd-lp-h3",
+    h4: ".cm-line.zmd-lp-h4",
+    h5: ".cm-line.zmd-lp-h5",
+    h6: ".cm-line.zmd-lp-h6",
+    blockquote: ".cm-line.zmd-lp-quote",
+    a: ".zmd-lp-link, .zmd-wikilink",
+    pre: ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence",
+    code: ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code, .cm-line.zmd-lp-code-block",
+    th: ".zmd-lp-table-header-cell, .zmd-lp-html-table th",
+    td: ".zmd-lp-table-cell:not(.zmd-lp-table-header-cell), .zmd-lp-html-table td",
+  };
+  const result: Record<string, Record<string, string>> = {};
+  const camel = (declarations: MarkdownDecorationDeclarations) =>
+    Object.fromEntries(
+      Object.entries(declarations).map(([property, value]) => [
+        property.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()),
+        value,
+      ]),
+    );
+  // Code declarations target the inner text in HTML and therefore override
+  // inherited pre text styles even when the pre rule occurs later in CSS.
+  for (const target of [
+    "pre",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "a",
+    "th",
+    "td",
+    "code",
+  ] as const) {
+    const declarations = rules[target];
+    if (!declarations) continue;
+    const values = camel(declarations);
+    if ((target === "th" || target === "td") && values.backgroundColor) {
+      const backgroundColor = values.backgroundColor;
+      delete values.backgroundColor;
+      const idleCell = selectors[target]
+        .split(", ")
+        .map((selector) =>
+          selector.startsWith(".zmd-lp-table-")
+            ? `${selector}:not(.zmd-lp-table-cell-selected):not(.zmd-lp-table-cell-active):not(.zmd-lp-table-drag-source):not(.zmd-lp-table-drop-target)`
+            : selector,
+        )
+        .join(", ");
+      result[idleCell] = { backgroundColor };
+    }
+    if (target === "pre" && values.borderRadius) {
+      const radius = values.borderRadius;
+      delete values.borderRadius;
+      result[".cm-line.zmd-lp-code-fence-open"] = {
+        borderTopLeftRadius: radius,
+        borderTopRightRadius: radius,
+      };
+      result[".cm-line.zmd-lp-code-fence-close"] = {
+        borderBottomLeftRadius: radius,
+        borderBottomRightRadius: radius,
+      };
+    }
+    result[selectors[target]] = values;
+  }
+  return EditorView.theme(result);
 }
