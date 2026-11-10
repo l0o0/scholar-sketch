@@ -1011,21 +1011,9 @@ test("Markdown style presets stay local to the settings draft until Done and reo
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   controller.open("settings");
-  assert.equal(
-    win.document
-      .querySelector(".zotero-markdown-modal")!
-      .classList.contains("is-style-settings"),
-    true,
-  );
   win.document
     .querySelector<HTMLButtonElement>('[data-settings-page="general"]')!
     .click();
-  assert.equal(
-    win.document
-      .querySelector(".zotero-markdown-modal")!
-      .classList.contains("is-style-settings"),
-    false,
-  );
   win.document
     .querySelector<HTMLButtonElement>('[data-settings-page="editor"]')!
     .click();

@@ -101,6 +101,8 @@ export function createMarkdownStyleSettingsUI(
 
   const preview = doc.createElement("div");
   preview.className = "zmd-style-preview";
+  preview.tabIndex = 0;
+  preview.setAttribute("role", "region");
   preview.setAttribute("aria-label", getString("settings-style-preview"));
   const previewPage = doc.createElement("div");
   previewPage.className = "zotero-markdown-preview-page";

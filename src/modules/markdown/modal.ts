@@ -470,18 +470,6 @@ export function createMarkdownModalController(
 
     const renderEditor = () => {
       const heading = renderHeading(getString("settings-page-editor"));
-      pageContent.appendChild(
-        createMarkdownStyleSettingsUI(
-          doc,
-          pendingSettings!.markdownStyles,
-          pendingSettings!.theme === "dark" ||
-            (pendingSettings!.theme === "system" &&
-              !!doc.defaultView?.matchMedia?.("(prefers-color-scheme: dark)")
-                ?.matches)
-            ? "dark"
-            : "light",
-        ),
-      );
       const checkbox = (name: "enable" | "frontmatter", labelText: string) => {
         const label = doc.createElement("label");
         label.className = "zotero-markdown-settings-check-row";
@@ -578,6 +566,18 @@ export function createMarkdownModalController(
           "p",
           getString("settings-slash-search-description"),
           "zotero-markdown-settings-description",
+        ),
+      );
+      pageContent.appendChild(
+        createMarkdownStyleSettingsUI(
+          doc,
+          pendingSettings!.markdownStyles,
+          pendingSettings!.theme === "dark" ||
+            (pendingSettings!.theme === "system" &&
+              !!doc.defaultView?.matchMedia?.("(prefers-color-scheme: dark)")
+                ?.matches)
+            ? "dark"
+            : "light",
         ),
       );
       return heading;
@@ -1082,7 +1082,6 @@ export function createMarkdownModalController(
 
     const selectPage = (page: SettingsPageID, focusHeading = false) => {
       activePage = page;
-      dialog.classList.toggle("is-style-settings", page === "editor");
       for (const item of navigation.querySelectorAll<HTMLButtonElement>(
         "[data-settings-page]",
       )) {
@@ -1291,7 +1290,6 @@ export function createMarkdownModalController(
     open(kind, payload, initialSettingsPage) {
       activeKind = kind;
       dialog.classList.toggle("is-settings", kind === "settings");
-      dialog.classList.remove("is-style-settings");
       body.classList.toggle(
         "zotero-markdown-modal-body-settings",
         kind === "settings",
