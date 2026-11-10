@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { BUILTIN_STYLE_PRESETS } from "../src/modules/markdown/style-presets.ts";
 import test from "node:test";
 import { Window } from "happy-dom";
 import {
@@ -454,21 +455,31 @@ test("appearance preferences reach pending and live editors and stop after destr
   const init = posted.find((message) => message.type === "init");
   assert.equal(init.payload.theme, "dark");
   assert.equal(init.payload.fontSize, 18);
-  assert.deepEqual(init.payload.appearance, {
-    fontFamily: "serif",
-    backgroundColor: "#f7efe0",
-  });
+  assert.equal(init.payload.appearance.fontFamily, "serif");
+  assert.equal(init.payload.appearance.style.fontSize, 18);
+  assert.equal(init.payload.appearance.style.light.background, "#f7efe0");
+  assert.deepEqual(
+    init.payload.appearance.style.dark,
+    init.payload.appearance.style.light,
+    "the old fixed light background keeps a readable palette even in a dark host",
+  );
   assert.deepEqual(
     posted.findLast((message) => message.type === "setAppearance").payload,
     init.payload.appearance,
   );
-  set("markdownFontFamily", "mono");
-  set("markdownBackgroundColor", "");
+  set(
+    "markdownStyles",
+    JSON.stringify({ version: 1, selectedId: "compact", presets: [] }),
+  );
   set("theme", "light");
   applyMarkdownEditorPreferences();
   assert.deepEqual(
     posted.findLast((message) => message.type === "setAppearance").payload,
-    { fontFamily: "mono", backgroundColor: "" },
+    {
+      fontFamily: "system",
+      backgroundColor: "",
+      style: BUILTIN_STYLE_PRESETS.find(({ id }) => id === "compact")!.style,
+    },
   );
   assert.equal(
     posted.findLast((message) => message.type === "setTheme").payload.theme,

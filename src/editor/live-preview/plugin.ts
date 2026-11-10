@@ -925,6 +925,20 @@ export function buildBlockDecorations(
       ranges.push(Decoration.line({ class: "zmd-lp-list" }).range(line.from));
     } else if (parsed.quote) {
       ranges.push(Decoration.line({ class: "zmd-lp-quote" }).range(line.from));
+    } else if (line.text.trim()) {
+      // Only top-level paragraphs get spacing. Soft wraps, list continuations,
+      // quoted paragraphs and code retain their existing editing geometry.
+      let node = syntaxTree(state).resolveInner(line.from, 1);
+      while (node.parent && node.name !== "Paragraph") node = node.parent;
+      if (
+        node.name === "Paragraph" &&
+        node.parent?.name === "Document" &&
+        node.from === line.from
+      ) {
+        ranges.push(
+          Decoration.line({ class: "zmd-lp-paragraph-start" }).range(line.from),
+        );
+      }
     }
   }
   return Decoration.set(ranges, true);

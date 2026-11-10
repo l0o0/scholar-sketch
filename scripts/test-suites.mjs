@@ -80,6 +80,7 @@ export const testSuites = {
       "test/markdown-rename.test.ts",
       "test/markdown-responsive-toolbar.test.ts",
       "test/markdown-settings-entry.test.ts",
+      "test/markdown-style-*.test.ts",
       "test/markdown-settings-pages.test.ts",
       "test/markdown-shortcut.test.ts",
       "test/markdown-sidebar-motion.test.ts",

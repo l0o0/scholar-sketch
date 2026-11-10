@@ -1,14 +1,11 @@
+import { currentMarkdownStyle } from "./style-preferences";
+import { applyPreviewStyle } from "./preview";
 import { attachMarkdownIframeDrop } from "./iframe-drop";
 import {
   DEFAULT_TABLE_LABELS,
   type EditorTableLabels,
 } from "../../editor/table-labels";
-import {
-  normalizeTheme,
-  normalizeFontFamily,
-  normalizeBackgroundColor,
-  resolveSlashSearchLanguage,
-} from "./preferences";
+import { normalizeTheme, resolveSlashSearchLanguage } from "./preferences";
 import type { DocumentViewState } from "./editor-view-state";
 /**
  * Parent-side markdown editor: mounts a chrome:// iframe that runs
@@ -159,17 +156,12 @@ function editorPageURL(): string {
 }
 
 function resolveAppearance() {
-  return {
-    fontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
-    backgroundColor: normalizeBackgroundColor(
-      getPref("markdownBackgroundColor"),
-    ),
-  };
+  const style = currentMarkdownStyle();
+  return { fontFamily: style.fontFamily, backgroundColor: "", style };
 }
 
 function resolveFontSize(): number {
-  const n = Number(getPref("fontSize") || 15);
-  return Number.isFinite(n) ? Math.min(22, Math.max(11, n)) : 15;
+  return currentMarkdownStyle().fontSize;
 }
 
 export function createMarkdownEditor(
@@ -468,8 +460,12 @@ export function createMarkdownEditor(
     const workspace = parent.closest<HTMLElement>(".zotero-markdown-workspace");
     workspace?.style.setProperty(
       "background-color",
-      resolveAppearance().backgroundColor || "var(--zmd-surface)",
+      currentMarkdownStyle()[theme].background,
     );
+    const preview = parent
+      .closest(".zotero-markdown-root")
+      ?.querySelector<HTMLElement>(".zotero-markdown-preview-host");
+    if (preview) applyPreviewStyle(preview, currentMarkdownStyle(), theme);
     if (theme === currentTheme) return;
     currentTheme = theme;
     sendOrQueue({

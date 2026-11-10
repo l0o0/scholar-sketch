@@ -1,3 +1,4 @@
+import type { MarkdownStyle } from "./style-presets";
 import type { ImageAssetMap } from "./editor-protocol";
 import { buildStandaloneDocumentFromRendered, documentTitle } from "./preview";
 import { renderMarkdownAsync } from "./async-render";
@@ -19,6 +20,7 @@ export async function buildExportHtml(
     source: string;
     assets?: ImageAssetMap;
     theme?: "light" | "dark";
+    style?: MarkdownStyle;
     title?: string;
     document?: Document;
   },
@@ -74,6 +76,7 @@ export async function buildExportHtml(
     ...rendered,
     assets: options.assets,
     theme: options.theme,
+    style: options.style,
   }).standaloneHtml;
 }
 

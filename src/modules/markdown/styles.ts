@@ -546,6 +546,11 @@ export function markdownModalCSS(): string {
   border-radius: 10px;
 }
 
+.zotero-markdown-modal.is-settings.is-style-settings {
+  inline-size: min(1080px, calc(100% - 16px));
+  block-size: min(760px, calc(100% - 16px));
+}
+
 .zotero-markdown-modal-header,
 .zotero-markdown-modal-footer {
   display: flex;
@@ -1317,6 +1322,57 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
 }
 .zotero-markdown-paper-dialog::backdrop { background: #0006; }
 .zotero-markdown-paper-dialog form { display: grid; gap: 16px; }
+
+.zmd-style-settings {
+  container-type: inline-size;
+  margin-block: 12px 24px;
+  color: var(--zmd-text);
+  font-size: 13px;
+}
+.zmd-style-settings > h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.zmd-style-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.zmd-style-toolbar > select { flex: 1 1 160px; min-inline-size: 100px; }
+.zmd-style-toolbar > button { flex: 0 0 auto; }
+.zmd-style-toolbar button:disabled { opacity: .45; cursor: default; }
+.zmd-style-naming { display: flex; align-items: center; gap: 6px; margin-block-start: 10px; }
+.zmd-style-naming[hidden], .zmd-style-locked[hidden] { display: none; }
+.zmd-style-naming input { min-inline-size: 0; flex: 1; }
+.zmd-style-locked { color: var(--zmd-text-muted); margin: 10px 0 0; font-size: 12px; }
+.zmd-style-layout { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 1fr); gap: 18px; margin-block-start: 16px; align-items: start; }
+.zmd-style-controls { min-inline-size: 0; }
+.zmd-style-segments { display: flex; gap: 3px; padding: 3px; border-radius: 7px; background: var(--zmd-bg); }
+.zmd-style-segments > button { flex: 1; min-inline-size: 0; border: 0; background: transparent; color: var(--zmd-text-muted); }
+.zmd-style-segments > button[aria-selected="true"],
+.zmd-style-segments > button[aria-pressed="true"] { background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.zmd-style-fields, .zmd-style-editable-fields { border: 0; padding: 0; margin: 10px 0 0; min-inline-size: 0; }
+.zmd-style-fields > .zmd-style-editable-fields { margin-block-start: 0; }
+.zmd-style-field { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-block-size: 42px; }
+.zmd-style-field > span { min-inline-size: 0; }
+.zmd-style-field > select { inline-size: 120px; min-inline-size: 0; }
+.zmd-style-field > input[type="number"] { inline-size: 78px; flex: 0 0 78px; }
+.zmd-style-editable-fields:disabled { opacity: .6; }
+.zmd-style-editable-fields:disabled input, .zmd-style-editable-fields:disabled select { cursor: default; }
+.zmd-style-field input[type="color"] { appearance: none; inline-size: 34px; block-size: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; flex: 0 0 34px; cursor: pointer; }
+.zmd-style-field input[type="color"]::-moz-color-swatch { border: 1px solid var(--zmd-border-strong); border-radius: 6px; }
+.zmd-style-field input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.zmd-style-field input[type="color"]::-webkit-color-swatch { border: 1px solid var(--zmd-border-strong); border-radius: 6px; }
+.zmd-style-palettes { margin-block: 12px 6px; }
+.zmd-style-preview { min-inline-size: 0; max-block-size: 430px; overflow: auto; border: 1px solid var(--zmd-border); border-radius: 8px; }
+.zmd-style-preview .zotero-markdown-preview-page { min-block-size: 340px; }
+.zmd-style-preview .zotero-markdown-preview-inner { padding: 18px; box-sizing: border-box; }
+.zmd-style-preview a { pointer-events: none; }
+.zmd-style-settings :focus-visible { outline: 2px solid var(--zmd-accent); outline-offset: 2px; }
+@container (max-width: 540px) {
+  .zmd-style-layout { grid-template-columns: minmax(0, 1fr); }
+  .zmd-style-preview { max-block-size: 280px; }
+  .zmd-style-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+}
+@container (max-width: 340px) {
+  .zmd-style-toolbar > select { flex-basis: 100%; inline-size: 100%; }
+  .zmd-style-colors { grid-template-columns: minmax(0, 1fr); }
+  .zmd-style-field > select { inline-size: 100px; }
+}
+
 .zotero-markdown-paper-dialog h2 { margin: 0; font-size: 18px; }
 .zotero-markdown-paper-dialog p { margin: 0; color: var(--zmd-text-muted); }
 .zotero-markdown-paper-dialog label { display: grid; gap: 6px; }

@@ -1050,3 +1050,72 @@ paper-error-unsupported = 正文包含尚不支持导出的原始 { $detail } �
 paper-exporting = 正在导出 Word…
 paper-export-failed = Word 导出未完成，请查看错误详情
 paper-bibliography-title = 参考文献
+
+settings-style-title = 样式方案
+settings-style-default = 默认
+settings-style-paper = 纸感阅读
+settings-style-compact = 紧凑
+settings-style-current = 当前外观
+settings-style-save-as = 另存为
+settings-style-rename = 重命名
+settings-style-delete = 删除
+settings-style-name = 方案名称
+settings-style-confirm = 确定
+settings-style-cancel = 取消
+settings-style-name-required = 请输入方案名称
+settings-style-name-duplicate = 此名称已存在，请使用其他名称
+settings-style-builtin-hint = 内置方案，另存为后可编辑
+settings-style-preview = 样式预览
+settings-style-body = 正文
+settings-style-headings = 标题
+settings-style-colors = 配色
+settings-style-font-size = 字号 · px
+settings-style-line-height = 行距 · 倍
+settings-style-paragraph-spacing = 段间距 · em
+settings-style-content-width = 正文宽度 · px
+settings-style-heading-level = 标题层级
+settings-style-heading-size = 大小 · em
+settings-style-heading-weight = 字重
+settings-style-heading-before = 上间距 · em
+settings-style-heading-after = 下间距 · em
+settings-style-color-text = 正文
+settings-style-color-heading = 标题
+settings-style-color-link = 链接
+settings-style-color-accent = 强调色
+settings-style-color-quote-background = 引用背景
+settings-style-color-quote-border = 引用边框
+settings-style-color-code-background = 代码背景
+settings-style-color-code-border = 代码边框
+settings-style-color-table-header = 表头背景
+settings-style-color-table-border = 表格边框
+settings-style-sample =
+    # 研究笔记
+
+    阅读、记录与思考，让**重要观点**清晰呈现。[相关文献](#)
+
+    ## 观察与思考
+
+    > 好的问题，是研究的起点。
+
+    ### 方法
+
+    ```python
+    result = analyze(data)
+    ```
+
+    | 维度 | 观察 |
+    | --- | --- |
+    | 结果 | 持续验证 |
+
+    #### 证据
+
+    联系已有研究，记录新的发现。
+
+    ##### 讨论
+
+    比较不同解释。
+
+    ###### 来源
+
+    保留参考文献。
+settings-style-copy-name = { $name } 副本

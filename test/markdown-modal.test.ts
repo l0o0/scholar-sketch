@@ -9,6 +9,11 @@ import {
   prefsFromSettings,
   settingsFromPrefs,
 } from "../src/modules/markdown/modal.ts";
+import {
+  createMarkdownStyleSettings,
+  cloneMarkdownStyle,
+  DEFAULT_MARKDOWN_STYLE,
+} from "../src/modules/markdown/style-presets.ts";
 import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
 import { version } from "../package.json";
 import { releaseHighlights } from "../src/modules/release-highlights.ts";
@@ -171,58 +176,43 @@ test("formats document metadata values for the modal", () => {
   assert.equal(formatModalDate(null, "en-US"), "—");
 });
 
-test("maps plugin preferences to and from modal settings", () => {
-  const settings = settingsFromPrefs({
+test("maps plugin preferences to independent settings drafts", () => {
+  const markdownStyles = createMarkdownStyleSettings();
+  markdownStyles.presets.push({
+    id: "custom-test",
+    name: "Reading",
+    style: cloneMarkdownStyle(DEFAULT_MARKDOWN_STYLE),
+  });
+  markdownStyles.selectedId = "custom-test";
+  const input = {
     enable: true,
     frontmatter: false,
-    fontSize: 16,
-    theme: "system",
-    markdownFontFamily: "system",
-    markdownBackgroundColor: "",
-    markdownToolbarMode: "always",
-    markdownSlashSearchLanguage: "auto",
+    markdownStyles,
+    theme: "system" as const,
+    markdownToolbarMode: "always" as const,
+    markdownSlashSearchLanguage: "auto" as const,
     shortcutNewStandaloneMd: "accel,shift,M",
-    whiteboardColorScheme: "traditional",
-    whiteboardFontFamily: "system",
+    whiteboardColorScheme: "traditional" as const,
+    whiteboardFontFamily: "system" as const,
     whiteboardBackgroundColor: "",
-  });
-  assert.deepEqual(settings, {
-    enable: true,
-    frontmatter: false,
-    fontSize: 16,
-    theme: "system",
-    markdownFontFamily: "system",
-    markdownBackgroundColor: "",
-    markdownToolbarMode: "always",
-    markdownSlashSearchLanguage: "auto",
-    shortcutNewStandaloneMd: "accel,shift,M",
-    whiteboardColorScheme: "traditional",
-    whiteboardFontFamily: "system",
-    whiteboardBackgroundColor: "",
-  });
-  assert.deepEqual(prefsFromSettings({ ...settings, fontSize: 18 }), {
-    enable: true,
-    frontmatter: false,
-    fontSize: 18,
-    theme: "system",
-    markdownFontFamily: "system",
-    markdownBackgroundColor: "",
-    markdownToolbarMode: "always",
-    markdownSlashSearchLanguage: "auto",
-    shortcutNewStandaloneMd: "accel,shift,M",
-    whiteboardColorScheme: "traditional",
-    whiteboardFontFamily: "system",
-    whiteboardBackgroundColor: "",
-  });
-});
-
-test("normalizes unsupported whiteboard schemes to the traditional palette", () => {
+  };
+  const settings = settingsFromPrefs(input);
+  assert.deepEqual(settings, input);
+  settings.markdownStyles.presets[0].style.fontSize = 18;
+  settings.markdownStyles.presets[0].style.dark.text = "#123456";
+  assert.equal(input.markdownStyles.presets[0].style.fontSize, 15);
+  assert.equal(
+    input.markdownStyles.presets[0].style.dark.text,
+    DEFAULT_MARKDOWN_STYLE.dark.text,
+  );
+  assert.deepEqual(prefsFromSettings(settings), settings);
+  assert.notEqual(
+    prefsFromSettings(settings).markdownStyles.presets[0].style,
+    settings.markdownStyles.presets[0].style,
+  );
   assert.equal(
     settingsFromPrefs({
-      enable: true,
-      frontmatter: true,
-      fontSize: 14,
-      shortcutNewStandaloneMd: "",
+      ...input,
       whiteboardColorScheme: "unsupported" as never,
     }).whiteboardColorScheme,
     "traditional",
@@ -622,17 +612,12 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
     .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert.ok(window.document.querySelector('input[name="enable"]'));
   assert.ok(window.document.querySelector('input[name="frontmatter"]'));
-  const markdownBackground = window.document.querySelector(
-    'input[name="markdownBackgroundColor"]',
-  ) as HTMLInputElement;
-  markdownBackground.value = "#123456";
-  markdownBackground.dispatchEvent(
-    new window.Event("input", { bubbles: true }),
-  );
-  window.document
-    .querySelector('[data-modal-action="reset-markdown-background"]')!
-    .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-  assert.equal(markdownBackground.value, "#ffffff");
+  const preset = window.document.querySelector(
+    'select[name="markdownStylePreset"]',
+  ) as HTMLSelectElement;
+  assert.ok(preset);
+  preset.value = "paper";
+  preset.dispatchEvent(new window.Event("change", { bubbles: true }));
 
   window.document
     .querySelector('[data-settings-page="shortcuts"]')!
@@ -708,7 +693,10 @@ test("keeps page ownership, switches shortcut sets, and resets appearance colors
     .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   await Promise.resolve();
   assert.equal(saved.length, 1);
-  assert.equal(saved[0]?.markdownBackgroundColor, "");
+  assert.equal(
+    (saved[0]?.markdownStyles as { selectedId: string }).selectedId,
+    "paper",
+  );
   assert.equal(
     markdownModalCSS().includes(
       ".zotero-markdown-settings-palette {\n  position: absolute;",
@@ -964,4 +952,246 @@ test("settings retain focus and remain open during a failed save", async (t) => 
     window.document.querySelector(".zotero-markdown-modal-error")!.textContent!,
     /Save failed/,
   );
+});
+
+test("Markdown style presets stay local to the settings draft until Done and reopen with their palettes", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController, applySettings } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window({ url: "https://settings.test" });
+  const stored = new Map<string, unknown>();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    { onSettings: applySettings },
+    { initialSettingsPage: "editor" },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const action = (name: string) => {
+    const element = win.document.querySelector<HTMLButtonElement>(
+      `[data-style-action="${name}"]`,
+    );
+    assert.ok(element, `Missing style action ${name}`);
+    element.click();
+  };
+  const change = (name: string, value: string, event = "change") => {
+    const input = win.document.querySelector<
+      HTMLInputElement | HTMLSelectElement
+    >(`[name="${name}"]`);
+    assert.ok(input, `Missing ${name} control`);
+    input.value = value;
+    input.dispatchEvent(new win.Event(event, { bubbles: true }));
+    return input;
+  };
+  const copy = (name: string) => {
+    action("copy");
+    change("markdownStyleName", name, "input");
+    action("confirm-name");
+  };
+  const preview = () =>
+    win.document.querySelector<HTMLElement>(".zmd-style-preview")!;
+  const save = async () => {
+    win.document
+      .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  controller.open("settings");
+  assert.equal(
+    win.document
+      .querySelector(".zotero-markdown-modal")!
+      .classList.contains("is-style-settings"),
+    true,
+  );
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="general"]')!
+    .click();
+  assert.equal(
+    win.document
+      .querySelector(".zotero-markdown-modal")!
+      .classList.contains("is-style-settings"),
+    false,
+  );
+  win.document
+    .querySelector<HTMLButtonElement>('[data-settings-page="editor"]')!
+    .click();
+  change("markdownStylePreset", "paper");
+  assert.equal(
+    win.document.querySelector<HTMLFieldSetElement>(
+      ".zmd-style-editable-fields",
+    )!.disabled,
+    true,
+  );
+  change("fontSize", "31");
+  assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "17px");
+  const bodyTab = win.document.querySelector<HTMLButtonElement>(
+    '[data-style-action="category-body"]',
+  )!;
+  bodyTab.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  const headingLevel = change("styleHeadingLevel", "2");
+  assert.equal(headingLevel.matches(":disabled"), false);
+  action("category-colors");
+  action("palette-dark");
+  assert.equal(
+    preview().style.getPropertyValue("--zmd-style-background"),
+    "#24221f",
+  );
+  action("palette-light");
+  action("category-body");
+  action("copy");
+  const composingName = change("markdownStyleName", "yanjiu", "input");
+  const candidateEnter = new win.KeyboardEvent("keydown", {
+    key: "Enter",
+    isComposing: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  composingName.dispatchEvent(candidateEnter);
+  const candidateEscape = new win.KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(candidateEscape, "keyCode", { value: 229 });
+  composingName.dispatchEvent(candidateEscape);
+  assert.equal(candidateEnter.defaultPrevented, false);
+  assert.equal(candidateEscape.defaultPrevented, false);
+  assert.equal(
+    win.document.querySelector<HTMLElement>(".zmd-style-naming")!.hidden,
+    false,
+  );
+  assert.equal(
+    win.document.querySelector<HTMLElement>(".zotero-markdown-modal-backdrop")!
+      .hidden,
+    false,
+  );
+  assert.equal(
+    win.document.querySelectorAll('select[name="markdownStylePreset"] option')
+      .length,
+    3,
+  );
+  change("markdownStyleName", "Lab notes", "input");
+  composingName.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(
+    win.document.querySelector<HTMLElement>(".zmd-style-naming")!.hidden,
+    true,
+  );
+  assert.equal(
+    win.document.querySelector<HTMLFieldSetElement>(
+      ".zmd-style-editable-fields",
+    )!.disabled,
+    false,
+  );
+  change("fontSize", "22");
+  change("fontSize", "");
+  assert.equal(
+    (win.document.querySelector('[name="fontSize"]') as HTMLInputElement).value,
+    "22",
+  );
+  change("lineHeight", "1.6");
+  assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "22px");
+  action("category-heading");
+  change("styleHeadingLevel", "1");
+  change("heading-size", "1.8");
+  action("category-colors");
+  action("palette-dark");
+  change("styleColor-background", "#223344", "input");
+  assert.equal(
+    preview().style.getPropertyValue("--zmd-style-background"),
+    "#223344",
+  );
+  action("palette-light");
+  assert.equal(
+    preview().style.getPropertyValue("--zmd-style-background"),
+    "#faf7ef",
+  );
+  assert.equal(stored.size, 0, "preview edits must not write preferences");
+  await save();
+  const persisted = String(
+    stored.get("extensions.zotero.bamboo.markdownStyles"),
+  );
+  const parsed = JSON.parse(persisted);
+  assert.equal(parsed.presets.length, 1);
+  assert.equal(parsed.presets[0].name, "Lab notes");
+  assert.equal(parsed.presets[0].style.fontSize, 22);
+  assert.equal(parsed.presets[0].style.headings[1].size, 1.8);
+  assert.equal(parsed.presets[0].style.dark.background, "#223344");
+  assert.equal(stored.has("extensions.zotero.bamboo.fontSize"), false);
+  assert.equal(stored.get("extensions.zotero.bamboo.theme"), "system");
+  controller.open("settings");
+  assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "22px");
+  copy("Temporary");
+  change("fontSize", "19");
+  controller.close();
+  assert.equal(
+    stored.get("extensions.zotero.bamboo.markdownStyles"),
+    persisted,
+  );
+  controller.open("settings");
+  assert.equal(
+    win.document.querySelectorAll('select[name="markdownStylePreset"] option')
+      .length,
+    4,
+  );
+  action("rename");
+  change("markdownStyleName", "Research", "input");
+  action("confirm-name");
+  copy("Research");
+  assert.equal(
+    win.document.querySelector<HTMLElement>(
+      ".zmd-style-settings > .zotero-markdown-modal-error",
+    )!.hidden,
+    false,
+  );
+  change("markdownStyleName", "Compact research", "input");
+  action("confirm-name");
+  await save();
+  assert.equal(
+    JSON.parse(String(stored.get("extensions.zotero.bamboo.markdownStyles")))
+      .presets.length,
+    2,
+  );
+  controller.open("settings");
+  action("delete");
+  assert.equal(
+    (
+      win.document.querySelector(
+        '[name="markdownStylePreset"]',
+      ) as HTMLSelectElement
+    ).value,
+    "default",
+  );
+  await save();
+  const afterDelete = JSON.parse(
+    String(stored.get("extensions.zotero.bamboo.markdownStyles")),
+  );
+  assert.equal(afterDelete.presets.length, 1);
+  assert.equal(afterDelete.presets[0].name, "Research");
+  assert.equal(afterDelete.selectedId, "default");
 });

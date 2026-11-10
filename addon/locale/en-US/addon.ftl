@@ -1050,3 +1050,72 @@ paper-error-unsupported = The manuscript contains raw { $detail } content that c
 paper-exporting = Exporting Word…
 paper-export-failed = Word export did not complete. Check the error details.
 paper-bibliography-title = References
+
+settings-style-title = Style preset
+settings-style-default = Default
+settings-style-paper = Paper
+settings-style-compact = Compact
+settings-style-current = Current appearance
+settings-style-save-as = Save as
+settings-style-rename = Rename
+settings-style-delete = Delete
+settings-style-name = Preset name
+settings-style-confirm = Confirm
+settings-style-cancel = Cancel
+settings-style-name-required = Enter a preset name
+settings-style-name-duplicate = This name is already in use
+settings-style-builtin-hint = Save a copy to customize this built-in preset
+settings-style-preview = Style preview
+settings-style-body = Text
+settings-style-headings = Headings
+settings-style-colors = Colors
+settings-style-font-size = Font size · px
+settings-style-line-height = Line height · ×
+settings-style-paragraph-spacing = Paragraph spacing · em
+settings-style-content-width = Content width · px
+settings-style-heading-level = Heading level
+settings-style-heading-size = Size · em
+settings-style-heading-weight = Weight
+settings-style-heading-before = Space before · em
+settings-style-heading-after = Space after · em
+settings-style-color-text = Text
+settings-style-color-heading = Headings
+settings-style-color-link = Links
+settings-style-color-accent = Accent
+settings-style-color-quote-background = Quote background
+settings-style-color-quote-border = Quote border
+settings-style-color-code-background = Code background
+settings-style-color-code-border = Code border
+settings-style-color-table-header = Table header
+settings-style-color-table-border = Table border
+settings-style-sample =
+    # Research notes
+
+    Read, record, and reflect. Keep **key ideas** in focus. [Related work](#)
+
+    ## Observations
+
+    > Good research begins with a question.
+
+    ### Method
+
+    ```python
+    result = analyze(data)
+    ```
+
+    | Dimension | Observation |
+    | --- | --- |
+    | Results | Keep testing |
+
+    #### Evidence
+
+    Connect findings with previous research.
+
+    ##### Discussion
+
+    Compare explanations.
+
+    ###### Sources
+
+    Keep the references.
+settings-style-copy-name = { $name } copy

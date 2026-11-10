@@ -87,6 +87,19 @@ current snapshot. The PDF adapter owns continuous scrolling, its resize handler
 and pointer listeners in both reader documents; the controller uses that
 ownership to keep internal pointer/key events inside the card.
 
+## Markdown appearance
+
+Named style presets live in the plugin-local `markdownStyles` preference as a
+versioned list of custom presets and a selected ID. Built-in presets remain in
+code. Until that preference is saved, the existing font, size, and background
+preferences seed the current appearance; they are not a second live source once
+the preset configuration exists. Settings edits stay in the dialog draft until
+Done. The existing editor refresh registry updates all mounted views via theme
+compartment reconfiguration, preserving document and undo state. Reading preview
+uses scoped style variables on its existing host, and HTML export embeds those
+same variables; printing selects the preset's light palette. Presets do not alter
+Markdown files, the shared application theme, or Word templates.
+
 ## Protocol
 
 High-frequency `change` messages carry `{ rev, changes }` instead of the full document. The parent applies those ranges to its shadow copy. Save/flush calls `requestSnapshot` so the written file is the latest iframe document. Image widgets request a single `resolveAsset`; the parent answers with a cached data URL.

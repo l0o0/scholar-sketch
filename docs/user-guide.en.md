@@ -449,9 +449,13 @@ Under **Settings → Markdown → Top toolbar**, choose **Always show**, **Auto-
 
 With **Auto-hide**, move the pointer to the top of the editor to fade the toolbar in; it fades out when you leave. It stays visible while a menu is open or a toolbar control has keyboard focus. The fade is disabled when your system requests reduced motion. Click **Show toolbar temporarily** in the bottom bar to reach the controls without changing Auto-hide. With **Always hide**, click **Show toolbar** in the bottom bar to return to Always show. Editing shortcuts remain available in all three modes.
 
-Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
+Under **Settings → Markdown**, choose a style preset. The built-in **Default**, **Paper**, and **Compact** presets can be copied with **Save as**. Customize the body font, size, line height, paragraph spacing, and maximum width, along with heading styles and the colors of quotes, code blocks, and tables. You can rename or delete your custom presets. Light and dark palettes are saved separately and follow the appearance selected under **General**.
 
-![Markdown settings for opening attachments, YAML frontmatter, font size, font, and background color](screenshots/settings-markdown.webp)
+Adjustments appear in the settings preview. Click **Done** to apply them to open Markdown tabs, standalone windows, and the PDF sidebar; closing settings discards unconfirmed adjustments. Switching presets preserves the text, selection, and undo history without changing the Markdown file. Your existing font, size, and background color are retained when upgrading.
+
+Presets are stored in the plugin configuration on this computer and do not sync through Zotero or WebDAV. Live preview and reading preview use the same preset. HTML exports use the selected preset; printing and PDF use its light palette. Word exports retain their separate `.docx` template. Per-note preset assignments and arbitrary CSS imports are not supported.
+
+Settings also let you choose system, light, or dark appearance and configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
 ## Find help and discover new features
 
