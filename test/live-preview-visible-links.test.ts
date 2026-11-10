@@ -89,6 +89,9 @@ test("only visible links and their syntax markers are painted, with no href in D
     (_, index) => `[Link ${index}](https://example.test/${index})`,
   ).join("\n\n");
   const { api, view } = await fixture(t, source);
+  // This test covers visible-range painting after parsing. Initial parsing is
+  // time-budgeted; the partial-parse case is exercised separately below.
+  assert.ok(forceParsing(view, view.state.doc.length, 1000));
   const ranges = visibleLine(view.state, 3);
   const paint = snapshot(
     api.buildVisibleLinkDecorations(view.state, ranges),
