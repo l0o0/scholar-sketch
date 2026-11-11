@@ -20,6 +20,7 @@ export const testSuites = {
       "test/synced-settings-startup.test.ts",
       "test/bamboo-branding.test.ts",
       "test/creation-toolbar.test.ts",
+      "test/data-directory-migration.test.ts",
       "test/document-link-filters.test.ts",
       "test/document-links*.test.ts",
       "test/document-sync.test.ts",
