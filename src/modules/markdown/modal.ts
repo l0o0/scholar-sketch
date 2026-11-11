@@ -6,6 +6,11 @@ import {
 } from "../help";
 import { releaseHighlights } from "../release-highlights";
 import {
+  hasGarden,
+  promptGardenDownload,
+  openGardenQuestion,
+} from "../garden-forum";
+import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   MARKDOWN_HEADING_SHORTCUTS,
   markdownHeadingShortcutLabel,
@@ -290,6 +295,7 @@ export function createMarkdownModalController(
   let activeKind: ModalKind | null = null;
   let restoreFocus: HTMLElement | null = null;
   let pendingSettings: SettingsModalData | null = null;
+  let settingsAtOpen = "";
   let savingSettings = false;
   let selectSettingsPage:
     ((page: SettingsPageID, focusHeading?: boolean) => void) | null = null;
@@ -393,6 +399,7 @@ export function createMarkdownModalController(
         payload.whiteboardBackgroundColor ??
         normalizeColor(getPref("whiteboardBackgroundColor")),
     });
+    settingsAtOpen = JSON.stringify(pendingSettings);
 
     const workspace = doc.createElement("form");
     workspace.className = "zotero-markdown-settings-workspace";
@@ -1076,6 +1083,7 @@ export function createMarkdownModalController(
       actions.append(
         button(doc, getString("settings-user-guide"), "about-user-guide"),
         button(doc, getString("settings-about-github"), "project-repository"),
+        button(doc, getString("settings-garden-question"), "garden-question"),
       );
       support.append(
         textElement(doc, "h4", getString("settings-about-support")),
@@ -1189,6 +1197,19 @@ export function createMarkdownModalController(
       if (action === "release-notes") return openReleaseNotes();
       if (action === "about-user-guide") return void openUserGuide();
       if (action === "project-repository") return openProjectRepository();
+      if (action === "garden-question") {
+        if (!hasGarden()) return promptGardenDownload(doc.defaultView!);
+        if (JSON.stringify(pendingSettings) !== settingsAtOpen)
+          return showActionError(getString("settings-garden-unsaved"));
+        try {
+          openGardenQuestion();
+        } catch (error) {
+          return showActionError(error);
+        }
+        closeModal();
+        Zotero.getMainWindow()?.focus();
+        return;
+      }
     }
     if (action === "reveal") {
       return void Promise.resolve(callbacks.onReveal?.()).catch(

@@ -152,6 +152,264 @@ test("About does not present another release's highlights for an unknown version
   assert.ok(win.document.querySelector('[data-modal-action="release-notes"]'));
 });
 
+test("Garden questions use the optional draft API and preserve unconfirmed settings", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  type Draft = { contentMarkdown: string; topicType: "QUESTION" };
+  type DraftResult =
+    | { ok: true; draftId: string }
+    | { ok: false; reason: "BUSY" | "INVALID_CONTENT" };
+  let garden:
+    | { api?: { openForumPostDraft: (input: Draft) => DraftResult } }
+    | undefined = undefined;
+  let result: DraftResult | Error = { ok: true, draftId: "question-draft" };
+  const requests: Draft[] = [];
+  const launched: string[] = [];
+  let downloadDecision = 1;
+  const prompts: Array<{
+    parent: unknown;
+    title: string;
+    text: string;
+    flags: number;
+    download: string | null;
+  }> = [];
+  const prompt = {
+    BUTTON_POS_0: 1,
+    BUTTON_POS_1: 256,
+    BUTTON_TITLE_IS_STRING: 127,
+    BUTTON_TITLE_CANCEL: 2,
+    confirmEx(
+      parent: unknown,
+      title: string,
+      text: string,
+      flags: number,
+      download: string | null,
+    ) {
+      prompts.push({ parent, title, text, flags, download });
+      return downloadDecision;
+    },
+  };
+  const stored = new Map<string, unknown>();
+  let mainWindowFocuses = 0;
+  const ftl = readFileSync("addon/locale/en-US/addon.ftl", "utf8");
+  const messages = new Map(
+    [...ftl.matchAll(/^([\w-]+) = (.+)$/gm)].map((match) => [
+      `bamboo-${match[1]}`,
+      match[2],
+    ]),
+  );
+  messages.set(
+    "bamboo-garden-question-template",
+    ftl
+      .match(/^garden-question-template =\n((?:(?: {4}.*)?\n)+)/m)![1]
+      .replace(/^ {4}/gm, "")
+      .trim(),
+  );
+  // Only host preferences, localization, prompts and the optional Garden API are mocked.
+  for (const [key, value] of Object.entries({
+    __buildVersion__: version,
+    Zotero: {
+      version: "11.0-test",
+      get Garden() {
+        return garden;
+      },
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+      getMainWindow: () => ({ focus: () => mainWindowFocuses++ }),
+      launchURL: (url: string) => launched.push(url),
+    },
+    ztoolkit: {
+      log() {},
+      getGlobal(name: string) {
+        assert.equal(name, "Services");
+        return { prompt };
+      },
+    },
+    addon: {
+      data: {
+        locale: {
+          current: {
+            formatMessagesSync: (
+              input: Array<{ id: string; args?: Record<string, unknown> }>,
+            ) =>
+              input.map(({ id, args }) => ({
+                value: (messages.get(id) ?? id).replace(
+                  /\{ \$(\w+) \}/g,
+                  (_match, key) => String(args?.[key] ?? ""),
+                ),
+                attributes: null,
+              })),
+          },
+        },
+      },
+    },
+  })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (previous) Object.defineProperty(globalThis, key, previous);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    {},
+    { initialSettingsPage: "about" },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+  });
+  const questionButton = () =>
+    win.document.querySelector<HTMLButtonElement>(
+      '[data-modal-action="garden-question"]',
+    );
+  const backdrop = () =>
+    win.document.querySelector<HTMLElement>(".zotero-markdown-modal-backdrop")!;
+  const error = () =>
+    win.document.querySelector<HTMLElement>("[data-modal-error]")!;
+  const page = (id: string) =>
+    win.document
+      .querySelector<HTMLButtonElement>(`[data-settings-page="${id}"]`)!
+      .click();
+  controller.open("settings");
+  assert.equal(questionButton()!.textContent, "Feedback");
+  questionButton()!.click();
+  assert.equal(prompts.length, 1);
+  assert.equal(prompts[0].parent, win);
+  assert.equal(prompts[0].title, "Feedback");
+  assert.equal(
+    prompts[0].text,
+    "Install the Garden plugin to post feedback on the Garden forum.",
+  );
+  assert.equal(prompts[0].download, "Download Garden");
+  assert.equal(
+    prompts[0].flags & (0xff * prompt.BUTTON_POS_1),
+    prompt.BUTTON_POS_1 * prompt.BUTTON_TITLE_CANCEL,
+    "The native prompt must provide Cancel",
+  );
+  assert.deepEqual(launched, [], "Cancel must not open the download page");
+  assert.equal(backdrop().hidden, false);
+  downloadDecision = 0;
+  questionButton()!.click();
+  assert.equal(prompts.length, 2);
+  assert.deepEqual(launched, [
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+  ]);
+  assert.equal(backdrop().hidden, false);
+  assert.equal(requests.length, 0);
+  assert.equal(mainWindowFocuses, 0);
+  garden = {};
+  controller.open("settings");
+  assert.equal(questionButton()!.textContent, "Feedback");
+  questionButton()!.click();
+  assert.equal(error().hidden, false);
+  assert.match(error().textContent!, /Enable or update Garden/);
+  assert.equal(backdrop().hidden, false);
+  assert.equal(requests.length, 0);
+
+  garden.api = {
+    openForumPostDraft(input) {
+      requests.push(input);
+      if (result instanceof Error) throw result;
+      return result;
+    },
+  };
+  const availableGarden = garden;
+  controller.open("settings");
+  questionButton()!.click();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(Object.keys(requests[0]).sort(), [
+    "contentMarkdown",
+    "topicType",
+  ]);
+  assert.equal(requests[0].topicType, "QUESTION");
+  assert.match(requests[0].contentMarkdown, /## Problem description/);
+  assert.match(requests[0].contentMarkdown, /## Steps to reproduce/);
+  assert.ok(requests[0].contentMarkdown.includes(`Scholar Sketch: ${version}`));
+  assert.match(requests[0].contentMarkdown, /Zotero: 11\.0-test/);
+  assert.equal(backdrop().hidden, true);
+  assert.equal(mainWindowFocuses, 1);
+
+  result = { ok: false, reason: "BUSY" };
+  controller.open("settings");
+  questionButton()!.click();
+  assert.equal(requests.length, 2, "BUSY must not trigger a retry");
+  assert.equal(backdrop().hidden, true);
+  assert.equal(mainWindowFocuses, 2);
+  for (const failure of [
+    { ok: false, reason: "INVALID_CONTENT" } as const,
+    new Error("Garden tab failed"),
+  ]) {
+    result = failure;
+    controller.open("settings");
+    questionButton()!.click();
+    assert.equal(backdrop().hidden, false);
+    assert.equal(error().hidden, false);
+    assert.match(
+      error().textContent!,
+      /Could not open the Garden question draft/,
+    );
+    assert.equal(mainWindowFocuses, 2);
+  }
+
+  result = { ok: true, draftId: "next-draft" };
+  controller.open("settings");
+  page("general");
+  const theme = win.document.querySelector<HTMLSelectElement>(
+    'select[name="theme"]',
+  )!;
+  theme.value = "dark";
+  theme.dispatchEvent(new win.Event("change", { bubbles: true }));
+  page("about");
+  const beforeUnsaved = requests.length;
+  questionButton()!.click();
+  assert.equal(requests.length, beforeUnsaved);
+  assert.equal(backdrop().hidden, false);
+  assert.match(error().textContent!, /Save or discard your settings changes/);
+  page("general");
+  assert.equal(
+    win.document.querySelector<HTMLSelectElement>('select[name="theme"]')!
+      .value,
+    "dark",
+  );
+  assert.equal(stored.size, 0, "Asking must not silently save preferences");
+  page("about");
+  assert.equal(questionButton()!.textContent, "Feedback");
+  garden = undefined;
+  questionButton()!.click();
+  assert.equal(
+    prompts.length,
+    3,
+    "Missing Garden must prompt even with settings changes",
+  );
+  assert.deepEqual(launched, [
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+  ]);
+  assert.equal(requests.length, beforeUnsaved);
+  assert.equal(backdrop().hidden, false);
+  page("general");
+  assert.equal(
+    win.document.querySelector<HTMLSelectElement>('select[name="theme"]')!
+      .value,
+    "dark",
+    "Downloading Garden must preserve the unsaved settings draft",
+  );
+  assert.equal(stored.size, 0);
+  garden = availableGarden;
+  controller.close();
+  controller.open("settings");
+  const detachedButton = questionButton()!;
+  controller.destroy();
+  detachedButton.click();
+  assert.equal(requests.length, beforeUnsaved);
+});
+
 test("normalizes Markdown filenames without losing the extension", () => {
   assert.equal(
     normalizeMarkdownFilename("  Meeting notes  "),
