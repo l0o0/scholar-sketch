@@ -435,6 +435,29 @@ settings-about-name = Plugin
 settings-about-version = Version
 settings-about-build-time = Build time
 settings-about-support = Help and support
+settings-garden-question = Ask in Garden
+settings-garden-unavailable = Enable or update Garden and try again.
+settings-garden-failed = Could not open the Garden question draft. Please try again.
+settings-garden-unsaved = Save or discard your settings changes before asking in Garden.
+garden-question-template =
+    ## Problem description
+
+    Describe the issue or improvement you would like in Scholar Sketch.
+
+    ## Steps to reproduce
+
+    1.
+    2.
+
+    ## Expected and actual results
+
+    Add details and any relevant screenshots before publishing.
+
+    ## Environment
+
+    - Scholar Sketch: { $pluginVersion }
+    - Zotero: { $zoteroVersion }
+    - Operating system: please fill in
 settings-about-github = GitHub repository
 settings-about-star = If Scholar Sketch helps your research, consider giving it a Star on GitHub. Your support helps the project grow.
 settings-about-release-fallback = See the full release notes for details about this version.

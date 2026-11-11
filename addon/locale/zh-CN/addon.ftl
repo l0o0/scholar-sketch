@@ -435,6 +435,29 @@ settings-about-name = 插件
 settings-about-version = 版本
 settings-about-build-time = 构建时间
 settings-about-support = 帮助与支持
+settings-garden-question = 到 Garden 提问
+settings-garden-unavailable = 请启用或更新 Garden 后重试。
+settings-garden-failed = 无法打开 Garden 提问草稿，请重试。
+settings-garden-unsaved = 请先保存或取消设置修改，再到 Garden 提问。
+garden-question-template =
+    ## 问题描述
+
+    请描述你在 Scholar Sketch 中遇到的问题或希望改进的功能。
+
+    ## 复现步骤
+
+    1.
+    2.
+
+    ## 预期结果与实际结果
+
+    请补充说明，可在发布前添加相关截图。
+
+    ## 环境信息
+
+    - Scholar Sketch：{ $pluginVersion }
+    - Zotero：{ $zoteroVersion }
+    - 操作系统：请填写
 settings-about-github = GitHub 项目主页
 settings-about-star = 如果 Scholar Sketch 对你的研究有帮助，欢迎在 GitHub 点亮一颗 Star，支持项目继续改进。
 settings-about-release-fallback = 查看完整更新日志，了解此版本的更新内容。

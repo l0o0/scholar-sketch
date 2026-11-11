@@ -480,6 +480,8 @@ Preset CSS is stored in the plugin configuration on this computer and does not s
 
 Settings also let you choose system, light, or dark appearance and configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
+When Garden is enabled, **Settings → About → Help and support** includes **Ask in Garden**. It opens a question draft with the Scholar Sketch and Zotero versions. Add the issue, reproduction steps, and operating system, then enter a title, choose a category, and publish in Garden. Nothing is published automatically, and note contents, logs, and file paths are not collected. An existing pending draft is reopened without overwriting its contents. Save or discard any settings changes first. Older Garden versions without the draft API prompt you to update.
+
 ## Find help and discover new features
 
 In Zotero Settings, select **Scholar Sketch** and click **User guide** to open the guide, or **What’s new** to revisit the current version's feature highlights. The **General** and **About** pages in the editor settings also provide a user guide button. The guide follows Zotero's interface language: Chinese interfaces open the Chinese guide, and other languages open this English guide. Use the language links at the top of the repository guides to switch languages.
