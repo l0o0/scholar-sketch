@@ -1067,3 +1067,74 @@ paper-error-unsupported = 正文包含尚不支持导出的原始 { $detail } �
 paper-exporting = 正在导出 Word…
 paper-export-failed = Word 导出未完成，请查看错误详情
 paper-bibliography-title = 参考文献
+
+settings-style-title = 样式方案
+settings-style-help = 样式方案帮助
+settings-style-help-text =
+    另存方案后编辑 CSS，或复制 AI 提示词，让 AI 按支持的规则生成样式，再粘贴预览。
+    点击「完成」保存；关闭设置会放弃修改。
+settings-style-default = 默认
+settings-style-paper = 纸感阅读
+settings-style-compact = 紧凑
+settings-style-current = 当前外观
+settings-style-save-as = 另存为
+settings-style-save-as-title = 另存样式方案
+settings-style-rename-title = 重命名样式方案
+settings-style-rename = 重命名
+settings-style-delete = 删除
+settings-style-name = 方案名称
+settings-style-confirm = 确定
+settings-style-cancel = 取消
+settings-style-name-required = 请输入方案名称
+settings-style-name-duplicate = 此名称已存在，请使用其他名称
+settings-style-builtin-hint = 内置方案，另存为后可编辑
+settings-style-preview = 样式预览
+settings-style-sample =
+    # 研究笔记
+
+    阅读、记录与思考，让**重要观点**清晰呈现。[相关文献](#)
+
+    ## 观察与思考
+
+    > 好的问题，是研究的起点。
+
+    ### 方法
+
+    ```python
+    result = analyze(data)
+    ```
+
+    | 维度 | 观察 |
+    | --- | --- |
+    | 结果 | 持续验证 |
+
+    #### 证据
+
+    联系已有研究，记录新的发现。
+
+    ##### 讨论
+
+    比较不同解释。
+
+    ###### 来源
+
+    保留参考文献。
+settings-style-copy-name = { $name } 副本
+
+settings-style-copy-prompt = 复制 AI 提示词
+settings-style-reset-css = 恢复默认
+settings-style-prompt-copied = 提示词已复制
+settings-style-prompt-copy-failed = 复制失败，请重试
+settings-style-css-preview-unchanged = CSS 无效，预览未应用此草稿
+settings-style-css-diagnostic = 第 { $line } 行：{ $message }
+settings-style-css-syntax = CSS 语法不完整或有误
+settings-style-css-selector = 不支持此选择器
+settings-style-css-property = 不支持此属性
+settings-style-css-value = 属性值无效或超出范围
+settings-style-css-variable = 变量未定义或不受支持
+settings-style-css-at-rule = 不支持此 CSS 指令
+settings-style-css-limit = CSS 超出支持的长度或复杂度
+settings-style-prompt-instructions = 你正在为 Scholar Sketch 的 Markdown 编辑器设计样式。请根据下面的需求修改当前 CSS。严格使用支持的选择器、属性、变量和数值范围，同时提供协调的浅色与深色配色。不得引入外部字体、图片、URL 或其他网络资源。只输出完整 CSS，不要解释、Markdown 代码围栏或 JavaScript。
+settings-style-prompt-request = 我的需求：[在此填写希望的字体、配色和排版风格]
+settings-style-prompt-current = 当前 CSS：
+settings-style-prompt-sample = 用于检查效果的 Markdown 示例：

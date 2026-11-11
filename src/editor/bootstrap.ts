@@ -102,7 +102,7 @@ import {
 import { clampOutlinePosition, extractEditorOutline } from "./outline";
 import { formatNoteLink } from "../modules/markdown/note-links";
 import {
-  appearanceTheme,
+  resolvedSyntaxTheme,
   codeSyntaxHighlighting,
   editorThemeExtension,
 } from "./theme";
@@ -1296,6 +1296,7 @@ function buildExtensions(
   runtime.appearance = {
     fontFamily: normalizeFontFamily(init.appearance?.fontFamily),
     backgroundColor: normalizeBackgroundColor(init.appearance?.backgroundColor),
+    style: init.appearance?.style,
   };
   runtime.mode = init.mode === "source" ? "source" : "live";
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
@@ -1407,7 +1408,7 @@ function buildExtensions(
         runtime.appearance,
       ),
       codeSyntaxHighlighting(
-        appearanceTheme(init.theme, runtime.appearance.backgroundColor),
+        resolvedSyntaxTheme(init.theme, runtime.appearance, runtime.mode),
       ),
     ]),
     liveCompartment.of(
@@ -1601,7 +1602,7 @@ function applyMode(mode: EditorMode) {
           runtime.appearance,
         ),
         codeSyntaxHighlighting(
-          appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+          resolvedSyntaxTheme(runtime.theme, runtime.appearance, runtime.mode),
         ),
       ]),
     ],
@@ -2001,7 +2002,11 @@ function handleParentMessage(data: ParentToEditorMessage) {
             runtime.appearance,
           ),
           codeSyntaxHighlighting(
-            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+            resolvedSyntaxTheme(
+              runtime.theme,
+              runtime.appearance,
+              runtime.mode,
+            ),
           ),
         ]),
       });
@@ -2020,7 +2025,11 @@ function handleParentMessage(data: ParentToEditorMessage) {
             runtime.appearance,
           ),
           codeSyntaxHighlighting(
-            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+            resolvedSyntaxTheme(
+              runtime.theme,
+              runtime.appearance,
+              runtime.mode,
+            ),
           ),
         ]),
       });
@@ -2045,7 +2054,11 @@ function handleParentMessage(data: ParentToEditorMessage) {
             runtime.appearance,
           ),
           codeSyntaxHighlighting(
-            appearanceTheme(runtime.theme, runtime.appearance.backgroundColor),
+            resolvedSyntaxTheme(
+              runtime.theme,
+              runtime.appearance,
+              runtime.mode,
+            ),
           ),
         ]),
       });

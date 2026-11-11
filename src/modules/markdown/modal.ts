@@ -50,6 +50,14 @@ import {
   type SlashSearchLanguage,
 } from "./preferences";
 
+import type { MarkdownStyleSettings } from "./style-settings";
+import { compileMarkdownStyleCss } from "./style-css";
+import {
+  readMarkdownStyleSettings,
+  writeMarkdownStyleSettings,
+} from "./style-preferences";
+import { createMarkdownStyleSettingsUI } from "./style-settings-ui";
+
 export { normalizeMarkdownFilename } from "./storage-filename";
 
 export type ModalKind = "document-info" | "rename" | "settings";
@@ -67,10 +75,8 @@ export interface DocumentModalData {
 export interface SettingsModalData {
   enable: boolean;
   frontmatter: boolean;
-  fontSize: number;
+  markdownStyles: MarkdownStyleSettings;
   theme: AppearanceTheme;
-  markdownFontFamily: FontFamilyID;
-  markdownBackgroundColor: string;
   markdownToolbarMode: MarkdownToolbarMode;
   markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
@@ -141,10 +147,8 @@ export function settingsFromPrefs(
   prefs: SettingsModalData = {
     enable: Boolean(getPref("enable")),
     frontmatter: Boolean(getPref("frontmatter")),
-    fontSize: Number(getPref("fontSize")) || 14,
+    markdownStyles: readMarkdownStyleSettings(),
     theme: normalizeAppearanceTheme(getPref("theme")),
-    markdownFontFamily: normalizeFontFamily(getPref("markdownFontFamily")),
-    markdownBackgroundColor: normalizeColor(getPref("markdownBackgroundColor")),
     markdownToolbarMode: resolveMarkdownToolbarMode(
       getPref("markdownToolbarMode"),
       getPref("markdownToolbarVisible"),
@@ -165,10 +169,11 @@ export function settingsFromPrefs(
   return {
     enable: Boolean(prefs.enable),
     frontmatter: Boolean(prefs.frontmatter),
-    fontSize: Number(prefs.fontSize) || 14,
+    markdownStyles: {
+      ...prefs.markdownStyles,
+      presets: prefs.markdownStyles.presets.map((preset) => ({ ...preset })),
+    },
     theme: normalizeAppearanceTheme(prefs.theme),
-    markdownFontFamily: normalizeFontFamily(prefs.markdownFontFamily),
-    markdownBackgroundColor: normalizeColor(prefs.markdownBackgroundColor),
     markdownToolbarMode: resolveMarkdownToolbarMode(
       prefs.markdownToolbarMode,
       undefined,
@@ -286,9 +291,18 @@ export function createMarkdownModalController(
   let restoreFocus: HTMLElement | null = null;
   let pendingSettings: SettingsModalData | null = null;
   let savingSettings = false;
+  let selectSettingsPage:
+    ((page: SettingsPageID, focusHeading?: boolean) => void) | null = null;
 
+  const closeChildDialogs = () => {
+    for (const child of body.querySelectorAll<HTMLDialogElement>(
+      "dialog[open]",
+    ))
+      child.close();
+  };
   const closeModal = () => {
     if (backdrop.hidden || savingSettings) return;
+    closeChildDialogs();
     backdrop.hidden = true;
     backdrop.setAttribute("aria-hidden", "true");
     activeKind = null;
@@ -334,6 +348,7 @@ export function createMarkdownModalController(
     label.appendChild(input);
     body.appendChild(label);
     const error = textElement(doc, "p", "", "zotero-markdown-modal-error");
+    error.dataset.modalError = "";
     error.hidden = true;
     body.appendChild(error);
     const footer = doc.createElement("footer");
@@ -354,14 +369,8 @@ export function createMarkdownModalController(
     pendingSettings = settingsFromPrefs({
       enable: payload.enable ?? Boolean(getPref("enable")),
       frontmatter: payload.frontmatter ?? Boolean(getPref("frontmatter")),
-      fontSize: payload.fontSize ?? (Number(getPref("fontSize")) || 14),
+      markdownStyles: payload.markdownStyles ?? readMarkdownStyleSettings(),
       theme: payload.theme ?? normalizeAppearanceTheme(getPref("theme")),
-      markdownFontFamily:
-        payload.markdownFontFamily ??
-        normalizeFontFamily(getPref("markdownFontFamily")),
-      markdownBackgroundColor:
-        payload.markdownBackgroundColor ??
-        normalizeColor(getPref("markdownBackgroundColor")),
       markdownToolbarMode:
         payload.markdownToolbarMode ??
         resolveMarkdownToolbarMode(
@@ -401,6 +410,7 @@ export function createMarkdownModalController(
       "zotero-markdown-modal-footer zotero-markdown-settings-footer";
     footer.append(button(doc, getString("modal-done"), "save-settings", true));
     const error = textElement(doc, "p", "", "zotero-markdown-modal-error");
+    error.dataset.modalError = "";
     error.hidden = true;
     main.append(pageContent, error);
     workspace.append(navigation, main, footer);
@@ -517,99 +527,6 @@ export function createMarkdownModalController(
           "zotero-markdown-settings-description",
         ),
       );
-      const row = doc.createElement("label");
-      row.className = "zotero-markdown-settings-row";
-      row.appendChild(
-        textElement(doc, "span", getString("settings-font-size")),
-      );
-      const size = doc.createElement("input");
-      size.type = "number";
-      size.name = "fontSize";
-      size.min = "11";
-      size.max = "22";
-      size.step = "1";
-      size.value = String(pendingSettings?.fontSize || 14);
-      size.className = "zotero-markdown-modal-input is-small";
-      size.addEventListener("change", () => {
-        if (pendingSettings)
-          pendingSettings.fontSize = Math.min(
-            22,
-            Math.max(11, Number(size.value) || 14),
-          );
-      });
-      row.appendChild(size);
-      pageContent.appendChild(row);
-      const fontRow = doc.createElement("label");
-      fontRow.className = "zotero-markdown-settings-row";
-      fontRow.appendChild(
-        textElement(doc, "span", getString("settings-font-family")),
-      );
-      const font = doc.createElement("select");
-      font.name = "markdownFontFamily";
-      font.className = "zotero-markdown-settings-select";
-      for (const [value, labelKey] of [
-        ["system", "settings-font-system"],
-        ["serif", "settings-font-serif"],
-        ["mono", "settings-font-mono"],
-      ] as const) {
-        const option = doc.createElement("option");
-        option.value = value;
-        option.textContent = getString(labelKey);
-        font.appendChild(option);
-      }
-      font.value = normalizeFontFamily(pendingSettings?.markdownFontFamily);
-      font.addEventListener("change", () => {
-        if (pendingSettings)
-          pendingSettings.markdownFontFamily = normalizeFontFamily(font.value);
-      });
-      fontRow.appendChild(font);
-      pageContent.appendChild(fontRow);
-
-      const backgroundRow = doc.createElement("label");
-      backgroundRow.className = "zotero-markdown-settings-row";
-      backgroundRow.appendChild(
-        textElement(doc, "span", getString("settings-background")),
-      );
-      const backgroundControls = doc.createElement("span");
-      backgroundControls.className = "zotero-markdown-settings-color-inline";
-      const background = doc.createElement("input");
-      background.type = "color";
-      background.name = "markdownBackgroundColor";
-      background.value = normalizeColor(
-        pendingSettings?.markdownBackgroundColor,
-        "#ffffff",
-      );
-      background.setAttribute("aria-label", getString("settings-background"));
-      const colorValue = textElement(
-        doc,
-        "span",
-        background.value.toUpperCase(),
-        "zotero-markdown-settings-color-value",
-      );
-      background.addEventListener("input", () => {
-        colorValue.textContent = background.value.toUpperCase();
-        if (pendingSettings)
-          pendingSettings.markdownBackgroundColor = normalizeColor(
-            background.value,
-          );
-      });
-      const reset = button(
-        doc,
-        getString("settings-reset"),
-        "reset-markdown-background",
-      );
-      reset.innerHTML = iconReset();
-      reset.classList.add("is-icon");
-      reset.title = getString("settings-reset");
-      reset.setAttribute("aria-label", reset.title);
-      reset.addEventListener("click", () => {
-        if (pendingSettings) pendingSettings.markdownBackgroundColor = "";
-        background.value = "#ffffff";
-        colorValue.textContent = background.value.toUpperCase();
-      });
-      backgroundControls.append(background, colorValue, reset);
-      backgroundRow.appendChild(backgroundControls);
-      pageContent.appendChild(backgroundRow);
       const searchRow = doc.createElement("div");
       searchRow.className = "zotero-markdown-settings-row";
       searchRow.appendChild(
@@ -655,6 +572,18 @@ export function createMarkdownModalController(
           "p",
           getString("settings-slash-search-description"),
           "zotero-markdown-settings-description",
+        ),
+      );
+      pageContent.appendChild(
+        createMarkdownStyleSettingsUI(
+          doc,
+          pendingSettings!.markdownStyles,
+          pendingSettings!.theme === "dark" ||
+            (pendingSettings!.theme === "system" &&
+              !!doc.defaultView?.matchMedia?.("(prefers-color-scheme: dark)")
+                ?.matches)
+            ? "dark"
+            : "light",
         ),
       );
       return heading;
@@ -1167,6 +1096,7 @@ export function createMarkdownModalController(
         item.tabIndex = selected ? 0 : -1;
       }
       body.querySelector(".zotero-markdown-settings-palette")?.remove();
+      closeChildDialogs();
       pageContent.replaceChildren();
       const heading =
         page === "general"
@@ -1211,6 +1141,7 @@ export function createMarkdownModalController(
       navigation.appendChild(item);
     }
 
+    selectSettingsPage = selectPage;
     body.appendChild(workspace);
     const initialPage = SETTINGS_PAGES.some(
       ({ id }) => id === initialSettingsPage,
@@ -1221,9 +1152,7 @@ export function createMarkdownModalController(
   };
 
   const showActionError = (error: unknown) => {
-    const element = body.querySelector<HTMLElement>(
-      ".zotero-markdown-modal-error",
-    );
+    const element = body.querySelector<HTMLElement>("[data-modal-error]");
     if (!element) return;
     element.textContent =
       error instanceof Error ? error.message : String(error);
@@ -1275,14 +1204,6 @@ export function createMarkdownModalController(
         .then(closeModal)
         .catch(showActionError);
     }
-    if (action === "reset-markdown-background") {
-      if (pendingSettings) pendingSettings.markdownBackgroundColor = "";
-      const input = body.querySelector<HTMLInputElement>(
-        'input[name="markdownBackgroundColor"]',
-      );
-      if (input) input.value = "#ffffff";
-      return;
-    }
     if (action === "reset-whiteboard-background") {
       if (pendingSettings) pendingSettings.whiteboardBackgroundColor = "";
       const input = body.querySelector<HTMLInputElement>(
@@ -1292,10 +1213,23 @@ export function createMarkdownModalController(
       return;
     }
     if (action === "save-settings") {
+      if (savingSettings) return;
+      const invalid = pendingSettings!.markdownStyles.presets.find(
+        (preset) => !compileMarkdownStyleCss(preset.css).ok,
+      );
+      if (invalid) {
+        pendingSettings!.markdownStyles.selectedId = invalid.id;
+        selectSettingsPage!("editor", true);
+        body
+          .querySelector<HTMLTextAreaElement>(
+            'textarea[name="markdownStyleCss"]',
+          )!
+          .focus();
+        return;
+      }
       const settings = prefsFromSettings(
         pendingSettings || settingsFromPrefs(),
       );
-      if (savingSettings) return;
       savingSettings = true;
       const saveButton = body.querySelector<HTMLButtonElement>(
         '[data-modal-action="save-settings"]',
@@ -1315,6 +1249,7 @@ export function createMarkdownModalController(
     }
   };
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.defaultPrevented || backdrop.hidden) return;
     if (event.key === "Tab") {
       const focusScope =
@@ -1323,10 +1258,12 @@ export function createMarkdownModalController(
         ) || dialog;
       const controls = [
         ...focusScope.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
         ),
       ].filter(
-        (element) => !element.closest("[hidden]") && element.tabIndex >= 0,
+        (element) =>
+          !element.closest("[hidden], dialog:not([open])") &&
+          element.tabIndex >= 0,
       );
       const first = controls[0];
       const last = controls[controls.length - 1];
@@ -1365,6 +1302,14 @@ export function createMarkdownModalController(
       event.preventDefault();
       return;
     }
+    const tooltip = body.querySelector<HTMLElement>(
+      '[role="tooltip"]:not([hidden])',
+    );
+    if (tooltip) {
+      tooltip.hidden = true;
+      event.preventDefault();
+      return;
+    }
     closeModal();
   };
   backdrop.addEventListener("click", onClick);
@@ -1380,6 +1325,7 @@ export function createMarkdownModalController(
       );
       restoreFocus = doc.activeElement as HTMLElement | null;
       title.textContent = modalTitle(kind);
+      closeChildDialogs();
       body.replaceChildren();
       if (kind === "document-info")
         renderDocumentInfo(payload as DocumentModalData);
@@ -1408,10 +1354,8 @@ export function applySettings(settings: SettingsModalData) {
   const values = prefsFromSettings(settings);
   setPref("enable", values.enable);
   setPref("frontmatter", values.frontmatter);
-  setPref("fontSize", values.fontSize);
+  writeMarkdownStyleSettings(values.markdownStyles);
   setPref("theme", values.theme);
-  setPref("markdownFontFamily", values.markdownFontFamily);
-  setPref("markdownBackgroundColor", values.markdownBackgroundColor);
   setPref("markdownToolbarMode", values.markdownToolbarMode);
   setPref("markdownSlashSearchLanguage", values.markdownSlashSearchLanguage);
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);

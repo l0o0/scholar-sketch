@@ -1317,6 +1317,58 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
 }
 .zotero-markdown-paper-dialog::backdrop { background: #0006; }
 .zotero-markdown-paper-dialog form { display: grid; gap: 16px; }
+
+.zmd-style-settings {
+  container-type: inline-size;
+  margin-block: 12px 24px;
+  color: var(--zmd-text);
+  font-size: 13px;
+}
+.zmd-style-header { position: relative; display: flex; align-items: center; gap: 6px; margin-block-end: 12px; }
+.zmd-style-header > h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.zmd-style-help { display: flex; }
+.zmd-style-help-button { display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; inline-size: 24px; block-size: 24px; min-inline-size: 0; min-block-size: 0; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--zmd-text-muted); cursor: help; }
+.zmd-style-help-button:hover, .zmd-style-help-button:focus-visible { background: var(--zmd-surface-2); color: var(--zmd-text); }
+.zmd-style-help-button .zmd-icon { inline-size: 16px; block-size: 16px; }
+.zmd-style-help-tooltip { position: absolute; z-index: 10; inset-block-start: 100%; inset-inline-start: 0; box-sizing: border-box; inline-size: min(340px, 100%); margin: 0; padding: 10px 12px; border: 1px solid var(--zmd-border); border-radius: 8px; background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 6px 20px #0002; font-size: 12px; font-weight: 400; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.zmd-style-help-tooltip[hidden] { display: none; }
+.zmd-style-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.zmd-style-toolbar > select { flex: 1 1 160px; min-inline-size: 100px; }
+.zmd-style-toolbar > button { flex: 0 0 auto; }
+.zmd-style-toolbar button:disabled { opacity: .45; cursor: default; }
+.zmd-style-name-dialog { box-sizing: border-box; inline-size: min(380px, calc(100vw - 32px)); max-block-size: calc(100vh - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid var(--zmd-border-strong); border-radius: 12px; background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 16px 48px #0003; font: 13px/1.5 system-ui, sans-serif; }
+.zmd-style-name-dialog::backdrop { background: #0006; }
+.zmd-style-name-dialog h3 { margin: 0 0 20px; font-size: 17px; font-weight: 600; }
+.zmd-style-name-dialog label { display: block; margin-block-end: 6px; color: var(--zmd-text-muted); }
+.zmd-style-name-dialog input { box-sizing: border-box; display: block; inline-size: 100%; min-inline-size: 0; margin: 0; }
+.zmd-style-name-dialog .zotero-markdown-modal-error { margin-block-start: 8px; }
+.zmd-style-name-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-block-start: 24px; }
+.zmd-style-name-dialog button { min-inline-size: 72px; }
+.zmd-style-locked[hidden] { display: none; }
+.zmd-style-locked { color: var(--zmd-text-muted); margin: 10px 0 0; font-size: 12px; }
+.zmd-style-css-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-block: 14px 8px; }
+.zmd-style-css-tools > label { flex: 1; font-weight: 600; }
+.zmd-style-css-tools > button:disabled { opacity: .45; cursor: default; }
+.zmd-style-css { box-sizing: border-box; display: block; inline-size: 100%; block-size: 240px; min-block-size: 160px; resize: vertical; padding: 12px; border: 1px solid var(--zmd-border-strong); border-radius: 8px; background: var(--zmd-bg); color: var(--zmd-text); font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; }
+.zmd-style-css[readonly] { color: var(--zmd-text-muted); }
+.zmd-style-css[aria-invalid="true"] { border-color: var(--zmd-danger, #b42318); }
+.zmd-style-css-diagnostics { margin-block: 8px; color: var(--zmd-danger, #b42318); font-size: 12px; }
+.zmd-style-css-diagnostics p { margin: 0 0 4px; }
+.zmd-style-css-diagnostics ul { margin: 0; padding-inline-start: 18px; overflow-wrap: anywhere; }
+.zmd-style-copy-status { margin: 8px 0; color: var(--zmd-text-muted); font-size: 12px; }
+.zmd-style-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 16px 8px; }
+.zmd-style-segments { display: flex; gap: 3px; padding: 3px; border-radius: 7px; background: var(--zmd-bg); }
+.zmd-style-segments > button { flex: 1; min-inline-size: 0; border: 0; background: transparent; color: var(--zmd-text-muted); }
+.zmd-style-segments > button[aria-pressed="true"] { background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.zmd-style-preview { box-sizing: border-box; min-inline-size: 0; block-size: 280px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--zmd-border); border-radius: 8px; }
+.zmd-style-preview .zotero-markdown-preview-inner { padding: 18px; box-sizing: border-box; }
+.zmd-style-preview a { pointer-events: none; }
+.zmd-style-settings :focus-visible { outline: 2px solid var(--zmd-accent); outline-offset: 2px; }
+@container (max-width: 340px) {
+  .zmd-style-toolbar > select { flex-basis: 100%; inline-size: 100%; }
+  .zmd-style-css-tools > label { flex-basis: 100%; }
+}
+
 .zotero-markdown-paper-dialog h2 { margin: 0; font-size: 18px; }
 .zotero-markdown-paper-dialog p { margin: 0; color: var(--zmd-text-muted); }
 .zotero-markdown-paper-dialog label { display: grid; gap: 6px; }

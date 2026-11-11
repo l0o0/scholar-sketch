@@ -455,9 +455,30 @@ Under **Settings → Markdown → Top toolbar**, choose **Always show**, **Auto-
 
 With **Auto-hide**, move the pointer to the top of the editor to fade the toolbar in; it fades out when you leave. It stays visible while a menu is open or a toolbar control has keyboard focus. The fade is disabled when your system requests reduced motion. Click **Show toolbar temporarily** in the bottom bar to reach the controls without changing Auto-hide. With **Always hide**, click **Show toolbar** in the bottom bar to return to Always show. Editing shortcuts remain available in all three modes.
 
-Settings let you change the Markdown font, font size, and background color, and choose system, light, or dark appearance. You can also configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
+At the bottom of **Settings → Markdown**, choose a style preset. The built-in **Default**, **Paper**, and **Compact** presets are read-only. Click **Save as**, enter a name in the dialog, and confirm to create a custom preset, then edit its CSS, rename it, or delete it. Renaming also opens a separate dialog; **Esc** or **Cancel** closes only that naming dialog. **Restore default** replaces the current custom preset's draft CSS with the default template while retaining its name; it is saved only when you click **Done** in settings.
 
-![Markdown settings for opening attachments, YAML frontmatter, font size, font, and background color](screenshots/settings-markdown.webp)
+The CSS editor supports a defined subset. Set typography and color variables in `.markdown`, use rules with `data-theme="light"` or `data-theme="dark"` for each palette, and apply supported text and border decorations to headings, quotes, links, code, and table cells. The generated template and the specification included in **Copy AI prompt** describe the supported syntax. Unknown selectors, properties and variables, external `url()` resources, `@` rules, and arbitrary layout rules produce errors rather than being silently ignored. For example:
+
+```css
+.markdown {
+  --zmd-style-font: serif;
+  --zmd-style-size: 18px;
+  --zmd-style-line-height: 1.8;
+}
+
+.markdown h1 {
+  font-weight: 700;
+  text-align: center;
+}
+```
+
+If you prefer AI assistance, click **Copy AI prompt**. Paste the prompt containing the supported specification, current CSS, and a generic example into your chosen AI service, describe the appearance you want, and paste its generated CSS back into the editor. The button only copies to the clipboard. It does not connect to an AI service or read or include the current note's text or selection.
+
+The fixed-height preview below the editor scrolls independently and offers light and dark previews; the actual editor follows the appearance selected under **General**. Invalid CSS shows a source line and is not applied to the preview. Fix the errors before clicking **Done**: errors in any custom preset block saving, including after switching presets or settings pages. **Done** applies the preset to open Markdown tabs, standalone windows, and the PDF sidebar; closing settings discards unconfirmed adjustments. Switching presets preserves the text, selection, and undo history without changing the Markdown file. Older presets based on individual appearance controls are converted to CSS templates while preserving their appearance.
+
+Preset CSS is stored in the plugin configuration on this computer and does not sync through Zotero or WebDAV. Live preview and reading preview use the same preset. HTML exports use the selected preset; printing and PDF use its light palette. Word exports retain their separate `.docx` template. Per-note preset assignments are not supported.
+
+Settings also let you choose system, light, or dark appearance and configure YAML frontmatter for new notes, whiteboard color schemes, and shortcuts. The **About** page shared by Markdown and whiteboards shows the plugin version, build information, and current release highlights, with links to the full release notes, user guide, and GitHub repository. If the plugin helps your work, you can use the GitHub link to give the project a Star and support its development.
 
 ## Find help and discover new features
 

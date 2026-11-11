@@ -186,3 +186,34 @@ test("unchanged partial coverage keeps local decoration identities and later par
   );
   equivalent();
 });
+
+test("a completed parse can become partial after editing and recover paragraph spacing", async (t) => {
+  const { view, blocks, equivalent } = await fixture(t);
+  assert.equal(forceParsing(view, view.state.doc.length, 1000), true);
+  const hasReadingParagraph = () => {
+    const line = view.state.doc.line(5);
+    let found = false;
+    blocks().between(line.from, line.to, (_from, _to, value) => {
+      if (value.spec.class === "zmd-lp-paragraph-start") found = true;
+    });
+    return found;
+  };
+  assert.ok(hasReadingParagraph());
+  exhaustInitialParseBudget(() =>
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "!" } }),
+  );
+  assert.ok(syntaxTree(view.state).length < view.state.doc.line(5).from);
+  assert.equal(forceParsing(view, view.state.doc.length, 1000), true);
+  assert.ok(
+    hasReadingParagraph(),
+    "background parsing restores paragraph spacing",
+  );
+  equivalent();
+  const completedBlocks = blocks();
+  view.dispatch({ selection: { anchor: 0 } });
+  assert.equal(
+    blocks(),
+    completedBlocks,
+    "completed parsing keeps selection-only updates cheap",
+  );
+});

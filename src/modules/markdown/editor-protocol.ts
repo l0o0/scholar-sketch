@@ -1,3 +1,4 @@
+import { isMarkdownStyle, type MarkdownStyle } from "./style-presets";
 import type { FontFamilyID, ResolvedSlashSearchLanguage } from "./preferences";
 import { validViewState, type DocumentViewState } from "./editor-view-state";
 import { parseDocumentLink } from "./document-link-shared";
@@ -107,6 +108,7 @@ export interface EditorTextSelection {
 }
 
 export interface EditorAppearance {
+  style?: MarkdownStyle;
   fontFamily: FontFamilyID;
   backgroundColor: string;
 }
@@ -410,10 +412,15 @@ export function isEditorProtocolMessage(
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
   if (data.type === "init" || data.type === "setTopInset") {
-    const payload = data.payload as { topInset?: unknown } | null;
+    const payload = data.payload as {
+      topInset?: unknown;
+      appearance?: { style?: unknown };
+    } | null;
     return (
       !!payload &&
       typeof payload === "object" &&
+      (payload.appearance?.style === undefined ||
+        isMarkdownStyle(payload.appearance.style)) &&
       ((data.type === "init" && payload.topInset === undefined) ||
         (typeof payload.topInset === "number" &&
           Number.isFinite(payload.topInset) &&
@@ -479,7 +486,8 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
       ["system", "serif", "mono"].includes(payload.fontFamily as string) &&
       typeof payload.backgroundColor === "string" &&
       (payload.backgroundColor === "" ||
-        /^#[\da-f]{6}$/i.test(payload.backgroundColor))
+        /^#[\da-f]{6}$/i.test(payload.backgroundColor)) &&
+      (payload.style === undefined || isMarkdownStyle(payload.style))
     );
   }
   if (data.type === "setSlashSearchLanguage") {

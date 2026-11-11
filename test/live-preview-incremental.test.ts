@@ -345,3 +345,11 @@ test("edits before a remote image update both decoration and widget source offse
     String(view.state.doc.toString().indexOf(")\n\nEnd") + 1),
   );
 });
+
+test("editing a Setext delimiter refreshes the preceding paragraph spacing", async (t) => {
+  const { view, equivalent } = await fixture(t, "Title\nword\n\nBody");
+  view.dispatch({ changes: { from: 6, to: 10, insert: "=" } });
+  equivalent();
+  view.dispatch({ changes: { from: 6, to: 7, insert: "word" } });
+  equivalent();
+});

@@ -1,3 +1,9 @@
+import {
+  resolvedMarkdownDecorations,
+  type MarkdownDecorationTarget,
+  type MarkdownDecorationDeclarations,
+} from "../modules/markdown/style-decoration";
+import type { MarkdownStyle } from "../modules/markdown/style-presets";
 import type { EditorAppearance } from "../modules/markdown/editor-protocol";
 import {
   appearanceFontFamily,
@@ -612,7 +618,24 @@ export function appearanceTheme(
   return 0.2126 * r + 0.7152 * g + 0.0722 * b < 140 ? "dark" : "light";
 }
 
-export function editorThemeExtension(
+/** Syntax follows its document surface even when a legacy custom color differs from the shell. */
+export function resolvedSyntaxTheme(
+  theme: EditorTheme,
+  appearance?: EditorAppearance,
+  mode: EditorMode = "live",
+): EditorTheme {
+  const palette = appearance?.style?.[theme];
+  return appearanceTheme(
+    theme,
+    palette
+      ? mode === "source"
+        ? palette.background
+        : palette.codeBackground
+      : appearance?.backgroundColor,
+  );
+}
+
+function baseEditorThemeExtension(
   theme: EditorTheme,
   fontSize: number,
   mode: EditorMode = "source",
@@ -823,4 +846,190 @@ export function editorThemeExtension(
       color: tokens.accent,
     },
   });
+}
+
+/** Presets customize the document; toolbar and completion colors stay native. */
+export function editorThemeExtension(
+  theme: EditorTheme,
+  fontSize: number,
+  mode: EditorMode = "source",
+  surface: EditorSurface = "default",
+  appearance?: EditorAppearance,
+): Extension {
+  const style = appearance?.style;
+  const base = baseEditorThemeExtension(
+    theme,
+    style?.fontSize ?? fontSize,
+    mode,
+    surface,
+    style ? { fontFamily: style.fontFamily, backgroundColor: "" } : appearance,
+  );
+  return style
+    ? [
+        mode === "live" ? markdownDecorationTheme(style, theme) : [],
+        markdownStyleTheme(style, theme, mode),
+        base,
+      ]
+    : base;
+}
+
+function markdownStyleTheme(
+  style: MarkdownStyle,
+  theme: EditorTheme,
+  mode: EditorMode,
+): Extension {
+  const colors = style[theme];
+  const codeText =
+    THEME_TOKENS[appearanceTheme(theme, colors.codeBackground)].text;
+  const live = mode === "live";
+  const fontFamily =
+    style.fontFamily === "system" && !live
+      ? FONT_MONO
+      : appearanceFontFamily(style.fontFamily);
+  const headings = Object.fromEntries(
+    style.headings.map((heading, index) => [
+      `.cm-line.zmd-lp-h${index + 1}`,
+      {
+        fontSize: `${heading.size}em`,
+        fontWeight: String(heading.weight),
+        paddingTop: `${heading.before}em`,
+        paddingBottom: `${heading.after}em`,
+        color: colors.heading,
+      },
+    ]),
+  );
+  return EditorView.theme({
+    "&": {
+      fontSize: `${style.fontSize}px`,
+      backgroundColor: colors.background,
+      color: colors.text,
+    },
+    ".cm-scroller": {
+      fontFamily,
+      lineHeight: String(style.lineHeight),
+    },
+    ".cm-content": {
+      caretColor: colors.accent,
+      ...(live ? { maxWidth: `${style.contentWidth}px` } : {}),
+      "--zmd-code-block-bg": colors.codeBackground,
+      "--zmd-code-border": colors.codeBorder,
+      "--zmd-table-bg": colors.background,
+      "--zmd-table-header-bg": colors.tableHeader,
+      "--zmd-table-border": colors.tableBorder,
+      "--zmd-table-delimiter-text": colors.text,
+      "--zmd-table-active-bg": `${colors.accent}0d`,
+      "--zmd-table-selection-bg": `${colors.accent}26`,
+      "--zmd-table-selection-line": colors.accent,
+    },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: colors.accent },
+    ...(live
+      ? {
+          ...headings,
+          ".cm-line.zmd-lp-paragraph-start": {
+            paddingTop: `${style.paragraphSpacing}em`,
+          },
+          ".cm-line.zmd-lp-quote": {
+            color: colors.text,
+            backgroundColor: colors.quoteBackground,
+            borderLeftColor: colors.quoteBorder,
+          },
+          ".zmd-lp-link, .zmd-wikilink": { color: colors.link },
+          ".zmd-lp-list-marker, .cm-line.zmd-lp-list .zmd-lp-syntax": {
+            color: colors.text,
+          },
+          ".zmd-lp-task-checkbox": { accentColor: colors.accent },
+          ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence": {
+            color: codeText,
+          },
+          ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code": {
+            backgroundColor: colors.codeBackground,
+            color: codeText,
+          },
+          ".zmd-lp-html-mark, .zmd-lp-html-table mark": {
+            backgroundColor: `${colors.accent}30`,
+          },
+          ".zmd-lp-html-table th, .zmd-lp-html-table td": {
+            borderColor: colors.tableBorder,
+          },
+          ".zmd-lp-html-table th": { backgroundColor: colors.tableHeader },
+          ".zmd-lp-table-cell": { lineHeight: String(style.lineHeight) },
+        }
+      : {}),
+  });
+}
+
+function markdownDecorationTheme(
+  style: MarkdownStyle,
+  theme: EditorTheme,
+): Extension {
+  const rules = resolvedMarkdownDecorations(style, theme);
+  const selectors: Record<MarkdownDecorationTarget, string> = {
+    h1: ".cm-line.zmd-lp-h1",
+    h2: ".cm-line.zmd-lp-h2",
+    h3: ".cm-line.zmd-lp-h3",
+    h4: ".cm-line.zmd-lp-h4",
+    h5: ".cm-line.zmd-lp-h5",
+    h6: ".cm-line.zmd-lp-h6",
+    blockquote: ".cm-line.zmd-lp-quote",
+    a: ".zmd-lp-link, .zmd-wikilink",
+    pre: ".cm-line.zmd-lp-code-block, .cm-line.zmd-lp-code-fence",
+    code: ".zmd-lp-code, .zmd-lp-html-code, .zmd-lp-html-table code, .cm-line.zmd-lp-code-block",
+    th: ".zmd-lp-table-header-cell, .zmd-lp-html-table th",
+    td: ".zmd-lp-table-cell:not(.zmd-lp-table-header-cell), .zmd-lp-html-table td",
+  };
+  const result: Record<string, Record<string, string>> = {};
+  const camel = (declarations: MarkdownDecorationDeclarations) =>
+    Object.fromEntries(
+      Object.entries(declarations).map(([property, value]) => [
+        property.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()),
+        value,
+      ]),
+    );
+  // Code declarations target the inner text in HTML and therefore override
+  // inherited pre text styles even when the pre rule occurs later in CSS.
+  for (const target of [
+    "pre",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "a",
+    "th",
+    "td",
+    "code",
+  ] as const) {
+    const declarations = rules[target];
+    if (!declarations) continue;
+    const values = camel(declarations);
+    if ((target === "th" || target === "td") && values.backgroundColor) {
+      const backgroundColor = values.backgroundColor;
+      delete values.backgroundColor;
+      const idleCell = selectors[target]
+        .split(", ")
+        .map((selector) =>
+          selector.startsWith(".zmd-lp-table-")
+            ? `${selector}:not(.zmd-lp-table-cell-selected):not(.zmd-lp-table-cell-active):not(.zmd-lp-table-drag-source):not(.zmd-lp-table-drop-target)`
+            : selector,
+        )
+        .join(", ");
+      result[idleCell] = { backgroundColor };
+    }
+    if (target === "pre" && values.borderRadius) {
+      const radius = values.borderRadius;
+      delete values.borderRadius;
+      result[".cm-line.zmd-lp-code-fence-open"] = {
+        borderTopLeftRadius: radius,
+        borderTopRightRadius: radius,
+      };
+      result[".cm-line.zmd-lp-code-fence-close"] = {
+        borderBottomLeftRadius: radius,
+        borderBottomRightRadius: radius,
+      };
+    }
+    result[selectors[target]] = values;
+  }
+  return EditorView.theme(result);
 }

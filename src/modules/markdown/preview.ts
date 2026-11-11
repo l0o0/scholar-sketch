@@ -1,3 +1,6 @@
+import { resolvedMarkdownDecorations } from "./style-decoration";
+import { DEFAULT_MARKDOWN_STYLE, type MarkdownStyle } from "./style-presets";
+import { appearanceFontFamily } from "./preferences";
 import { CODE_FONT_FAMILY } from "../../ui/theme";
 import {
   assetReferenceCandidates,
@@ -65,6 +68,118 @@ export function applyAssetsToHtml(html: string, assets: ImageAssetMap): string {
   );
 }
 
+function previewStyleVariables(style: MarkdownStyle, theme: "light" | "dark") {
+  const colors = style[theme];
+  const values: Record<string, string> = {
+    "--zmd-style-font": appearanceFontFamily(style.fontFamily),
+    "--zmd-style-size": `${style.fontSize}px`,
+    "--zmd-style-line-height": String(style.lineHeight),
+    "--zmd-style-paragraph-spacing": `${style.paragraphSpacing}em`,
+    "--zmd-style-width": `${style.contentWidth}px`,
+  };
+  for (const name of Object.keys(DEFAULT_MARKDOWN_STYLE.light) as Array<
+    keyof MarkdownStyle["light"]
+  >) {
+    values[
+      `--zmd-style-${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`
+    ] = colors[name];
+  }
+  style.headings.forEach((heading, index) => {
+    const prefix = `--zmd-style-h${index + 1}`;
+    values[`${prefix}-size`] = `${heading.size * style.fontSize}px`;
+    values[`${prefix}-weight`] = String(heading.weight);
+    values[`${prefix}-before`] = `${heading.before}em`;
+    values[`${prefix}-after`] = `${heading.after}em`;
+  });
+  const rgb = [1, 3, 5].map((offset) =>
+    parseInt(colors.codeBackground.slice(offset, offset + 2), 16),
+  );
+  const syntaxTheme =
+    0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] < 140
+      ? "dark"
+      : "light";
+  values["--zmd-style-code-text"] = THEME_TOKENS[syntaxTheme].text;
+  for (const [key, value] of Object.entries(THEME_TOKENS[syntaxTheme])) {
+    if (key.startsWith("code")) {
+      const name = key.replace(
+        /[A-Z]/g,
+        (letter) => `-${letter.toLowerCase()}`,
+      );
+      values[`--zmd-${name}`] = value;
+    }
+  }
+  return values;
+}
+
+function previewDecorationCss(
+  style: MarkdownStyle,
+  theme: "light" | "dark",
+  scope: string,
+): string {
+  return Object.entries(resolvedMarkdownDecorations(style, theme))
+    .map(([target, declarations]) => {
+      const selector =
+        target === "code"
+          ? `${scope} code, ${scope} :not(pre) > code`
+          : `${scope} ${target}`;
+      return `${selector} { ${Object.entries(declarations)
+        .map(([name, value]) => `${name}: ${value};`)
+        .join(" ")} }`;
+    })
+    .join("\n");
+}
+
+let previewStyleScope = 0;
+
+/** Update document variables without replacing images, selection or scroll. */
+export function applyPreviewStyle(
+  host: HTMLElement,
+  style: MarkdownStyle,
+  theme: "light" | "dark",
+): void {
+  for (const [name, value] of Object.entries(
+    previewStyleVariables(style, theme),
+  )) {
+    host.style.setProperty(name, value);
+  }
+  let stylesheet = host.querySelector<HTMLStyleElement>(
+    ":scope > style[data-zmd-style-decoration]",
+  );
+  if (!style.decorations?.length) {
+    stylesheet?.remove();
+    return;
+  }
+  if (!host.dataset.zmdStyleScope)
+    host.dataset.zmdStyleScope = String(++previewStyleScope);
+  if (!stylesheet) {
+    stylesheet = host.ownerDocument.createElement("style");
+    stylesheet.dataset.zmdStyleDecoration = "";
+    host.appendChild(stylesheet);
+  }
+  const scope = `[data-zmd-style-scope="${host.dataset.zmdStyleScope}"]`;
+  stylesheet.textContent =
+    previewDecorationCss(
+      style,
+      theme,
+      `${scope} .zotero-markdown-preview-inner`,
+    ) +
+    "\n" +
+    previewDecorationCss(
+      style,
+      theme,
+      `${scope}.zotero-markdown-preview-inner`,
+    );
+}
+
+function previewStyleCss(
+  style: MarkdownStyle,
+  theme: "light" | "dark",
+): string {
+  return Object.entries(previewStyleVariables(style, theme))
+    .map(([name, value]) => `${name}: ${value};`)
+    .join("\n");
+}
+
 /** Printable / exportable prose styles shared by the in-app preview. */
 export function previewDocumentCss(): string {
   return `
@@ -74,7 +189,7 @@ ${mermaidStyles()}
 .footnotes { font-size:.9em; }
 .zotero-markdown-preview-page {
   margin: 0;
-  background: var(--zmd-bg);
+  background: var(--zmd-style-background, var(--zmd-bg));
   color: var(--zmd-text);
   font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -82,11 +197,16 @@ ${mermaidStyles()}
   line-height: 1.7;
 }
 .zotero-markdown-preview-inner {
+  box-sizing: border-box;
   user-select: text;
-  max-width: 760px;
+  max-width: var(--zmd-style-width, 760px);
   margin: 0 auto;
   padding: 28px 32px;
-  background: var(--zmd-surface);
+  background: var(--zmd-style-background, var(--zmd-surface));
+  color: var(--zmd-style-text, var(--zmd-text));
+  font-family: var(--zmd-style-font, inherit);
+  font-size: var(--zmd-style-size, 15px);
+  line-height: var(--zmd-style-line-height, 1.7);
 
 }
 .zotero-markdown-preview-empty {
@@ -97,13 +217,15 @@ ${mermaidStyles()}
 .zotero-markdown-preview-inner h1,
 .zotero-markdown-preview-inner h2,
 .zotero-markdown-preview-inner h3,
-.zotero-markdown-preview-inner h4 {
+.zotero-markdown-preview-inner h4,
+.zotero-markdown-preview-inner h5,
+.zotero-markdown-preview-inner h6 {
   margin-top: 1.4em;
   margin-bottom: 0.45em;
   line-height: 1.3;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--zmd-text);
+  color: var(--zmd-style-heading, var(--zmd-text));
 }
 .zotero-markdown-preview-inner h1 {
   font-size: 1.75em;
@@ -116,9 +238,22 @@ ${mermaidStyles()}
   border-bottom: 1px solid var(--zmd-border);
 }
 .zotero-markdown-preview-inner h3 { font-size: 1.15em; }
-.zotero-markdown-preview-inner p { margin: 0.75em 0; }
-.zotero-markdown-preview-inner a {
-  color: var(--zmd-accent);
+${[1, 2, 3, 4, 5, 6]
+  .map(
+    (level) => `
+.zotero-markdown-preview-inner h${level} {
+  font-size: var(--zmd-style-h${level}-size, ${[1.75, 1.35, 1.15, 1.05, 1, 1][level - 1]}em);
+  font-weight: var(--zmd-style-h${level}-weight, 700);
+  margin-top: var(--zmd-style-h${level}-before, 1.4em);
+  margin-bottom: var(--zmd-style-h${level}-after, 0.45em);
+}
+`,
+  )
+  .join("")}
+.zotero-markdown-preview-inner p { margin: var(--zmd-style-paragraph-spacing, 0.75em) 0; }
+.zotero-markdown-preview-inner a,
+.zotero-markdown-preview-inner .zmd-wikilink {
+  color: var(--zmd-style-link, var(--zmd-accent));
   text-decoration: none;
 }
 .zotero-markdown-preview-inner a:hover { text-decoration: underline; }
@@ -129,8 +264,9 @@ ${mermaidStyles()}
 }
 .zotero-markdown-preview-inner li { margin: 0.25em 0; }
 .zotero-markdown-preview-inner pre {
-  background: var(--zmd-surface-2);
-  border: 1px solid var(--zmd-border);
+  color: var(--zmd-style-code-text, inherit);
+  background: var(--zmd-style-code-background, var(--zmd-surface-2));
+  border: 1px solid var(--zmd-style-code-border, var(--zmd-border));
   padding: 16px 20px;
   border-radius: 6px;
   overflow: auto;
@@ -147,8 +283,8 @@ ${mermaidStyles()}
   font-size: inherit;
 }
 .zotero-markdown-preview-inner :not(pre) > code {
-  background: var(--zmd-accent-soft);
-  color: var(--zmd-accent-hover);
+  background: var(--zmd-style-code-background, var(--zmd-accent-soft));
+  color: var(--zmd-style-code-text, var(--zmd-accent-hover));
   padding: 0.12em 0.4em;
   border-radius: 4px;
 }
@@ -158,7 +294,7 @@ ${mermaidStyles()}
   line-height: 0;
 }
 .zotero-markdown-preview-inner mark {
-  background: rgba(250, 204, 21, 0.35);
+  background: color-mix(in srgb, var(--zmd-style-accent, #facc15) 30%, transparent);
   color: inherit;
 }
 .zotero-markdown-preview-inner kbd {
@@ -208,9 +344,9 @@ ${mermaidStyles()}
 .zotero-markdown-preview-inner blockquote {
   margin: 1em 0;
   padding: 0.2em 0 0.2em 1em;
-  border-left: 3px solid var(--zmd-accent);
-  color: var(--zmd-text-muted);
-  background: var(--zmd-accent-soft);
+  border-left: 3px solid var(--zmd-style-quote-border, var(--zmd-accent));
+  color: var(--zmd-style-text, var(--zmd-text-muted));
+  background: var(--zmd-style-quote-background, var(--zmd-accent-soft));
   border-radius: 0 6px 6px 0;
 }
 .zotero-markdown-preview-inner hr {
@@ -226,11 +362,11 @@ ${mermaidStyles()}
 }
 .zotero-markdown-preview-inner th,
 .zotero-markdown-preview-inner td {
-  border: 1px solid var(--zmd-border);
+  border: 1px solid var(--zmd-style-table-border, var(--zmd-border));
   padding: 8px 12px;
 }
 .zotero-markdown-preview-inner th {
-  background: var(--zmd-surface-2);
+  background: var(--zmd-style-table-header, var(--zmd-surface-2));
   font-weight: 600;
 }
 .zotero-markdown-preview-inner img {
@@ -240,7 +376,7 @@ ${mermaidStyles()}
   border-radius: 8px;
 }
 @media print {
-  .zotero-markdown-preview-page { background: #fff; }
+  .zotero-markdown-preview-page { background: var(--zmd-style-background, #fff); }
   .zotero-markdown-preview-inner {
     max-width: none;
     border: none;
@@ -256,6 +392,7 @@ export function buildStandaloneDocument(options: {
   assets?: ImageAssetMap;
   title?: string;
   theme?: "light" | "dark";
+  style?: MarkdownStyle;
 }): ReadOnlyDocument {
   const title = options.title || documentTitle(options.source);
   return buildStandaloneDocumentFromRendered({
@@ -263,6 +400,7 @@ export function buildStandaloneDocument(options: {
     bodyHtml: renderMarkdown(options.source),
     assets: options.assets,
     theme: options.theme,
+    style: options.style,
   });
 }
 
@@ -271,6 +409,7 @@ export function buildStandaloneDocumentFromRendered(options: {
   bodyHtml: string;
   assets?: ImageAssetMap;
   theme?: "light" | "dark";
+  style?: MarkdownStyle;
 }): ReadOnlyDocument {
   const title = options.title || "Markdown";
   const bodyHtml = applyAssetsToHtml(options.bodyHtml, options.assets || {});
@@ -285,6 +424,9 @@ export function buildStandaloneDocumentFromRendered(options: {
 <style>
 ${themeTokenCss(":root", tokens)}
 ${previewDocumentCss()}
+${options.style ? `.zotero-markdown-preview-page { ${previewStyleCss(options.style, options.theme ?? "light")} }` : ""}
+${options.style ? `@media screen { ${previewDecorationCss(options.style, options.theme ?? "light", ".zotero-markdown-preview-inner")} }` : ""}
+${options.style ? `@media print { .zotero-markdown-preview-page { ${previewStyleCss(options.style, "light")} } ${previewDecorationCss(options.style, "light", ".zotero-markdown-preview-inner")} }` : ""}
 body { padding: 28px 32px 48px; }
 </style>
 </head>

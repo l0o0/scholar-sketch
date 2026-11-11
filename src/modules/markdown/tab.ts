@@ -1,3 +1,4 @@
+import { currentMarkdownStyle } from "./style-preferences";
 import {
   cancelPaperExport,
   exportSessionPaper,
@@ -60,6 +61,7 @@ import {
   activePreviewOutlineID,
   hydratePreviewImages,
   mountPreviewHtml,
+  applyPreviewStyle,
   disposePreviewMermaid,
   scrollPreviewToOutline,
   scrollPreviewToFragment,
@@ -2725,6 +2727,11 @@ async function showReadOnlyPreview(session: OpenSession) {
       rendered,
       session.outlineItems || [],
     );
+    applyPreviewStyle(
+      session.view.previewEl,
+      currentMarkdownStyle(),
+      resolveEditorTheme(session.win),
+    );
     bindPreviewOutlineTracking(session);
     void hydrateSessionPreviewImages(session, source);
     setStatus(session, "saved", getString("status-preview"));
@@ -2780,6 +2787,7 @@ async function renderedExportHtml(session: OpenSession) {
       assets,
       theme: resolveEditorTheme(session.win),
       document: session.win.document,
+      style: currentMarkdownStyle(),
     }),
   };
 }
