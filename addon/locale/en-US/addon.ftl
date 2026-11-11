@@ -436,6 +436,7 @@ settings-about-version = Version
 settings-about-build-time = Build time
 settings-about-support = Help and support
 settings-garden-question = Ask in Garden
+settings-garden-download = Download Garden
 settings-garden-unavailable = Enable or update Garden and try again.
 settings-garden-failed = Could not open the Garden question draft. Please try again.
 settings-garden-unsaved = Save or discard your settings changes before asking in Garden.

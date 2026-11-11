@@ -166,6 +166,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
     | undefined = undefined;
   let result: DraftResult | Error = { ok: true, draftId: "question-draft" };
   const requests: Draft[] = [];
+  const launched: string[] = [];
   const stored = new Map<string, unknown>();
   let mainWindowFocuses = 0;
   const ftl = readFileSync("addon/locale/en-US/addon.ftl", "utf8");
@@ -195,6 +196,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
         set: (key: string, value: unknown) => stored.set(key, value),
       },
       getMainWindow: () => ({ focus: () => mainWindowFocuses++ }),
+      launchURL: (url: string) => launched.push(url),
     },
     ztoolkit: { log() {} },
     addon: {
@@ -245,7 +247,14 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
       .querySelector<HTMLButtonElement>(`[data-settings-page="${id}"]`)!
       .click();
   controller.open("settings");
-  assert.equal(questionButton(), null);
+  assert.equal(questionButton()!.textContent, "Download Garden");
+  questionButton()!.click();
+  assert.deepEqual(launched, [
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+  ]);
+  assert.equal(backdrop().hidden, false);
+  assert.equal(requests.length, 0);
+  assert.equal(mainWindowFocuses, 0);
   garden = {};
   controller.open("settings");
   assert.equal(questionButton()!.textContent, "Ask in Garden");
@@ -262,6 +271,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
       return result;
     },
   };
+  const availableGarden = garden;
   controller.open("settings");
   questionButton()!.click();
   assert.equal(requests.length, 1);
@@ -320,6 +330,25 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
     "dark",
   );
   assert.equal(stored.size, 0, "Asking must not silently save preferences");
+  page("about");
+  assert.equal(questionButton()!.textContent, "Ask in Garden");
+  garden = undefined;
+  questionButton()!.click();
+  assert.deepEqual(launched, [
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+    "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+  ]);
+  assert.equal(requests.length, beforeUnsaved);
+  assert.equal(backdrop().hidden, false);
+  page("general");
+  assert.equal(
+    win.document.querySelector<HTMLSelectElement>('select[name="theme"]')!
+      .value,
+    "dark",
+    "Downloading Garden must preserve the unsaved settings draft",
+  );
+  assert.equal(stored.size, 0);
+  garden = availableGarden;
   controller.close();
   controller.open("settings");
   const detachedButton = questionButton()!;

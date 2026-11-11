@@ -372,6 +372,7 @@ export type FluentMessageId =
   | 'settings-font-size'
   | 'settings-font-system'
   | 'settings-frontmatter'
+  | 'settings-garden-download'
   | 'settings-garden-failed'
   | 'settings-garden-question'
   | 'settings-garden-unavailable'

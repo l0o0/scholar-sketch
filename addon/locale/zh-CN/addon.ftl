@@ -436,6 +436,7 @@ settings-about-version = 版本
 settings-about-build-time = 构建时间
 settings-about-support = 帮助与支持
 settings-garden-question = 到 Garden 提问
+settings-garden-download = 下载 Garden
 settings-garden-unavailable = 请启用或更新 Garden 后重试。
 settings-garden-failed = 无法打开 Garden 提问草稿，请重试。
 settings-garden-unsaved = 请先保存或取消设置修改，再到 Garden 提问。

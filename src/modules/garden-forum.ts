@@ -18,6 +18,10 @@ export function hasGarden(): boolean {
   return Boolean(garden());
 }
 
+export function openGardenDownload(): void {
+  Zotero.launchURL("https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/");
+}
+
 /** Garden owns draft review and publication; only versions enter the template. */
 export function openGardenQuestion(): void {
   const openDraft = garden()?.api?.openForumPostDraft;
