@@ -1324,7 +1324,14 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
   color: var(--zmd-text);
   font-size: 13px;
 }
-.zmd-style-settings > h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.zmd-style-header { position: relative; display: flex; align-items: center; gap: 6px; margin-block-end: 12px; }
+.zmd-style-header > h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.zmd-style-help { display: flex; }
+.zmd-style-help-button { display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; inline-size: 24px; block-size: 24px; min-inline-size: 0; min-block-size: 0; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--zmd-text-muted); cursor: help; }
+.zmd-style-help-button:hover, .zmd-style-help-button:focus-visible { background: var(--zmd-surface-2); color: var(--zmd-text); }
+.zmd-style-help-button .zmd-icon { inline-size: 16px; block-size: 16px; }
+.zmd-style-help-tooltip { position: absolute; z-index: 10; inset-block-start: 100%; inset-inline-start: 0; box-sizing: border-box; inline-size: min(340px, 100%); margin: 0; padding: 10px 12px; border: 1px solid var(--zmd-border); border-radius: 8px; background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 6px 20px #0002; font-size: 12px; font-weight: 400; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.zmd-style-help-tooltip[hidden] { display: none; }
 .zmd-style-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .zmd-style-toolbar > select { flex: 1 1 160px; min-inline-size: 100px; }
 .zmd-style-toolbar > button { flex: 0 0 auto; }

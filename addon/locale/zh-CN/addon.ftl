@@ -1064,6 +1064,10 @@ paper-export-failed = Word 导出未完成，请查看错误详情
 paper-bibliography-title = 参考文献
 
 settings-style-title = 样式方案
+settings-style-help = 样式方案帮助
+settings-style-help-text =
+    另存方案后编辑 CSS，或复制 AI 提示词，让 AI 按支持的规则生成样式，再粘贴预览。
+    点击「完成」保存；关闭设置会放弃修改。
 settings-style-default = 默认
 settings-style-paper = 纸感阅读
 settings-style-compact = 紧凑

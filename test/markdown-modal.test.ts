@@ -1084,6 +1084,24 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
   controller.open("settings");
+  const help = win.document.querySelector<HTMLElement>(".zmd-style-help")!;
+  const hint = help.querySelector<HTMLElement>('[role="tooltip"]')!;
+  const backdrop = win.document.querySelector<HTMLElement>(
+    ".zotero-markdown-modal-backdrop",
+  )!;
+  help.dispatchEvent(new win.Event("pointerenter"));
+  assert.equal(hint.hidden, false);
+  assert.equal(help.contains(win.document.activeElement), false);
+  win.document.activeElement!.dispatchEvent(
+    new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  assert.equal(hint.hidden, true);
+  assert.equal(backdrop.hidden, false);
+  win.document.activeElement!.dispatchEvent(
+    new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  assert.equal(backdrop.hidden, true);
+  controller.open("settings");
   change("markdownStylePreset", "paper");
   assert.equal(editor().readOnly, true);
   assert.equal(preview().style.getPropertyValue("--zmd-style-size"), "17px");

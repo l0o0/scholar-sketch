@@ -1064,6 +1064,10 @@ paper-export-failed = Word export did not complete. Check the error details.
 paper-bibliography-title = References
 
 settings-style-title = Style preset
+settings-style-help = Style preset help
+settings-style-help-text =
+    Save a copy to edit its CSS, or copy the AI prompt to generate a style using the supported rules, then paste it to preview.
+    Click Done to save. Closing settings discards changes.
 settings-style-default = Default
 settings-style-paper = Paper
 settings-style-compact = Compact

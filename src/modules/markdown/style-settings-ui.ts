@@ -9,6 +9,7 @@ import { DEFAULT_MARKDOWN_STYLE } from "./style-presets";
 import { compileMarkdownStyleCss } from "./style-css";
 import { markdownStylePrompt } from "./style-prompt";
 import { applyPreviewStyle, renderMarkdown } from "./preview";
+import { iconInfo } from "./icons";
 
 const builtinLabels: Record<string, FluentMessageId> = {
   default: "settings-style-default",
@@ -55,6 +56,39 @@ export function createMarkdownStyleSettingsUI(
   };
   const title = doc.createElement("h4");
   title.textContent = getString("settings-style-title");
+  const header = doc.createElement("header");
+  header.className = "zmd-style-header";
+  const help = doc.createElement("div");
+  help.className = "zmd-style-help";
+  const helpButton = doc.createElement("button");
+  helpButton.type = "button";
+  helpButton.className = "zmd-style-help-button";
+  helpButton.setAttribute("aria-label", getString("settings-style-help"));
+  helpButton.innerHTML = iconInfo();
+  const hint = doc.createElement("p");
+  hint.id = `${id}-help`;
+  hint.className = "zmd-style-help-tooltip";
+  hint.setAttribute("role", "tooltip");
+  hint.textContent = getString("settings-style-help-text");
+  hint.hidden = true;
+  helpButton.setAttribute("aria-describedby", hint.id);
+  help.append(helpButton, hint);
+  help.addEventListener("pointerenter", () => {
+    hint.hidden = false;
+  });
+  help.addEventListener("pointerleave", () => {
+    if (!help.contains(doc.activeElement)) hint.hidden = true;
+  });
+  help.addEventListener("focusin", () => {
+    hint.hidden = false;
+  });
+  help.addEventListener("focusout", () => {
+    if (!help.matches(":hover")) hint.hidden = true;
+  });
+  helpButton.addEventListener("click", () => {
+    hint.hidden = false;
+  });
+  header.append(title, help);
   const picker = doc.createElement("select");
   picker.name = "markdownStylePreset";
   picker.className = "zotero-markdown-settings-select";
@@ -149,7 +183,7 @@ export function createMarkdownStyleSettingsUI(
   previewPage.append(article);
   preview.append(previewPage);
   root.append(
-    title,
+    header,
     toolbar,
     naming,
     locked,

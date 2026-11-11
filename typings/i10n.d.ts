@@ -426,6 +426,8 @@ export type FluentMessageId =
   | 'settings-style-current'
   | 'settings-style-default'
   | 'settings-style-delete'
+  | 'settings-style-help'
+  | 'settings-style-help-text'
   | 'settings-style-name'
   | 'settings-style-name-duplicate'
   | 'settings-style-name-required'

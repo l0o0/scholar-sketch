@@ -1302,6 +1302,14 @@ export function createMarkdownModalController(
       event.preventDefault();
       return;
     }
+    const tooltip = body.querySelector<HTMLElement>(
+      '[role="tooltip"]:not([hidden])',
+    );
+    if (tooltip) {
+      tooltip.hidden = true;
+      event.preventDefault();
+      return;
+    }
     closeModal();
   };
   backdrop.addEventListener("click", onClick);
