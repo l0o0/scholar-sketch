@@ -133,7 +133,7 @@ test("Markdown update checks the caller's revision before writes and no-ops", as
       assert.equal((await markdownApi.read(item.id)).content, "New tutorial");
       const history = path.join(
         root,
-        "scholar-canvas",
+        "scholar-sketch",
         "history",
         "1",
         item.key,

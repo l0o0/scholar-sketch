@@ -459,6 +459,7 @@ export type FluentMessageId =
   | 'startup-begin'
   | 'startup-finish'
   | 'startup-settings-migration-failed'
+  | 'startup-storage-migration-failed'
   | 'status-auto-saved'
   | 'status-autosave-on'
   | 'status-cleaned-images'

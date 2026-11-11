@@ -47,8 +47,16 @@ Each session has `currentRev` / `savedRev`. Typing increments `currentRev`. Auto
 
 ## Markdown reference index
 
+Startup migrates the legacy `scholar-canvas` directory and SQLite basename to
+`scholar-sketch` before exposing editor, history or index consumers. The storage
+module owns both canonical paths. SQLite recovers its journal and leaves WAL
+mode before its connection closes and names change. A completed directory move
+with a legacy database name resumes on the next startup. An empty destination directory can be replaced during migration. Conflicting
+nonempty directory or database names preserve both sides and keep initialization pending with an
+error notification. Shutdown awaits an in-flight migration before teardown.
+
 `NoteIndex` owns the existing local SQLite cache at
-`<Zotero.DataDirectory>/scholar-canvas/scholar-canvas.sqlite`. Its `notes` table
+`<Zotero.DataDirectory>/scholar-sketch/scholar-sketch.sqlite`. Its `notes` table
 stores note metadata, file stamps and saved text; `links` stores each parsed
 reference and its source range. Markdown files remain authoritative. The cache
 can be rebuilt and is not part of Zotero file synchronization. Saves update the

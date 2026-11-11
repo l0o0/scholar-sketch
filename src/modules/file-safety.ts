@@ -1,4 +1,5 @@
 import { getString } from "../utils/locale";
+import { pluginDataDirectory } from "./data-directory";
 
 export interface FileRevision {
   content: string;
@@ -22,8 +23,7 @@ function historyDirectory(item: HistoryItem): string {
   if (!Number.isInteger(item.libraryID) || !/^[A-Za-z0-9_-]+$/.test(item.key))
     throw new Error("Invalid history identity");
   return PathUtils.join(
-    Zotero.DataDirectory.dir,
-    "scholar-canvas",
+    pluginDataDirectory(),
     "history",
     String(item.libraryID),
     item.key,

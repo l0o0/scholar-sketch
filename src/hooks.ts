@@ -58,6 +58,7 @@ import {
 } from "./modules/attachment-icons";
 import { runShutdownSteps } from "./utils/shutdown";
 import { migrateLegacyPluginSettings } from "./modules/synced-settings-migration";
+import { migratePluginStorage } from "./modules/data-directory";
 import {
   registerCreationToolbar,
   unregisterCreationToolbar,
@@ -65,6 +66,7 @@ import {
 } from "./modules/creation-toolbar";
 
 let tutorialStartup: Promise<void> | undefined;
+let storageStartup: Promise<void> | undefined;
 let settingsPhase: "pending" | "ready" | "stopped" = "pending";
 
 async function onStartup() {
@@ -77,6 +79,21 @@ async function onStartup() {
 
   if (stopped()) return;
   initLocale();
+  try {
+    storageStartup = migratePluginStorage();
+    await storageStartup;
+  } catch (error) {
+    Zotero.logError(error as Error);
+    if (stopped()) return;
+    new ztoolkit.ProgressWindow(addon.data.config.addonName)
+      .createLine({
+        text: getString("startup-storage-migration-failed"),
+        type: "fail",
+      })
+      .show();
+    return;
+  }
+  if (stopped()) return;
   try {
     await migrateLegacyPluginSettings();
   } catch (error) {
@@ -179,6 +196,8 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
 
 async function onShutdown(isAppShutdown = false): Promise<void> {
   settingsPhase = "stopped";
+  // Startup reports migration failures. Finish its file operations before unload.
+  await storageStartup?.catch(() => undefined);
   // Zotero continues unloading after a rejected shutdown, removing native
   // sections while our sandbox registrations and singleton would remain.
   // Keep each cleanup independent without forcing unsaved editors closed.

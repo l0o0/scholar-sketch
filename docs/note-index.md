@@ -1,8 +1,10 @@
 # Markdown 持久化索引
 
 Scholar Sketch 使用 Zotero 的 `DBConnection`，在 Zotero 数据目录中创建
-`scholar-canvas/scholar-canvas.sqlite`。这是插件自己的可重建缓存，不修改 Zotero 核心表，
+`scholar-sketch/scholar-sketch.sqlite`。这是插件自己的可重建缓存，不修改 Zotero 核心表，
 也不通过 Zotero 附件同步上传。Markdown 附件仍是原始数据。
+
+旧目录和数据库的启动更名流程见[本地存储名称迁移](file-safety.md#本地存储名称迁移)。
 
 ## 保存的数据
 
@@ -72,7 +74,7 @@ Zotero 条目/文件通知及切回应用会使内存缓存失效，下次扫描
 不受缓存文件状态匹配影响。程序入口为 `rebuildNoteLibrary(libraryID)`。
 
 数据库无法打开或损坏时，可退出 Zotero 后移走插件的
-`scholar-canvas/scholar-canvas.sqlite` 及同名前缀的 SQLite 日志文件，再启动重建。
+`scholar-sketch/scholar-sketch.sqlite` 及同名前缀的 SQLite 日志文件，再启动重建。
 不要移除 Zotero 自身的 `zotero.sqlite`。数据库缓存无需作为笔记备份；备份应包含
 原始 Markdown 及其资源附件。
 

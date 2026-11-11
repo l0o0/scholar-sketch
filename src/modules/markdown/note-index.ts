@@ -1,4 +1,5 @@
 import { extractNoteLinks, type NoteDocument } from "./note-links";
+import { noteIndexDatabasePath, pluginDataDirectory } from "../data-directory";
 
 /** Match JS /iu's ASCII equivalences without SQLite's different Unicode folding. */
 function candidateText(value: string): string {
@@ -379,8 +380,8 @@ export async function connectNoteIndex(): Promise<_ZoteroTypes.DB | undefined> {
     typeof IOUtils === "undefined"
   )
     return undefined;
-  const directory = PathUtils.join(api.DataDirectory.dir, "scholar-canvas");
-  const path = PathUtils.join(directory, "scholar-canvas.sqlite");
+  const directory = pluginDataDirectory();
+  const path = noteIndexDatabasePath();
   await IOUtils.makeDirectory(directory, { ignoreExisting: true });
   return new api.DBConnection(path);
 }
