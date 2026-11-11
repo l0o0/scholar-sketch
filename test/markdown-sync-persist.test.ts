@@ -328,7 +328,7 @@ test("sync keeps the Markdown package stable while an outside-storage draft prot
   );
   const history = path.join(
     mock.root,
-    "scholar-canvas",
+    "scholar-sketch",
     "history",
     "1",
     mock.item.key,

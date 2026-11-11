@@ -253,7 +253,7 @@ test("plugin database is created in its own directory without accessing the lega
   await db.save(note("NEW", "[[Linked]]"));
   assert.equal((await db.load(1))[0].content, "[[Linked]]");
   assert.deepEqual(opened, [
-    join(dir, "scholar-canvas", "scholar-canvas.sqlite"),
+    join(dir, "scholar-sketch", "scholar-sketch.sqlite"),
   ]);
   await db.close();
 });

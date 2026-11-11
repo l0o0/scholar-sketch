@@ -234,7 +234,7 @@ test("public canvas API validates, creates, reads and protects replacement write
             assert.ok(
               [...disk.entries()].some(([path, content]) => {
                 if (
-                  !path.startsWith("/data/scholar-canvas/history/1/BOARD001/")
+                  !path.startsWith("/data/scholar-sketch/history/1/BOARD001/")
                 )
                   return false;
                 const version = JSON.parse(content);
