@@ -18,8 +18,24 @@ export function hasGarden(): boolean {
   return Boolean(garden());
 }
 
-export function openGardenDownload(): void {
-  Zotero.launchURL("https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/");
+export function promptGardenDownload(win: Window): void {
+  const { prompt } = ztoolkit.getGlobal("Services") as typeof Services;
+  const choice = prompt.confirmEx(
+    win as Window & mozIDOMWindowProxy,
+    getString("settings-garden-question"),
+    getString("settings-garden-required"),
+    prompt.BUTTON_POS_0! * prompt.BUTTON_TITLE_IS_STRING! +
+      prompt.BUTTON_POS_1! * prompt.BUTTON_TITLE_CANCEL!,
+    getString("settings-garden-download"),
+    "",
+    "",
+    "",
+    { value: false },
+  );
+  if (choice === 0)
+    Zotero.launchURL(
+      "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
+    );
 }
 
 /** Garden owns draft review and publication; only versions enter the template. */

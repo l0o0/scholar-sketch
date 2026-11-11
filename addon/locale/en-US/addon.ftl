@@ -437,6 +437,7 @@ settings-about-build-time = Build time
 settings-about-support = Help and support
 settings-garden-question = Feedback
 settings-garden-download = Download Garden
+settings-garden-required = Install the Garden plugin to post feedback on the Garden forum.
 settings-garden-unavailable = Enable or update Garden and try again.
 settings-garden-failed = Could not open the Garden question draft. Please try again.
 settings-garden-unsaved = Save or discard your settings changes before opening feedback.

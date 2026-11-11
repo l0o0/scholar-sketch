@@ -7,7 +7,7 @@ import {
 import { releaseHighlights } from "../release-highlights";
 import {
   hasGarden,
-  openGardenDownload,
+  promptGardenDownload,
   openGardenQuestion,
 } from "../garden-forum";
 import {
@@ -1083,15 +1083,7 @@ export function createMarkdownModalController(
       actions.append(
         button(doc, getString("settings-user-guide"), "about-user-guide"),
         button(doc, getString("settings-about-github"), "project-repository"),
-        button(
-          doc,
-          getString(
-            hasGarden()
-              ? "settings-garden-question"
-              : "settings-garden-download",
-          ),
-          "garden-question",
-        ),
+        button(doc, getString("settings-garden-question"), "garden-question"),
       );
       support.append(
         textElement(doc, "h4", getString("settings-about-support")),
@@ -1206,7 +1198,7 @@ export function createMarkdownModalController(
       if (action === "about-user-guide") return void openUserGuide();
       if (action === "project-repository") return openProjectRepository();
       if (action === "garden-question") {
-        if (!hasGarden()) return openGardenDownload();
+        if (!hasGarden()) return promptGardenDownload(doc.defaultView!);
         if (JSON.stringify(pendingSettings) !== settingsAtOpen)
           return showActionError(getString("settings-garden-unsaved"));
         try {

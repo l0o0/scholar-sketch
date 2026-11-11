@@ -375,6 +375,7 @@ export type FluentMessageId =
   | 'settings-garden-download'
   | 'settings-garden-failed'
   | 'settings-garden-question'
+  | 'settings-garden-required'
   | 'settings-garden-unavailable'
   | 'settings-garden-unsaved'
   | 'settings-help-description'

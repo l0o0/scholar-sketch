@@ -167,6 +167,30 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
   let result: DraftResult | Error = { ok: true, draftId: "question-draft" };
   const requests: Draft[] = [];
   const launched: string[] = [];
+  let downloadDecision = 1;
+  const prompts: Array<{
+    parent: unknown;
+    title: string;
+    text: string;
+    flags: number;
+    download: string | null;
+  }> = [];
+  const prompt = {
+    BUTTON_POS_0: 1,
+    BUTTON_POS_1: 256,
+    BUTTON_TITLE_IS_STRING: 127,
+    BUTTON_TITLE_CANCEL: 2,
+    confirmEx(
+      parent: unknown,
+      title: string,
+      text: string,
+      flags: number,
+      download: string | null,
+    ) {
+      prompts.push({ parent, title, text, flags, download });
+      return downloadDecision;
+    },
+  };
   const stored = new Map<string, unknown>();
   let mainWindowFocuses = 0;
   const ftl = readFileSync("addon/locale/en-US/addon.ftl", "utf8");
@@ -183,7 +207,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
       .replace(/^ {4}/gm, "")
       .trim(),
   );
-  // Only the host's preferences, localization and optional Garden API are mocked.
+  // Only host preferences, localization, prompts and the optional Garden API are mocked.
   for (const [key, value] of Object.entries({
     __buildVersion__: version,
     Zotero: {
@@ -198,7 +222,13 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
       getMainWindow: () => ({ focus: () => mainWindowFocuses++ }),
       launchURL: (url: string) => launched.push(url),
     },
-    ztoolkit: { log() {} },
+    ztoolkit: {
+      log() {},
+      getGlobal(name: string) {
+        assert.equal(name, "Services");
+        return { prompt };
+      },
+    },
     addon: {
       data: {
         locale: {
@@ -247,8 +277,26 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
       .querySelector<HTMLButtonElement>(`[data-settings-page="${id}"]`)!
       .click();
   controller.open("settings");
-  assert.equal(questionButton()!.textContent, "Download Garden");
+  assert.equal(questionButton()!.textContent, "Feedback");
   questionButton()!.click();
+  assert.equal(prompts.length, 1);
+  assert.equal(prompts[0].parent, win);
+  assert.equal(prompts[0].title, "Feedback");
+  assert.equal(
+    prompts[0].text,
+    "Install the Garden plugin to post feedback on the Garden forum.",
+  );
+  assert.equal(prompts[0].download, "Download Garden");
+  assert.equal(
+    prompts[0].flags & (0xff * prompt.BUTTON_POS_1),
+    prompt.BUTTON_POS_1 * prompt.BUTTON_TITLE_CANCEL,
+    "The native prompt must provide Cancel",
+  );
+  assert.deepEqual(launched, [], "Cancel must not open the download page");
+  assert.equal(backdrop().hidden, false);
+  downloadDecision = 0;
+  questionButton()!.click();
+  assert.equal(prompts.length, 2);
   assert.deepEqual(launched, [
     "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
   ]);
@@ -334,6 +382,11 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
   assert.equal(questionButton()!.textContent, "Feedback");
   garden = undefined;
   questionButton()!.click();
+  assert.equal(
+    prompts.length,
+    3,
+    "Missing Garden must prompt even with settings changes",
+  );
   assert.deepEqual(launched, [
     "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
     "https://ftp.zotero-chinese.com/addons/Garden-for-Zotero/",
