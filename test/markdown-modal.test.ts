@@ -257,7 +257,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
   assert.equal(mainWindowFocuses, 0);
   garden = {};
   controller.open("settings");
-  assert.equal(questionButton()!.textContent, "Ask in Garden");
+  assert.equal(questionButton()!.textContent, "Feedback");
   questionButton()!.click();
   assert.equal(error().hidden, false);
   assert.match(error().textContent!, /Enable or update Garden/);
@@ -331,7 +331,7 @@ test("Garden questions use the optional draft API and preserve unconfirmed setti
   );
   assert.equal(stored.size, 0, "Asking must not silently save preferences");
   page("about");
-  assert.equal(questionButton()!.textContent, "Ask in Garden");
+  assert.equal(questionButton()!.textContent, "Feedback");
   garden = undefined;
   questionButton()!.click();
   assert.deepEqual(launched, [
