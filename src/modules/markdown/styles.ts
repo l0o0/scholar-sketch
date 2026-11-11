@@ -1329,9 +1329,15 @@ select[name="whiteboardFontFamily"].zotero-markdown-settings-select {
 .zmd-style-toolbar > select { flex: 1 1 160px; min-inline-size: 100px; }
 .zmd-style-toolbar > button { flex: 0 0 auto; }
 .zmd-style-toolbar button:disabled { opacity: .45; cursor: default; }
-.zmd-style-naming { display: flex; align-items: center; gap: 6px; margin-block-start: 10px; }
-.zmd-style-naming[hidden], .zmd-style-locked[hidden] { display: none; }
-.zmd-style-naming input { min-inline-size: 0; flex: 1; }
+.zmd-style-name-dialog { box-sizing: border-box; inline-size: min(380px, calc(100vw - 32px)); max-block-size: calc(100vh - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid var(--zmd-border-strong); border-radius: 12px; background: var(--zmd-surface); color: var(--zmd-text); box-shadow: 0 16px 48px #0003; font: 13px/1.5 system-ui, sans-serif; }
+.zmd-style-name-dialog::backdrop { background: #0006; }
+.zmd-style-name-dialog h3 { margin: 0 0 20px; font-size: 17px; font-weight: 600; }
+.zmd-style-name-dialog label { display: block; margin-block-end: 6px; color: var(--zmd-text-muted); }
+.zmd-style-name-dialog input { box-sizing: border-box; display: block; inline-size: 100%; min-inline-size: 0; margin: 0; }
+.zmd-style-name-dialog .zotero-markdown-modal-error { margin-block-start: 8px; }
+.zmd-style-name-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-block-start: 24px; }
+.zmd-style-name-dialog button { min-inline-size: 72px; }
+.zmd-style-locked[hidden] { display: none; }
 .zmd-style-locked { color: var(--zmd-text-muted); margin: 10px 0 0; font-size: 12px; }
 .zmd-style-css-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-block: 14px 8px; }
 .zmd-style-css-tools > label { flex: 1; font-weight: 600; }

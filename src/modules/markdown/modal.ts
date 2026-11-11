@@ -294,8 +294,15 @@ export function createMarkdownModalController(
   let selectSettingsPage:
     ((page: SettingsPageID, focusHeading?: boolean) => void) | null = null;
 
+  const closeChildDialogs = () => {
+    for (const child of body.querySelectorAll<HTMLDialogElement>(
+      "dialog[open]",
+    ))
+      child.close();
+  };
   const closeModal = () => {
     if (backdrop.hidden || savingSettings) return;
+    closeChildDialogs();
     backdrop.hidden = true;
     backdrop.setAttribute("aria-hidden", "true");
     activeKind = null;
@@ -341,6 +348,7 @@ export function createMarkdownModalController(
     label.appendChild(input);
     body.appendChild(label);
     const error = textElement(doc, "p", "", "zotero-markdown-modal-error");
+    error.dataset.modalError = "";
     error.hidden = true;
     body.appendChild(error);
     const footer = doc.createElement("footer");
@@ -402,6 +410,7 @@ export function createMarkdownModalController(
       "zotero-markdown-modal-footer zotero-markdown-settings-footer";
     footer.append(button(doc, getString("modal-done"), "save-settings", true));
     const error = textElement(doc, "p", "", "zotero-markdown-modal-error");
+    error.dataset.modalError = "";
     error.hidden = true;
     main.append(pageContent, error);
     workspace.append(navigation, main, footer);
@@ -1087,6 +1096,7 @@ export function createMarkdownModalController(
         item.tabIndex = selected ? 0 : -1;
       }
       body.querySelector(".zotero-markdown-settings-palette")?.remove();
+      closeChildDialogs();
       pageContent.replaceChildren();
       const heading =
         page === "general"
@@ -1142,9 +1152,7 @@ export function createMarkdownModalController(
   };
 
   const showActionError = (error: unknown) => {
-    const element = body.querySelector<HTMLElement>(
-      ".zotero-markdown-modal-error",
-    );
+    const element = body.querySelector<HTMLElement>("[data-modal-error]");
     if (!element) return;
     element.textContent =
       error instanceof Error ? error.message : String(error);
@@ -1253,7 +1261,9 @@ export function createMarkdownModalController(
           'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
         ),
       ].filter(
-        (element) => !element.closest("[hidden]") && element.tabIndex >= 0,
+        (element) =>
+          !element.closest("[hidden], dialog:not([open])") &&
+          element.tabIndex >= 0,
       );
       const first = controls[0];
       const last = controls[controls.length - 1];
@@ -1307,6 +1317,7 @@ export function createMarkdownModalController(
       );
       restoreFocus = doc.activeElement as HTMLElement | null;
       title.textContent = modalTitle(kind);
+      closeChildDialogs();
       body.replaceChildren();
       if (kind === "document-info")
         renderDocumentInfo(payload as DocumentModalData);

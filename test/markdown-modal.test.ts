@@ -908,6 +908,7 @@ test("settings retain focus and remain open during a failed save", async (t) => 
   const controller = createMarkdownModalController(
     window.document as unknown as Document,
     { onSettings: () => saving },
+    { initialSettingsPage: "editor" },
   );
   t.after(() => {
     controller.destroy();
@@ -943,10 +944,11 @@ test("settings retain focus and remain open during a failed save", async (t) => 
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(backdrop.hidden, false);
   assert.equal(save.disabled, false);
-  assert.match(
-    window.document.querySelector(".zotero-markdown-modal-error")!.textContent!,
-    /Save failed/,
-  );
+  const error = window.document.querySelector<HTMLElement>(
+    ".zotero-markdown-settings-main > .zotero-markdown-modal-error",
+  )!;
+  assert.equal(error.hidden, false);
+  assert.match(error.textContent!, /Save failed/);
 });
 
 test("CSS style drafts preview, copy prompts and validate all presets before saving", async (t) => {
@@ -1069,6 +1071,8 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
     win.document.querySelector<HTMLSelectElement>(
       '[name="markdownStylePreset"]',
     )!.value;
+  const namingDialog = () =>
+    win.document.querySelector<HTMLDialogElement>(".zmd-style-name-dialog")!;
   const openPage = (page: string) =>
     win.document
       .querySelector<HTMLButtonElement>(`[data-settings-page="${page}"]`)!
@@ -1090,7 +1094,46 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
   );
   action("palette-light");
   action("copy");
+  assert.equal(namingDialog().open, true);
+  assert.equal(
+    win.document.getElementById(
+      namingDialog().getAttribute("aria-labelledby")!,
+    )!.textContent,
+    "Save style preset as",
+  );
+  assert.equal(
+    win.document.activeElement?.getAttribute("name"),
+    "markdownStyleName",
+  );
+  action("cancel-name");
+  assert.equal(namingDialog().open, false);
+  assert.equal(currentId(), "paper");
+  assert.equal(
+    win.document.activeElement?.getAttribute("data-style-action"),
+    "copy",
+  );
+  action("copy");
   const composingName = change("markdownStyleName", "yanjiu", "input");
+  composingName.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  const confirmName = namingDialog().querySelector<HTMLButtonElement>(
+    '[data-style-action="confirm-name"]',
+  )!;
+  assert.equal(win.document.activeElement, confirmName);
+  confirmName.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(win.document.activeElement, composingName);
   const candidateEnter = new win.KeyboardEvent("keydown", {
     key: "Enter",
     isComposing: true,
@@ -1107,10 +1150,7 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
   composingName.dispatchEvent(candidateEscape);
   assert.equal(candidateEnter.defaultPrevented, false);
   assert.equal(candidateEscape.defaultPrevented, false);
-  assert.equal(
-    win.document.querySelector<HTMLElement>(".zmd-style-naming")!.hidden,
-    false,
-  );
+  assert.equal(namingDialog().open, true);
   assert.equal(
     win.document.querySelector<HTMLElement>(".zotero-markdown-modal-backdrop")!
       .hidden,
@@ -1121,6 +1161,13 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
       .length,
     3,
   );
+  change("markdownStyleName", "   ", "input");
+  action("confirm-name");
+  assert.equal(namingDialog().open, true);
+  assert.match(
+    namingDialog().querySelector("[role=alert]")!.textContent!,
+    /Enter a preset name/,
+  );
   change("markdownStyleName", "Lab notes", "input");
   composingName.dispatchEvent(
     new win.KeyboardEvent("keydown", {
@@ -1130,6 +1177,8 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
     }),
   );
   assert.equal(editor().readOnly, false);
+  assert.equal(namingDialog().open, false);
+  assert.equal(stored.size, 0, "naming only changes the settings draft");
   const labId = currentId();
   const validCss =
     '.markdown { --zmd-style-size: 22px; --zmd-style-h2-size: 1.8em; }\n.markdown[data-theme="dark"] { --zmd-style-background: #223344; }\n.markdown h2 { text-align: center; }';
@@ -1215,12 +1264,36 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
     "cancel restores saved CSS after reset",
   );
   action("rename");
+  change("markdownStyleName", "Cancelled name", "input");
+  const cancelButton = namingDialog().querySelector<HTMLButtonElement>(
+    '[data-style-action="cancel-name"]',
+  )!;
+  cancelButton.focus();
+  cancelButton.dispatchEvent(
+    new win.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  assert.equal(namingDialog().open, false);
+  assert.equal(
+    win.document.querySelector<HTMLElement>(".zotero-markdown-modal-backdrop")!
+      .hidden,
+    false,
+    "Escape in the child dialog leaves settings open",
+  );
+  assert.equal(
+    win.document.activeElement?.getAttribute("data-style-action"),
+    "rename",
+  );
+  action("rename");
   change("markdownStyleName", "Research", "input");
   action("confirm-name");
   copy("Research");
   assert.equal(
     win.document.querySelector<HTMLElement>(
-      ".zmd-style-settings > .zotero-markdown-modal-error",
+      ".zmd-style-name-dialog .zotero-markdown-modal-error",
     )!.hidden,
     false,
   );
@@ -1241,4 +1314,24 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
   );
   assert.equal(afterDelete.presets.length, 1);
   assert.equal(afterDelete.presets[0].name, "Research");
+  controller.open("settings");
+  action("copy");
+  const closedChild = namingDialog();
+  controller.close();
+  assert.equal(
+    closedChild.open,
+    false,
+    "closing settings closes its native dialog",
+  );
+  controller.open("settings");
+  action("copy");
+  const replacedChild = namingDialog();
+  controller.open("settings");
+  assert.equal(replacedChild.open, false);
+  assert.equal(replacedChild.isConnected, false);
+  action("copy");
+  const disposedChild = namingDialog();
+  controller.destroy();
+  assert.equal(disposedChild.open, false);
+  assert.equal(disposedChild.isConnected, false);
 });

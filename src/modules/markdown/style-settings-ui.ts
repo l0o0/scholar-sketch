@@ -34,6 +34,7 @@ export function createMarkdownStyleSettingsUI(
 ): HTMLElement {
   const root = doc.createElement("section");
   root.className = "zmd-style-settings";
+  const id = `zmd-style-css-${doc.querySelectorAll(".zmd-style-settings").length}`;
   let palette = theme;
   let previewStyle = DEFAULT_MARKDOWN_STYLE;
   const nameOf = (id: string) => {
@@ -65,21 +66,34 @@ export function createMarkdownStyleSettingsUI(
   const remove = action("settings-style-delete", "delete");
   toolbar.append(picker, copy, rename, remove);
 
-  const naming = doc.createElement("div");
-  naming.className = "zmd-style-naming";
-  naming.hidden = true;
+  const naming = doc.createElementNS(
+    "http://www.w3.org/1999/xhtml",
+    "dialog",
+  ) as HTMLDialogElement;
+  naming.className = "zmd-style-name-dialog";
+  const namingTitle = doc.createElement("h3");
+  namingTitle.id = `${id}-name-title`;
+  naming.setAttribute("aria-labelledby", namingTitle.id);
+  const nameLabel = doc.createElement("label");
+  nameLabel.textContent = getString("settings-style-name");
   const nameInput = doc.createElement("input");
+  nameInput.id = `${id}-name`;
   nameInput.name = "markdownStyleName";
   nameInput.className = "zotero-markdown-modal-input";
   nameInput.maxLength = 80;
-  nameInput.setAttribute("aria-label", getString("settings-style-name"));
+  nameLabel.htmlFor = nameInput.id;
   const confirm = action("settings-style-confirm", "confirm-name");
+  confirm.classList.add("is-primary");
   const cancel = action("settings-style-cancel", "cancel-name");
   const namingError = doc.createElement("p");
+  namingError.id = `${id}-name-error`;
   namingError.className = "zotero-markdown-modal-error";
   namingError.setAttribute("role", "alert");
   namingError.hidden = true;
-  naming.append(nameInput, confirm, cancel);
+  nameInput.setAttribute("aria-describedby", namingError.id);
+  const namingFooter = doc.createElement("footer");
+  namingFooter.append(cancel, confirm);
+  naming.append(namingTitle, nameLabel, nameInput, namingError, namingFooter);
   let namingMode: "copy" | "rename" = "copy";
 
   const locked = doc.createElement("p");
@@ -89,7 +103,6 @@ export function createMarkdownStyleSettingsUI(
   tools.className = "zmd-style-css-tools";
   const cssLabel = doc.createElement("label");
   cssLabel.textContent = "CSS";
-  const id = `zmd-style-css-${doc.querySelectorAll(".zmd-style-settings").length}`;
   cssLabel.htmlFor = id;
   const copyPrompt = action("settings-style-copy-prompt", "copy-prompt");
   const reset = action("settings-style-reset-css", "reset-css");
@@ -139,7 +152,6 @@ export function createMarkdownStyleSettingsUI(
     title,
     toolbar,
     naming,
-    namingError,
     locked,
     tools,
     css,
@@ -232,28 +244,37 @@ export function createMarkdownStyleSettingsUI(
     compileDraft();
   };
   const closeNaming = () => {
-    naming.hidden = true;
+    if (!naming.open) return;
+    naming.close();
     namingError.hidden = true;
     nameInput.setCustomValidity("");
+    (namingMode === "copy" ? copy : rename).focus();
   };
   const startNaming = (mode: "copy" | "rename") => {
     namingMode = mode;
-    naming.hidden = false;
+    namingTitle.textContent = getString(
+      mode === "copy"
+        ? "settings-style-save-as-title"
+        : "settings-style-rename-title",
+    );
     namingError.hidden = true;
+    nameInput.setCustomValidity("");
     nameInput.value =
       mode === "copy"
         ? getString("settings-style-copy-name", {
             args: { name: nameOf(settings.selectedId) },
           })
         : nameOf(settings.selectedId);
+    naming.showModal();
     nameInput.focus();
     nameInput.select();
   };
   copy.addEventListener("click", () => startNaming("copy"));
   rename.addEventListener("click", () => startNaming("rename"));
-  cancel.addEventListener("click", () => {
+  cancel.addEventListener("click", closeNaming);
+  naming.addEventListener("cancel", (event) => {
+    event.preventDefault();
     closeNaming();
-    picker.focus();
   });
   confirm.addEventListener("click", () => {
     const name = nameInput.value.trim();
@@ -278,23 +299,31 @@ export function createMarkdownStyleSettingsUI(
       settings.presets.push({ id, name, css: getSelectedStyleCss(settings) });
       settings.selectedId = id;
     } else selectedCustom()!.name = name;
-    closeNaming();
     refresh();
-    picker.focus();
+    closeNaming();
   });
   nameInput.addEventListener("input", () => {
     nameInput.setCustomValidity("");
     namingError.hidden = true;
   });
-  nameInput.addEventListener("keydown", (event) => {
-    if (event.isComposing || event.keyCode === 229) return;
-    if (event.key !== "Enter" && event.key !== "Escape") return;
-    event.preventDefault();
+  naming.addEventListener("keydown", (event) => {
+    // Keep keyboard actions in the naming dialog, including its Tab boundaries.
     event.stopPropagation();
-    if (event.key === "Enter") confirm.click();
-    else {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Tab") {
+      if (event.shiftKey && doc.activeElement === nameInput) {
+        event.preventDefault();
+        confirm.focus();
+      } else if (!event.shiftKey && doc.activeElement === confirm) {
+        event.preventDefault();
+        nameInput.focus();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
       closeNaming();
-      picker.focus();
+    } else if (event.key === "Enter" && event.target === nameInput) {
+      event.preventDefault();
+      confirm.click();
     }
   });
   remove.addEventListener("click", () => {
