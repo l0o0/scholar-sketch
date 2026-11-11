@@ -59,6 +59,7 @@ function setup(
   overrides: Record<string, () => unknown> = {},
   options: {
     tutorial?: Promise<void>;
+    storage?: Promise<void>;
     logThrows?: boolean;
     windows?: object[];
     unregisterWhiteboardMenus?: (win: object) => unknown;
@@ -78,6 +79,7 @@ function setup(
     addon,
     Zotero,
     tutorialStartup: options.tutorial,
+    storageStartup: options.storage,
     settingsPhase: "ready",
     runShutdownSteps,
     unregisterWhiteboardMenus: (win: object) => {
@@ -128,6 +130,57 @@ function setup(
     context,
   };
 }
+
+for (const [label, reason] of [
+  ["ADDON_DISABLE", ADDON_DISABLE],
+  ["APP_SHUTDOWN", APP_SHUTDOWN],
+] as const) {
+  test(`${label} waits for storage migration before cleanup or bootstrap completion`, async () => {
+    let finish!: () => void;
+    const storage = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const fixture = setup({}, { storage });
+    const chromeHandle = fixture.context.chromeHandle;
+    let completed = false;
+    const closing = fixture.bootstrapShutdown(reason).then(() => {
+      completed = true;
+    });
+    try {
+      await setImmediate();
+      assert.equal(fixture.context.settingsPhase, "stopped");
+      assert.equal(completed, false);
+      assert.deepEqual(fixture.calls, []);
+      assert.equal(fixture.context.chromeHandle, chromeHandle);
+      assert.equal(fixture.Zotero.ScholarSketch, fixture.addon);
+    } finally {
+      finish();
+      await closing;
+    }
+    assert.equal(completed, true);
+    assert.ok(fixture.calls.includes("closeNoteIndex"));
+    assert.deepEqual(fixture.reports, []);
+  });
+}
+
+test("failed storage migration settles before shutdown and cannot block cleanup", async () => {
+  let fail!: (error: Error) => void;
+  const storage = new Promise<void>((_, reject) => {
+    fail = reject;
+  });
+  const fixture = setup({}, { storage });
+  const closing = fixture.bootstrapShutdown(ADDON_DISABLE);
+  await setImmediate();
+  fail(new Error("storage migration failure reported by startup"));
+  await closing;
+  assert.deepEqual(fixture.calls, [
+    ...operations,
+    "unregisterAll",
+    "chromeHandle.destruct",
+  ]);
+  assert.deepEqual(fixture.reports, []);
+  assert.equal(Object.hasOwn(fixture.Zotero, "ScholarSketch"), false);
+});
 
 test("ADDON_DISABLE waits for saving before unregistering editors and bootstrap chrome", async () => {
   let finish!: () => void;

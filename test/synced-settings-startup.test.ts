@@ -50,6 +50,10 @@ function host(
   const context: Record<string, unknown> = {
     addon,
     tutorialStartup: undefined,
+    storageStartup: undefined,
+    migratePluginStorage: async () => {
+      await overrides.migratePluginStorage?.();
+    },
     migrateLegacyPluginSettings: migrate,
     Zotero: {
       initializationPromise: Promise.resolve(),
@@ -115,6 +119,113 @@ function host(
   };
   return { ...hooks, window, calls, errors, notices, addon };
 }
+
+test("startup waits for storage migration before settings, windows or data consumers", async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let settingsMigrations = 0;
+  const h = host(
+    async () => {
+      settingsMigrations++;
+    },
+    { migratePluginStorage: () => pending },
+  );
+  const running = h.start();
+  try {
+    await setImmediate();
+    await h.load(h.window);
+    assert.deepEqual(h.calls, ["initLocale"]);
+    assert.equal(settingsMigrations, 0);
+    assert.equal(h.addon.data.initialized, false);
+    assert.deepEqual(h.addon.api, {});
+  } finally {
+    finish();
+    await running;
+  }
+  assert.equal(settingsMigrations, 1);
+  assert.ok(h.calls.includes("registerFileOpenInterceptor"));
+  assert.ok(h.calls.includes("registerNoteLibraryObserver"));
+  assert.ok(h.calls.includes("registerItemPane"));
+  assert.ok(h.calls.includes("ensureTutorialWhiteboard"));
+  assert.ok(h.calls.includes("restoreWorkspace"));
+  assert.equal(h.addon.data.initialized, true);
+  assert.deepEqual(h.errors, []);
+});
+
+test("failed storage migration reports failure and keeps all data consumers inactive", async () => {
+  const error = new Error("storage directory could not be moved");
+  let settingsMigrations = 0;
+  const h = host(
+    async () => {
+      settingsMigrations++;
+    },
+    {
+      migratePluginStorage: async () => {
+        throw error;
+      },
+    },
+  );
+  await h.start();
+  await h.load(h.window);
+  assert.equal(settingsMigrations, 0);
+  assert.deepEqual(h.calls, ["initLocale"]);
+  assert.equal(h.addon.data.initialized, false);
+  assert.deepEqual(h.addon.api, {});
+  assert.deepEqual(h.errors, [error]);
+  assert.equal(h.notices.length, 1);
+  assert.equal(
+    (h.notices[0] as { text: string }).text,
+    "startup-storage-migration-failed",
+  );
+  assert.equal((h.notices[0] as { type: string }).type, "fail");
+});
+
+test("storage migration completing after shutdown cannot activate plugin consumers", async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let settingsMigrations = 0;
+  const h = host(
+    async () => {
+      settingsMigrations++;
+    },
+    { migratePluginStorage: () => pending },
+  );
+  const running = h.start();
+  await setImmediate();
+  h.stop();
+  finish();
+  await running;
+  await h.load(h.window);
+  assert.equal(settingsMigrations, 0);
+  assert.deepEqual(h.calls, ["initLocale"]);
+  assert.equal(h.addon.data.initialized, false);
+  assert.deepEqual(h.addon.api, {});
+  assert.deepEqual(h.notices, []);
+});
+
+test("storage migration failing after shutdown logs without notifying or activating consumers", async () => {
+  let fail!: (error: Error) => void;
+  const pending = new Promise<void>((_, reject) => {
+    fail = reject;
+  });
+  const error = new Error("late storage migration failure");
+  const h = host(async () => {}, { migratePluginStorage: () => pending });
+  const running = h.start();
+  await setImmediate();
+  h.stop();
+  fail(error);
+  await running;
+  await h.load(h.window);
+  assert.deepEqual(h.errors, [error]);
+  assert.deepEqual(h.notices, []);
+  assert.deepEqual(h.calls, ["initLocale"]);
+  assert.equal(h.addon.data.initialized, false);
+  assert.deepEqual(h.addon.api, {});
+});
 
 test("startup waits for durable settings migration before exposing templates or tutorials", async () => {
   let finish!: () => void;

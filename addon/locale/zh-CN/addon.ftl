@@ -4,6 +4,7 @@ toolbar-create-failed = 创建文档失败，请重试。
 toolbar-created-open-failed = 文档已创建，但打开编辑器失败。
 startup-begin = Scholar Sketch加载中
 startup-finish = Scholar Sketch已就绪
+startup-storage-migration-failed = 无法迁移 Scholar Sketch 本地数据。请检查 Zotero 数据目录下 scholar-canvas / scholar-sketch 的权限或同名冲突，然后重启 Zotero。
 startup-settings-migration-failed = 部分旧配置迁移未完成，原模板已保留；重启 Zotero 可重试。
 menuitem-create-md = 新建 Markdown…
 menuitem-new-whiteboard = 新建白板…

@@ -4,6 +4,7 @@ toolbar-create-failed = Could not create the document. Please try again.
 toolbar-created-open-failed = The document was created, but its editor could not be opened.
 startup-begin = Scholar Sketch is loading
 startup-finish = Scholar Sketch is ready
+startup-storage-migration-failed = Could not migrate Scholar Sketch local data. Check scholar-canvas / scholar-sketch in your Zotero data directory for permission or naming conflicts, then restart Zotero.
 startup-settings-migration-failed = Some old settings could not be migrated. Original templates were kept; restart Zotero to retry.
 menuitem-create-md = New Markdown…
 menuitem-new-whiteboard = New Whiteboard…

@@ -262,7 +262,7 @@ test("a running sync keeps Canvas bytes and embedded fileData stable while its d
   assertCanvasContent(drafts[0].content, edited);
   const history = path.join(
     mock.root,
-    "scholar-canvas",
+    "scholar-sketch",
     "history",
     "1",
     mock.item.key,
