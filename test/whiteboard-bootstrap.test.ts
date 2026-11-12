@@ -1330,7 +1330,11 @@ test("outer-window drops reach the iframe once with local coordinates and detach
       source: null,
     }),
   );
-  const dispatch = (type: string, types = ["zotero/item"]) => {
+  const dispatch = (
+    type: string,
+    types = ["zotero/item"],
+    originTarget?: Element,
+  ) => {
     const event = new window.Event(type, { bubbles: true, cancelable: true });
     const transfer = { types, dropEffect: "none" };
     Object.defineProperties(event, {
@@ -1338,6 +1342,8 @@ test("outer-window drops reach the iframe once with local coordinates and detach
       clientX: { value: 115 },
       clientY: { value: 225 },
     });
+    if (originTarget)
+      Object.defineProperty(event, "target", { value: originTarget });
     iframe.dispatchEvent(event);
     return { event, transfer };
   };
@@ -1355,9 +1361,23 @@ test("outer-window drops reach the iframe once with local coordinates and detach
   assert.equal(drops.length, 1);
   assert.deepEqual(drops[0].payload.position, { x: 100, y: 200 });
   assert.deepEqual(drops[0].payload.sources, sources);
+  const innerTarget = iframe.contentDocument!.createElement("div");
+  iframe.contentDocument!.body.append(innerTarget);
+  // Gecko's ancestor capture can retain the inner target and its local client coordinates.
+  dispatch("drop", ["zotero/item"], innerTarget);
+  assert.equal(resolutions, 2);
+  const innerDrops = posted.filter(
+    (message) => message.type === "academicDropStarted",
+  );
+  assert.equal(innerDrops.length, 2);
+  assert.deepEqual(
+    innerDrops[1].payload.position,
+    { x: 115, y: 225 },
+    "inner-document coordinates must not lose the iframe offset twice",
+  );
   handle.destroy();
   dispatch("drop");
-  assert.equal(resolutions, 1);
+  assert.equal(resolutions, 2);
 });
 
 test("whiteboard page loads styles and bundle with the current editor mount cache key", () => {

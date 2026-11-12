@@ -182,7 +182,7 @@ export type NativeAcademicDropEvent =
 export function attachNativeAcademicDropListeners(
   target: AcademicDropEventTarget,
   resolve: (dataTransfer: DataTransfer) => NativeAcademicDropResolution,
-  emit: (drop: NativeAcademicDropEvent) => void,
+  emit: (drop: NativeAcademicDropEvent, event: DragEvent) => void,
 ): () => void {
   const onDragOver = (event: DragEvent) => {
     const types = Array.from(event.dataTransfer?.types ?? []);
@@ -212,10 +212,13 @@ export function attachNativeAcademicDropListeners(
     } catch (error) {
       event.preventDefault();
       event.stopPropagation();
-      emit({
-        code: "drop-malformed",
-        diagnostic: error instanceof Error ? error.message : String(error),
-      });
+      emit(
+        {
+          code: "drop-malformed",
+          diagnostic: error instanceof Error ? error.message : String(error),
+        },
+        event,
+      );
       return;
     }
     if (resolved.status === "ignored") return;
@@ -231,15 +234,18 @@ export function attachNativeAcademicDropListeners(
     event.preventDefault();
     event.stopPropagation();
     if (resolved.status === "rejected") {
-      emit({ code: resolved.code, diagnostic: resolved.diagnostic });
+      emit({ code: resolved.code, diagnostic: resolved.diagnostic }, event);
       return;
     }
-    emit({
-      position: { x: event.clientX, y: event.clientY },
-      ...(resolved.status === "text"
-        ? { markdown: resolved.markdown, ...(editing ? { editing } : {}) }
-        : { sources: resolved.sources }),
-    });
+    emit(
+      {
+        position: { x: event.clientX, y: event.clientY },
+        ...(resolved.status === "text"
+          ? { markdown: resolved.markdown, ...(editing ? { editing } : {}) }
+          : { sources: resolved.sources }),
+      },
+      event,
+    );
   };
   target.addEventListener("dragenter", onDragOver, true);
   target.addEventListener("dragover", onDragOver, true);
@@ -745,8 +751,14 @@ export function createWhiteboardEditor(
       ? attachNativeAcademicDropListeners(
           wrap,
           resolveNativeTransfer,
-          (drop) => {
-            if ("code" in drop) {
+          (drop, event) => {
+            // Gecko can deliver an inner-document drop to this chrome ancestor.
+            // Its client coordinates already belong to the iframe.
+            if (
+              "code" in drop ||
+              (event.target as Node | null)?.ownerDocument ===
+                iframe.contentDocument
+            ) {
               emitNativeDrop(drop);
               return;
             }
