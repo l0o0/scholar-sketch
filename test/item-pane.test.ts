@@ -288,6 +288,7 @@ test("switching views keeps the Markdown draft and native destruction remains aw
   const frame = new Window({ url: "https://item-pane.test/frame" });
   t.after(() => frame.happyDOM.close());
   Object.defineProperty(iframe, "contentWindow", { value: frame });
+  Object.defineProperty(iframe, "contentDocument", { value: frame.document });
   const messages: ParentToEditorMessage[] = [];
   frame.postMessage = ((message: ParentToEditorMessage) =>
     messages.push(message)) as typeof frame.postMessage;

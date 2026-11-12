@@ -67,6 +67,7 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
   const revisions: number[] = [];
   const notifiedContents: unknown[] = [];
   const transferredAnnotations: string[] = [];
+  const openedLinks: string[] = [];
   let runtime: WhiteboardRuntime | undefined;
   try {
     const app = (await server.ssrLoadModule("/src/whiteboard/app.tsx")) as {
@@ -102,6 +103,7 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
           onSave: noop,
           onPickAcademicSource: noop,
           onOpenItem: noop,
+          onOpenLink: (href: string) => openedLinks.push(href),
           onDropAcademicSources: (requestId) =>
             transferredAnnotations.push(requestId),
           onRefreshZoteroNote: noop,
@@ -162,6 +164,39 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     };
 
     await setText("First draft");
+    const pdfMarkdown =
+      "> Selected passage\n\n[Source](zotero://open-pdf/library/items/PDF12345?page=2&position=%7B%22pageIndex%22%3A1%2C%22rects%22%3A%5B%5B10%2C20%2C30%2C40%5D%5D%7D)";
+    textarea.setSelectionRange(0, "First draft".length);
+    const draftTarget = {
+      nodeId: "note",
+      revision: Number(textarea.dataset.pdfSelectionRevision),
+      value: "First draft",
+      from: 0,
+      to: "First draft".length,
+    };
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 100, y: 100 },
+        interaction: "paste",
+        editing: draftTarget,
+      }),
+    );
+    assert.equal(api.getSnapshot().nodes[0]?.content, pdfMarkdown);
+    await setText("First draft");
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 100, y: 100 },
+        interaction: "paste",
+        editing: draftTarget,
+      }),
+    );
+    assert.equal(
+      api.getSnapshot().nodes[0]?.content,
+      "First draft",
+      "an older transfer cannot replace a newer draft",
+    );
     await act(async () =>
       api.beginAcademicDrop(
         "editing-paste",
@@ -346,6 +381,71 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     await act(async () => api.setSidebar(false));
     assert.equal(container.querySelector(".zmd-board-sidebar-toolbar"), null);
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 300, y: 240 },
+        interaction: "drop",
+      }),
+    );
+    const selectionNote = api.getSnapshot().nodes.at(-1)!;
+    assert.equal(selectionNote.kind, "note");
+    assert.equal(selectionNote.content, pdfMarkdown);
+    const transferredId = selectionNote.id;
+    const sourceLink = container.querySelector<HTMLAnchorElement>(
+      `[data-id="${transferredId}"] a[href]`,
+    );
+    assert.ok(sourceLink, "the region citation remains an actionable link");
+    const sourceHref = sourceLink.getAttribute("href")!;
+    assert.ok(sourceHref.includes("&position="));
+    await act(async () => {
+      const mouse = (type: string, x: number) =>
+        new window.MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          button: 0,
+          clientX: x,
+          clientY: 240,
+        });
+      sourceLink.dispatchEvent(mouse("mousedown", 300));
+      sourceLink.dispatchEvent(mouse("mousemove", 301));
+      sourceLink.dispatchEvent(mouse("mouseup", 301));
+      sourceLink.dispatchEvent(mouse("click", 301));
+    });
+    assert.deepEqual(openedLinks, [sourceHref]);
+    const serialized = JSON.stringify(api.getSnapshot());
+    await act(async () => api.undo());
+    assert.equal(
+      api.getSnapshot().nodes.some((node) => node.id === transferredId),
+      false,
+    );
+    await act(async () => api.redo());
+    assert.equal(
+      api.getSnapshot().nodes.find((node) => node.id === transferredId)
+        ?.content,
+      pdfMarkdown,
+    );
+    await act(async () => api.loadSnapshot(JSON.parse(serialized)));
+    assert.equal(
+      api.getSnapshot().nodes.find((node) => node.id === transferredId)
+        ?.content,
+      pdfMarkdown,
+      "saving and reloading retains the complete region link",
+    );
+    await act(async () => api.setEditable(false));
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 300, y: 240 },
+        interaction: "paste",
+      }),
+    );
+    assert.equal(
+      api.getSnapshot().nodes.length,
+      2,
+      "readonly canvas cannot create a selection note",
+    );
   } finally {
     await act(async () => root.unmount());
     await server.close();

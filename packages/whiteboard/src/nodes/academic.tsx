@@ -240,6 +240,13 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       ) : (
         <div
           className="zmd-board-card-content zmd-board-card-markdown nowheel"
+          ref={(element) => {
+            element
+              ?.querySelectorAll("a[href], [data-zmd-wikilink]")
+              .forEach((link) => {
+                link.classList.add("nodrag");
+              });
+          }}
           style={nodeTextStyle(model.style ?? {})}
           onKeyDown={(event) => {
             if (

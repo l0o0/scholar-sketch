@@ -1,8 +1,11 @@
+import type { PdfTextPosition } from "../../utils/pdf-position";
+
 const READER_URL = "resource://zotero/reader/reader.html";
 
 export interface PdfLinkPreviewLocation {
   pageIndex?: number;
   annotationID?: string;
+  position?: PdfTextPosition;
 }
 
 export interface PdfLinkPreviewOptions {

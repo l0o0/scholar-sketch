@@ -183,7 +183,7 @@ function editorHarness(
   const restoreZotero = install(fake);
   const previousToolkit = (globalThis as any).ztoolkit;
   (globalThis as any).ztoolkit = { log: () => undefined };
-  const browser = new Window({ url: "https://host.example/" });
+  const browser = new Window({ url: "https://editor.example/" });
   const parent = browser.document.createElement("div");
   browser.document.body.append(parent);
   const editor = createMarkdownEditor(parent, {

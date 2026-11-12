@@ -9,7 +9,13 @@ export function attachMarkdownIframeDrop(
     const types = Array.from(event.dataTransfer.types);
     if (
       !types.some((type) =>
-        ["Files", "text/plain", "text/html", "zotero/item"].includes(type),
+        [
+          "Files",
+          "text/plain",
+          "text/html",
+          "zotero/item",
+          "zotero/annotation",
+        ].includes(type),
       )
     )
       return;

@@ -14,6 +14,14 @@ import { config } from "../../../package.json";
 export const EDITOR_MESSAGE_SOURCE = "zotero-markdown-editor" as const;
 export const EDITOR_PROTOCOL_VERSION = 1;
 
+/** Synchronous native-transfer input from the owning chrome host. */
+export const PDF_SELECTION_EVENT = "zmd-pdf-selection";
+
+export interface PdfSelectionInsertion {
+  markdown: string;
+  position?: { x: number; y: number };
+}
+
 export type EditorTheme = "light" | "dark";
 export type EditorSurface = "default" | "sidebar";
 

@@ -603,6 +603,7 @@ function editorPeer(
   });
   const iframe = parent.querySelector("iframe")!;
   Object.defineProperty(iframe, "contentWindow", { value: frame });
+  Object.defineProperty(iframe, "contentDocument", { value: frame.document });
   testContext.after(async () => {
     editor.destroy();
     await frame.happyDOM.close();

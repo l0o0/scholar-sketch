@@ -1,3 +1,4 @@
+import { pdfSelectionTransferMarkdown } from "../pdf-selection";
 import { pickZoteroItems as pickZoteroItem } from "../item-picker";
 import { getPref } from "../../utils/prefs";
 import { normalizeColorScheme } from "../../../packages/whiteboard/src/model/colorSchemes";
@@ -520,8 +521,8 @@ function resolveDroppedAnnotations(
   const records: unknown = JSON.parse(transfer.getData("zotero/annotation"));
   if (!Array.isArray(records) || !records.length)
     return { status: "rejected", code: "drop-malformed" };
-  // Reader also supplies this MIME for a plain text selection that has never
-  // been saved as an annotation. Let the normal text drop/paste handle it.
+  // Direct Reader selections have no annotation key. Their separate transfer
+  // path preserves the text and region as a Markdown-backed note.
   if (
     records.every(
       (record) =>
@@ -1457,6 +1458,7 @@ function mountWhiteboardUI(
     resolveNativeAcademicDrop(dataTransfer) {
       return resolveNativeAcademicDrop(dataTransfer);
     },
+    resolvePdfSelectionTransfer: pdfSelectionTransferMarkdown,
     onNativeAcademicDropRejected(requestId, code, diagnostic) {
       reportAcademicRequestFailure({
         operation: "drop",

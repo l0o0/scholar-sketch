@@ -77,6 +77,24 @@ PDF links use the current Zotero process's native URI handler, preserving page
 and annotation locations. Dispatch does not imply the asynchronous file open
 succeeded; Zotero owns that operation and its error feedback.
 
+PDF text transfers share one host decoder for Reader's `zotero/annotation` data
+and native Note HTML `data-annotation` spans. It resolves runtime attachment IDs
+or Zotero URIs to portable library/attachment keys, preserving page index and
+text-selection rectangles, including a continuation on the next page. Saved
+annotation copies use the annotation's authoritative text and native key.
+Markdown stores the excerpt as a blockquote with a source link. Selection links
+carry validated, URI-encoded PDF positions, which the host opens through
+`Reader.open` because Zotero's ordinary URI handler consumes only page and
+annotation parameters. Reference indexing, hover previews and whiteboard links
+share that parser and retain the location.
+
+Each ready Markdown iframe owns synchronous native paste/drop listeners. The
+host resolves a transfer in the original event, then sends a string CustomEvent
+to CodeMirror in the same call stack. CodeMirror applies one undoable transaction
+at the current selection or drop coordinates, with read-only and composition
+checks. Rebinding and teardown remove the document's listeners. Ordinary text
+and image transfers continue through their existing input paths.
+
 Each mounted Markdown surface owns a host-side link-preview controller. Editor
 iframes publish only the hovered link and its viewport rectangle; the host
 translates coordinates and shares the content loader with reading-preview and
@@ -206,8 +224,13 @@ edit. Failed or cancelled requests do not create history entries.
 Reader annotation drag and copy use Zotero's native `zotero/annotation` data.
 The host resolves each saved annotation's attachment ID and native key to a
 validated Quote source; clipboard text and other display fields are not treated
-as authoritative content. Unsaved text selections have no annotation key and
-retain their normal text behavior. Quote acquisition rechecks the source chain
+as authoritative content. Unsaved PDF text selections use the shared transfer
+decoder and become ordinary Note cards with quoted text and a region source
+link in their Markdown content. A typed host message carries the insertion and
+its paste/drop location. When editing a Note, the runtime verifies the captured
+node, draft revision, value and selection before replacing that selection;
+stale responses are discarded. Empty-canvas insertion is one undoable edit, and
+normal canvas persistence/export preserves the content and source URL. Quote acquisition rechecks the source chain
 and includes cached image/ink previews. Annotation paste uses the same batch
 flow with an explicit paste interaction so the iframe can respect text editing,
 modal, and read-only state before creating cards. Because Gecko disables the
