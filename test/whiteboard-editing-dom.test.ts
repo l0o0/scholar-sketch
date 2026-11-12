@@ -5,6 +5,7 @@ import { Window } from "happy-dom";
 import { act, createElement } from "react";
 import { createServer } from "../packages/whiteboard/node_modules/vite/dist/node/index.js";
 import type { WhiteboardRuntime } from "../packages/whiteboard/src/whiteboard/app.tsx";
+import { buildCanvasMarkdown } from "../packages/whiteboard/src/whiteboard/export.ts";
 
 test("editing persists drafts atomically and keeps undo boundaries coherent", async () => {
   const window = new Window({ url: "https://example.test" });
@@ -392,27 +393,46 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     assert.equal(selectionNote.kind, "note");
     assert.equal(selectionNote.content, pdfMarkdown);
     const transferredId = selectionNote.id;
-    const sourceLink = container.querySelector<HTMLAnchorElement>(
-      `[data-id="${transferredId}"] a[href]`,
+    const locationButton = container.querySelector<HTMLButtonElement>(
+      `[data-id="${transferredId}"] [data-zmd-note-source-trigger]`,
     );
-    assert.ok(sourceLink, "the region citation remains an actionable link");
-    const sourceHref = sourceLink.getAttribute("href")!;
+    assert.ok(locationButton, "the card retains its source navigation action");
+    const sourceHref = locationButton.getAttribute("data-zmd-note-source")!;
     assert.ok(sourceHref.includes("&position="));
-    await act(async () => {
-      const mouse = (type: string, x: number) =>
-        new window.MouseEvent(type, {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-          button: 0,
-          clientX: x,
-          clientY: 240,
-        });
-      sourceLink.dispatchEvent(mouse("mousedown", 300));
-      sourceLink.dispatchEvent(mouse("mousemove", 301));
-      sourceLink.dispatchEvent(mouse("mouseup", 301));
-      sourceLink.dispatchEvent(mouse("click", 301));
-    });
+    const excerptBody = container.querySelector<HTMLElement>(
+      `[data-id="${transferredId}"] .zmd-board-card-markdown`,
+    )!;
+    assert.equal(
+      excerptBody.querySelector("blockquote")?.textContent.trim(),
+      "Selected passage",
+    );
+    assert.equal(
+      excerptBody.querySelector("a[href]"),
+      null,
+      "the generated source row takes no space in the excerpt body",
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(sourceHref),
+      "Markdown export keeps the full source location",
+    );
+    const clickWithJitter = async (target: HTMLElement) => {
+      await act(async () => {
+        const mouse = (type: string, x: number) =>
+          new window.MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            button: 0,
+            clientX: x,
+            clientY: 240,
+          });
+        target.dispatchEvent(mouse("mousedown", 300));
+        target.dispatchEvent(mouse("mousemove", 301));
+        target.dispatchEvent(mouse("mouseup", 301));
+        target.dispatchEvent(mouse("click", 301));
+      });
+    };
+    await clickWithJitter(locationButton);
     assert.deepEqual(openedLinks, [sourceHref]);
     const serialized = JSON.stringify(api.getSnapshot());
     await act(async () => api.undo());
@@ -557,7 +577,17 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
       null,
       "replacing the document releases the source menu",
     );
-    const markdownContent = "**plain research**\nsecond line";
+    const markdownContent = [
+      "**plain research**\nsecond line",
+      `> First quoted passage\n\n[First source](${sourceHref})`,
+      `[Standalone PDF](${sourceHref})`,
+      `> Second quoted passage\n\n[Second source](${secondHref})`,
+      `> A comment\n\nSee [Inline PDF](${sourceHref}).`,
+      `> A comparison\n\n[One PDF](${sourceHref}) and [Another PDF](${secondHref})`,
+      "> A website quotation\n\n[Website](https://example.test)",
+      `> Figure explanation\n\n[![Figure](https://example.test/figure.png)](${sourceHref})`,
+      `> Formatted source explanation\n\n[**Formatted PDF**](${sourceHref})`,
+    ].join("\n\n");
     await act(async () =>
       api.loadSnapshot({
         ...api.getSnapshot(),
@@ -576,10 +606,55 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     );
     assert.ok(mountedMarkdown.textContent.includes("second line"));
     assert.ok(mountedMarkdown.querySelector("br"));
+    assert.ok(mountedMarkdown.textContent.includes("First quoted passage"));
+    assert.ok(mountedMarkdown.textContent.includes("Second quoted passage"));
+    assert.equal(mountedMarkdown.textContent.includes("First source"), false);
+    assert.equal(mountedMarkdown.textContent.includes("Second source"), false);
+    const linkedFigure = mountedMarkdown.querySelector<HTMLImageElement>(
+      'a[href] img[alt="Figure"]',
+    );
+    assert.ok(linkedFigure, "a linked image after a quotation remains visible");
+    assert.equal(linkedFigure.closest("a")?.getAttribute("href"), sourceHref);
+    assert.equal(
+      mountedMarkdown.querySelector("a[href] strong")?.textContent,
+      "Formatted PDF",
+      "formatted user link text remains in the body",
+    );
+    const ordinaryLinks = [
+      ...mountedMarkdown.querySelectorAll<HTMLAnchorElement>("a[href]"),
+    ];
+    assert.deepEqual(
+      ordinaryLinks.map((link) => link.textContent),
+      [
+        "Standalone PDF",
+        "Inline PDF",
+        "One PDF",
+        "Another PDF",
+        "Website",
+        "",
+        "Formatted PDF",
+      ],
+    );
+    await clickWithJitter(ordinaryLinks[0]!);
+    assert.equal(
+      openedLinks.at(-1),
+      sourceHref,
+      "ordinary inline and standalone source links remain actionable",
+    );
     assert.equal(
       api.getSnapshot().nodes[0]?.content,
       markdownContent,
       "mounting the rendered Markdown preserves canonical source text",
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(
+        `[First source](${sourceHref})`,
+      ),
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(
+        `[Second source](${secondHref})`,
+      ),
     );
   } finally {
     await act(async () => root.unmount());

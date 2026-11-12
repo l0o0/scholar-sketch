@@ -323,6 +323,24 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     (element: HTMLDivElement | null) => {
       if (!element) return;
       mountRenderedMarkdown(element, html);
+      for (const paragraph of element.querySelectorAll(
+        ":scope > blockquote + p",
+      )) {
+        if (paragraph.children.length !== 1) continue;
+        const link = paragraph.firstElementChild;
+        if (
+          link?.localName !== "a" ||
+          link.children.length !== 0 ||
+          !isPdfDocumentLink(link.getAttribute("href") || "")
+        )
+          continue;
+        const sourceOnly = [...paragraph.childNodes].every(
+          (node) =>
+            node === link ||
+            (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()),
+        );
+        if (sourceOnly) paragraph.remove();
+      }
       element
         .querySelectorAll("a[href], [data-zmd-wikilink]")
         .forEach((link) => {
