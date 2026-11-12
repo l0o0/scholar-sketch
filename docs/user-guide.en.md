@@ -271,6 +271,14 @@ Choose **More → Search library notes…** and enter keywords to search the tit
 
 All entered keywords must match. Up to 100 notes are shown. Content that has not been downloaded, could not be read, or has not yet been saved may be absent from the results. To search only the current document, use `Ctrl/Cmd + F`.
 
+## Quote PDF text and return to the passage
+
+Select text in Zotero's PDF reader and paste it into Markdown, or drag it to the insertion point. Scholar Sketch inserts a blockquote and a source link containing the attachment, page, and text-region coordinates. The link survives saving and reopening.
+
+Click the source link in reading preview to return to the original passage. In Live Preview and Source mode, use `Ctrl/Cmd + click`.
+
+Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When editing an existing Note card, the quotation is inserted into its content. The card body shows the excerpt. Hover over the card or focus it with the keyboard to reveal the **Open source** icon at the top right. Click it to return to the PDF, or choose a destination when the card has several sources. Saved Markdown and Markdown exports include the source links. The import can be undone in one step.
+
 ## Create notes from PDF annotations
 
 1. Select a bibliographic item or PDF attachment in your Zotero library.
@@ -330,7 +338,7 @@ This is an export feature, not real-time, two-way sync between Zotero and Obsidi
 ### Add papers and attachment annotations
 
 - Click **Add Zotero materials** at the top of the whiteboard and select items in the picker, or drag papers and attachments from your Zotero library onto the canvas.
-- Drag saved annotations from a Zotero reader page or its annotation list onto the whiteboard to create quote cards. You can also copy annotations and press `Ctrl/Cmd + V` on an empty area of the whiteboard to add cards at the center of the current view. Multiple annotations can be added together and undone in one step. Text editing keeps normal text paste; PDF text selections that have not been saved as annotations do not create cards automatically.
+- Drag saved annotations from a Zotero reader page or its annotation list onto the whiteboard to create quote cards. You can also copy annotations and press `Ctrl/Cmd + V` on an empty area of the whiteboard to add cards at the center of the current view. Multiple annotations can be added together and undone in one step. Copying or dragging a PDF text selection creates a Note card with a source-region link, or inserts it into the content of the Note card being edited.
 - Select a literature card and click **Add annotations** in the floating toolbar above it to browse annotations from its PDF, EPUB, and webpage snapshot attachments.
 - Zotero PDF, EPUB, and HTML webpage snapshot attachment cards also offer **Add annotations** in their floating toolbar. Standalone attachments do not need a parent paper. Locally imported files have no Zotero annotation source, so they do not show this action.
 - Search annotation text, comments, page labels, and tags at the top of the dialog. Below it, **All** and Zotero icons for all six annotation types remain visible; hover over an icon to see its type name. A tag filter appears when annotations have tags. The dialog keeps the same height when filters change, with an independently scrolling list and a placeholder when no annotations match. Changing filters preserves your selections; click **Add selected** to add them together. Click the palette button to the right of the type filters to select multiple colors present in the source annotations. The button shows the number of selected colors; **All colors** clears the color filter. Results match any selected color, combined with type, tag, and search filters. The palette stays open while selecting colors; click outside it or press Esc to close it. **Select results** selects visible annotations that have not been added, while keeping selections from other filters. **Clear selection** clears all pending selections; the footer shows the eligible selection count.

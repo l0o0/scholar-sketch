@@ -9,6 +9,7 @@ type LabelsTarget = Pick<WhiteboardRuntime, "setLabels">;
 type AcademicMessageTarget = Pick<
   WhiteboardRuntime,
   | "beginAcademicDrop"
+  | "insertPdfSelection"
   | "rejectAcademicDrop"
   | "resolveAcademicAcquisitionBatch"
   | "rejectAcademicRequest"
@@ -24,6 +25,10 @@ export function forwardAcademicParentMessage(
   target: AcademicMessageTarget | null,
   data: ParentToWhiteboardMessage,
 ): boolean {
+  if (data.type === "pdfSelectionTransferred") {
+    target?.insertPdfSelection(data.payload);
+    return true;
+  }
   if (data.type === "academicDropStarted") {
     target?.beginAcademicDrop(
       data.payload.requestId,

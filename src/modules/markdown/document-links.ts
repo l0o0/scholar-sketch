@@ -1,4 +1,7 @@
-import { isPdfDocumentLink } from "./document-link-shared";
+import {
+  isPdfDocumentLink,
+  parsePdfDocumentLink,
+} from "./document-link-shared";
 import { isEditorLinkIcon, type EditorLinkFilter } from "./editor-protocol";
 import { isMarkdownAttachment } from "./detect";
 import { isWhiteboardAttachment } from "../whiteboard/detect";
@@ -1045,8 +1048,32 @@ export async function openDocumentLink(
   // may still be normalized the same way the native launcher handles them.
   const value = typeof href === "string" ? href : "";
   const externalValue = value.trim();
-  if (isPdfDocumentLink(value)) {
+  const pdf = parsePdfDocumentLink(value);
+  if (pdf) {
     try {
+      if (pdf.position) {
+        const libraryID =
+          pdf.reference.scope === "library"
+            ? Zotero.Libraries.userLibraryID
+            : Zotero.Groups.get(pdf.reference.groupID)?.libraryID;
+        const item =
+          libraryID &&
+          Zotero.Items.getByLibraryAndKey(libraryID, pdf.reference.key);
+        if (
+          !item ||
+          item.deleted ||
+          !item.isAttachment() ||
+          item.attachmentContentType !== "application/pdf"
+        )
+          return { status: "unresolved" };
+        // Zotero's open-pdf URI handler only consumes page/annotation. Reader
+        // navigation also accepts the unsaved text selection's PDF rectangles.
+        await Zotero.Reader.open(item.id, {
+          pageIndex: pdf.position.pageIndex,
+          position: pdf.position,
+        });
+        return { status: "dispatched" };
+      }
       const pane =
         (options.win as _ZoteroTypes.MainWindow | undefined)?.ZoteroPane ||
         Zotero.getMainWindow?.()?.ZoteroPane;

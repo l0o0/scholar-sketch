@@ -1330,7 +1330,11 @@ test("outer-window drops reach the iframe once with local coordinates and detach
       source: null,
     }),
   );
-  const dispatch = (type: string, types = ["zotero/item"]) => {
+  const dispatch = (
+    type: string,
+    types = ["zotero/item"],
+    originTarget?: Element,
+  ) => {
     const event = new window.Event(type, { bubbles: true, cancelable: true });
     const transfer = { types, dropEffect: "none" };
     Object.defineProperties(event, {
@@ -1338,6 +1342,8 @@ test("outer-window drops reach the iframe once with local coordinates and detach
       clientX: { value: 115 },
       clientY: { value: 225 },
     });
+    if (originTarget)
+      Object.defineProperty(event, "target", { value: originTarget });
     iframe.dispatchEvent(event);
     return { event, transfer };
   };
@@ -1355,9 +1361,23 @@ test("outer-window drops reach the iframe once with local coordinates and detach
   assert.equal(drops.length, 1);
   assert.deepEqual(drops[0].payload.position, { x: 100, y: 200 });
   assert.deepEqual(drops[0].payload.sources, sources);
+  const innerTarget = iframe.contentDocument!.createElement("div");
+  iframe.contentDocument!.body.append(innerTarget);
+  // Gecko's ancestor capture can retain the inner target and its local client coordinates.
+  dispatch("drop", ["zotero/item"], innerTarget);
+  assert.equal(resolutions, 2);
+  const innerDrops = posted.filter(
+    (message) => message.type === "academicDropStarted",
+  );
+  assert.equal(innerDrops.length, 2);
+  assert.deepEqual(
+    innerDrops[1].payload.position,
+    { x: 115, y: 225 },
+    "inner-document coordinates must not lose the iframe offset twice",
+  );
   handle.destroy();
   dispatch("drop");
-  assert.equal(resolutions, 1);
+  assert.equal(resolutions, 2);
 });
 
 test("whiteboard page loads styles and bundle with the current editor mount cache key", () => {
@@ -1598,4 +1618,149 @@ test("Gecko paste commands reach only the owning editable canvas and release the
     false,
   );
   readonly.destroy();
+});
+
+test("PDF selection transfers reach canvas and note drafts through the owning ready document", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  const markdown =
+    "> Selected PDF passage\n\n[Source](zotero://open-pdf/library/items/PDF12345?page=2&position=%7B%22pageIndex%22%3A1%2C%22rects%22%3A%5B%5B10%2C20%2C30%2C40%5D%5D%7D)";
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "pdf:canvas",
+    resolveNativeAcademicDrop: () => ({ status: "ignored" }),
+    resolvePdfSelectionTransfer: (transfer, document) => {
+      assert.equal(document, iframe.contentDocument);
+      return transfer.getData("zotero/annotation") ? markdown : null;
+    },
+  });
+  t.after(() => handle.destroy());
+  const iframe = parent.querySelector("iframe")!;
+  const frame = iframe.contentWindow!;
+  const doc = iframe.contentDocument!;
+  doc.hasFocus = () => true;
+  doc.documentElement.getBoundingClientRect = () =>
+    ({ width: 800, height: 600 }) as DOMRect;
+  iframe.getBoundingClientRect = () => ({ left: 15, top: 25 }) as DOMRect;
+  const posted: ParentToWhiteboardMessage[] = [];
+  frame.postMessage = ((message: ParentToWhiteboardMessage) =>
+    posted.push(message)) as typeof frame.postMessage;
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      source: null,
+      data: {
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        channel: "pdf:canvas",
+        v: WHITEBOARD_PROTOCOL_VERSION,
+        type: "ready",
+      },
+    }),
+  );
+  const dispatch = (type: "paste" | "drop", target: Element) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    const transfer = {
+      types: ["zotero/annotation", "text/plain"],
+      getData: (type: string) =>
+        type === "zotero/annotation"
+          ? '[{"attachmentItemID":21,"text":"Selected PDF passage"}]'
+          : "Selected PDF passage",
+    };
+    Object.defineProperties(event, {
+      [type === "paste" ? "clipboardData" : "dataTransfer"]: {
+        value: transfer,
+      },
+      clientX: { value: 115 },
+      clientY: { value: 225 },
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(dispatch("paste", doc.body).defaultPrevented, true);
+  const pasted = posted.at(-1)!;
+  assert.equal(pasted.type, "pdfSelectionTransferred");
+  if (pasted.type !== "pdfSelectionTransferred") return;
+  assert.equal(pasted.payload.markdown, markdown);
+  assert.deepEqual(pasted.payload.position, { x: 400, y: 300 });
+  assert.equal(pasted.payload.interaction, "paste");
+  const calls: unknown[] = [];
+  assert.equal(
+    forwardAcademicParentMessage(
+      { insertPdfSelection: (payload) => calls.push(payload) } as Parameters<
+        typeof forwardAcademicParentMessage
+      >[0],
+      pasted,
+    ),
+    true,
+  );
+  assert.deepEqual(calls, [pasted.payload]);
+  assert.equal(dispatch("drop", iframe).defaultPrevented, true);
+  const dropped = posted.at(-1)!;
+  assert.equal(dropped.type, "pdfSelectionTransferred");
+  if (dropped.type === "pdfSelectionTransferred")
+    assert.deepEqual(dropped.payload.position, { x: 100, y: 200 });
+  const textarea = doc.createElement("textarea");
+  textarea.value = "A draft";
+  textarea.dataset.pdfSelectionNote = "note-1";
+  textarea.dataset.pdfSelectionRevision = "3";
+  doc.body.append(textarea);
+  textarea.focus();
+  textarea.setSelectionRange(2, 7);
+  assert.equal(dispatch("paste", textarea).defaultPrevented, true);
+  const editing = posted.at(-1)!;
+  assert.equal(editing.type, "pdfSelectionTransferred");
+  if (editing.type === "pdfSelectionTransferred")
+    assert.deepEqual(editing.payload.editing, {
+      nodeId: "note-1",
+      revision: 3,
+      value: "A draft",
+      from: 2,
+      to: 7,
+    });
+  const dropPoints: Array<{ x: number; y: number }> = [];
+  Object.defineProperty(doc, "caretPositionFromPoint", {
+    configurable: true,
+    value: (x: number, y: number) => {
+      dropPoints.push({ x, y });
+      return { offsetNode: textarea, offset: 1 };
+    },
+  });
+  assert.equal(dispatch("drop", textarea).defaultPrevented, true);
+  const editingDrop = posted.at(-1)!;
+  assert.equal(editingDrop.type, "pdfSelectionTransferred");
+  if (editingDrop.type === "pdfSelectionTransferred") {
+    assert.equal(editingDrop.payload.editing?.from, 1);
+    assert.equal(editingDrop.payload.editing?.to, 1);
+  }
+  assert.deepEqual(dropPoints, [{ x: 115, y: 225 }]);
+  assert.equal(textarea.selectionStart, 1);
+  assert.equal(textarea.selectionEnd, 1);
+  textarea.setSelectionRange(2, 7);
+  for (const caret of [null, { offsetNode: doc.body, offset: 0 }]) {
+    Object.defineProperty(doc, "caretPositionFromPoint", {
+      configurable: true,
+      value: () => caret,
+    });
+    const count = posted.length;
+    assert.equal(dispatch("drop", textarea).defaultPrevented, false);
+    assert.equal(
+      posted.length,
+      count,
+      "an unresolved drop keeps native ownership",
+    );
+    assert.equal(textarea.selectionStart, 2);
+    assert.equal(textarea.selectionEnd, 7);
+  }
+  Object.defineProperty(doc, "caretPositionFromPoint", {
+    configurable: true,
+    value: undefined,
+  });
+  assert.equal(dispatch("drop", textarea).defaultPrevented, false);
+  const input = doc.createElement("input");
+  doc.body.append(input);
+  assert.equal(dispatch("paste", input).defaultPrevented, false);
+  handle.destroy();
+  const count = posted.length;
+  assert.equal(dispatch("paste", textarea).defaultPrevented, false);
+  assert.equal(posted.length, count);
 });

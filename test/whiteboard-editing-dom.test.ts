@@ -5,6 +5,7 @@ import { Window } from "happy-dom";
 import { act, createElement } from "react";
 import { createServer } from "../packages/whiteboard/node_modules/vite/dist/node/index.js";
 import type { WhiteboardRuntime } from "../packages/whiteboard/src/whiteboard/app.tsx";
+import { buildCanvasMarkdown } from "../packages/whiteboard/src/whiteboard/export.ts";
 
 test("editing persists drafts atomically and keeps undo boundaries coherent", async () => {
   const window = new Window({ url: "https://example.test" });
@@ -67,6 +68,7 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
   const revisions: number[] = [];
   const notifiedContents: unknown[] = [];
   const transferredAnnotations: string[] = [];
+  const openedLinks: string[] = [];
   let runtime: WhiteboardRuntime | undefined;
   try {
     const app = (await server.ssrLoadModule("/src/whiteboard/app.tsx")) as {
@@ -102,6 +104,7 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
           onSave: noop,
           onPickAcademicSource: noop,
           onOpenItem: noop,
+          onOpenLink: (href: string) => openedLinks.push(href),
           onDropAcademicSources: (requestId) =>
             transferredAnnotations.push(requestId),
           onRefreshZoteroNote: noop,
@@ -162,6 +165,39 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     };
 
     await setText("First draft");
+    const pdfMarkdown =
+      "> Selected passage\n\n[Source](zotero://open-pdf/library/items/PDF12345?page=2&position=%7B%22pageIndex%22%3A1%2C%22rects%22%3A%5B%5B10%2C20%2C30%2C40%5D%5D%7D)";
+    textarea.setSelectionRange(0, "First draft".length);
+    const draftTarget = {
+      nodeId: "note",
+      revision: Number(textarea.dataset.pdfSelectionRevision),
+      value: "First draft",
+      from: 0,
+      to: "First draft".length,
+    };
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 100, y: 100 },
+        interaction: "paste",
+        editing: draftTarget,
+      }),
+    );
+    assert.equal(api.getSnapshot().nodes[0]?.content, pdfMarkdown);
+    await setText("First draft");
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 100, y: 100 },
+        interaction: "paste",
+        editing: draftTarget,
+      }),
+    );
+    assert.equal(
+      api.getSnapshot().nodes[0]?.content,
+      "First draft",
+      "an older transfer cannot replace a newer draft",
+    );
     await act(async () =>
       api.beginAcademicDrop(
         "editing-paste",
@@ -346,6 +382,280 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
     await act(async () => api.setSidebar(false));
     assert.equal(container.querySelector(".zmd-board-sidebar-toolbar"), null);
     assert.equal(api.getSnapshot().nodes[0]?.content, "Committed");
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 300, y: 240 },
+        interaction: "drop",
+      }),
+    );
+    const selectionNote = api.getSnapshot().nodes.at(-1)!;
+    assert.equal(selectionNote.kind, "note");
+    assert.equal(selectionNote.content, pdfMarkdown);
+    const transferredId = selectionNote.id;
+    const locationButton = container.querySelector<HTMLButtonElement>(
+      `[data-id="${transferredId}"] [data-zmd-note-source-trigger]`,
+    );
+    assert.ok(locationButton, "the card retains its source navigation action");
+    const sourceHref = locationButton.getAttribute("data-zmd-note-source")!;
+    assert.ok(sourceHref.includes("&position="));
+    const excerptBody = container.querySelector<HTMLElement>(
+      `[data-id="${transferredId}"] .zmd-board-card-markdown`,
+    )!;
+    assert.equal(
+      excerptBody.querySelector("blockquote")?.textContent.trim(),
+      "Selected passage",
+    );
+    assert.equal(
+      excerptBody.querySelector("a[href]"),
+      null,
+      "the generated source row takes no space in the excerpt body",
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(sourceHref),
+      "Markdown export keeps the full source location",
+    );
+    const clickWithJitter = async (target: HTMLElement) => {
+      await act(async () => {
+        const mouse = (type: string, x: number) =>
+          new window.MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            button: 0,
+            clientX: x,
+            clientY: 240,
+          });
+        target.dispatchEvent(mouse("mousedown", 300));
+        target.dispatchEvent(mouse("mousemove", 301));
+        target.dispatchEvent(mouse("mouseup", 301));
+        target.dispatchEvent(mouse("click", 301));
+      });
+    };
+    await clickWithJitter(locationButton);
+    assert.deepEqual(openedLinks, [sourceHref]);
+    const serialized = JSON.stringify(api.getSnapshot());
+    await act(async () => api.undo());
+    assert.equal(
+      api.getSnapshot().nodes.some((node) => node.id === transferredId),
+      false,
+    );
+    await act(async () => api.redo());
+    assert.equal(
+      api.getSnapshot().nodes.find((node) => node.id === transferredId)
+        ?.content,
+      pdfMarkdown,
+    );
+    await act(async () => api.loadSnapshot(JSON.parse(serialized)));
+    assert.equal(
+      api.getSnapshot().nodes.find((node) => node.id === transferredId)
+        ?.content,
+      pdfMarkdown,
+      "saving and reloading retains the complete region link",
+    );
+    await act(async () => api.setEditable(false));
+    await act(async () =>
+      api.insertPdfSelection({
+        markdown: pdfMarkdown,
+        position: { x: 300, y: 240 },
+        interaction: "paste",
+      }),
+    );
+    assert.equal(
+      api.getSnapshot().nodes.length,
+      2,
+      "readonly canvas cannot create a selection note",
+    );
+    const sourceButton = container.querySelector<HTMLButtonElement>(
+      `[data-id="${transferredId}"] [data-zmd-note-source-trigger]`,
+    );
+    assert.ok(sourceButton);
+    assert.equal(sourceButton.getAttribute("aria-label"), "Open source");
+    const readonlyContent = api
+      .getSnapshot()
+      .nodes.map((node) => ({ id: node.id, content: node.content }));
+    await act(async () => sourceButton.click());
+    assert.deepEqual(
+      openedLinks,
+      [sourceHref, sourceHref],
+      "the compact source action navigates in readonly mode",
+    );
+    await act(async () =>
+      sourceButton.dispatchEvent(
+        new window.MouseEvent("dblclick", { bubbles: true, detail: 2 }),
+      ),
+    );
+    assert.equal(
+      container.querySelector("textarea"),
+      null,
+      "source action double-click never edits the note",
+    );
+    assert.deepEqual(
+      api
+        .getSnapshot()
+        .nodes.map((node) => ({ id: node.id, content: node.content })),
+      readonlyContent,
+    );
+    const secondHref = sourceHref.replace("PDF12345", "PDF67890");
+    await act(async () =>
+      api.loadSnapshot({
+        ...api.getSnapshot(),
+        nodes: [
+          {
+            ...selectionNote,
+            id: "multiple-sources",
+            content: `[First passage](${sourceHref})\n\n[Duplicate](${sourceHref})\n\n[Second passage](${secondHref})\n\n[Website](https://example.test)\n\n\`\`\`md\n[Example](zotero://open-pdf/library/items/PDF00000?page=1)\n\`\`\``,
+          },
+        ],
+      }),
+    );
+    const multipleTrigger = container.querySelector<HTMLButtonElement>(
+      "[data-zmd-note-source-trigger]",
+    )!;
+    assert.equal(multipleTrigger.getAttribute("aria-haspopup"), "menu");
+    await act(async () =>
+      multipleTrigger.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    const sourceMenu = container.querySelector<HTMLElement>(
+      '.zmd-board-note-source-menu[role="menu"]',
+    );
+    assert.ok(sourceMenu);
+    const sourceOptions = [
+      ...sourceMenu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ];
+    assert.deepEqual(
+      sourceOptions.map((button) => button.textContent),
+      ["First passage", "Second passage"],
+      "sources are captioned, deduplicated, and exclude fenced examples",
+    );
+    assert.equal(window.document.activeElement, sourceOptions[0]);
+    await act(async () =>
+      sourceOptions[0]!.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(window.document.activeElement, sourceOptions[1]);
+    await act(async () => sourceOptions[1]!.click());
+    assert.equal(openedLinks.at(-1), secondHref);
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    await act(async () => multipleTrigger.click());
+    assert.ok(container.querySelector(".zmd-board-note-source-menu"));
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    assert.equal(window.document.activeElement, multipleTrigger);
+    await act(async () => multipleTrigger.click());
+    await act(async () =>
+      window.document.body.dispatchEvent(
+        new window.PointerEvent("pointerdown", { bubbles: true }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    await act(async () => multipleTrigger.click());
+    await act(async () =>
+      api.loadSnapshot({ ...api.getSnapshot(), nodes: [] }),
+    );
+    assert.equal(
+      container.querySelector(".zmd-board-note-source-menu"),
+      null,
+      "replacing the document releases the source menu",
+    );
+    const markdownContent = [
+      "**plain research**\nsecond line",
+      `> First quoted passage\n\n[First source](${sourceHref})`,
+      `[Standalone PDF](${sourceHref})`,
+      `> Second quoted passage\n\n[Second source](${secondHref})`,
+      `> A comment\n\nSee [Inline PDF](${sourceHref}).`,
+      `> A comparison\n\n[One PDF](${sourceHref}) and [Another PDF](${secondHref})`,
+      "> A website quotation\n\n[Website](https://example.test)",
+      `> Figure explanation\n\n[![Figure](https://example.test/figure.png)](${sourceHref})`,
+      `> Formatted source explanation\n\n[**Formatted PDF**](${sourceHref})`,
+    ].join("\n\n");
+    await act(async () =>
+      api.loadSnapshot({
+        ...api.getSnapshot(),
+        nodes: [
+          { ...selectionNote, id: "markdown-note", content: markdownContent },
+        ],
+      }),
+    );
+    const mountedMarkdown = container.querySelector<HTMLElement>(
+      '[data-id="markdown-note"] .zmd-board-card-markdown',
+    );
+    assert.ok(mountedMarkdown);
+    assert.equal(
+      mountedMarkdown.querySelector("strong")?.textContent,
+      "plain research",
+    );
+    assert.ok(mountedMarkdown.textContent.includes("second line"));
+    assert.ok(mountedMarkdown.querySelector("br"));
+    assert.ok(mountedMarkdown.textContent.includes("First quoted passage"));
+    assert.ok(mountedMarkdown.textContent.includes("Second quoted passage"));
+    assert.equal(mountedMarkdown.textContent.includes("First source"), false);
+    assert.equal(mountedMarkdown.textContent.includes("Second source"), false);
+    const linkedFigure = mountedMarkdown.querySelector<HTMLImageElement>(
+      'a[href] img[alt="Figure"]',
+    );
+    assert.ok(linkedFigure, "a linked image after a quotation remains visible");
+    assert.equal(linkedFigure.closest("a")?.getAttribute("href"), sourceHref);
+    assert.equal(
+      mountedMarkdown.querySelector("a[href] strong")?.textContent,
+      "Formatted PDF",
+      "formatted user link text remains in the body",
+    );
+    const ordinaryLinks = [
+      ...mountedMarkdown.querySelectorAll<HTMLAnchorElement>("a[href]"),
+    ];
+    assert.deepEqual(
+      ordinaryLinks.map((link) => link.textContent),
+      [
+        "Standalone PDF",
+        "Inline PDF",
+        "One PDF",
+        "Another PDF",
+        "Website",
+        "",
+        "Formatted PDF",
+      ],
+    );
+    await clickWithJitter(ordinaryLinks[0]!);
+    assert.equal(
+      openedLinks.at(-1),
+      sourceHref,
+      "ordinary inline and standalone source links remain actionable",
+    );
+    assert.equal(
+      api.getSnapshot().nodes[0]?.content,
+      markdownContent,
+      "mounting the rendered Markdown preserves canonical source text",
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(
+        `[First source](${sourceHref})`,
+      ),
+    );
+    assert.ok(
+      buildCanvasMarkdown(api.getSnapshot()).includes(
+        `[Second source](${secondHref})`,
+      ),
+    );
   } finally {
     await act(async () => root.unmount());
     await server.close();

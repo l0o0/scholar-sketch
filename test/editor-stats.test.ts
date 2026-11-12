@@ -41,9 +41,10 @@ function fixture(
     onSave,
   });
   const iframe = parent.querySelector("iframe")!;
-  // Loading is disabled, so provide an isolated message peer without fetching a page.
+  // Loading is disabled, so provide the ready peer's window and document together.
   const frame = new Window({ url: "https://editor.test/frame/" });
   Object.defineProperty(iframe, "contentWindow", { value: frame });
+  Object.defineProperty(iframe, "contentDocument", { value: frame.document });
   const posted: ParentToEditorMessage[] = [];
   iframe.contentWindow!.postMessage = ((data: ParentToEditorMessage) => {
     posted.push(data);

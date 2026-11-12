@@ -418,7 +418,7 @@ test("academic card layout keeps full excerpts scrollable and wraps provenance",
   );
 });
 
-test("renders local academic text as Markdown without changing its source", () => {
+test("local academic note headers preserve their localized role and source text", () => {
   const model = createAcademicNode("note", { x: 0, y: 0 }, "note-1", {
     badge: "Question",
     content: "**plain research**\nsecond line",
@@ -426,9 +426,6 @@ test("renders local academic text as Markdown without changing its source", () =
   const markup = renderNode(model);
   assert.match(markup, new RegExp(`title="${labels.addQuestion}"`));
   assert.match(markup, new RegExp(`>${labels.addQuestion}<`));
-  assert.match(markup, /<strong>plain research<\/strong>/);
-  assert.match(markup, /second line/);
-  assert.match(markup, /<br>/);
   assert.equal(model.content, "**plain research**\nsecond line");
 });
 

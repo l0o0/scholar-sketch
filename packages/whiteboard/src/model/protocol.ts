@@ -504,6 +504,21 @@ export type CanvasNotice =
       failureCodes: AnnotationListFailureCode[];
     };
 
+export interface PdfSelectionEditingTarget {
+  nodeId: string;
+  revision: number;
+  value: string;
+  from: number;
+  to: number;
+}
+
+export interface PdfSelectionTransferPayload {
+  markdown: string;
+  position: { x: number; y: number };
+  interaction: "paste" | "drop";
+  editing?: PdfSelectionEditingTarget;
+}
+
 export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
   (
     | { type: "init"; payload: WhiteboardInitPayload }
@@ -537,6 +552,10 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
           sources: AcademicDropSourceRef[];
           interaction?: "paste";
         };
+      }
+    | {
+        type: "pdfSelectionTransferred";
+        payload: PdfSelectionTransferPayload;
       }
     | {
         type: "academicDropRejected";
@@ -747,6 +766,7 @@ const activeParentToWhiteboardTypes = {
   academicSourcesAcquired: true,
   academicDropStarted: true,
   academicDropRejected: true,
+  pdfSelectionTransferred: true,
   sourceResolutionBatch: true,
   annotationsListed: true,
   annotationListFailed: true,
@@ -757,6 +777,22 @@ const activeParentToWhiteboardTypes = {
   saveState: true,
   noteTemplatesChanged: true,
 } satisfies Record<ActiveParentToWhiteboardType, true>;
+
+function isPdfSelectionEditingTarget(value: unknown): boolean {
+  return (
+    isPlainRecord(value) &&
+    hasExactKeys(value, ["nodeId", "revision", "value", "from", "to"]) &&
+    isNonEmptyString(value.nodeId) &&
+    typeof value.value === "string" &&
+    Number.isSafeInteger(value.revision) &&
+    (value.revision as number) >= 0 &&
+    Number.isSafeInteger(value.from) &&
+    Number.isSafeInteger(value.to) &&
+    (value.from as number) >= 0 &&
+    (value.to as number) >= (value.from as number) &&
+    (value.to as number) <= value.value.length
+  );
+}
 
 export function isWhiteboardProtocolMessage(
   data: unknown,
@@ -2015,6 +2051,24 @@ function validateParentToWhiteboardMessageForChannel(
         isFiniteNumber(payload.position.x) &&
         isFiniteNumber(payload.position.y) &&
         isArrayOf(payload.sources, isAcademicDropSource)
+      );
+    case "pdfSelectionTransferred":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(
+          payload,
+          ["markdown", "position", "interaction"],
+          ["editing"],
+        ) &&
+        isNonEmptyString(payload.markdown) &&
+        (payload.interaction === "paste" || payload.interaction === "drop") &&
+        isPlainRecord(payload.position) &&
+        hasExactKeys(payload.position, ["x", "y"]) &&
+        isFiniteNumber(payload.position.x) &&
+        isFiniteNumber(payload.position.y) &&
+        (!hasOwn(payload, "editing") ||
+          isPdfSelectionEditingTarget(payload.editing))
       );
     case "academicDropRejected":
       return (

@@ -81,6 +81,7 @@ import {
 import { hasDefaultTutorialViewport } from "../model/tutorial";
 import {
   demoCanvasDocument,
+  emptyCanvasDocument,
   parseCanvasDocument,
   type CanvasDocument,
 } from "../model/document";
@@ -108,6 +109,7 @@ import type {
   CanvasFailureCode,
   CanvasNotice,
   IndexedAcademicAcquisition,
+  PdfSelectionTransferPayload,
   SourceResolutionPriority,
   SourceResolutionResult,
   WhiteboardAppearance,
@@ -641,6 +643,7 @@ export interface WhiteboardRuntime {
     sources: AcademicDropSourceRef[],
     interaction?: "paste",
   ) => void;
+  insertPdfSelection: (payload: PdfSelectionTransferPayload) => void;
   rejectAcademicDrop: (code: AcademicDropFailureCode) => void;
   resolveAcademicAcquisitionBatch: (
     requestId: string,
@@ -4059,6 +4062,71 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           sources,
         );
       },
+      insertPdfSelection(payload) {
+        if (!mountedRef.current || !editableRef.current) return;
+        if (payload.editing) {
+          const target = payload.editing;
+          const current = editingRef.current;
+          const textarea = editingTextareaRef.current;
+          const node = nodesRef.current.find(
+            (node) => node.id === target.nodeId,
+          );
+          if (
+            current?.nodeId !== target.nodeId ||
+            current.value !== target.value ||
+            editingRevisionRef.current !== target.revision ||
+            node?.data.model.kind !== "note" ||
+            !textarea ||
+            textarea.selectionStart !== target.from ||
+            textarea.selectionEnd !== target.to ||
+            document.querySelector('[role="dialog"][aria-modal="true"]')
+          )
+            return;
+          const before = current.value.slice(0, target.from);
+          const after = current.value.slice(target.to);
+          const leadingBreak = before && !before.endsWith("\n\n") ? "\n\n" : "";
+          const trailingBreak =
+            after && !after.startsWith("\n\n") ? "\n\n" : "";
+          const inserted = `${leadingBreak}${payload.markdown}${trailingBreak}`;
+          updateEditingDraft(target.nodeId, `${before}${inserted}${after}`);
+          const revision = editingRevisionRef.current;
+          window.requestAnimationFrame(() => {
+            if (
+              editingRef.current?.nodeId !== target.nodeId ||
+              editingRevisionRef.current !== revision ||
+              editingTextareaRef.current !== textarea
+            )
+              return;
+            const caret = target.from + inserted.length;
+            textarea.setSelectionRange(caret, caret);
+          });
+          return;
+        }
+        if (
+          nativePasteBlockedRef.current ||
+          isEditableTarget(document.activeElement) ||
+          document.querySelector('[role="dialog"][aria-modal="true"]')
+        )
+          return;
+        const position =
+          flowRef.current?.screenToFlowPosition(payload.position) ??
+          payload.position;
+        const note = createAcademicNode("note", position, newId("note"), {
+          content: payload.markdown,
+          noteType: "evidence",
+        });
+        const node = canvasDocumentToFlow({
+          ...emptyCanvasDocument(),
+          nodes: [note],
+        }).nodes[0]!;
+        pushHistory();
+        setActiveTool("select");
+        setNodes((current) => [
+          ...current.map((node) => ({ ...node, selected: false })),
+          { ...node, selected: true },
+        ]);
+        bump();
+      },
       rejectAcademicDrop(code) {
         showCanvasNotice({ code });
       },
@@ -4218,6 +4286,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     snapshotWithDraft,
     showCanvasNotice,
     undoCanvas,
+    bump,
+    nodesRef,
+    pushHistory,
+    setNodes,
+    updateEditingDraft,
   ]);
 
   useEffect(() => {
@@ -4969,6 +5042,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           deleteKeyCode={null}
           panActivationKeyCode={null}
           onKeyDownCapture={(event) => {
+            if (
+              (event.target as Element).closest?.(
+                "[data-zmd-note-source-trigger], .zmd-board-note-source-menu",
+              )
+            )
+              return;
             if (formatPainting) {
               const nodeId = (event.target as Element)
                 .closest(".react-flow__node")
@@ -5057,6 +5136,16 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onNodeClick={(event, node) => {
             if (editingRef.current && editingRef.current.nodeId !== node.id)
               commitEdit();
+            const sourceButton = (event.target as Element).closest?.(
+              "[data-zmd-note-source]",
+            );
+            if (sourceButton && node.data.model.kind === "note") {
+              event.preventDefault();
+              event.stopPropagation();
+              const href = sourceButton.getAttribute("data-zmd-note-source");
+              if (href) propsRef.current.onOpenLink?.(href);
+              return;
+            }
             const referenceButton = (event.target as Element).closest?.(
               "[data-zmd-note-reference]",
             );
@@ -5140,7 +5229,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onNodeDoubleClick={(event, node) => {
             if (
               (event.target as Element).closest?.(
-                "a[href], [data-zmd-wikilink]",
+                "a[href], [data-zmd-wikilink], [data-zmd-note-source], [data-zmd-note-source-trigger]",
               )
             )
               return;
@@ -5337,6 +5426,10 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
                         : undefined
                     }
                     className="zmd-board-in-shape-edit"
+                    data-pdf-selection-note={
+                      editingNode.type === "note" ? editing.nodeId : undefined
+                    }
+                    data-pdf-selection-revision={editingRevisionRef.current}
                     readOnly={!editable}
                     value={editing.value}
                     style={{

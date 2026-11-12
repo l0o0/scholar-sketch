@@ -1,6 +1,8 @@
 import { currentMarkdownStyle } from "./style-preferences";
 import { applyPreviewStyle } from "./preview";
 import { attachMarkdownIframeDrop } from "./iframe-drop";
+import { attachMarkdownPdfSelectionTransfer } from "./pdf-selection-transfer";
+import { pdfSelectionTransferMarkdown } from "../pdf-selection";
 import {
   DEFAULT_TABLE_LABELS,
   type EditorTableLabels,
@@ -286,6 +288,7 @@ export function createMarkdownEditor(
   parent.appendChild(wrap);
 
   let destroyed = false;
+  let detachPdfSelectionTransfer = () => {};
   const detachNativeDrop = attachMarkdownIframeDrop(
     wrap,
     iframe,
@@ -498,6 +501,21 @@ export function createMarkdownEditor(
         break;
       }
       case "ready": {
+        detachPdfSelectionTransfer();
+        detachPdfSelectionTransfer = attachMarkdownPdfSelectionTransfer(
+          iframe.contentDocument!,
+          pdfSelectionTransferMarkdown,
+          () => !destroyed && !currentReadOnly && !composing,
+          (error) => {
+            ztoolkit.log("Markdown PDF selection transfer failed", error);
+            new ztoolkit.ProgressWindow(addon.data.config.addonName)
+              .createLine({
+                text: getString("pdf-selection-failed"),
+                type: "fail",
+              })
+              .show();
+          },
+        );
         lastRevision = 0;
         ztoolkit.log("[Bamboo][EditorDebug] iframe-ready", { channel });
         iframeReady = true;
@@ -1050,6 +1068,7 @@ export function createMarkdownEditor(
       cancelImageImport();
       composing = false;
       detachNativeDrop();
+      detachPdfSelectionTransfer();
       preferenceRefreshers.delete(applyPreferences);
       if (readyTimer != null) {
         ownerWin?.clearTimeout?.(readyTimer);

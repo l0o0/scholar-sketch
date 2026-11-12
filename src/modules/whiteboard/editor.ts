@@ -22,6 +22,7 @@ import {
   type AnnotationCandidate,
   type AnnotationListFailure,
   type ParentToWhiteboardMessage,
+  type PdfSelectionEditingTarget,
   type IndexedAcademicAcquisition,
   type SourceResolutionPriority,
   type SourceResolutionResult,
@@ -103,7 +104,8 @@ export type NativeAcademicDropResolution =
       code: AcademicDropFailureCode;
       diagnostic?: string;
     }
-  | { status: "accepted"; sources: AcademicDropSourceRef[] };
+  | { status: "accepted"; sources: AcademicDropSourceRef[] }
+  | { status: "text"; markdown: string };
 
 type AcademicDropEventTarget = {
   addEventListener(
@@ -118,18 +120,69 @@ type AcademicDropEventTarget = {
   ): void;
 };
 
+function pdfSelectionEditingTarget(
+  target: EventTarget | null,
+  dropPoint?: { x: number; y: number },
+): PdfSelectionEditingTarget | undefined {
+  const input = (target as Element | null)?.closest?.<HTMLTextAreaElement>(
+    "textarea[data-pdf-selection-note]",
+  );
+  if (!input || input.readOnly) return;
+  const nodeId = input.dataset.pdfSelectionNote;
+  const revision = Number(input.dataset.pdfSelectionRevision);
+  if (!nodeId || !Number.isSafeInteger(revision) || revision < 0) return;
+  if (dropPoint) {
+    const caret = input.ownerDocument.caretPositionFromPoint?.(
+      dropPoint.x,
+      dropPoint.y,
+    );
+    if (
+      !caret ||
+      caret.offsetNode !== input ||
+      !Number.isSafeInteger(caret.offset) ||
+      caret.offset < 0 ||
+      caret.offset > input.value.length
+    )
+      return;
+    // Gecko maps a textarea's anonymous editor back to the textarea itself.
+    // Collapse here because preventing the drop suppresses its native caret move.
+    input.setSelectionRange(caret.offset, caret.offset);
+  }
+  return {
+    nodeId,
+    revision,
+    value: input.value,
+    from: input.selectionStart,
+    to: input.selectionEnd,
+  };
+}
+
+function isTextInput(target: EventTarget | null): boolean {
+  return Boolean(
+    (target as Element | null)?.closest?.(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
+    ),
+  );
+}
+
 export type NativeAcademicDropEvent =
   | { code: AcademicDropFailureCode; diagnostic?: string }
   | {
       position: { x: number; y: number };
       sources: AcademicDropSourceRef[];
       interaction?: "paste";
+    }
+  | {
+      markdown: string;
+      position: { x: number; y: number };
+      interaction?: "paste";
+      editing?: PdfSelectionEditingTarget;
     };
 
 export function attachNativeAcademicDropListeners(
   target: AcademicDropEventTarget,
   resolve: (dataTransfer: DataTransfer) => NativeAcademicDropResolution,
-  emit: (drop: NativeAcademicDropEvent) => void,
+  emit: (drop: NativeAcademicDropEvent, event: DragEvent) => void,
 ): () => void {
   const onDragOver = (event: DragEvent) => {
     const types = Array.from(event.dataTransfer?.types ?? []);
@@ -140,6 +193,7 @@ export function attachNativeAcademicDropListeners(
           "zotero/annotation",
           "zotero/item",
           "zotero/search",
+          "text/html",
         ].includes(type),
       )
     ) {
@@ -158,23 +212,40 @@ export function attachNativeAcademicDropListeners(
     } catch (error) {
       event.preventDefault();
       event.stopPropagation();
-      emit({
-        code: "drop-malformed",
-        diagnostic: error instanceof Error ? error.message : String(error),
-      });
+      emit(
+        {
+          code: "drop-malformed",
+          diagnostic: error instanceof Error ? error.message : String(error),
+        },
+        event,
+      );
       return;
     }
     if (resolved.status === "ignored") return;
+    const editing =
+      resolved.status === "text"
+        ? pdfSelectionEditingTarget(event.target, {
+            x: event.clientX,
+            y: event.clientY,
+          })
+        : undefined;
+    if (resolved.status === "text" && isTextInput(event.target) && !editing)
+      return;
     event.preventDefault();
     event.stopPropagation();
     if (resolved.status === "rejected") {
-      emit({ code: resolved.code, diagnostic: resolved.diagnostic });
+      emit({ code: resolved.code, diagnostic: resolved.diagnostic }, event);
       return;
     }
-    emit({
-      position: { x: event.clientX, y: event.clientY },
-      sources: resolved.sources,
-    });
+    emit(
+      {
+        position: { x: event.clientX, y: event.clientY },
+        ...(resolved.status === "text"
+          ? { markdown: resolved.markdown, ...(editing ? { editing } : {}) }
+          : { sources: resolved.sources }),
+      },
+      event,
+    );
   };
   target.addEventListener("dragenter", onDragOver, true);
   target.addEventListener("dragover", onDragOver, true);
@@ -198,12 +269,23 @@ function attachNativeAnnotationPasteListener(
       ) || target.querySelector('[role="dialog"][aria-modal="true"]'),
     );
   const onPaste = (event: ClipboardEvent) => {
-    if (isPasteBlocked(event.target as Element | null)) return;
+    const editing = pdfSelectionEditingTarget(event.target);
+    if (
+      target.querySelector('[role="dialog"][aria-modal="true"]') ||
+      (isPasteBlocked(event.target as Element | null) && !editing)
+    )
+      return;
     const transfer = event.clipboardData;
-    if (!transfer || !Array.from(transfer.types).includes("zotero/annotation"))
+    if (
+      !transfer ||
+      !Array.from(transfer.types).some(
+        (type) => type === "zotero/annotation" || type === "text/html",
+      )
+    )
       return;
     const result = resolve(transfer);
-    if (result.status === "ignored") return;
+    if (result.status === "ignored" || (editing && result.status !== "text"))
+      return;
     event.preventDefault();
     event.stopPropagation();
     if (result.status === "rejected") {
@@ -212,7 +294,9 @@ function attachNativeAnnotationPasteListener(
     }
     const viewport = target.documentElement.getBoundingClientRect();
     emit({
-      sources: result.sources,
+      ...(result.status === "text"
+        ? { markdown: result.markdown, ...(editing ? { editing } : {}) }
+        : { sources: result.sources }),
       position: { x: viewport.width / 2, y: viewport.height / 2 },
       interaction: "paste",
     });
@@ -268,6 +352,7 @@ type PendingCommand = Extract<
       | "academicSourcesAcquired"
       | "academicDropStarted"
       | "academicDropRejected"
+      | "pdfSelectionTransferred"
       | "sourceResolutionBatch"
       | "noteRefreshed"
       | "annotationsListed"
@@ -317,6 +402,10 @@ export function createWhiteboardEditor(
     resolveNativeAcademicDrop?: (
       dataTransfer: DataTransfer,
     ) => NativeAcademicDropResolution;
+    resolvePdfSelectionTransfer?: (
+      transfer: Pick<DataTransfer, "types" | "getData">,
+      document: Document,
+    ) => string | null;
     onNativeAcademicDropRejected?: (
       requestId: string,
       code: AcademicDropFailureCode,
@@ -603,6 +692,19 @@ export function createWhiteboardEditor(
       });
       return;
     }
+    if ("markdown" in drop) {
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "pdfSelectionTransferred",
+        payload: {
+          markdown: drop.markdown,
+          position: drop.position,
+          interaction: drop.interaction ?? "drop",
+          ...(drop.editing ? { editing: drop.editing } : {}),
+        },
+      });
+      return;
+    }
     sendOrQueue({
       source: WHITEBOARD_MESSAGE_SOURCE,
       type: "academicDropStarted",
@@ -615,28 +717,62 @@ export function createWhiteboardEditor(
       },
     });
   };
+  const resolveNativeTransfer = (
+    transfer: DataTransfer,
+  ): NativeAcademicDropResolution => {
+    const document = iframe.contentDocument;
+    try {
+      if (document && pdfSelectionEditingTarget(document.activeElement)) {
+        const markdown = options.resolvePdfSelectionTransfer?.(
+          transfer,
+          document,
+        );
+        if (markdown) return { status: "text", markdown };
+      }
+      const academic = options.resolveNativeAcademicDrop?.(transfer) ?? {
+        status: "ignored" as const,
+      };
+      if (academic.status !== "ignored") return academic;
+      const markdown =
+        document && options.resolvePdfSelectionTransfer?.(transfer, document);
+      return markdown ? { status: "text", markdown } : academic;
+    } catch (error) {
+      return {
+        status: "rejected",
+        code: "drop-malformed",
+        diagnostic: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
   // Native cross-window drags may target the iframe element in the outer
   // document. Those events do not reach the iframe's document listener.
-  const detachOuterDropListeners = options.resolveNativeAcademicDrop
-    ? attachNativeAcademicDropListeners(
-        wrap,
-        options.resolveNativeAcademicDrop,
-        (drop) => {
-          if ("code" in drop) {
-            emitNativeDrop(drop);
-            return;
-          }
-          const rect = iframe.getBoundingClientRect();
-          emitNativeDrop({
-            ...drop,
-            position: {
-              x: drop.position.x - rect.left,
-              y: drop.position.y - rect.top,
-            },
-          });
-        },
-      )
-    : () => undefined;
+  const detachOuterDropListeners =
+    options.resolveNativeAcademicDrop || options.resolvePdfSelectionTransfer
+      ? attachNativeAcademicDropListeners(
+          wrap,
+          resolveNativeTransfer,
+          (drop, event) => {
+            // Gecko can deliver an inner-document drop to this chrome ancestor.
+            // Its client coordinates already belong to the iframe.
+            if (
+              "code" in drop ||
+              (event.target as Node | null)?.ownerDocument ===
+                iframe.contentDocument
+            ) {
+              emitNativeDrop(drop);
+              return;
+            }
+            const rect = iframe.getBoundingClientRect();
+            emitNativeDrop({
+              ...drop,
+              position: {
+                x: drop.position.x - rect.left,
+                y: drop.position.y - rect.top,
+              },
+            });
+          },
+        )
+      : () => undefined;
   let detachDropListeners: () => void = () => undefined;
   let detachPasteListener: () => void = () => undefined;
   const attachDropListeners = () => {
@@ -645,18 +781,19 @@ export function createWhiteboardEditor(
     const target = iframe.contentDocument;
     if (
       !target ||
-      !options.resolveNativeAcademicDrop ||
+      (!options.resolveNativeAcademicDrop &&
+        !options.resolvePdfSelectionTransfer) ||
       options.editable === false
     )
       return;
     detachDropListeners = attachNativeAcademicDropListeners(
       target,
-      options.resolveNativeAcademicDrop,
+      resolveNativeTransfer,
       emitNativeDrop,
     );
     detachPasteListener = attachNativeAnnotationPasteListener(
       target,
-      options.resolveNativeAcademicDrop,
+      resolveNativeTransfer,
       emitNativeDrop,
     );
   };

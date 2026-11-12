@@ -338,6 +338,8 @@ export type FluentMessageId =
   | 'paper-style-default'
   | 'paper-style-missing'
   | 'paper-template'
+  | 'pdf-selection-failed'
+  | 'pdf-selection-source'
   | 'pref-feature-updates'
   | 'pref-guide-description'
   | 'pref-guide-title'
