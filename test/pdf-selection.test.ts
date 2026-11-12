@@ -9,6 +9,7 @@ import {
 } from "../src/modules/markdown/document-link-shared.ts";
 import { openDocumentLink } from "../src/modules/markdown/document-links.ts";
 import { renderMarkdownCore } from "../src/modules/markdown/preview-render-core.ts";
+import { mountRenderedMarkdown } from "../src/modules/markdown/preview-dom.ts";
 
 const position = {
   pageIndex: 2,
@@ -142,6 +143,12 @@ test("a Reader text selection retains its exact rectangles in rendered Markdown 
   assert.match(html, /A \*literal\* passage\./);
   assert.equal(html.includes("<em>literal</em>"), false);
   assert.match(html, /Research \[paper\], p\. 153/);
+  const container = document.createElement("div");
+  mountRenderedMarkdown(container, html);
+  assert.equal(container.querySelector("a")?.getAttribute("href"), href);
+  mountRenderedMarkdown(container, "<p>Replaced content</p>");
+  assert.equal(container.querySelector("a"), null);
+  assert.equal(container.textContent, "Replaced content");
   assert.deepEqual(await openDocumentLink(href), { status: "dispatched" });
   assert.deepEqual(opens, [[42, { pageIndex: 2, position }]]);
 });

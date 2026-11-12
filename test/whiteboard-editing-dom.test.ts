@@ -446,6 +446,141 @@ test("editing persists drafts atomically and keeps undo boundaries coherent", as
       2,
       "readonly canvas cannot create a selection note",
     );
+    const sourceButton = container.querySelector<HTMLButtonElement>(
+      `[data-id="${transferredId}"] [data-zmd-note-source-trigger]`,
+    );
+    assert.ok(sourceButton);
+    assert.equal(sourceButton.getAttribute("aria-label"), "Open source");
+    const readonlyContent = api
+      .getSnapshot()
+      .nodes.map((node) => ({ id: node.id, content: node.content }));
+    await act(async () => sourceButton.click());
+    assert.deepEqual(
+      openedLinks,
+      [sourceHref, sourceHref],
+      "the compact source action navigates in readonly mode",
+    );
+    await act(async () =>
+      sourceButton.dispatchEvent(
+        new window.MouseEvent("dblclick", { bubbles: true, detail: 2 }),
+      ),
+    );
+    assert.equal(
+      container.querySelector("textarea"),
+      null,
+      "source action double-click never edits the note",
+    );
+    assert.deepEqual(
+      api
+        .getSnapshot()
+        .nodes.map((node) => ({ id: node.id, content: node.content })),
+      readonlyContent,
+    );
+    const secondHref = sourceHref.replace("PDF12345", "PDF67890");
+    await act(async () =>
+      api.loadSnapshot({
+        ...api.getSnapshot(),
+        nodes: [
+          {
+            ...selectionNote,
+            id: "multiple-sources",
+            content: `[First passage](${sourceHref})\n\n[Duplicate](${sourceHref})\n\n[Second passage](${secondHref})\n\n[Website](https://example.test)\n\n\`\`\`md\n[Example](zotero://open-pdf/library/items/PDF00000?page=1)\n\`\`\``,
+          },
+        ],
+      }),
+    );
+    const multipleTrigger = container.querySelector<HTMLButtonElement>(
+      "[data-zmd-note-source-trigger]",
+    )!;
+    assert.equal(multipleTrigger.getAttribute("aria-haspopup"), "menu");
+    await act(async () =>
+      multipleTrigger.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    const sourceMenu = container.querySelector<HTMLElement>(
+      '.zmd-board-note-source-menu[role="menu"]',
+    );
+    assert.ok(sourceMenu);
+    const sourceOptions = [
+      ...sourceMenu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ];
+    assert.deepEqual(
+      sourceOptions.map((button) => button.textContent),
+      ["First passage", "Second passage"],
+      "sources are captioned, deduplicated, and exclude fenced examples",
+    );
+    assert.equal(window.document.activeElement, sourceOptions[0]);
+    await act(async () =>
+      sourceOptions[0]!.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(window.document.activeElement, sourceOptions[1]);
+    await act(async () => sourceOptions[1]!.click());
+    assert.equal(openedLinks.at(-1), secondHref);
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    await act(async () => multipleTrigger.click());
+    assert.ok(container.querySelector(".zmd-board-note-source-menu"));
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    assert.equal(window.document.activeElement, multipleTrigger);
+    await act(async () => multipleTrigger.click());
+    await act(async () =>
+      window.document.body.dispatchEvent(
+        new window.PointerEvent("pointerdown", { bubbles: true }),
+      ),
+    );
+    assert.equal(container.querySelector(".zmd-board-note-source-menu"), null);
+    await act(async () => multipleTrigger.click());
+    await act(async () =>
+      api.loadSnapshot({ ...api.getSnapshot(), nodes: [] }),
+    );
+    assert.equal(
+      container.querySelector(".zmd-board-note-source-menu"),
+      null,
+      "replacing the document releases the source menu",
+    );
+    const markdownContent = "**plain research**\nsecond line";
+    await act(async () =>
+      api.loadSnapshot({
+        ...api.getSnapshot(),
+        nodes: [
+          { ...selectionNote, id: "markdown-note", content: markdownContent },
+        ],
+      }),
+    );
+    const mountedMarkdown = container.querySelector<HTMLElement>(
+      '[data-id="markdown-note"] .zmd-board-card-markdown',
+    );
+    assert.ok(mountedMarkdown);
+    assert.equal(
+      mountedMarkdown.querySelector("strong")?.textContent,
+      "plain research",
+    );
+    assert.ok(mountedMarkdown.textContent.includes("second line"));
+    assert.ok(mountedMarkdown.querySelector("br"));
+    assert.equal(
+      api.getSnapshot().nodes[0]?.content,
+      markdownContent,
+      "mounting the rendered Markdown preserves canonical source text",
+    );
   } finally {
     await act(async () => root.unmount());
     await server.close();

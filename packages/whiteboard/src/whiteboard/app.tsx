@@ -5042,6 +5042,12 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           deleteKeyCode={null}
           panActivationKeyCode={null}
           onKeyDownCapture={(event) => {
+            if (
+              (event.target as Element).closest?.(
+                "[data-zmd-note-source-trigger], .zmd-board-note-source-menu",
+              )
+            )
+              return;
             if (formatPainting) {
               const nodeId = (event.target as Element)
                 .closest(".react-flow__node")
@@ -5130,6 +5136,16 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onNodeClick={(event, node) => {
             if (editingRef.current && editingRef.current.nodeId !== node.id)
               commitEdit();
+            const sourceButton = (event.target as Element).closest?.(
+              "[data-zmd-note-source]",
+            );
+            if (sourceButton && node.data.model.kind === "note") {
+              event.preventDefault();
+              event.stopPropagation();
+              const href = sourceButton.getAttribute("data-zmd-note-source");
+              if (href) propsRef.current.onOpenLink?.(href);
+              return;
+            }
             const referenceButton = (event.target as Element).closest?.(
               "[data-zmd-note-reference]",
             );
@@ -5213,7 +5229,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           onNodeDoubleClick={(event, node) => {
             if (
               (event.target as Element).closest?.(
-                "a[href], [data-zmd-wikilink]",
+                "a[href], [data-zmd-wikilink], [data-zmd-note-source], [data-zmd-note-source-trigger]",
               )
             )
               return;

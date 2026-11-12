@@ -277,7 +277,7 @@ Select text in Zotero's PDF reader and paste it into Markdown, or drag it to the
 
 Click the source link in reading preview to return to the original passage. In Live Preview and Source mode, use `Ctrl/Cmd + click`.
 
-Pasting or dragging onto an empty whiteboard creates a Note card with the excerpt and source link. When editing an existing Note card, the quotation is inserted into its content. Click its source link to return to the PDF. The import can be undone in one step.
+Pasting or dragging onto an empty whiteboard creates a Note card with the excerpt and source link. When editing an existing Note card, the quotation is inserted into its content. Hover over the card or focus it with the keyboard to reveal the **Open source** icon at the top right. Click it to return to the PDF, or choose a destination when the card has several sources. Source links in the body also open directly. The import can be undone in one step.
 
 ## Create notes from PDF annotations
 

@@ -1,9 +1,16 @@
 import { AnnotationTypeIcon } from "../chrome/AnnotationTypeIcon";
-import { IconZotero } from "../whiteboard/icons";
+import { IconOpen, IconZotero } from "../whiteboard/icons";
 import { IconFile } from "../whiteboard/icons";
 import { IconGroup } from "../whiteboard/icons";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { renderMarkdownCore } from "../../../../src/modules/markdown/preview-render-core";
+import { mountRenderedMarkdown } from "../../../../src/modules/markdown/preview-dom";
+import {
+  extractNoteLinks,
+  noteLinkLabel,
+} from "../../../../src/modules/markdown/note-links";
+import { isPdfDocumentLink } from "../../../../src/modules/markdown/document-link-shared";
 import type { NodeProps } from "@xyflow/react";
 import { getNoteType, getNoteTitle } from "../model/academic";
 import {
@@ -141,6 +148,169 @@ export function QuoteNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   );
 }
 
+interface NotePdfSource {
+  href: string;
+  caption: string;
+}
+
+function NoteSourceAction({ sources }: { sources: NotePdfSource[] }) {
+  const labels = useWhiteboardLabels();
+  const action = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<{
+    host: HTMLElement;
+    left: number;
+    top: number;
+    width: number;
+    maxHeight: number;
+    above: boolean;
+  } | null>(null);
+  const multiple = sources.length > 1;
+  const openMenu = (button: HTMLButtonElement) => {
+    const host = button.closest<HTMLElement>(".zmd-board-host");
+    if (!host) return;
+    const bounds = host.getBoundingClientRect();
+    const anchor = button.getBoundingClientRect();
+    const width = Math.min(320, bounds.width - 16);
+    const below = bounds.bottom - anchor.bottom - 8;
+    const above =
+      below < Math.min(sources.length * 34 + 8, 240) &&
+      anchor.top - bounds.top > below;
+    setMenu({
+      host,
+      width,
+      left: Math.max(
+        8,
+        Math.min(anchor.right - bounds.left - width, bounds.width - width - 8),
+      ),
+      top: above ? anchor.top - bounds.top - 4 : anchor.bottom - bounds.top + 4,
+      maxHeight: Math.max(0, above ? anchor.top - bounds.top - 8 : below),
+      above,
+    });
+  };
+  useEffect(() => {
+    if (!menu) return;
+    panel.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const outside = (event: PointerEvent) => {
+      if (
+        !action.current?.contains(event.target as Node) &&
+        !panel.current?.contains(event.target as Node)
+      )
+        setMenu(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setMenu(null);
+      trigger.current?.focus();
+    };
+    window.addEventListener("pointerdown", outside, true);
+    window.addEventListener("keydown", escape, true);
+    return () => {
+      window.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener("keydown", escape, true);
+    };
+  }, [menu]);
+  return (
+    <span
+      ref={action}
+      className={`zmd-board-note-source-actions${menu ? " is-open" : ""}`}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <button
+        ref={trigger}
+        type="button"
+        className="zmd-board-note-source-button nodrag nopan"
+        title={labels.openSource}
+        aria-label={labels.openSource}
+        aria-haspopup={multiple ? "menu" : undefined}
+        aria-expanded={multiple ? Boolean(menu) : undefined}
+        data-zmd-note-source-trigger=""
+        data-zmd-note-source={multiple ? undefined : sources[0]?.href}
+        onClick={
+          multiple
+            ? (event) => {
+                event.stopPropagation();
+                if (menu) setMenu(null);
+                else openMenu(event.currentTarget);
+              }
+            : undefined
+        }
+        onKeyDown={(event) => {
+          if (!multiple || !["ArrowDown", "ArrowUp"].includes(event.key))
+            return;
+          event.preventDefault();
+          event.stopPropagation();
+          openMenu(event.currentTarget);
+        }}
+      >
+        <IconOpen />
+      </button>
+      {menu
+        ? createPortal(
+            <div
+              ref={panel}
+              role="menu"
+              aria-label={labels.openSource}
+              className="zmd-board-context-menu zmd-board-note-source-menu nodrag nopan nowheel"
+              style={{
+                left: menu.left,
+                top: menu.top,
+                width: menu.width,
+                maxHeight: menu.maxHeight,
+                transform: menu.above ? "translateY(-100%)" : undefined,
+              }}
+              onKeyDown={(event) => {
+                if (
+                  !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
+                )
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                const buttons = [
+                  ...(panel.current?.querySelectorAll<HTMLButtonElement>(
+                    "button",
+                  ) ?? []),
+                ];
+                const current = buttons.indexOf(
+                  document.activeElement as HTMLButtonElement,
+                );
+                const next =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? buttons.length - 1
+                      : (current +
+                          (event.key === "ArrowUp" ? -1 : 1) +
+                          buttons.length) %
+                        buttons.length;
+                buttons[next]?.focus();
+              }}
+            >
+              {sources.map((source) => (
+                <button
+                  key={source.href}
+                  type="button"
+                  role="menuitem"
+                  className="nodrag nopan"
+                  data-zmd-note-source={source.href}
+                  title={source.caption}
+                  onClick={() => setMenu(null)}
+                >
+                  <IconOpen />
+                  <span>{source.caption}</span>
+                </button>
+              ))}
+            </div>,
+            menu.host,
+          )
+        : null}
+    </span>
+  );
+}
+
 function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
   const labels = useWhiteboardLabels();
   const model = data.model;
@@ -149,6 +319,29 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
     () => renderMarkdownCore(content, `card-${model.id}`),
     [content, model.id],
   );
+  const mountMarkdown = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element) return;
+      mountRenderedMarkdown(element, html);
+      element
+        .querySelectorAll("a[href], [data-zmd-wikilink]")
+        .forEach((link) => {
+          link.classList.add("nodrag");
+        });
+    },
+    [html],
+  );
+  const sources = useMemo(() => {
+    const unique = new Map<string, NotePdfSource>();
+    for (const link of extractNoteLinks(content)) {
+      if (!isPdfDocumentLink(link.href) || unique.has(link.href)) continue;
+      unique.set(link.href, {
+        href: link.href,
+        caption: noteLinkLabel(link) || labels.openSource,
+      });
+    }
+    return [...unique.values()];
+  }, [content, labels.openSource]);
   if (model.kind !== "note") return null;
   return (
     <CardShell
@@ -156,6 +349,9 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       noteType={getNoteType(model)}
       kindLabel={noteTypeLabel(labels, getNoteType(model))}
       badge={getNoteTitle(model)}
+      actions={
+        sources.length ? <NoteSourceAction sources={sources} /> : undefined
+      }
       selected={selected}
       nodeStyle={model.style}
       footer={
@@ -240,13 +436,7 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
       ) : (
         <div
           className="zmd-board-card-content zmd-board-card-markdown nowheel"
-          ref={(element) => {
-            element
-              ?.querySelectorAll("a[href], [data-zmd-wikilink]")
-              .forEach((link) => {
-                link.classList.add("nodrag");
-              });
-          }}
+          ref={mountMarkdown}
           style={nodeTextStyle(model.style ?? {})}
           onKeyDown={(event) => {
             if (
@@ -258,7 +448,6 @@ function AcademicTextNode({ data, selected }: NodeProps<CanvasFlowNode>) {
               (event.target as HTMLElement).click();
             }
           }}
-          dangerouslySetInnerHTML={{ __html: html }}
         />
       )}
     </CardShell>
