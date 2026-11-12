@@ -5,6 +5,10 @@ export function attachMarkdownIframeDrop(
   editable: () => boolean,
 ): () => void {
   const forward = (event: DragEvent) => {
+    // Gecko chrome capture can also receive the iframe document's own events.
+    // Those already use frame coordinates and belong to its native handlers.
+    if ((event.target as Node | null)?.ownerDocument !== wrapper.ownerDocument)
+      return;
     if (!editable() || !event.dataTransfer) return;
     const types = Array.from(event.dataTransfer.types);
     if (

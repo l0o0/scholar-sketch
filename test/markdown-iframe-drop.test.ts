@@ -85,3 +85,96 @@ test("Markdown forwards outer-window text and image drops once, with frame-relat
   assert.equal(drops.length, 3);
   win.close();
 });
+
+test("Markdown lets native iframe drops reach their document and forwards chrome drops once", () => {
+  const win = new Window();
+  class DragEvent extends win.MouseEvent {
+    dataTransfer: DataTransfer | null;
+    constructor(type: string, init: DragEventInit = {}) {
+      super(type, init);
+      this.dataTransfer = init.dataTransfer ?? null;
+      // Gecko chrome dispatch can retain trust when forwarding across frames.
+      Object.defineProperty(this, "isTrusted", { value: true });
+    }
+  }
+  win.DragEvent = DragEvent as never;
+  const wrapper = win.document.createElement("div");
+  const iframe = win.document.createElement("iframe");
+  wrapper.append(iframe);
+  win.document.body.append(wrapper);
+  (iframe.contentWindow! as any).DragEvent = DragEvent;
+  const doc = iframe.contentDocument!;
+  const content = doc.createElement("div");
+  content.className = "cm-content";
+  doc.body.append(content);
+  iframe.getBoundingClientRect = () => ({ left: 20, top: 40 }) as DOMRect;
+
+  const ancestorCapture = new Map<string, (event: Event) => void>();
+  const add = wrapper.addEventListener.bind(wrapper);
+  wrapper.addEventListener = ((type, listener, options) => {
+    ancestorCapture.set(type, listener as (event: Event) => void);
+    add(type, listener, options);
+  }) as typeof wrapper.addEventListener;
+  const detach = attachMarkdownIframeDrop(
+    wrapper as never,
+    iframe as never,
+    () => true,
+  );
+  wrapper.addEventListener = add;
+  let propagated = 0;
+  const propagateToChromeAncestor = (event: Event) => {
+    // Happy DOM stops at iframe documents. Model Gecko's chrome ancestor
+    // capture with the original event target/document, bounding a regression's
+    // recursion so the assertion can report the duplicate deliveries.
+    if (++propagated <= 8) ancestorCapture.get(event.type)?.(event);
+  };
+  doc.addEventListener("drop", propagateToChromeAncestor, true);
+  const drops: DragEvent[] = [];
+  content.addEventListener("drop", (event) => {
+    drops.push(event as DragEvent);
+    event.preventDefault();
+  });
+  const transfer = new win.DataTransfer();
+  transfer.setData("text/plain", "PDF selection");
+  transfer.setData("zotero/annotation", '[{"attachmentItemID":10}]');
+  try {
+    content.dispatchEvent(
+      new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: transfer as never,
+        clientX: 77,
+        clientY: 90,
+      }),
+    );
+    assert.deepEqual(
+      drops.map((event) => [event.clientX, event.clientY]),
+      [[77, 90]],
+      "a native iframe drop keeps its original local coordinates",
+    );
+    drops.length = 0;
+    propagated = 0;
+    iframe.dispatchEvent(
+      new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: transfer as never,
+        clientX: 120,
+        clientY: 240,
+      }),
+    );
+    assert.deepEqual(
+      drops.map((event) => [event.clientX, event.clientY]),
+      [[100, 200]],
+      "a chrome-document drop is translated into iframe coordinates once",
+    );
+    assert.equal(
+      drops[0].dataTransfer?.getData("zotero/annotation"),
+      transfer.getData("zotero/annotation"),
+    );
+  } finally {
+    detach();
+    doc.removeEventListener("drop", propagateToChromeAncestor, true);
+    win.close();
+  }
+});
