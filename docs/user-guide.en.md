@@ -282,7 +282,7 @@ Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When 
 ## Insert PDF annotations into the current note
 
 1. Place the cursor at the insertion point in the Markdown editor, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**.
-2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. A paper's annotations are grouped by PDF attachment.
+2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. Click a result below the search field to change the source; typing alone keeps the current source and selections. The current source appears beside **Refresh source**. A paper's annotations are grouped by PDF attachment.
 3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
 4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.
 

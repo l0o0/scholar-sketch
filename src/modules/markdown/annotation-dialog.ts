@@ -73,6 +73,7 @@ function showAnnotationDialog(
   let currentSource: AnnotationInsertSource | undefined;
   let sourceError = "";
   let sources = [...(insertion?.initialSources ?? [])];
+  let searchingSources = false;
   const element = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = "") => {
     const node = doc.createElementNS(
       "http://www.w3.org/1999/xhtml",
@@ -139,19 +140,34 @@ function showAnnotationDialog(
   sourceSearch.type = "search";
   sourceSearch.placeholder = getString("markdown-annotation-source-search");
   sourceSearch.setAttribute("aria-label", sourceSearch.placeholder);
-  const sourceSelect = element("select", "ss-annotation-source-select");
-  sourceSelect.setAttribute(
+  const sourceResults = element("div", "ss-annotation-source-results");
+  sourceResults.id = `ss-annotation-sources-${win.crypto.randomUUID()}`;
+  sourceResults.setAttribute("role", "group");
+  sourceResults.setAttribute(
     "aria-label",
     getString("markdown-annotation-source"),
   );
+  sourceSearch.setAttribute("aria-controls", sourceResults.id);
+  const currentSourceLabel = element("div", "ss-annotation-current-source");
+  currentSourceLabel.setAttribute("role", "status");
+  const sourceCaption = element("span", "ss-annotation-source-caption");
+  sourceCaption.textContent = getString("markdown-annotation-source");
+  const sourceTitle = element("strong", "ss-annotation-source-title");
+  const sourceDetail = element("span", "ss-annotation-source-detail");
+  currentSourceLabel.append(sourceCaption, sourceTitle, sourceDetail);
   const refreshSource = button(getString("markdown-annotation-refresh-source"));
   refreshSource.dataset.action = "refresh-source";
   const sourceControls = element("div", "ss-annotation-source-controls");
-  sourceControls.append(sourceSelect, refreshSource);
+  sourceControls.append(currentSourceLabel, refreshSource);
   const sourceFeedback = element("p", "ss-annotation-source-feedback");
   sourceFeedback.setAttribute("role", "status");
   sourceFeedback.hidden = true;
-  sourcePicker.append(sourceSearch, sourceControls, sourceFeedback);
+  sourcePicker.append(
+    sourceSearch,
+    sourceResults,
+    sourceFeedback,
+    sourceControls,
+  );
   const filters = element("div", "ss-annotation-filters");
   const search = element("input", "ss-annotation-search");
   search.type = "search";
@@ -428,8 +444,8 @@ function showAnnotationDialog(
     >("input, button, select"))
       control.disabled = busy || sourceState !== "loaded";
     sourceSearch.disabled = busy || sourceState === "loading";
-    sourceSelect.disabled =
-      busy || sourceState === "loading" || sourceSelect.options.length < 2;
+    for (const control of sourceResults.querySelectorAll("button"))
+      control.disabled = busy || sourceState === "loading";
     refreshSource.disabled =
       busy || sourceState === "loading" || !currentSource;
     colorTrigger.disabled =
@@ -540,26 +556,65 @@ function showAnnotationDialog(
   const isCurrent = () =>
     !closed && dialog.isConnected && dialog.open && !win.closed;
   const renderSources = () => {
-    sourceSelect.replaceChildren();
-    const placeholder = element("option");
-    placeholder.value = "";
-    placeholder.textContent = getString("markdown-annotation-choose-source");
-    placeholder.disabled = Boolean(currentSource);
-    sourceSelect.append(placeholder);
-    const choices = new Map(sources.map((source) => [source.id, source]));
-    if (currentSource) choices.set(currentSource.id, currentSource);
-    for (const source of choices.values()) {
-      const option = element("option");
-      option.value = String(source.id);
-      option.textContent = source.detail
+    sourceControls.hidden = !currentSource;
+    sourceTitle.textContent = currentSource?.title ?? "";
+    sourceTitle.title = sourceTitle.textContent;
+    sourceDetail.textContent = currentSource?.detail ?? "";
+    sourceDetail.title = sourceDetail.textContent;
+    sourceDetail.hidden = !currentSource?.detail;
+    sourceResults.replaceChildren();
+    sourceResults.hidden =
+      searchingSources ||
+      (!sourceSearch.value.trim() &&
+        (Boolean(currentSource) || sources.length < 2)) ||
+      !sources.length;
+    if (sourceResults.hidden) return;
+    for (const source of sources) {
+      const choice = button("", "ss-annotation-source-choice");
+      choice.dataset.sourceId = String(source.id);
+      choice.title = source.detail
         ? `${source.title} · ${source.detail}`
         : source.title;
-      sourceSelect.append(option);
+      choice.setAttribute(
+        "aria-pressed",
+        String(currentSource?.id === source.id),
+      );
+      const title = element("span", "ss-annotation-source-title");
+      title.textContent = source.title;
+      choice.append(title);
+      if (source.detail) {
+        const detail = element("span", "ss-annotation-source-detail");
+        detail.textContent = source.detail;
+        choice.append(detail);
+      }
+      choice.addEventListener("click", () => {
+        if (busy || sourceState === "loading") return;
+        void loadSource(source);
+      });
+      sourceResults.append(choice);
     }
-    sourceSelect.value = currentSource ? String(currentSource.id) : "";
   };
-  const loadSource = async (source: AnnotationInsertSource) => {
+  const loadSource = async (
+    source: AnnotationInsertSource,
+    refresh = false,
+  ) => {
     if (!insertion || !isCurrent()) return;
+    searchGeneration++;
+    if (searchTimer !== undefined) win.clearTimeout(searchTimer);
+    searchTimer = undefined;
+    sourceSearch.value = "";
+    searchingSources = false;
+    sources = [...insertion.initialSources];
+    sourceFeedback.hidden = true;
+    if (
+      !refresh &&
+      currentSource?.id === source.id &&
+      sourceState === "loaded"
+    ) {
+      renderSources();
+      sourceSearch.focus();
+      return;
+    }
     const generation = ++sourceGeneration;
     currentSource = source;
     sourceState = "loading";
@@ -581,6 +636,7 @@ function showAnnotationDialog(
       sourceState = "loaded";
       refreshAnnotationChoices();
       render();
+      if (doc.activeElement === doc.body) sourceSearch.focus();
     } catch (error) {
       if (!isCurrent() || generation !== sourceGeneration) return;
       sourceState = "failed";
@@ -588,20 +644,26 @@ function showAnnotationDialog(
       render();
     }
   };
-  sourceSelect.addEventListener("change", () => {
-    const source = sources.find(
-      (entry) => String(entry.id) === sourceSelect.value,
-    );
-    if (source) void loadSource(source);
-  });
   refreshSource.addEventListener("click", () => {
-    if (currentSource) void loadSource(currentSource);
+    if (currentSource) void loadSource(currentSource, true);
   });
   sourceSearch.addEventListener("input", () => {
     if (!insertion) return;
     if (searchTimer !== undefined) win.clearTimeout(searchTimer);
+    searchTimer = undefined;
     const generation = ++searchGeneration;
     const query = sourceSearch.value.trim();
+    sources = [];
+    searchingSources = Boolean(query);
+    sourceFeedback.setAttribute("role", "status");
+    if (!query) {
+      sources = [...insertion.initialSources];
+      sourceFeedback.hidden = true;
+      renderSources();
+      render();
+      return;
+    }
+    renderSources();
     sourceFeedback.hidden = false;
     sourceFeedback.textContent = getString(
       "markdown-annotation-source-searching",
@@ -612,6 +674,7 @@ function showAnnotationDialog(
         const found = await insertion.searchSources(query);
         if (!isCurrent() || generation !== searchGeneration) return;
         sources = found;
+        searchingSources = false;
         renderSources();
         sourceFeedback.hidden = sources.length > 0;
         sourceFeedback.textContent = getString(
@@ -620,6 +683,8 @@ function showAnnotationDialog(
         render();
       } catch (error) {
         if (!isCurrent() || generation !== searchGeneration) return;
+        searchingSources = false;
+        sourceFeedback.setAttribute("role", "alert");
         sourceFeedback.textContent = `${getString("markdown-annotation-source-failed")} ${String(error)}`;
         sourceFeedback.hidden = false;
       }

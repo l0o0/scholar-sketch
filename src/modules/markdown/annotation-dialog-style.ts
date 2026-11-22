@@ -27,7 +27,15 @@ export const annotationDialogCSS = `
 .ss-annotation-source-picker { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 10px; flex: 0 0 auto; }
 .ss-annotation-source-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
 .ss-annotation-source-controls { display: flex; align-items: center; gap: 6px; }
-.ss-annotation-source-select { min-width: 0; flex: 1; padding: 6px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
+.ss-annotation-current-source { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 8px; min-width: 0; flex: 1; }
+.ss-annotation-source-caption, .ss-annotation-source-detail { font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
+.ss-annotation-source-title { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ss-annotation-current-source .ss-annotation-source-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-annotation-current-source .ss-annotation-source-detail { grid-column: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-annotation-source-results { max-height: 152px; overflow: auto; overscroll-behavior: contain; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; padding: 3px; }
+.ss-annotation-dialog .ss-annotation-source-choice { display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; padding: 6px 8px; text-align: start; }
+.ss-annotation-source-choice .ss-annotation-source-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ss-annotation-source-choice .ss-annotation-source-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-annotation-source-controls button { flex: 0 0 auto; white-space: nowrap; }
 .ss-annotation-source-feedback { margin: 0; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }

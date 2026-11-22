@@ -383,7 +383,7 @@ test("insert annotations defaults to no selection and keeps selections across at
     },
   });
   assert.equal(
-    f.query<HTMLSelectElement>(".ss-annotation-source-select").disabled,
+    f.query<HTMLInputElement>(".ss-annotation-source-search").disabled,
     true,
   );
   assert.equal(
@@ -458,11 +458,11 @@ test("source search ignores old results and closing invalidates a pending annota
   await delay(200);
   pending.get("newer")!([sources[1]]);
   await setImmediate();
-  assert.ok(f.dialog.querySelector('option[value="20"]'));
+  assert.ok(f.dialog.querySelector('button[data-source-id="20"]'));
   pending.get("older")!([sources[0]]);
   await setImmediate();
-  assert.equal(f.dialog.querySelector('option[value="10"]'), null);
-  f.choose(".ss-annotation-source-select", "20");
+  assert.equal(f.dialog.querySelector('button[data-source-id="10"]'), null);
+  f.query<HTMLButtonElement>('button[data-source-id="20"]').click();
   assert.equal(
     f.query(".ss-annotation-results").getAttribute("aria-busy"),
     "true",
@@ -486,7 +486,8 @@ test("source refresh retries loading and changing sources resets selection and f
       return annotations;
     },
   });
-  f.choose(".ss-annotation-source-select", "10");
+  assert.equal(f.query(".ss-annotation-source-results").hidden, false);
+  f.query<HTMLButtonElement>('button[data-source-id="10"]').click();
   await setImmediate();
   assert.match(
     f.query('.ss-annotation-empty[role="alert"]').textContent!,
@@ -502,7 +503,9 @@ test("source refresh retries loading and changing sources resets selection and f
     f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
     1,
   );
-  f.choose(".ss-annotation-source-select", "20");
+  f.input(".ss-annotation-source-search", "standalone");
+  await delay(200);
+  f.query<HTMLButtonElement>('button[data-source-id="20"]').click();
   await setImmediate();
   assert.equal(
     f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
@@ -513,9 +516,93 @@ test("source refresh retries loading and changing sources resets selection and f
     f.query(".ss-annotation-empty").textContent!,
     /annotation-export-empty/,
   );
-  f.choose(".ss-annotation-source-select", "10");
+  f.input(".ss-annotation-source-search", "first");
+  await delay(200);
+  f.query<HTMLButtonElement>('button[data-source-id="10"]').click();
   await setImmediate();
   assert.equal(f.dialog.querySelectorAll(".ss-annotation-card").length, 3);
+  assert.equal(
+    f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
+    0,
+  );
+});
+
+test("visible search results switch the source only when chosen and keep current selections during search", async (t) => {
+  const loaded: number[] = [];
+  let finish!: (success: boolean) => void;
+  const f = insertFixture(t, {
+    insert: async () =>
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+    searchSources: async (query) => {
+      if (query === "missing") return [];
+      if (query === "failure") throw new Error("Source search unavailable");
+      return [sources[1]];
+    },
+    loadAnnotations: async (source) => {
+      loaded.push(source.id);
+      return source.id === 10 ? annotations : [annotations[1]];
+    },
+  });
+  await setImmediate();
+  f.action("select-results").click();
+  const current = f.query(".ss-annotation-current-source");
+  assert.ok(current.textContent?.includes("First paper"));
+  assert.ok(current.textContent?.includes("Researcher, 2024"));
+  assert.equal(f.query(".ss-annotation-source-results").hidden, true);
+  for (const query of ["missing", "failure"]) {
+    f.input(".ss-annotation-source-search", query);
+    await delay(200);
+    assert.equal(f.query(".ss-annotation-source-results").hidden, true);
+    assert.equal(f.query(".ss-annotation-source-feedback").hidden, false);
+    assert.ok(current.textContent?.includes("First paper"));
+    assert.equal(
+      f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
+      3,
+    );
+  }
+  assert.match(
+    f.query(".ss-annotation-source-feedback").textContent!,
+    /Source search unavailable/,
+  );
+  f.input(".ss-annotation-source-search", "standalone");
+  assert.equal(f.query(".ss-annotation-source-results").hidden, true);
+  await delay(200);
+  const result = f.query<HTMLButtonElement>(
+    '.ss-annotation-source-results button[data-source-id="20"]',
+  );
+  assert.equal(result.type, "button");
+  assert.equal(result.tabIndex, 0);
+  assert.equal(result.textContent, "Standalone PDF");
+  assert.deepEqual(loaded, [10]);
+  assert.equal(
+    f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
+    3,
+  );
+  result.focus();
+  assert.equal(f.win.document.activeElement, result);
+  f.action("insert").click();
+  assert.equal(result.disabled, true);
+  result.click();
+  assert.deepEqual(loaded, [10]);
+  finish(false);
+  await setImmediate();
+  assert.equal(result.disabled, false);
+  result.click();
+  assert.equal(
+    f.query<HTMLInputElement>(".ss-annotation-source-search").value,
+    "",
+  );
+  assert.equal(f.query(".ss-annotation-source-results").hidden, true);
+  assert.ok(current.textContent?.includes("Standalone PDF"));
+  assert.equal(
+    f.query<HTMLInputElement>(".ss-annotation-source-search").disabled,
+    true,
+  );
+  await setImmediate();
+  assert.deepEqual(loaded, [10, 20]);
+  assert.equal(f.dialog.querySelectorAll(".ss-annotation-card").length, 1);
   assert.equal(
     f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
     0,
