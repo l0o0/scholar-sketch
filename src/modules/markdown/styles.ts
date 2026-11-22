@@ -1582,6 +1582,7 @@ ${toolbarWidthAlignmentCSS()}
 }
 .zotero-markdown-toolbar-popover[hidden] { display: none; }
 .zotero-markdown-toolbar-popover .zmd-btn-inner { display: flex; }
+.zotero-markdown-toolbar-popover .zotero-markdown-more-menu-item { white-space: nowrap; }
 .zotero-markdown-toolbar-popover button:focus-visible,
 .zotero-markdown-more-menu-item:focus-visible {
   outline: 2px solid var(--zmd-accent);
