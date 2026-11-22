@@ -154,6 +154,7 @@ Common default shortcuts include:
 | `Ctrl/Cmd + B`                                               | Bold                                                      |
 | `Ctrl/Cmd + I`                                               | Italic                                                    |
 | `Ctrl/Cmd + K`                                               | Insert a standard Markdown link                           |
+| `Ctrl + Alt + A` (macOS: `Cmd + Option + A`)                 | Insert PDF annotations                                    |
 | `Ctrl + Alt + I` (macOS: `Cmd + Option + I`)                 | Import a local image                                      |
 | `Ctrl/Cmd + F`                                               | Find and replace                                          |
 | `Ctrl/Cmd + G` / `Ctrl/Cmd + Shift + G`                      | Find next / previous match                                |
@@ -281,7 +282,7 @@ Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When 
 
 ## Insert PDF annotations into the current note
 
-1. Place the cursor at the insertion point in the Markdown editor, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**.
+1. Place the cursor at the insertion point in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. You can also press `Ctrl + Alt + A` (macOS: `Cmd + Option + A`) to open the dialog.
 2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. Click a result below the search field to change the source; typing alone keeps the current source and selections. The current source appears beside **Refresh source**. A paper's annotations are grouped by PDF attachment.
 3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
 4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.

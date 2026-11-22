@@ -143,6 +143,7 @@ import { exportNoteLibrary } from "./export-notes";
 import { bindFeatureUpdates } from "../feature-updates";
 import {
   markdownHeadingShortcutLabel,
+  markdownAnnotationShortcutLabel,
   markdownImageShortcutLabel,
   markdownRedoShortcutLabel,
 } from "./shortcut";
@@ -845,6 +846,9 @@ function mountEditorUI(
                         },
                       }),
                       "aria-label": getString("tab-image"),
+                      "data-shortcut": markdownImageShortcutLabel(
+                        win.navigator.platform,
+                      ),
                     },
                   },
                   {
@@ -857,8 +861,17 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "annotation",
-                      title: getString("markdown-insert-annotation"),
+                      title: getString("markdown-insert-annotation-title", {
+                        args: {
+                          shortcut: markdownAnnotationShortcutLabel(
+                            win.navigator.platform,
+                          ),
+                        },
+                      }),
                       "aria-label": getString("markdown-insert-annotation"),
+                      "data-shortcut": markdownAnnotationShortcutLabel(
+                        win.navigator.platform,
+                      ),
                     },
                   },
                   {
@@ -1486,6 +1499,7 @@ function mountEditorUI(
         void requestSave(session, { force: true });
       }
     },
+    onInsertAnnotations: () => openSessionAnnotationInsert(session),
     onPasteImage: ({ bytes, mimeType }) =>
       insertImageBytes(session, new Uint8Array(bytes), mimeType),
     onResolveAsset: (reference) => {
@@ -1749,11 +1763,14 @@ function executeToolbarCommand(
   else if (action === "link") session.editor?.wrapSelection("[", "](url)");
   else if (action === "table") toggleTablePicker(session, anchor);
   else if (action === "image") void chooseAndInsertImage(session);
-  else if (action === "annotation")
-    void insertSessionAnnotations(
-      session,
-      () => !readOnlySessions.has(session) && session.mode !== "preview",
-    ).catch(reportAnnotationInsertError);
+  else if (action === "annotation") openSessionAnnotationInsert(session);
+}
+
+function openSessionAnnotationInsert(session: OpenSession): void {
+  void insertSessionAnnotations(
+    session,
+    () => !readOnlySessions.has(session) && session.mode !== "preview",
+  ).catch(reportAnnotationInsertError);
 }
 
 function closeToolbarMoreMenu(session: OpenSession) {

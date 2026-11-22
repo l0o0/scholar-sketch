@@ -13,6 +13,8 @@ import {
 } from "../src/modules/markdown/editor-protocol.ts";
 import {
   MARKDOWN_IMAGE_SHORTCUT,
+  MARKDOWN_ANNOTATION_SHORTCUT,
+  markdownAnnotationShortcutLabel,
   markdownImageShortcutLabel,
 } from "../src/modules/markdown/shortcut.ts";
 
@@ -46,6 +48,7 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   const container = browser.document.createElement("div");
   browser.document.body.append(container);
   const images: { bytes: ArrayBuffer; mimeType: string; name: string }[] = [];
+  let annotationRequests = 0;
   let holdWrite: Promise<void> | undefined;
   const editor = createMarkdownEditor(container, {
     win: browser as unknown as Window,
@@ -53,6 +56,7 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     doc: "A note",
     pageURL: "https://host.example/editor.html",
     onResolveAsset: async () => ({ error: "Test image preview unavailable" }),
+    onInsertAnnotations: () => annotationRequests++,
     onPasteImage: async (payload) => {
       images.push(payload);
       await holdWrite;
@@ -120,6 +124,7 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
       altGraph?: boolean;
       shiftKey?: boolean;
       key?: string;
+      code?: string;
       keyCode?: number;
       ctrlKey?: boolean;
       metaKey?: boolean;
@@ -151,6 +156,13 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     view.contentDOM.dispatchEvent(event);
     return event;
   };
+  const annotationShortcut = (options: Parameters<typeof shortcut>[0] = {}) =>
+    shortcut({
+      key: options.shiftKey ? "A" : "a",
+      code: "KeyA",
+      keyCode: 65,
+      ...options,
+    });
   const select = (arrayBuffer: () => Promise<ArrayBuffer>) => {
     const input = picker();
     assert.ok(input);
@@ -161,6 +173,24 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   };
 
   for (const mode of ["live", "source"] as const) {
+    await t.test(
+      `${mode}: annotation shortcut reaches its owning host without changing text`,
+      async () => {
+        editor.setMode(mode);
+        await tick();
+        const original = view.state.doc.toString();
+        const before = annotationRequests;
+        assert.equal(annotationShortcut().defaultPrevented, true);
+        await tick();
+        assert.equal(annotationRequests, before + 1);
+        assert.equal(view.state.doc.toString(), original);
+        if (macKeymap) {
+          assert.equal(annotationShortcut({ key: "å" }).defaultPrevented, true);
+          await tick();
+          assert.equal(annotationRequests, before + 2);
+        }
+      },
+    );
     await t.test(
       `${mode}: opens one picker and inserts the chosen image at the selection`,
       async () => {
@@ -221,13 +251,24 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
           replies.filter((message) => message.type === "importImage").length,
           before,
         );
+        const annotationBefore = annotationRequests;
+        annotationShortcut(options);
+        await tick();
+        assert.equal(
+          annotationRequests,
+          annotationBefore,
+          JSON.stringify(options),
+        );
       }
       view.contentDOM.dispatchEvent(
         new frame.CompositionEvent("compositionstart", { bubbles: true }),
       );
       shortcut();
+      const annotationBefore = annotationRequests;
+      annotationShortcut();
       await tick();
       assert.equal(!!picker(), false);
+      assert.equal(annotationRequests, annotationBefore);
       view.contentDOM.dispatchEvent(
         new frame.CompositionEvent("compositionend", { bubbles: true }),
       );
@@ -235,16 +276,18 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
       editor.setReadOnly(true);
       await tick();
       shortcut();
+      annotationShortcut();
       editor.importImage();
       await tick();
       assert.equal(!!picker(), false);
+      assert.equal(annotationRequests, annotationBefore);
       editor.setReadOnly(false);
       await tick();
     },
   );
 
   await t.test(
-    "native character-entry modifiers do not turn their physical I key into image import",
+    "native character-entry modifiers do not open image or annotation pickers",
     async () => {
       const before = replies.filter(
         (message) => message.type === "importImage",
@@ -263,6 +306,17 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
         replies.filter((message) => message.type === "importImage").length,
         before,
       );
+      const annotationBefore = annotationRequests;
+      const annotationEvent = annotationShortcut({
+        key: "ą",
+        ctrlKey: windowsKeymap,
+        metaKey: false,
+        altKey: windowsKeymap || macKeymap,
+        altGraph: true,
+      });
+      assert.equal(annotationEvent.defaultPrevented, false);
+      await tick();
+      assert.equal(annotationRequests, annotationBefore);
     },
   );
 
@@ -376,6 +430,15 @@ test("image shortcut labels and the request boundary match the public binding", 
     }),
     false,
   );
+});
+
+test("annotation shortcut labels and the payload-free request match the binding", () => {
+  assert.equal(MARKDOWN_ANNOTATION_SHORTCUT, "Mod-Alt-a");
+  assert.equal(markdownAnnotationShortcutLabel("MacIntel"), "Cmd + Option + A");
+  assert.equal(markdownAnnotationShortcutLabel("Win32"), "Ctrl + Alt + A");
+  const request = { source: EDITOR_MESSAGE_SOURCE, type: "insertAnnotations" };
+  assert.equal(isEditorProtocolMessage(request), true);
+  assert.equal(isEditorProtocolMessage({ ...request, payload: {} }), false);
 });
 
 if (!process.env.SCHOLAR_IMAGE_SHORTCUT_PLATFORM) {

@@ -325,6 +325,10 @@ describe("toolbar insert templates", () => {
           ],
           ["redo", platform === "MacIntel" ? "Cmd + Shift + Z" : "Ctrl + Y"],
           [
+            "annotation",
+            platform === "MacIntel" ? "Cmd + Option + A" : "Ctrl + Alt + A",
+          ],
+          [
             "image",
             platform === "MacIntel" ? "Cmd + Option + I" : "Ctrl + Alt + I",
           ],
@@ -335,6 +339,13 @@ describe("toolbar insert templates", () => {
               ?.getAttribute("title"),
             `${label} (${shortcut})`,
           );
+          if (action === "image" || action === "annotation")
+            assert.equal(
+              root
+                .querySelector(`[data-action="${action}"]`)
+                ?.getAttribute("data-shortcut"),
+              shortcut,
+            );
         }
         assert.equal(actions.parentElement, inner);
         assert.deepEqual(

@@ -112,6 +112,12 @@ export const iconImage = () =>
 /** message-square-quote */
 export const iconAnnotation = () => iconAsset("annotation");
 
+/** plus — Insert group */
+export const iconInsert = () => iconAsset("plus");
+
+/** chevron-down — toolbar groups */
+export const iconChevronDown = () => iconAsset("chevron-down");
+
 /** Vertical ellipsis — shared More affordance. */
 export const iconMore = () => iconAsset("more");
 

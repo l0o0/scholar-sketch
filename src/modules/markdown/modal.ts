@@ -14,6 +14,7 @@ import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   MARKDOWN_HEADING_SHORTCUTS,
   markdownHeadingShortcutLabel,
+  markdownAnnotationShortcutLabel,
   markdownImageShortcutLabel,
   markdownRedoShortcutLabel,
   shortcutFromKeyboardEvent,
@@ -638,6 +639,12 @@ export function createMarkdownModalController(
                 ["Ctrl/Meta + B", "sidebar-bold"],
                 ["Ctrl/Meta + I", "sidebar-italic"],
                 ["Ctrl/Meta + K", "sidebar-link"],
+                [
+                  markdownAnnotationShortcutLabel(
+                    doc.defaultView?.navigator.platform,
+                  ),
+                  "markdown-annotation-insert-title",
+                ],
                 [
                   markdownImageShortcutLabel(
                     doc.defaultView?.navigator.platform,

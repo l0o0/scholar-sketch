@@ -762,6 +762,7 @@ annotation-export-failed = Could not create the note. Please try again.
 annotation-export-read-only = This library is read-only. Annotations cannot be saved as a new note here.
 
 markdown-insert-annotation = Annotation
+markdown-insert-annotation-title = Insert annotations ({ $shortcut })
 markdown-annotation-insert-title = Insert annotations
 markdown-annotation-insert-hint = Choose a paper or PDF, then select text annotations and comments. Filter by attachment, type, color or tag. Inserted page links return to the original annotations.
 markdown-annotation-source-search = Search papers or PDF attachments…

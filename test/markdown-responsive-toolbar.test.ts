@@ -555,13 +555,24 @@ describe("responsive Markdown toolbar", () => {
         [...f.menu.querySelectorAll("button")].map(
           (b) => b.dataset.toolbarCommand,
         ),
-        ["image", "annotation", "table", "task", "code"],
+        ["annotation", "image", "table", "task", "code"],
       );
-      f.menu
-        .querySelector<HTMLButtonElement>(
-          '[data-toolbar-command="annotation"]',
-        )!
-        .click();
+      const annotation = f.menu.querySelector<HTMLButtonElement>(
+        '[data-toolbar-command="annotation"]',
+      )!;
+      assert.equal(f.win.document.activeElement, annotation);
+      assert.equal(
+        annotation.querySelector(".zotero-markdown-more-menu-shortcut")
+          ?.textContent,
+        shortcuts.markdownAnnotationShortcutLabel(f.win.navigator.platform),
+      );
+      assert.equal(
+        f.menu
+          .querySelector('[data-toolbar-command="image"]')
+          ?.querySelector(".zotero-markdown-more-menu-shortcut")?.textContent,
+        shortcuts.markdownImageShortcutLabel(f.win.navigator.platform),
+      );
+      annotation.click();
       assert.equal(f.commands[1].command, "annotation");
       assert.equal(f.commands[1].anchor, f.trigger("insert"));
       assert.equal(f.menu.hidden, true);

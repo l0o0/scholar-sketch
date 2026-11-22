@@ -1558,17 +1558,21 @@ ${toolbarWidthAlignmentCSS()}
 }
 
 .zotero-markdown-group-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 15px;
   font-weight: 550;
   line-height: 1;
 }
-[data-toolbar-group="insert"] .zotero-markdown-group-symbol { font-size: 23px; font-weight: 400; }
-.zotero-markdown-group-chevron { margin-left: 1px; font-size: 10px; line-height: 1; }
+.zotero-markdown-group-chevron { display: inline-flex; margin-left: 1px; }
+.zotero-markdown-group-chevron .zmd-icon { width: 8px; height: 8px; }
 .zotero-markdown-toolbar-popover {
   position: fixed;
   z-index: 20;
   box-sizing: border-box;
-  width: 168px;
+  width: max-content;
+  min-width: 168px;
   padding: 4px;
   overflow: auto;
   border: 1px solid var(--zmd-border);

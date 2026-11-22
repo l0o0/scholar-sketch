@@ -1,3 +1,5 @@
+import { iconChevronDown, iconInsert } from "./icons";
+
 /** Width belongs to the editor workspace, after both sidebars have taken space. */
 export type ToolbarLayout = "full" | "grouped" | "compact";
 export type ToolbarGroup = "heading" | "format" | "insert";
@@ -21,7 +23,7 @@ export type ToolbarCommand =
 const GROUP_COMMANDS: Record<ToolbarGroup, readonly ToolbarCommand[]> = {
   heading: ["h1", "h2", "h3"],
   format: ["bold", "italic", "h1", "h2", "h3", "list", "link"],
-  insert: ["image", "annotation", "table", "task", "code"],
+  insert: ["annotation", "image", "table", "task", "code"],
 };
 
 /** Small hysteresis prevents repeated regrouping at fractional resize boundaries. */
@@ -79,13 +81,13 @@ export function mountResponsiveToolbar(options: {
     const symbol = doc.createElement("span");
     symbol.className = "zotero-markdown-group-symbol";
     symbol.setAttribute("aria-hidden", "true");
-    symbol.textContent =
-      group === "format" ? "Aa" : group === "heading" ? "H" : "+";
+    if (group === "insert") symbol.innerHTML = iconInsert();
+    else symbol.textContent = group === "format" ? "Aa" : "H";
     trigger.append(symbol);
     const chevron = doc.createElement("span");
     chevron.className = "zotero-markdown-group-chevron";
     chevron.setAttribute("aria-hidden", "true");
-    chevron.textContent = "⌄";
+    chevron.innerHTML = iconChevronDown();
     trigger.append(chevron);
     format.insertBefore(
       trigger,
@@ -216,6 +218,12 @@ export function mountResponsiveToolbar(options: {
       icon.innerHTML = source.innerHTML;
       icon.setAttribute("aria-hidden", "true");
       entry.append(icon, source.getAttribute("aria-label") || source.title);
+      if (source.dataset.shortcut) {
+        const shortcut = doc.createElement("span");
+        shortcut.className = "zotero-markdown-more-menu-shortcut";
+        shortcut.textContent = source.dataset.shortcut;
+        entry.append(shortcut);
+      }
       panel.append(entry);
     }
     panel.hidden = false;

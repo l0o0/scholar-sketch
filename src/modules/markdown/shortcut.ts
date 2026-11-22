@@ -1,14 +1,24 @@
 export const DEFAULT_NEW_MARKDOWN_SHORTCUT = "accel,shift,M";
 export const MARKDOWN_IMAGE_SHORTCUT = "Mod-Alt-i";
+export const MARKDOWN_ANNOTATION_SHORTCUT = "Mod-Alt-a";
 
-export function markdownImageShortcutLabel(platform?: string): string {
-  return MARKDOWN_IMAGE_SHORTCUT.split("-")
+function pickerShortcutLabel(binding: string, platform?: string): string {
+  return binding
+    .split("-")
     .map((part) => {
       if (part === "Mod") return isMacPlatform(platform) ? "Cmd" : "Ctrl";
       if (part === "Alt") return isMacPlatform(platform) ? "Option" : "Alt";
       return part.toUpperCase();
     })
     .join(" + ");
+}
+
+export function markdownImageShortcutLabel(platform?: string): string {
+  return pickerShortcutLabel(MARKDOWN_IMAGE_SHORTCUT, platform);
+}
+
+export function markdownAnnotationShortcutLabel(platform?: string): string {
+  return pickerShortcutLabel(MARKDOWN_ANNOTATION_SHORTCUT, platform);
 }
 
 // Zotero captures Mod-1…9 for tab navigation before the editor receives them.

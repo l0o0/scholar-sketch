@@ -223,6 +223,7 @@ export type FluentMessageId =
   | 'markdown-annotation-source-searching'
   | 'markdown-import-complete'
   | 'markdown-insert-annotation'
+  | 'markdown-insert-annotation-title'
   | 'markdown-outline-empty'
   | 'markdown-outline-resize'
   | 'markdown-outline-resize-help'

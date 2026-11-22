@@ -1026,6 +1026,10 @@ test("shortcut categories expose one tab stop and switch the visible list with p
       ?.querySelector("kbd")?.textContent;
   const isMac = /Mac|iPhone|iPad/.test(window.navigator.platform);
   assert.equal(
+    keysFor("markdown-annotation-insert-title"),
+    isMac ? "Cmd + Option + A" : "Ctrl + Alt + A",
+  );
+  assert.equal(
     keysFor("settings-shortcut-import-image"),
     isMac ? "Cmd + Option + I" : "Ctrl + Alt + I",
   );

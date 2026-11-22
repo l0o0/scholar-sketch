@@ -127,6 +127,8 @@ export interface EditorInitPayload {
   appearance?: EditorAppearance;
   doc: string;
   readOnly: boolean;
+  /** The host owns an annotation picker for this mounted editor. */
+  annotationInsertion?: boolean;
   fontSize: number;
   theme: EditorTheme;
   /** Default interpreted as `"live"` by the iframe bootstrap. */
@@ -381,6 +383,7 @@ export type EditorToParentMessage = (
     }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "save" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "importImage" }
+  | { source: typeof EDITOR_MESSAGE_SOURCE; type: "insertAnnotations" }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "imageDebug";
@@ -424,11 +427,14 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
   if (data.type === "init" || data.type === "setTopInset") {
     const payload = data.payload as {
       topInset?: unknown;
+      annotationInsertion?: unknown;
       appearance?: { style?: unknown };
     } | null;
     return (
       !!payload &&
       typeof payload === "object" &&
+      (payload.annotationInsertion === undefined ||
+        typeof payload.annotationInsertion === "boolean") &&
       (payload.appearance?.style === undefined ||
         isMarkdownStyle(payload.appearance.style)) &&
       ((data.type === "init" && payload.topInset === undefined) ||
@@ -458,7 +464,8 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
           payload.deletedImages.every((source) => typeof source === "string")))
     );
   }
-  if (data.type === "importImage") return data.payload === undefined;
+  if (data.type === "importImage" || data.type === "insertAnnotations")
+    return data.payload === undefined;
   if (data.type === "applyIfUnchanged") {
     const payload = data.payload as Record<string, unknown> | null;
     return (

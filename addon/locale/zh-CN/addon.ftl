@@ -762,6 +762,7 @@ annotation-export-failed = 创建笔记失败，请重试。
 annotation-export-read-only = 当前文库为只读，无法在此创建批注笔记。
 
 markdown-insert-annotation = 批注
+markdown-insert-annotation-title = 插入批注（{ $shortcut }）
 markdown-annotation-insert-title = 插入批注
 markdown-annotation-insert-hint = 选择文献或 PDF 后，勾选要插入的文字批注和评论。可按附件、类型、颜色和标签筛选，插入后的页码链接可返回原批注。
 markdown-annotation-source-search = 搜索文献或 PDF 附件…

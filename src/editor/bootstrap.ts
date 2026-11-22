@@ -31,6 +31,7 @@ import {
 import { validViewState } from "../modules/markdown/editor-view-state";
 import {
   MARKDOWN_HEADING_SHORTCUTS,
+  MARKDOWN_ANNOTATION_SHORTCUT,
   MARKDOWN_IMAGE_SHORTCUT,
 } from "../modules/markdown/shortcut";
 /**
@@ -219,6 +220,7 @@ interface EditorRuntime {
   slashCompletion: SlashCommandPopup | null;
   dismissedSlash: string | null;
   composing: boolean;
+  annotationInsertion: boolean;
   removeCompositionListeners: (() => void) | null;
 }
 
@@ -254,6 +256,7 @@ const runtime: EditorRuntime = {
   slashCompletion: null,
   dismissedSlash: null,
   composing: false,
+  annotationInsertion: false,
   removeCompositionListeners: null,
 };
 
@@ -1186,6 +1189,7 @@ function postToParent(message: {
     | "textSelection"
     | "save"
     | "importImage"
+    | "insertAnnotations"
     | "error"
     | "pasteImage"
     | "imageDebug";
@@ -1302,6 +1306,7 @@ function buildExtensions(
   };
   runtime.mode = init.mode === "source" ? "source" : "live";
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
+  runtime.annotationInsertion = init.annotationInsertion === true;
 
   return [
     editorLinkHover((payload) => postToParent({ type: "linkHover", payload })),
@@ -1352,6 +1357,15 @@ function buildExtensions(
         scope: "import-image",
         run: () => {
           postToParent({ type: "importImage" });
+          return true;
+        },
+      },
+      {
+        key: MARKDOWN_ANNOTATION_SHORTCUT,
+        scope: "insert-annotations",
+        run: () => {
+          if (!runtime.annotationInsertion) return false;
+          postToParent({ type: "insertAnnotations" });
           return true;
         },
       },
@@ -1515,7 +1529,10 @@ function buildExtensions(
         // shortcut away from repeated keys and native composition input.
         // Firefox also reports AltGraph for ordinary Cmd+Option / Ctrl+Alt;
         // CodeMirror preserves Windows AltGr characters without a keyCode fallback.
-        return runScopeHandlers(view, event, "import-image");
+        return (
+          runScopeHandlers(view, event, "import-image") ||
+          runScopeHandlers(view, event, "insert-annotations")
+        );
       },
       contextmenu(event, editorView) {
         const target = event.target as Element | null;

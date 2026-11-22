@@ -87,6 +87,19 @@ test("the real editor keeps host tab keys free and applies its documented format
     }
   });
 
+  await t.test(
+    "the annotation binding stays free when its host has no picker",
+    () => {
+      const view = init("A note");
+      assert.equal(keydown(view, "a", true).defaultPrevented, false);
+      assert.equal(
+        messages.some((message) => message.type === "insertAnnotations"),
+        false,
+      );
+      assert.equal(view.state.doc.toString(), "A note");
+    },
+  );
+
   await t.test("Ctrl+Alt+1/2/3 set and replace headings", () => {
     const view = init("A note");
     for (let level = 1; level <= 3; level++) {

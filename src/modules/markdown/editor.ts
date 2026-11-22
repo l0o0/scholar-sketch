@@ -187,6 +187,7 @@ export function createMarkdownEditor(
     ) => void;
     onOutlineActive?: (activeID: string | null) => void;
     onSave?: () => void;
+    onInsertAnnotations?: () => void;
     onPasteImage?: (payload: {
       bytes: ArrayBuffer;
       mimeType: string;
@@ -225,6 +226,7 @@ export function createMarkdownEditor(
     onOutline,
     onOutlineActive,
     onSave,
+    onInsertAnnotations,
     onPasteImage,
     onResolveAsset,
     onLinkSearch,
@@ -538,6 +540,7 @@ export function createMarkdownEditor(
             doc: lastValue,
             viewState: options.viewState,
             readOnly,
+            annotationInsertion: Boolean(onInsertAnnotations),
             fontSize: resolveFontSize(),
             appearance: resolveAppearance(),
             slashSearchLanguage: resolveSlashSearchLanguage(
@@ -777,6 +780,10 @@ export function createMarkdownEditor(
       }
       case "importImage": {
         importImage();
+        break;
+      }
+      case "insertAnnotations": {
+        if (!currentReadOnly && !composing) onInsertAnnotations?.();
         break;
       }
       case "imageDebug": {
