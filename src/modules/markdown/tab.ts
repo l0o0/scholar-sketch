@@ -1,5 +1,9 @@
 import { currentMarkdownStyle } from "./style-preferences";
 import {
+  insertSessionAnnotations,
+  reportAnnotationInsertError,
+} from "./annotation-insert-session";
+import {
   cancelPaperExport,
   exportSessionPaper,
   insertPaperCitation,
@@ -21,6 +25,7 @@ import {
   iconH3,
   iconItalic,
   iconImage,
+  iconAnnotation,
   iconLive,
   iconList,
   iconLink,
@@ -840,6 +845,20 @@ function mountEditorUI(
                         },
                       }),
                       "aria-label": getString("tab-image"),
+                    },
+                  },
+                  {
+                    tag: "button",
+                    namespace: "html",
+                    classList: ["zotero-markdown-btn"],
+                    properties: {
+                      type: "button",
+                      innerHTML: iconOnlyButtonHtml(iconAnnotation()),
+                    },
+                    attributes: {
+                      "data-action": "annotation",
+                      title: getString("markdown-insert-annotation"),
+                      "aria-label": getString("markdown-insert-annotation"),
                     },
                   },
                   {
@@ -1701,6 +1720,7 @@ function isToolbarCommand(action: string | null): action is ToolbarCommand {
     "link",
     "table",
     "image",
+    "annotation",
   ].includes(action || "");
 }
 
@@ -1729,6 +1749,11 @@ function executeToolbarCommand(
   else if (action === "link") session.editor?.wrapSelection("[", "](url)");
   else if (action === "table") toggleTablePicker(session, anchor);
   else if (action === "image") void chooseAndInsertImage(session);
+  else if (action === "annotation")
+    void insertSessionAnnotations(
+      session,
+      () => !readOnlySessions.has(session) && session.mode !== "preview",
+    ).catch(reportAnnotationInsertError);
 }
 
 function closeToolbarMoreMenu(session: OpenSession) {
@@ -3263,6 +3288,7 @@ export async function closeMarkdownSession(
   session.closing = true;
   readingSelections.get(session)?.popup.hide();
   cancelPaperExport(session);
+  session.closeAnnotationInsert?.();
   session.closePromise = (async () => {
     if (opts.flush) {
       // The same iframe channel applies this replace before the final snapshot.

@@ -279,6 +279,15 @@ Click the source link in reading preview to return to the original passage. In L
 
 Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When editing an existing Note card, the quotation is inserted into its content. The card body shows the excerpt. Hover over the card or focus it with the keyboard to reveal the **Open source** icon at the top right. Click it to return to the PDF, or choose a destination when the card has several sources. Saved Markdown and Markdown exports include the source links. The import can be undone in one step.
 
+## Insert PDF annotations into the current note
+
+1. Place the cursor at the insertion point in the Markdown editor, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**.
+2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. A paper's annotations are grouped by PDF attachment.
+3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
+4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.
+
+Highlights, underlines, sticky notes, text annotations, and other annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. If the original annotations change, use **Refresh source** to reload them and select again.
+
 ## Create notes from PDF annotations
 
 1. Select a bibliographic item or PDF attachment in your Zotero library.

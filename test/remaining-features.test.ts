@@ -274,6 +274,7 @@ test("annotation picker supports selection and prevents creating an empty note",
       },
     ],
   });
+  Object.assign(fake.Zotero.Items, { loadDataTypes: async () => {} });
   const restore = fake.install(globalThis);
   const win = new Window();
   t.after(() => {

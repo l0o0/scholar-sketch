@@ -555,11 +555,14 @@ describe("responsive Markdown toolbar", () => {
         [...f.menu.querySelectorAll("button")].map(
           (b) => b.dataset.toolbarCommand,
         ),
-        ["image", "table", "task", "code"],
+        ["image", "annotation", "table", "task", "code"],
       );
       f.menu
-        .querySelector<HTMLButtonElement>('[data-toolbar-command="table"]')!
+        .querySelector<HTMLButtonElement>(
+          '[data-toolbar-command="annotation"]',
+        )!
         .click();
+      assert.equal(f.commands[1].command, "annotation");
       assert.equal(f.commands[1].anchor, f.trigger("insert"));
       assert.equal(f.menu.hidden, true);
       assert.equal(

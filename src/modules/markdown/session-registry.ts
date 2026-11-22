@@ -57,6 +57,7 @@ export interface OpenSession {
   closePromise?: Promise<void>;
   closeMoreMenu?: () => void;
   closeImageRepair?: () => void;
+  closeAnnotationInsert?: () => void;
   closeTablePicker?: () => void;
   unbindTablePicker?: () => void;
   unbindTheme?: () => void;
@@ -108,6 +109,8 @@ export class SessionRegistry {
     session.unbindFeatureUpdates = undefined;
     session.closeImageRepair?.();
     session.closeImageRepair = undefined;
+    session.closeAnnotationInsert?.();
+    session.closeAnnotationInsert = undefined;
     session.statusFeedback?.destroy();
     session.statusFeedback = undefined;
     this.byTab.delete(tabID);

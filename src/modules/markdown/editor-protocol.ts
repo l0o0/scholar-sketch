@@ -20,6 +20,8 @@ export const PDF_SELECTION_EVENT = "zmd-pdf-selection";
 export interface PdfSelectionInsertion {
   markdown: string;
   position?: { x: number; y: number };
+  /** Picker results apply only to the document from which the picker opened. */
+  expectedValue?: string;
 }
 
 export type EditorTheme = "light" | "dark";

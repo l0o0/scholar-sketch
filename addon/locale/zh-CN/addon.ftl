@@ -761,6 +761,25 @@ annotation-export-failed = 创建笔记失败，请重试。
 
 annotation-export-read-only = 当前文库为只读，无法在此创建批注笔记。
 
+markdown-insert-annotation = 批注
+markdown-annotation-insert-title = 插入批注
+markdown-annotation-insert-hint = 选择文献或 PDF 后，勾选要插入的文字批注和评论。可按附件、类型、颜色和标签筛选，插入后的页码链接可返回原批注。
+markdown-annotation-source-search = 搜索文献或 PDF 附件…
+markdown-annotation-source = 来源
+markdown-annotation-choose-source = 选择文献或 PDF
+markdown-annotation-source-searching = 正在搜索来源…
+markdown-annotation-no-sources = 没有找到匹配的文献或 PDF。
+markdown-annotation-source-failed = 无法搜索来源。
+markdown-annotation-refresh-source = 刷新来源
+markdown-annotation-loading = 正在加载批注…
+markdown-annotation-load-failed = 无法加载批注，请刷新来源后重试。
+markdown-annotation-attachment = 附件
+markdown-annotation-all-attachments = 全部附件
+markdown-annotation-insert-selected = 插入所选批注
+markdown-annotation-document-changed = 文档已变化，请关闭批注窗口后重试。
+markdown-annotation-source-changed = 所选批注已变化，请刷新来源后重新选择。
+markdown-annotation-insert-failed = 无法插入批注。
+
 whiteboard-tutorial-quick-start = 常用操作
 whiteboard-tutorial-quick-start-body =
     - 非文字编辑时，按住**空格键**并拖动，即可移动画布。

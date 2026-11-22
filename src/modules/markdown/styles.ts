@@ -20,6 +20,7 @@ export function responsiveToolbarSizingCSS(): string {
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="h2"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="h3"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="image"],
+.zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="annotation"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-table-control,
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="task"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="code"],

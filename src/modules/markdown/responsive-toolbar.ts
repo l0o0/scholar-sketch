@@ -13,6 +13,7 @@ export type ToolbarCommand =
   | "list"
   | "link"
   | "image"
+  | "annotation"
   | "table"
   | "task"
   | "code";
@@ -20,7 +21,7 @@ export type ToolbarCommand =
 const GROUP_COMMANDS: Record<ToolbarGroup, readonly ToolbarCommand[]> = {
   heading: ["h1", "h2", "h3"],
   format: ["bold", "italic", "h1", "h2", "h3", "list", "link"],
-  insert: ["image", "table", "task", "code"],
+  insert: ["image", "annotation", "table", "task", "code"],
 };
 
 /** Small hysteresis prevents repeated regrouping at fractional resize boundaries. */

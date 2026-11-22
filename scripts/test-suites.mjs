@@ -59,6 +59,8 @@ export const testSuites = {
       "test/reading-translation.test.ts",
       "test/markdown-api-guards.test.ts",
       "test/markdown-annotation-dialog.test.ts",
+      "test/markdown-annotation-sources.test.ts",
+      "test/markdown-annotation-insert-session.test.ts",
       "test/markdown-change-scheduling.test.ts",
       "test/markdown-context-menu.test.ts",
       "test/markdown-create-target.test.ts",

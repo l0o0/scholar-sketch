@@ -109,6 +109,9 @@ export const iconImage = () =>
     "image",
   );
 
+/** message-square-quote */
+export const iconAnnotation = () => iconAsset("annotation");
+
 /** Vertical ellipsis — shared More affordance. */
 export const iconMore = () => iconAsset("more");
 

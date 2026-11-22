@@ -761,6 +761,25 @@ annotation-export-failed = Could not create the note. Please try again.
 
 annotation-export-read-only = This library is read-only. Annotations cannot be saved as a new note here.
 
+markdown-insert-annotation = Annotation
+markdown-annotation-insert-title = Insert annotations
+markdown-annotation-insert-hint = Choose a paper or PDF, then select text annotations and comments. Filter by attachment, type, color or tag. Inserted page links return to the original annotations.
+markdown-annotation-source-search = Search papers or PDF attachments…
+markdown-annotation-source = Source
+markdown-annotation-choose-source = Choose a paper or PDF
+markdown-annotation-source-searching = Searching sources…
+markdown-annotation-no-sources = No matching papers or PDFs found.
+markdown-annotation-source-failed = Could not search sources.
+markdown-annotation-refresh-source = Refresh source
+markdown-annotation-loading = Loading annotations…
+markdown-annotation-load-failed = Could not load annotations. Refresh the source to try again.
+markdown-annotation-attachment = Attachment
+markdown-annotation-all-attachments = All attachments
+markdown-annotation-insert-selected = Insert selected annotations
+markdown-annotation-document-changed = The document changed. Close the annotations window and try again.
+markdown-annotation-source-changed = Selected annotations changed. Refresh the source and select them again.
+markdown-annotation-insert-failed = Could not insert annotations.
+
 whiteboard-tutorial-quick-start = Quick controls
 whiteboard-tutorial-quick-start-body =
     - Hold **Space** and drag to pan the canvas when not editing text.

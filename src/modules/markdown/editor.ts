@@ -1,7 +1,10 @@
 import { currentMarkdownStyle } from "./style-preferences";
 import { applyPreviewStyle } from "./preview";
 import { attachMarkdownIframeDrop } from "./iframe-drop";
-import { attachMarkdownPdfSelectionTransfer } from "./pdf-selection-transfer";
+import {
+  attachMarkdownPdfSelectionTransfer,
+  insertPdfQuotation,
+} from "./pdf-selection-transfer";
 import { pdfSelectionTransferMarkdown } from "../pdf-selection";
 import {
   DEFAULT_TABLE_LABELS,
@@ -69,6 +72,8 @@ export interface MarkdownEditorHandle {
     selectionFrom?: number,
     selectionTo?: number,
   ) => void;
+  /** Insert a PDF quotation as one block transaction at the live selection. */
+  insertPdfQuotation: (markdown: string, expectedValue: string) => boolean;
   /** Open a local image picker owned by this editor and reuse its image writer. */
   importImage: () => void;
   wrapSelection: (before: string, after?: string) => void;
@@ -1000,6 +1005,14 @@ export function createMarkdownEditor(
         type: "insertText",
         payload: { text, selectionFrom, selectionTo },
       });
+    },
+    insertPdfQuotation: (markdown, expectedValue) => {
+      if (destroyed || !iframeReady || currentReadOnly || composing)
+        return false;
+      const content = iframe.contentDocument?.querySelector(".cm-content");
+      return content
+        ? insertPdfQuotation(content, { markdown, expectedValue })
+        : false;
     },
     importImage,
     wrapSelection: (before: string, after: string = before) => {

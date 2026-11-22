@@ -24,6 +24,12 @@ export const annotationDialogCSS = `
 .ss-annotation-help-trigger > span { display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid currentColor; border-radius: 50%; font-size: 12px; font-weight: 600; }
 .ss-annotation-guidance { position: absolute; z-index: 4; top: 100%; inset-inline-end: 0; width: min(300px, calc(92vw - 60px)); margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; background: Canvas; color: CanvasText; box-shadow: 0 4px 16px #0003; font-size: 12px; line-height: 1.6; }
 .ss-annotation-filters { padding: 0 14px; flex: 0 0 auto; }
+.ss-annotation-source-picker { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 10px; flex: 0 0 auto; }
+.ss-annotation-source-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
+.ss-annotation-source-controls { display: flex; align-items: center; gap: 6px; }
+.ss-annotation-source-select { min-width: 0; flex: 1; padding: 6px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
+.ss-annotation-source-controls button { flex: 0 0 auto; white-space: nowrap; }
+.ss-annotation-source-feedback { margin: 0; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
 .ss-annotation-filter-row { display: flex; align-items: center; gap: 6px; margin: 6px 0 4px; }
 .ss-annotation-types { display: flex; flex: 0 1 auto; min-width: 0; overflow-x: auto; gap: 4px; }
@@ -31,8 +37,8 @@ export const annotationDialogCSS = `
 .ss-annotation-dialog button[aria-pressed="true"] { background: color-mix(in srgb, Highlight 12%, Canvas); border-color: color-mix(in srgb, Highlight 55%, Canvas); }
 .ss-annotation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ss-annotation-tools:not(:empty) { margin-bottom: 4px; }
-.ss-annotation-tag-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.ss-annotation-tag-filter select { max-width: 180px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
+.ss-annotation-tag-filter, .ss-annotation-attachment-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.ss-annotation-tag-filter select, .ss-annotation-attachment-filter select { max-width: 220px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
 .ss-annotation-color-picker { position: relative; flex: 0 0 auto; padding-inline-start: 6px; border-inline-start: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); }
 .ss-annotation-dialog .ss-annotation-color-trigger { display: flex; align-items: center; justify-content: center; gap: 3px; width: 38px; height: 30px; padding: 0 4px; }
 .ss-annotation-color-trigger svg { display: block; flex: 0 0 auto; width: 18px; height: 18px; }
@@ -47,6 +53,7 @@ export const annotationDialogCSS = `
 .ss-annotation-color[aria-pressed="true"]::after { content: "✓"; position: absolute; inset-inline-end: 0; bottom: 0; width: 10px; height: 10px; border-radius: 50%; background: Canvas; color: CanvasText; font-size: 9px; line-height: 10px; }
 .ss-annotation-result-count { flex: 0 0 auto; margin: 0; margin-inline-start: auto; text-align: end; white-space: nowrap; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-results { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 14px 8px; overscroll-behavior: contain; }
+.ss-annotation-group-title { margin: 10px 0 4px; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .ss-annotation-card { margin: 8px 0; border: 1px solid color-mix(in srgb, CanvasText 13%, Canvas); border-inline-start: 3px solid color-mix(in srgb, CanvasText 25%, Canvas); border-radius: 7px; background: Canvas; }
 .ss-annotation-card:has(input:checked) { background: color-mix(in srgb, Highlight 4%, Canvas); }
 .ss-annotation-card label { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; cursor: pointer; }

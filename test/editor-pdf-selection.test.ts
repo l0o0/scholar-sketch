@@ -168,6 +168,28 @@ test("PDF selections cross the owning Markdown surface synchronously and preserv
   }
 
   await t.test(
+    "the annotation picker inserts at the selection as one undoable block and rejects a stale buffer",
+    async () => {
+      await reset("Before after");
+      const source = editor.getValue();
+      view.dispatch({ selection: { anchor: 7 } });
+      const quotation = `> Chosen annotation\n\n[153](${href})`;
+      assert.equal(editor.insertPdfQuotation(quotation, source), true);
+      assert.equal(
+        view.state.doc.toString(),
+        `Before \n\n${quotation}\n\nafter`,
+      );
+      editor.command("undo");
+      await tick();
+      assert.equal(editor.getValue(), source);
+      view.dispatch({ changes: { from: 0, to: 6, insert: "Changed" } });
+      const edited = view.state.doc.toString();
+      assert.equal(editor.insertPdfQuotation(quotation, source), false);
+      assert.equal(view.state.doc.toString(), edited);
+    },
+  );
+
+  await t.test(
     "outer-frame annotation drops use their frame-relative drop point",
     async () => {
       await reset("Before after");
