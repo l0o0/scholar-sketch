@@ -30,6 +30,8 @@ Scholar Sketch extends Zotero with Markdown notes and visual whiteboards, connec
 
 Requires **Zotero 9 / 10 / 11 for desktop**.
 
+The interface follows Zotero’s language and supports English, Simplified Chinese, and Russian.
+
 1. Download `scholarsketch-v{version}.xpi` from [Releases](https://github.com/l0o0/scholar-sketch/releases/latest).
 2. In Zotero, open **Tools → Plugins → gear → Install Plugin From File…** and select the downloaded file.
 

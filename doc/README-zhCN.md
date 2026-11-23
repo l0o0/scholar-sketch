@@ -32,6 +32,8 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 
 支持 **Zotero 9 / 10 / 11 桌面版**。
 
+插件界面跟随 Zotero 的语言设置，支持简体中文、英语和俄语。
+
 1. 从 [Releases](https://github.com/l0o0/scholar-sketch/releases/latest) 下载 `scholarsketch-v{version}.xpi`。
 2. 在 Zotero 中打开 **工具 → 插件 → 齿轮 → 从文件安装插件…**，选择下载的文件。
 
