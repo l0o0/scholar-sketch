@@ -15,7 +15,7 @@ import {
   BUILTIN_CSS_PRESETS,
 } from "../src/modules/markdown/style-settings.ts";
 import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
-import { version } from "../package.json";
+import { config, version } from "../package.json";
 import { releaseHighlights } from "../src/modules/release-highlights.ts";
 import { resolveMarkdownToolbarMode } from "../src/modules/markdown/preferences.ts";
 import {
@@ -465,6 +465,7 @@ test("maps plugin preferences to independent settings drafts", () => {
     theme: "system" as const,
     markdownToolbarMode: "always" as const,
     markdownSlashSearchLanguage: "auto" as const,
+    markdownPdfLinkPreviewEnabled: true,
     shortcutNewStandaloneMd: "accel,shift,M",
     markdownInsertShortcuts: { ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS },
     markdownCommandShortcuts: defaultMarkdownCommandShortcuts(),
@@ -500,6 +501,59 @@ test("maps plugin preferences to independent settings drafts", () => {
     }).whiteboardColorScheme,
     "traditional",
   );
+});
+
+test("PDF hover preview is enabled by default and settings save the checkbox value", async (t) => {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const win = new Window();
+  const stored = new Map<string, unknown>();
+  const pref = `${config.prefsPrefix}.markdown.linkPreview.pdfEnabled`;
+  const previousZotero = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  const controller = createMarkdownModalController(
+    win.document as unknown as Document,
+    { onSettings: applySettings },
+    { initialSettingsPage: "editor" },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await win.happyDOM.close();
+    if (previousZotero)
+      Object.defineProperty(globalThis, "Zotero", previousZotero);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const checkbox = () =>
+    win.document.querySelector<HTMLInputElement>(
+      'input[name="markdownPdfLinkPreviewEnabled"]',
+    )!;
+  controller.open("settings");
+  assert.equal(checkbox().checked, true);
+  checkbox().click();
+  assert.equal(checkbox().checked, false);
+  controller.close();
+  assert.equal(stored.has(pref), false);
+
+  controller.open("settings");
+  assert.equal(checkbox().checked, true);
+  checkbox().click();
+  win.document
+    .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+    .click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(stored.get(pref), false);
+
+  controller.open("settings");
+  assert.equal(checkbox().checked, false);
 });
 
 test("slash search segmented settings support keyboard selection, cancellation and persistence", async (t) => {

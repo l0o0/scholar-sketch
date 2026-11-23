@@ -6,6 +6,9 @@ import {
 import { mountPdfLinkPreview } from "./link-preview-pdf";
 import { subscribeNoteLibrary } from "./note-library";
 import { getString } from "../../utils/locale";
+import { getPref } from "../../utils/prefs";
+import { parsePdfDocumentLink } from "./document-link-shared";
+import { config } from "../../../package.json";
 
 export interface LinkPreviewController {
   show(target: LinkHoverTarget | null): void;
@@ -17,6 +20,7 @@ export interface LinkPreviewController {
 }
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
+const PDF_PREVIEW_PREF = "markdown.linkPreview.pdfEnabled";
 
 /** One mounted editor surface owns its popup, pending request and PDF reader. */
 export function createLinkPreviewController(options: {
@@ -24,6 +28,7 @@ export function createLinkPreviewController(options: {
   currentItem: Zotero.Item;
   win: Window;
   onOpen(href: string, sourceItemID?: number): void;
+  onShowItem?: (href: string) => void;
   isActive?: () => boolean;
   loader?: ReturnType<typeof createLinkPreviewContentLoader>;
   mountPdf?: typeof mountPdfLinkPreview;
@@ -35,9 +40,11 @@ export function createLinkPreviewController(options: {
     ambiguous: string;
     failed: string;
     open: string;
+    showItem?: string;
+    goToAnnotation?: string;
   };
 }): LinkPreviewController {
-  const { root, currentItem, win, onOpen } = options;
+  const { root, currentItem, win, onOpen, onShowItem } = options;
   const doc = root.ownerDocument;
   const loader = options.loader ?? createLinkPreviewContentLoader();
   const labels = options.labels ?? {
@@ -70,6 +77,10 @@ export function createLinkPreviewController(options: {
 .zmd-link-preview a { color:LinkText; }
 .zmd-link-preview button { color:inherit; font:inherit; cursor:pointer; }
 .zmd-link-preview button:focus-visible { outline:2px solid Highlight; outline-offset:2px; }
+.zmd-link-preview-actions { display:flex;flex:none;gap:6px;padding:8px 10px 0; }
+.zmd-link-preview-actions button { appearance:none;display:inline-flex;flex:1;align-items:center;justify-content:center;min-height:28px;max-height:none;height:auto;margin:0;padding:3px 8px;border:1px solid color-mix(in srgb,CanvasText 18%,Canvas);border-radius:6px;background:transparent; }
+.zmd-link-preview-actions button:hover { background:color-mix(in srgb,CanvasText 7%,Canvas); }
+.zmd-link-preview[data-actions-only] .zmd-link-preview-actions { padding-bottom:8px; }
 `;
   const header = element<HTMLElement>("header", "zmd-link-preview-header");
   header.style.cssText = "padding:12px 14px 8px;flex:none";
@@ -87,6 +98,26 @@ export function createLinkPreviewController(options: {
   open.textContent = labels.open;
   open.style.cssText =
     "flex:none;align-self:flex-end;margin:0 14px 10px;padding:2px 8px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:5px;background:transparent";
+  const annotationActions = element<HTMLElement>(
+    "div",
+    "zmd-link-preview-actions",
+  );
+  const showItem = element<HTMLButtonElement>(
+    "button",
+    "zmd-link-preview-show-item",
+  );
+  showItem.type = "button";
+  showItem.textContent =
+    options.labels?.showItem ?? getString("link-preview-show-item");
+  const goToAnnotation = element<HTMLButtonElement>(
+    "button",
+    "zmd-link-preview-go-to-annotation",
+  );
+  goToAnnotation.type = "button";
+  goToAnnotation.textContent =
+    options.labels?.goToAnnotation ??
+    getString("link-preview-go-to-annotation");
+  annotationActions.append(showItem, goToAnnotation);
   panel.append(style, header, body, open);
   (doc.body ?? doc.documentElement).append(panel);
 
@@ -105,6 +136,7 @@ export function createLinkPreviewController(options: {
   const bindings = new Set<() => void>();
   const activeSurface = () =>
     !disposed && root.isConnected && (options.isActive?.() ?? true);
+  const pdfPreviewEnabled = () => getPref(PDF_PREVIEW_PREF) !== false;
   const current = (value: number) =>
     activeSurface() && generation === value && active !== null;
 
@@ -121,12 +153,16 @@ export function createLinkPreviewController(options: {
     generation++;
     pending = null;
     active = null;
+    openingHref = "";
     previewItemID = undefined;
     overPanel = false;
     placement = undefined;
     releasePdf();
     panel.style.display = "none";
+    panel.removeAttribute("aria-busy");
     body.replaceChildren();
+    annotationActions.remove();
+    panel.append(open);
   }
   function leave() {
     clearCloseTimer();
@@ -134,7 +170,6 @@ export function createLinkPreviewController(options: {
     closeTimer = win.setTimeout(hide, 150);
   }
   function position(target: LinkHoverTarget) {
-    const width = Math.min(380, Math.max(0, win.innerWidth - 24));
     const below = Math.max(0, win.innerHeight - target.rect.bottom - 20);
     const above = Math.max(0, target.rect.top - 20);
     // Reserve a side for the whole hover, including the initial loading card.
@@ -142,10 +177,12 @@ export function createLinkPreviewController(options: {
     placement ??= below >= 440 || below >= above ? "below" : "above";
     const available = Math.min(440, placement === "below" ? below : above);
     panel.style.maxHeight = `${available}px`;
-    const height = Math.min(
-      panel.getBoundingClientRect().height || 180,
-      available,
+    const bounds = panel.getBoundingClientRect();
+    const width = Math.min(
+      bounds.width || 380,
+      Math.max(0, win.innerWidth - 24),
     );
+    const height = Math.min(bounds.height || 180, available);
     const left = Math.max(
       12,
       Math.min(target.rect.left, win.innerWidth - width - 12),
@@ -157,7 +194,10 @@ export function createLinkPreviewController(options: {
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
   }
-  function render(content: LinkPreviewContent, request: number) {
+  function render(
+    content: Exclude<LinkPreviewContent, { status: "pdf-disabled" }>,
+    request: number,
+  ) {
     releasePdf();
     body.replaceChildren();
     body.style.display = "block";
@@ -235,10 +275,19 @@ export function createLinkPreviewController(options: {
     pending = null;
     loading = true;
     try {
+      const pdfEnabled = pdfPreviewEnabled();
       const cached = cache.get(job.target.href);
       const content =
-        cached ?? (await loader.load(job.target.href, { currentItem, win }));
+        cached ??
+        (await loader.load(job.target.href, { currentItem, win, pdfEnabled }));
       if (!current(job.generation)) return;
+      if (
+        content.status === "pdf-disabled" ||
+        (!pdfEnabled && content.status === "resolved" && content.kind === "pdf")
+      ) {
+        hide();
+        return;
+      }
       // Markdown is read afresh so another open editor's draft cannot go stale.
       if (content.status === "resolved" && content.kind !== "markdown") {
         cache.delete(job.target.href);
@@ -269,14 +318,30 @@ export function createLinkPreviewController(options: {
       return;
     }
     hide();
+    const pdfLink = parsePdfDocumentLink(target.href);
+    const hasAnnotationActions = !!(onShowItem && pdfLink?.annotationKey);
+    const actionsOnly = pdfLink !== null && !pdfPreviewEnabled();
+    if (actionsOnly && !hasAnnotationActions) return;
     active = target;
     openingHref = target.href;
+    if (hasAnnotationActions) {
+      open.remove();
+      panel.insertBefore(annotationActions, header);
+    }
+    panel.toggleAttribute("data-actions-only", actionsOnly);
+    panel.style.width = actionsOnly ? "max-content" : "380px";
+    header.style.display = actionsOnly ? "none" : "";
+    body.style.display = actionsOnly ? "none" : "block";
     title.textContent = labels.loading;
     subtitle.textContent = "";
-    panel.setAttribute("aria-label", labels.loading);
-    panel.setAttribute("aria-busy", "true");
+    panel.setAttribute(
+      "aria-label",
+      actionsOnly ? goToAnnotation.textContent : labels.loading,
+    );
+    if (!actionsOnly) panel.setAttribute("aria-busy", "true");
     panel.style.display = "flex";
     position(target);
+    if (actionsOnly) return;
     pending = { target, generation };
     void pump();
   }
@@ -287,6 +352,11 @@ export function createLinkPreviewController(options: {
   // Index scans also publish completion without changing the hovered target.
   // Drop cached metadata without tearing down the card's current snapshot.
   const unsubscribe = subscribeNoteLibrary(() => cache.clear());
+  const pdfPreviewObserver = Zotero.Prefs.registerObserver(
+    `${config.prefsPrefix}.${PDF_PREVIEW_PREF}`,
+    hide,
+    true,
+  );
   // Item refreshes also come from unrelated saves and native PDF initialization.
   // Keep the current snapshot; subsequent hovers read the invalidated metadata.
   const observer =
@@ -355,7 +425,26 @@ export function createLinkPreviewController(options: {
     }
   });
   open.addEventListener("click", () => {
+    if (!activeSurface() || !active || !openingHref) return;
     const href = openingHref;
+    hide();
+    onOpen(href);
+  });
+  const currentAnnotationHref = () => {
+    if (!activeSurface() || annotationActions.parentElement !== panel)
+      return null;
+    const href = active?.href;
+    return href && parsePdfDocumentLink(href)?.annotationKey ? href : null;
+  };
+  showItem.addEventListener("click", () => {
+    const href = currentAnnotationHref();
+    if (!href || !onShowItem) return;
+    hide();
+    onShowItem(href);
+  });
+  goToAnnotation.addEventListener("click", () => {
+    const href = currentAnnotationHref();
+    if (!href) return;
     hide();
     onOpen(href);
   });
@@ -418,6 +507,7 @@ export function createLinkPreviewController(options: {
     disposed = true;
     for (const unbind of bindings) unbind();
     unsubscribe();
+    Zotero.Prefs.unregisterObserver(pdfPreviewObserver);
     if (observer !== undefined) Zotero.Notifier.unregisterObserver(observer);
     loader.dispose();
     doc.removeEventListener("pointerdown", onPointerDown, true);

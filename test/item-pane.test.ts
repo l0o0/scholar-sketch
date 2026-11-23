@@ -60,7 +60,11 @@ function fixture(t: TestContext) {
     ztoolkit: { log() {} },
     Zotero: {
       Attachments: { LINK_MODE_LINKED_URL: 3 },
-      Prefs: { get: () => undefined },
+      Prefs: {
+        get: () => undefined,
+        registerObserver: () => Symbol(),
+        unregisterObserver() {},
+      },
       Libraries: { userLibraryID: 0 },
       Search: class {
         addCondition() {}

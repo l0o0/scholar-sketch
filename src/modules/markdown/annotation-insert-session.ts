@@ -5,32 +5,30 @@ import {
   searchAnnotationSources,
 } from "./annotation-sources";
 import {
-  annotationMarkdownFragment,
-  readMarkdownAnnotations,
+  annotationIdentity,
+  readMarkdownAnnotationItems,
   type MarkdownAnnotation,
 } from "./annotations";
 import { sessionRegistry, type OpenSession } from "./session-registry";
+import { searchLibraryAnnotations } from "./annotation-search";
+import { annotationInsertFragment } from "./annotation-insert-fragment";
 
 async function currentAnnotations(
   libraryID: number,
   chosen: readonly MarkdownAnnotation[],
 ): Promise<MarkdownAnnotation[]> {
-  const attachments = [...new Set(chosen.map((entry) => entry.attachmentKey))];
-  const latest = await Promise.all(
-    attachments.map(async (key) => {
-      const item = Zotero.Items.getByLibraryAndKey(libraryID, key);
-      if (!item || item.deleted)
-        throw new Error(getString("markdown-annotation-source-changed"));
-      return readMarkdownAnnotations(item);
-    }),
-  );
+  const items = chosen.map((entry) => {
+    const annotation = Zotero.Items.getByLibraryAndKey(libraryID, entry.key);
+    if (!annotation || annotation.deleted || !annotation.isAnnotation())
+      throw new Error(getString("markdown-annotation-source-changed"));
+    return annotation;
+  });
+  const latest = await readMarkdownAnnotationItems(libraryID, items);
   const byIdentity = new Map(
-    latest
-      .flat()
-      .map((entry) => [`${entry.attachmentKey}/${entry.key}`, entry]),
+    latest.map((entry) => [annotationIdentity(entry), entry]),
   );
   return chosen.map((entry) => {
-    const current = byIdentity.get(`${entry.attachmentKey}/${entry.key}`);
+    const current = byIdentity.get(annotationIdentity(entry));
     if (!current)
       throw new Error(getString("markdown-annotation-source-changed"));
     return current;
@@ -84,16 +82,27 @@ export async function insertSessionAnnotations(
     }
     disposeDialog = showAnnotationInsertDialog(session.win, {
       initialSources,
+      availableColors: Zotero.Annotations.COLORS.map(([, color]) => color),
       searchSources: (query) => searchAnnotationSources(item, query),
-      loadAnnotations: (source) => {
-        const sourceItem = Zotero.Items.get(source.id);
-        if (
-          !sourceItem ||
-          sourceItem.deleted ||
-          sourceItem.libraryID !== item.libraryID
-        )
+      searchAnnotations: (query, sources, shouldContinue, filters) =>
+        searchLibraryAnnotations(item, query, sources, shouldContinue, filters),
+      openAnnotation: async (annotation) => {
+        const [latest] = await currentAnnotations(item.libraryID, [annotation]);
+        if (!current()) return;
+        const attachment = Zotero.Items.getByLibraryAndKey(
+          item.libraryID,
+          latest.attachmentKey,
+        );
+        if (!attachment || attachment.deleted)
           throw new Error(getString("markdown-annotation-source-changed"));
-        return readMarkdownAnnotations(sourceItem);
+        const location = {
+          annotationID: latest.key,
+          pageIndex: latest.page ? latest.page - 1 : undefined,
+        };
+        await Zotero.Reader.open(attachment.id, location, {
+          openInWindow: true,
+          allowDuplicate: true,
+        });
       },
       insert: async (chosen, shouldContinue) => {
         const latest = await currentAnnotations(item.libraryID, chosen);
@@ -101,8 +110,8 @@ export async function insertSessionAnnotations(
         if (!shouldContinue() || !current()) return false;
         if (value !== source || editor.isComposing())
           throw new Error(getString("markdown-annotation-document-changed"));
-        const markdown = annotationMarkdownFragment(chosen);
-        if (markdown !== annotationMarkdownFragment(latest))
+        const markdown = annotationInsertFragment(chosen);
+        if (markdown !== annotationInsertFragment(latest))
           throw new Error(getString("markdown-annotation-source-changed"));
         if (!editor.insertPdfQuotation(markdown, source))
           throw new Error(getString("markdown-annotation-document-changed"));

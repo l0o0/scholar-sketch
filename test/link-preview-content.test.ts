@@ -239,7 +239,12 @@ test("returns host-only PDF input and preserves group, page and annotation", asy
   assert.equal(result.sourceItemID, pdf.id);
   assert.deepEqual(result.location, { pageIndex: 6, annotationID: "ANNO0001" });
   assert.equal(result.title, "Group paper");
-  pdf.fileExists = async () => false;
+  const fileExists = t.mock.method(pdf, "fileExists", async () => false);
+  assert.equal(
+    (await loader.load(href(pdf), { ...context, pdfEnabled: false })).status,
+    "pdf-disabled",
+  );
+  assert.equal(fileExists.mock.callCount(), 0);
   assert.equal((await loader.load(href(pdf), context)).status, "unavailable");
 });
 

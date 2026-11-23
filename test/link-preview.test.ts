@@ -190,7 +190,24 @@ function setup(
   let observer:
     { notify(event?: string, type?: string, ids?: number[]): void } | undefined;
   let unregisters = 0;
+  let pdfEnabled: boolean | undefined;
+  let prefObserver: (() => void) | undefined;
+  const prefKey = "extensions.zotero.bamboo.markdown.linkPreview.pdfEnabled";
+  const prefToken = Symbol();
   globals.Zotero = {
+    Prefs: {
+      get: (key: string) => (key === prefKey ? pdfEnabled : undefined),
+      registerObserver(key: string, callback: () => void, global: boolean) {
+        assert.equal(key, prefKey);
+        assert.equal(global, true);
+        prefObserver = callback;
+        return prefToken;
+      },
+      unregisterObserver(token: symbol) {
+        assert.equal(token, prefToken);
+        prefObserver = undefined;
+      },
+    },
     Notifier: {
       registerObserver(value: typeof observer) {
         observer = value;
@@ -233,6 +250,7 @@ function setup(
   let disposed = 0;
   let active = true;
   const opened: string[] = [];
+  const shownItems: string[] = [];
   const openedSources: (number | undefined)[] = [];
   const controller = createLinkPreviewController({
     root: root as unknown as HTMLElement,
@@ -243,6 +261,7 @@ function setup(
       opened.push(value);
       openedSources.push(sourceItemID);
     },
+    onShowItem: (value) => shownItems.push(value),
     loader: { load, dispose: () => disposed++ },
     mountPdf,
     labels: {
@@ -253,6 +272,8 @@ function setup(
       ambiguous: "Ambiguous",
       failed: "Failed",
       open: "Open",
+      showItem: "Show item",
+      goToAnnotation: "Go to annotation",
     },
   });
   const panel = win.document.querySelector<HTMLElement>(".zmd-link-preview")!;
@@ -276,6 +297,7 @@ function setup(
     body,
     advance,
     opened,
+    shownItems,
     openedSources,
     notify: (event?: string, type?: string, ids?: number[]) =>
       observer?.notify(event, type, ids),
@@ -284,6 +306,10 @@ function setup(
     },
     disposed: () => disposed,
     unregisters: () => unregisters,
+    setPdfEnabled(value: boolean) {
+      pdfEnabled = value;
+      prefObserver?.();
+    },
   };
 }
 
@@ -604,4 +630,236 @@ test("reading and backlink DOM links share dwell previews that remain open over 
   app.advance(300);
   assert.equal(app.panel.style.display, "none");
   assert.equal(loaded.length, 3);
+});
+
+const annotationHref =
+  "zotero://open-pdf/library/items/ABCDEFGH?page=2&annotation=ANNOT001";
+const ordinaryPdfHref = "zotero://open-pdf/library/items/ABCDEFGH?page=2";
+
+test("disabling PDF hover closes its reader and leaves only the annotation actions", async (t) => {
+  const reader = deferred<void>();
+  const loaded: string[] = [];
+  let mounts = 0;
+  let releases = 0;
+  const app = setup(
+    t,
+    async (value) => {
+      loaded.push(value);
+      return {
+        status: "resolved",
+        kind: "pdf",
+        href: value,
+        title: "PDF",
+        sourceItemID: 42,
+        attachmentID: 42,
+      };
+    },
+    () => {
+      mounts++;
+      return {
+        ready: reader.promise,
+        containsEventTarget: () => false,
+        dispose: () => releases++,
+      };
+    },
+  );
+  const citation = { ...target("annotation"), href: annotationHref };
+  app.controller.show(citation);
+  await flush();
+  assert.equal(mounts, 1);
+
+  app.setPdfEnabled(false);
+  assert.equal(releases, 1);
+  assert.equal(app.panel.style.display, "none");
+  reader.resolve();
+  await flush();
+  assert.equal(app.panel.style.display, "none");
+
+  app.controller.show({ ...target("PDF"), href: ordinaryPdfHref });
+  assert.equal(app.panel.style.display, "none");
+  app.controller.show(citation);
+  assert.equal(app.panel.style.display, "flex");
+  assert.equal(app.body().style.display, "none");
+  assert.equal(app.body().childElementCount, 0);
+  assert.equal(app.panel.hasAttribute("aria-busy"), false);
+  app.panel
+    .querySelector<HTMLButtonElement>(".zmd-link-preview-show-item")!
+    .click();
+  assert.deepEqual(app.shownItems, [annotationHref]);
+  app.controller.show(citation);
+  app.panel
+    .querySelector<HTMLButtonElement>(".zmd-link-preview-go-to-annotation")!
+    .click();
+  assert.deepEqual(app.opened, [annotationHref]);
+  assert.deepEqual(loaded, [annotationHref]);
+  assert.equal(mounts, 1);
+
+  app.setPdfEnabled(true);
+  app.controller.show(citation);
+  await flush();
+  assert.equal(mounts, 2);
+  assert.equal(app.body().style.display, "flex");
+});
+
+test("the PDF switch suppresses a cached attachment preview and keeps non-PDF previews", async (t) => {
+  const attachment = "zotero://select/library/items/ABCDEFGH";
+  const loadCalls: string[] = [];
+  const app = setup(
+    t,
+    async (href) => {
+      loadCalls.push(href);
+      return href === attachment
+        ? {
+            status: "resolved",
+            kind: "pdf",
+            href,
+            title: "PDF",
+            sourceItemID: 42,
+            attachmentID: 42,
+          }
+        : item("Note");
+    },
+    () => ({
+      ready: Promise.resolve(),
+      containsEventTarget: () => false,
+      dispose() {},
+    }),
+  );
+  app.controller.show({ ...target("PDF"), href: attachment });
+  await flush();
+  assert.ok(app.body().querySelector(".zmd-link-preview-pdf"));
+  app.setPdfEnabled(false);
+  app.controller.show({ ...target("PDF"), href: attachment });
+  await flush();
+  assert.equal(app.panel.style.display, "none");
+  assert.deepEqual(loadCalls, [attachment]);
+
+  app.controller.show(target("Note"));
+  await flush();
+  assert.equal(app.title(), "Note");
+  assert.equal(app.body().textContent, "Abstract Note");
+});
+
+test("annotation preview actions stay above the body and dispatch the original citation while loading", async (t) => {
+  const content = deferred<LinkPreviewContent>();
+  const app = setup(t, () => content.promise);
+  app.controller.show({ ...target("annotation"), href: annotationHref });
+  const actions = app.panel.querySelector<HTMLElement>(
+    ".zmd-link-preview-actions",
+  )!;
+  assert.ok(actions);
+  assert.deepEqual(
+    [...actions.querySelectorAll("button")].map((button) => button.textContent),
+    ["Show item", "Go to annotation"],
+  );
+  const children = [...app.panel.children];
+  assert.ok(
+    children.indexOf(actions) < children.indexOf(app.body()),
+    "Actions must precede the scrollable PDF body",
+  );
+  assert.equal(app.panel.querySelector(".zmd-link-preview-open"), null);
+  app.controller.leave();
+  app.panel.dispatchEvent(new app.win.MouseEvent("mouseenter"));
+  const showItem = actions.querySelector<HTMLButtonElement>(
+    ".zmd-link-preview-show-item",
+  )!;
+  showItem.focus();
+  app.advance(150);
+  assert.equal(app.panel.style.display, "flex");
+  showItem.click();
+  assert.deepEqual(app.shownItems, [annotationHref]);
+  assert.deepEqual(app.opened, []);
+  assert.equal(app.panel.style.display, "none");
+
+  app.controller.show({ ...target("annotation"), href: annotationHref });
+  app.panel
+    .querySelector<HTMLButtonElement>(".zmd-link-preview-go-to-annotation")!
+    .click();
+  assert.deepEqual(app.opened, [annotationHref]);
+  assert.deepEqual(
+    app.openedSources,
+    [undefined],
+    "Annotation actions must not inherit a preview source note",
+  );
+  content.resolve(item("Old metadata"));
+  await flush();
+  assert.equal(app.panel.style.display, "none");
+});
+
+test("annotation actions survive metadata and PDF reader failures", async (t) => {
+  const reader = deferred<void>();
+  const other =
+    "zotero://open-pdf/groups/23/items/PDF00002?annotation=ANNOT002";
+  const app = setup(
+    t,
+    async (value) => {
+      if (value === annotationHref) throw new Error("Metadata unavailable");
+      return {
+        status: "resolved",
+        kind: "pdf",
+        href: value,
+        title: "PDF",
+        sourceItemID: 42,
+        attachmentID: 42,
+        location: { annotationID: "ANNOT002" },
+      };
+    },
+    () => ({
+      ready: reader.promise,
+      containsEventTarget: () => false,
+      dispose() {},
+    }),
+  );
+  app.controller.show({ ...target("annotation"), href: annotationHref });
+  await flush();
+  assert.equal(app.title(), "Failed");
+  app.panel
+    .querySelector<HTMLButtonElement>(".zmd-link-preview-go-to-annotation")!
+    .click();
+  assert.deepEqual(app.opened, [annotationHref]);
+
+  app.controller.show({ ...target("other"), href: other });
+  await flush();
+  reader.reject(new Error("Reader unavailable"));
+  await flush();
+  assert.equal(app.body().textContent, "Failed");
+  app.panel
+    .querySelector<HTMLButtonElement>(".zmd-link-preview-show-item")!
+    .click();
+  assert.deepEqual(app.shownItems, [other]);
+});
+
+test("ordinary PDFs keep Open and stale annotation responses cannot restore citation actions", async (t) => {
+  const old = deferred<LinkPreviewContent>();
+  const app = setup(t, async (value) =>
+    value === annotationHref
+      ? old.promise
+      : { ...item("Ordinary PDF"), href: value },
+  );
+  app.controller.show({ ...target("annotation"), href: annotationHref });
+  const stale = app.panel.querySelector<HTMLButtonElement>(
+    ".zmd-link-preview-show-item",
+  )!;
+  app.controller.show({ ...target("PDF"), href: ordinaryPdfHref });
+  assert.equal(app.panel.querySelector(".zmd-link-preview-actions"), null);
+  stale.click();
+  assert.deepEqual(app.shownItems, []);
+  old.resolve({ ...item("Stale annotation"), href: annotationHref });
+  await flush();
+  assert.equal(app.title(), "Ordinary PDF");
+  assert.equal(app.panel.querySelector(".zmd-link-preview-actions"), null);
+  const open = app.panel.querySelector<HTMLButtonElement>(
+    ".zmd-link-preview-open",
+  )!;
+  assert.equal(open.textContent, "Open");
+  open.click();
+  assert.deepEqual(app.opened, [ordinaryPdfHref]);
+  assert.deepEqual(app.shownItems, []);
+
+  app.controller.show({
+    ...target("malformed"),
+    href: `${ordinaryPdfHref}&annotation=invalid`,
+  });
+  await flush();
+  assert.equal(app.panel.querySelector(".zmd-link-preview-actions"), null);
 });

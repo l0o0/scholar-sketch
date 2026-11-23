@@ -50,11 +50,13 @@ export type LinkPreviewContent =
       attachmentID: number;
       location?: PdfLinkPreviewLocation;
     })
+  | { status: "pdf-disabled"; href: string }
   | { status: "unresolved" | "ambiguous" | "unavailable"; href: string };
 
 export interface LinkPreviewContentOptions {
   currentItem: Zotero.Item;
   win: Window;
+  pdfEnabled?: boolean;
 }
 
 const MAX_SOURCE_CHARS = 64 * 1024;
@@ -323,6 +325,8 @@ export function createLinkPreviewContentLoader(
         }
         if (item.isAttachment()) {
           const pdf = item.isPDFAttachment();
+          if (pdf && context.pdfEnabled === false)
+            return { status: "pdf-disabled", href };
           if (pdf && !(await item.fileExists()))
             return { status: "unavailable", href };
           let location = target.location;

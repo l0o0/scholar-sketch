@@ -27,7 +27,11 @@ import {
   writeImageAsset,
 } from "./images/service";
 import type { ImageAssetMap } from "./editor-protocol";
-import { navigateDocumentLink, searchDocumentLinks } from "./document-links";
+import {
+  navigateDocumentLink,
+  revealPdfAnnotationItem,
+  searchDocumentLinks,
+} from "./document-links";
 import { mountNoteBacklinks } from "./backlinks";
 import {
   createLinkPreviewController,
@@ -810,6 +814,7 @@ class SidebarController {
       root: this.root,
       currentItem: item,
       win: this.win,
+      onShowItem: revealPdfAnnotationItem,
       isActive: () => ownsEditor() && !this.editorHost.hidden,
       onOpen: (href, sourceItemID) => {
         const source = sourceItemID ? Zotero.Items.get(sourceItemID) : item;

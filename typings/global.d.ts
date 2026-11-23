@@ -43,3 +43,10 @@ declare namespace IOUtils {
 }
 
 declare const IOUtils: typeof IOUtils;
+
+/** Native annotation palette pairs from Zotero's annotations.js. */
+declare namespace _ZoteroTypes {
+  interface Annotations {
+    readonly COLORS: ReadonlyArray<readonly [string, string]>;
+  }
+}

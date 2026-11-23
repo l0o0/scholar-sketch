@@ -107,6 +107,8 @@ Hover briefly over a paper, note, or PDF link to see a preview card. Links in th
 
 Use the mouse wheel or trackpad inside a PDF card to read consecutive pages without scrolling the note. Cards keep their placement while content loads, and background item refreshes do not interrupt the current preview.
 
+**Settings → Markdown → Preview PDFs on hover** is on by default. Clear the checkbox and choose **Done** to skip loading PDF pages when you hover over links. Annotation links still offer **Show Item** and **Go to Annotation**.
+
 ### Translate selected text
 
 Select text in Markdown's Live, Source, or reading-preview mode and choose the translation icon beside the selection. This works in tabs and standalone windows. The icon's tooltip is **Translate**; the compact popup expands when loading a result. It requires **Translate for Zotero (Zotero PDF Translate)** and initially uses that plugin's configured service, source language, and target language. Open the vertical three-dot menu to choose a translation service provided by the plugin. Choosing one immediately translates the current selection and remembers the choice in this document window. **Follow plugin default** restores the default behavior without changing the plugin's global settings. Configure any required credentials in the translation plugin. Selecting text alone sends no translation request. Choosing the icon loads the result asynchronously while you continue reading and scrolling. Typing and input-method composition dismiss the popup.
@@ -287,12 +289,14 @@ Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When 
 
 ## Insert PDF annotations into the current note
 
-1. Place the cursor at the insertion point in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. You can also use the default shortcut `Ctrl + Alt + A` (macOS: `Cmd + Option + A`) to open the dialog.
-2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. Click a result below the search field to change the source; typing alone keeps the current source and selections. The current source appears beside **Refresh source**. A paper's annotations are grouped by PDF attachment.
-3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
-4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.
+1. Place the cursor in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. The default shortcut is `Ctrl + Alt + A` (macOS: `Cmd + Option + A`), and it can be customized in settings.
+2. Use the single search field to find excerpts, comments, tags, or page labels across PDF annotations in the current library. Choosing a paper first is optional. An empty query offers sources such as the current paper without automatically restricting the search.
+3. The same field finds papers and PDFs by title or author. Choose a suggested source to add a removable source chip and clear the field, then enter a content query. Multiple source chips narrow the search to those sources; removing them broadens it again.
+4. Filter by type, color, or tag. **Load more** reads subsequent results in batches. Each annotation shows its paper, PDF, and page. A page link opens the original annotation in a separate PDF window while keeping the picker and its selections.
+5. Nothing is selected initially. Select annotations individually or use **Select displayed results**, which selects only the currently displayed, loaded results. Changing the query, source chips, filters, or loaded page preserves prior selections. The footer summarizes the selected annotations and sources; use **View selected** to review or remove entries.
+6. **Insert N annotations** inserts the complete selection together. Multiple papers are grouped by source, and annotations within a PDF follow reading order. An inline citation such as **(Smith, 2020, p. iv)** follows the excerpt or comment and opens the original annotation. Sources without an author use the source title, and standalone PDFs use the attachment title. Missing years and page numbers are omitted. Hover over the citation for **Show Item** and **Go to Annotation**. **Show Item** selects the paper or standalone PDF in Zotero’s main window. One undo reverses the batch. Insertion failures retain the selection; changes to the document or native annotations require review.
 
-Highlights, underlines, sticky notes, text annotations, and other annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. If the original annotations change, use **Refresh source** to reload them and select again.
+Highlights, underlines, sticky notes, text annotations, and other PDF annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. The scope is the current note's library, including multiple papers and standalone PDFs; results do not mix personal and other group libraries.
 
 ## Create notes from PDF annotations
 
