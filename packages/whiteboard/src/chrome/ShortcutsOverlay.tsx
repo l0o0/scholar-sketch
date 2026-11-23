@@ -1,8 +1,10 @@
+import type { WhiteboardShortcuts } from "../model/shortcuts";
 import type { WhiteboardLabels } from "../model/protocol";
 import { keyboardShortcuts } from "./shortcuts";
 
 export function ShortcutsOverlay(props: {
   labels: WhiteboardLabels;
+  shortcuts?: WhiteboardShortcuts;
   onClose: () => void;
 }) {
   return (
@@ -24,8 +26,8 @@ export function ShortcutsOverlay(props: {
           </button>
         </header>
         <ul>
-          {keyboardShortcuts(props.labels).map((item) => (
-            <li key={item.keys}>
+          {keyboardShortcuts(props.labels, props.shortcuts).map((item) => (
+            <li key={item.action}>
               <kbd>{item.keys}</kbd>
               <span>{item.label}</span>
             </li>

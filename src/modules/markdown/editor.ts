@@ -1,3 +1,4 @@
+import { readMarkdownCommandShortcuts } from "./command-shortcut-preferences";
 import { currentMarkdownStyle } from "./style-preferences";
 import { applyPreviewStyle } from "./preview";
 import { attachMarkdownIframeDrop } from "./iframe-drop";
@@ -137,6 +138,7 @@ type PendingCommand = Extract<
       | "setAppearance"
       | "setSlashSearchLanguage"
       | "setInsertShortcuts"
+      | "setCommandShortcuts"
       | "setReadOnly"
       | "setMode"
       | "setImageAssets"
@@ -438,6 +440,7 @@ export function createMarkdownEditor(
         message.type === "setAppearance" ||
         message.type === "setSlashSearchLanguage" ||
         message.type === "setInsertShortcuts" ||
+        message.type === "setCommandShortcuts" ||
         message.type === "setReadOnly" ||
         message.type === "setMode"
       ) {
@@ -548,6 +551,9 @@ export function createMarkdownEditor(
             annotationInsertion: Boolean(onInsertAnnotations),
             tableInsertion: Boolean(onInsertTable),
             insertShortcuts: readMarkdownInsertShortcuts(),
+            commandShortcuts: readMarkdownCommandShortcuts(
+              ownerWin?.navigator.platform,
+            ),
             fontSize: resolveFontSize(),
             appearance: resolveAppearance(),
             slashSearchLanguage: resolveSlashSearchLanguage(
@@ -895,6 +901,11 @@ export function createMarkdownEditor(
           Zotero.locale || "en-US",
         ),
       },
+    });
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setCommandShortcuts",
+      payload: readMarkdownCommandShortcuts(ownerWin?.navigator.platform),
     });
     sendOrQueue({
       source: EDITOR_MESSAGE_SOURCE,

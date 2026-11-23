@@ -1,3 +1,11 @@
+import {
+  MARKDOWN_COMMAND_ACTIONS,
+  defaultMarkdownCommandShortcuts,
+  markdownCommandBindings,
+  markdownCommandAllowsUnmodified,
+  type MarkdownCommandAction,
+  type MarkdownCommandShortcuts,
+} from "../modules/markdown/markdown-command-shortcuts";
 import type { EditorAppearance } from "../modules/markdown/editor-protocol";
 import {
   createLinkCompletionPopup,
@@ -30,7 +38,7 @@ import {
 } from "../modules/markdown/preferences";
 import { validViewState } from "../modules/markdown/editor-view-state";
 import {
-  MARKDOWN_HEADING_SHORTCUTS,
+  keyboardShortcutKeyBinding,
   MARKDOWN_INSERT_COMMANDS,
   DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
   markdownInsertKeyBinding,
@@ -67,7 +75,8 @@ import {
   defaultKeymap,
   history,
   historyKeymap,
-  indentWithTab,
+  indentMore,
+  indentLess,
   isolateHistory,
   redo,
   undo,
@@ -84,6 +93,8 @@ import {
   searchKeymap,
   highlightSelectionMatches,
   openSearchPanel,
+  findNext,
+  findPrevious,
 } from "@codemirror/search";
 import {
   EDITOR_MESSAGE_SOURCE,
@@ -174,6 +185,7 @@ const liveCompartment = new Compartment();
 const guttersCompartment = new Compartment();
 const modeAttrCompartment = new Compartment();
 const insertShortcutsCompartment = new Compartment();
+const commandShortcutsCompartment = new Compartment();
 
 const fromParentAnnotation = Annotation.define<boolean>();
 
@@ -630,6 +642,8 @@ function applyActiveCellKey(event: KeyboardEvent): boolean {
   const view = runtime.view;
   const active = runtime.activeTableCell;
   if (!view || !active) return false;
+  // Navigation belongs to the configurable CodeMirror scope below.
+  if (event.key === "Tab") return false;
   const intent = interpretCellKey(active.value, active.caretOffset, event.key, {
     shift: event.shiftKey,
     ctrl: event.ctrlKey,
@@ -1334,6 +1348,90 @@ function insertShortcutExtension(
   );
 }
 
+function runMarkdownCommand(
+  action: MarkdownCommandAction,
+  view: EditorView,
+): boolean {
+  if (runtime.composing || view.compositionStarted) return false;
+  if (action === "save") {
+    postToParent({ type: "save" });
+    return true;
+  }
+  if (action === "find") return openSearchPanel(view);
+  if (action === "findNext") return findNext(view);
+  if (action === "findPrevious") return findPrevious(view);
+  if (view.state.readOnly) return true;
+  if (action === "tableNext" || action === "tablePrevious") {
+    const backwards = action === "tablePrevious";
+    if (runtime.activeTableCell) {
+      const plan = planCellNavigation(
+        view.state,
+        runtime.activeTableCell,
+        backwards,
+      );
+      if (plan) {
+        runtime.activeTableCell = plan.active;
+        view.dispatch({
+          changes: plan.changes,
+          selection: { anchor: plan.active.from },
+          effects: [
+            setLiveTableCellEdit.of(plan.active),
+            editorEditableEffect(),
+          ],
+          scrollIntoView: true,
+        });
+      }
+      return true;
+    }
+    return tableKeymap[backwards ? 1 : 0].run!(view);
+  }
+  if (action === "indent" || action === "unindent") {
+    if (
+      runtime.activeTableCell ||
+      tableTargetAt(view.state, view.state.selection.main.head)
+    )
+      return false;
+    return action === "indent" ? indentMore(view) : indentLess(view);
+  }
+  if (action === "undo") return undo(view);
+  if (action === "redo") return redo(view);
+  if (action === "bold") wrapSelectionInView(view, "**", "**");
+  else if (action === "italic") wrapSelectionInView(view, "*", "*");
+  else if (action === "link") wrapSelectionInView(view, "[", "](url)");
+  else prefixLineInView(view, `${"#".repeat(Number(action.slice(1)))} `);
+  return true;
+}
+
+function commandShortcutExtension(
+  shortcuts: MarkdownCommandShortcuts,
+): Extension {
+  return keymap.of(
+    MARKDOWN_COMMAND_ACTIONS.flatMap((action) =>
+      markdownCommandBindings(action, shortcuts).flatMap((raw) => {
+        const key = keyboardShortcutKeyBinding(raw);
+        if (!key) return [];
+        const readCommand = [
+          "save",
+          "find",
+          "findNext",
+          "findPrevious",
+        ].includes(action);
+        return [
+          {
+            key,
+            win: keyboardShortcutKeyBinding(raw, "Win32") ?? undefined,
+            // Auxiliary inputs own their selections. Formatting stays in the
+            // document; cells receive navigation and non-writing commands only.
+            scope: `markdown-command${readCommand ? " search-panel table-navigation" : action === "tableNext" || action === "tablePrevious" ? " table-navigation" : ""}`,
+            preventDefault: !markdownCommandAllowsUnmodified(action),
+            run: (view: EditorView) => runMarkdownCommand(action, view),
+          },
+        ];
+      }),
+    ),
+  );
+}
+
 function buildExtensions(
   init: EditorInitPayload,
   disableLivePreview = false,
@@ -1393,53 +1491,29 @@ function buildExtensions(
       ]),
     ),
     keymap.of([
-      ...tableKeymap,
-      {
-        key: "Mod-s",
-        run: () => {
-          postToParent({ type: "save" });
-          return true;
-        },
-      },
-      {
-        key: "Mod-b",
-        run: (v) => {
-          if (v.state.readOnly) return false;
-          wrapSelectionInView(v, "**", "**");
-          return true;
-        },
-      },
-      {
-        key: "Mod-i",
-        run: (v) => {
-          if (v.state.readOnly) return false;
-          wrapSelectionInView(v, "*", "*");
-          return true;
-        },
-      },
-      {
-        key: "Mod-k",
-        run: (v) => {
-          if (v.state.readOnly) return false;
-          wrapSelectionInView(v, "[", "](url)");
-          return true;
-        },
-      },
-      ...MARKDOWN_HEADING_SHORTCUTS.map(({ key, level }) => ({
-        key,
-        run: (v: EditorView) => {
-          if (v.state.readOnly) return false;
-          prefixLineInView(v, `${"#".repeat(level)} `);
-          return true;
-        },
-      })),
-      // Local formatting must precede CodeMirror defaults (notably Mod-i).
-      ...defaultKeymap,
-      ...searchKeymap,
-      ...historyKeymap,
+      // The configurable scope owns these commands, including their old aliases.
+      ...defaultKeymap.filter(
+        (binding) =>
+          binding.key !== "Mod-i" &&
+          binding.run !== indentMore &&
+          binding.run !== indentLess,
+      ),
+      ...searchKeymap.filter(
+        (binding) =>
+          binding.run !== openSearchPanel &&
+          binding.run !== findNext &&
+          binding.run !== findPrevious,
+      ),
+      ...historyKeymap.filter(
+        (binding) => binding.run !== undo && binding.run !== redo,
+      ),
       ...foldKeymap,
-      indentWithTab,
     ]),
+    commandShortcutsCompartment.of(
+      commandShortcutExtension(
+        init.commandShortcuts ?? defaultMarkdownCommandShortcuts(),
+      ),
+    ),
     insertShortcutsCompartment.of(
       insertShortcutExtension(
         init.insertShortcuts ?? DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
@@ -1548,7 +1622,6 @@ function buildExtensions(
       EditorView.domEventHandlers({
         keydown(event, view) {
           if (
-            view.state.readOnly ||
             runtime.composing ||
             view.compositionStarted ||
             event.isComposing ||
@@ -1558,7 +1631,21 @@ function buildExtensions(
             return false;
           // Accepted custom bindings precede CodeMirror's ordinary defaults.
           // Its platform matcher preserves AltGr input without a keyCode fallback.
-          return runScopeHandlers(view, event, "insert");
+          return (
+            runScopeHandlers(
+              view,
+              event,
+              isInsideSelector(event, ".cm-search")
+                ? "search-panel"
+                : runtime.activeTableCell
+                  ? "table-navigation"
+                  : "markdown-command",
+            ) ||
+            (!view.state.readOnly &&
+              !runtime.activeTableCell &&
+              !isInsideSelector(event, ".cm-search") &&
+              runScopeHandlers(view, event, "insert"))
+          );
         },
       }),
     ),
@@ -2089,6 +2176,14 @@ function handleParentMessage(data: ParentToEditorMessage) {
         updateSlashCompletion(runtime.view);
       break;
     }
+    case "setCommandShortcuts": {
+      runtime.view?.dispatch({
+        effects: commandShortcutsCompartment.reconfigure(
+          commandShortcutExtension(data.payload),
+        ),
+      });
+      break;
+    }
     case "setInsertShortcuts": {
       runtime.view?.dispatch({
         effects: insertShortcutsCompartment.reconfigure(
@@ -2250,6 +2345,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "setAppearance",
   "setSlashSearchLanguage",
   "setInsertShortcuts",
+  "setCommandShortcuts",
   "setReadOnly",
   "setMode",
   "setImageAssets",

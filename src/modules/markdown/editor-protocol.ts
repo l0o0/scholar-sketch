@@ -1,3 +1,8 @@
+import {
+  MARKDOWN_COMMAND_ACTIONS,
+  isMarkdownCommandShortcut,
+  type MarkdownCommandShortcuts,
+} from "./markdown-command-shortcuts";
 import { isMarkdownStyle, type MarkdownStyle } from "./style-presets";
 import type { FontFamilyID, ResolvedSlashSearchLanguage } from "./preferences";
 import { validViewState, type DocumentViewState } from "./editor-view-state";
@@ -136,6 +141,7 @@ export interface EditorInitPayload {
   /** The host owns a table-size picker for this mounted editor. */
   tableInsertion?: boolean;
   insertShortcuts?: MarkdownInsertShortcuts;
+  commandShortcuts?: MarkdownCommandShortcuts;
   fontSize: number;
   theme: EditorTheme;
   /** Default interpreted as `"live"` by the iframe bootstrap. */
@@ -256,6 +262,11 @@ export type ParentToEditorMessage = (
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setSlashSearchLanguage";
       payload: { language: ResolvedSlashSearchLanguage };
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setCommandShortcuts";
+      payload: MarkdownCommandShortcuts;
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -436,6 +447,21 @@ export function isEditorProtocolMessage(
   return isLinkMessagePayloadValid(data as Record<string, unknown>);
 }
 
+function isCommandShortcutPayload(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    MARKDOWN_COMMAND_ACTIONS.every((action) => {
+      const binding = (value as Record<string, unknown>)[action];
+      return (
+        typeof binding === "string" &&
+        isMarkdownCommandShortcut(action, binding)
+      );
+    })
+  );
+}
+
 function isInsertShortcutPayload(value: unknown): boolean {
   return (
     !!value &&
@@ -449,6 +475,8 @@ function isInsertShortcutPayload(value: unknown): boolean {
 }
 
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "setCommandShortcuts")
+    return isCommandShortcutPayload(data.payload);
   if (data.type === "setInsertShortcuts")
     return isInsertShortcutPayload(data.payload);
   if (data.type === "init" || data.type === "setTopInset") {
@@ -457,6 +485,7 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
       annotationInsertion?: unknown;
       tableInsertion?: unknown;
       insertShortcuts?: unknown;
+      commandShortcuts?: unknown;
       appearance?: { style?: unknown };
     } | null;
     return (
@@ -466,6 +495,8 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
         typeof payload.annotationInsertion === "boolean") &&
       (payload.tableInsertion === undefined ||
         typeof payload.tableInsertion === "boolean") &&
+      (payload.commandShortcuts === undefined ||
+        isCommandShortcutPayload(payload.commandShortcuts)) &&
       (payload.insertShortcuts === undefined ||
         isInsertShortcutPayload(payload.insertShortcuts)) &&
       (payload.appearance?.style === undefined ||

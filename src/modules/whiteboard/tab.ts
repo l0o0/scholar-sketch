@@ -1,3 +1,4 @@
+import { readWhiteboardShortcuts } from "./shortcut-preferences";
 import { pdfSelectionTransferMarkdown } from "../pdf-selection";
 import { pickZoteroItems as pickZoteroItem } from "../item-picker";
 import { getPref } from "../../utils/prefs";
@@ -72,6 +73,9 @@ export function applyWhiteboardSettings() {
   for (const session of whiteboardRegistry.all()) {
     session.editor?.setColorScheme(colorScheme);
     session.editor?.setAppearance(appearance);
+    session.editor?.setShortcuts(
+      readWhiteboardShortcuts(session.win.navigator.platform),
+    );
     session.editor?.setTheme(resolveEditorTheme(session.win));
   }
 }
@@ -1058,6 +1062,7 @@ function mountWhiteboardUI(
     channel: whiteboardChannel(session.tabID, session.canvasId),
     snapshot: initialSnapshot,
     templates: templateRepository.list(),
+    shortcuts: readWhiteboardShortcuts(win.navigator.platform),
     labels: {
       settings: getString("more-settings"),
       switchWindow: getString(
@@ -1351,6 +1356,18 @@ function mountWhiteboardUI(
       resetColor: getString("whiteboard-color-reset"),
       shortcutSelect: getString("whiteboard-shortcut-select"),
       shortcutHand: getString("whiteboard-shortcut-hand"),
+      shortcutPan: getString("whiteboard-shortcut-pan"),
+      shortcutNudgeUp: getString("whiteboard-shortcut-nudge-up"),
+      shortcutNudgeDown: getString("whiteboard-shortcut-nudge-down"),
+      shortcutNudgeLeft: getString("whiteboard-shortcut-nudge-left"),
+      shortcutNudgeRight: getString("whiteboard-shortcut-nudge-right"),
+      shortcutNudgeUpLarge: getString("whiteboard-shortcut-nudge-up-large"),
+      shortcutNudgeDownLarge: getString("whiteboard-shortcut-nudge-down-large"),
+      shortcutNudgeLeftLarge: getString("whiteboard-shortcut-nudge-left-large"),
+      shortcutNudgeRightLarge: getString(
+        "whiteboard-shortcut-nudge-right-large",
+      ),
+
       shortcutFreeMove: getString("whiteboard-shortcut-free-move"),
       shortcutNudge: getString("whiteboard-shortcut-nudge"),
       shortcutNudgeLarge: getString("whiteboard-shortcut-nudge-large"),

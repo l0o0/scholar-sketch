@@ -1,3 +1,9 @@
+import {
+  defaultWhiteboardShortcuts,
+  whiteboardShortcutLabel,
+  type WhiteboardShortcutAction,
+  type WhiteboardShortcuts,
+} from "../model/shortcuts";
 import { canvasNodeUiSurfaceDefaults } from "../model/academic";
 import { NoteTypeIcon } from "../whiteboard/icons";
 import { noteTypePrompt } from "./labels";
@@ -74,6 +80,7 @@ export interface TopIslandProps {
   canRedo?: boolean;
   editable?: boolean;
   labels: WhiteboardLabels;
+  shortcuts?: WhiteboardShortcuts;
   theme?: WhiteboardTheme;
   activeTool: CanvasTool;
   onSelectTool: (tool: CanvasTool) => void;
@@ -227,24 +234,48 @@ export function TopIsland(props: TopIslandProps) {
     props.noteTemplates.find(
       (template) => template.id === props.activeNoteTemplateId,
     ) ?? props.noteTemplates[0];
+  const shortcutTitle = (label: string, action: WhiteboardShortcutAction) => {
+    const shortcut = whiteboardShortcutLabel(
+      (props.shortcuts ?? defaultWhiteboardShortcuts())[action],
+    );
+    return shortcut ? `${label} (${shortcut})` : label;
+  };
   const groups: ToolButton<CanvasTool | "file">[][] = [
     [
-      { tool: "select", title: labels.select, icon: <IconSelect /> },
-      { tool: "hand", title: labels.hand, icon: <IconHand /> },
+      {
+        tool: "select",
+        title: shortcutTitle(labels.select, "select"),
+        icon: <IconSelect />,
+      },
+      {
+        tool: "hand",
+        title: shortcutTitle(labels.hand, "hand"),
+        icon: <IconHand />,
+      },
     ],
     [{ tool: "literature", title: labels.addItem, icon: <IconZotero /> }],
     [{ tool: "file", title: labels.addFile, icon: <IconFile /> }],
     [
       {
         tool: "frame",
-        title: `${labels.addFrame} (F)`,
+        title: shortcutTitle(labels.addFrame, "frame"),
         icon: <IconFrame />,
       },
     ],
-    [{ tool: "text", title: `${labels.addText} (T)`, icon: <IconText /> }],
+    [
+      {
+        tool: "text",
+        title: shortcutTitle(labels.addText, "text"),
+        icon: <IconText />,
+      },
+    ],
   ];
   const drawTools: ToolButton[] = [
-    { tool: "rect", title: `${labels.addRect} (R)`, icon: <IconRect /> },
+    {
+      tool: "rect",
+      title: shortcutTitle(labels.addRect, "rect"),
+      icon: <IconRect />,
+    },
     {
       tool: "roundedRect",
       title: `${toolbarLabel(labels, "addRoundedRect", "Rounded rectangle")}`,
@@ -252,7 +283,7 @@ export function TopIsland(props: TopIslandProps) {
     },
     {
       tool: "ellipse",
-      title: `${labels.addEllipse} (O)`,
+      title: shortcutTitle(labels.addEllipse, "ellipse"),
       icon: <IconEllipse />,
     },
     {
@@ -260,9 +291,21 @@ export function TopIsland(props: TopIslandProps) {
       title: toolbarLabel(labels, "addDiamond", "Diamond"),
       icon: <IconDiamond />,
     },
-    { tool: "arrow", title: `${labels.addArrow} (A)`, icon: <IconArrow /> },
-    { tool: "line", title: `${labels.addLine} (L)`, icon: <IconLine /> },
-    { tool: "eraser", title: `${labels.eraser} (E)`, icon: <IconEraser /> },
+    {
+      tool: "arrow",
+      title: shortcutTitle(labels.addArrow, "arrow"),
+      icon: <IconArrow />,
+    },
+    {
+      tool: "line",
+      title: shortcutTitle(labels.addLine, "line"),
+      icon: <IconLine />,
+    },
+    {
+      tool: "eraser",
+      title: shortcutTitle(labels.eraser, "eraser"),
+      icon: <IconEraser />,
+    },
   ];
   const drawToolsOpen = openMenu === "draw";
   const hasSelectionActions =
@@ -363,7 +406,7 @@ export function TopIsland(props: TopIslandProps) {
           props.onSearch?.();
         }}
       >
-        {labels.searchCanvas ?? "Search canvas"} · Ctrl/⌘ F
+        {shortcutTitle(labels.searchCanvas ?? "Search canvas", "find")}
       </button>
       <button
         type="button"
@@ -629,8 +672,18 @@ export function TopIsland(props: TopIslandProps) {
             current === "templates" ? null : "templates",
           ),
       },
-      toolAction("arrow", `${labels.addArrow} (A)`, <IconArrow />, 5),
-      toolAction("text", `${labels.addText} (T)`, <IconText />, 6),
+      toolAction(
+        "arrow",
+        shortcutTitle(labels.addArrow, "arrow"),
+        <IconArrow />,
+        5,
+      ),
+      toolAction(
+        "text",
+        shortcutTitle(labels.addText, "text"),
+        <IconText />,
+        6,
+      ),
       toolAction("literature", labels.addItem, <IconZotero />, 8),
       {
         id: "file",
@@ -710,7 +763,7 @@ export function TopIsland(props: TopIslandProps) {
           }}
         >
           <IconFrame />
-          <span>{labels.addFrame} (F)</span>
+          <span>{shortcutTitle(labels.addFrame, "frame")}</span>
         </button>
         {props.selectedNodeCount >= 2 && props.onGroupSelection ? (
           <button
@@ -882,10 +935,18 @@ export function TopIsland(props: TopIslandProps) {
           </div>
         ) : null}
         <div className="zmd-board-top-group zmd-board-history-tools">
-          <button type="button" title={labels.undo} onClick={props.onUndo}>
+          <button
+            type="button"
+            title={shortcutTitle(labels.undo, "undo")}
+            onClick={props.onUndo}
+          >
             <IconUndo />
           </button>
-          <button type="button" title={labels.redo} onClick={props.onRedo}>
+          <button
+            type="button"
+            title={shortcutTitle(labels.redo, "redo")}
+            onClick={props.onRedo}
+          >
             <IconRedo />
           </button>
         </div>

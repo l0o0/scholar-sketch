@@ -1,3 +1,8 @@
+import {
+  MARKDOWN_COMMAND_ACTIONS,
+  defaultMarkdownCommandShortcuts,
+} from "../src/modules/markdown/markdown-command-shortcuts.ts";
+import { writeMarkdownCommandShortcuts } from "../src/modules/markdown/command-shortcut-preferences.ts";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -66,7 +71,7 @@ describe("toolbar insert templates", () => {
       root.innerHTML = `
         <div class="zotero-markdown-toolbar">
           <button data-action="more" aria-expanded="true">More</button>
-          ${shortcuts.MARKDOWN_INSERT_COMMANDS.map((command) => `<button data-action="${command}" aria-label="${command}"></button>`).join("")}
+          ${[...shortcuts.MARKDOWN_INSERT_COMMANDS, ...MARKDOWN_COMMAND_ACTIONS].map((command) => `<button data-action="${command}" aria-label="${command}"></button>`).join("")}
           <div class="zotero-markdown-more-menu">
             <button aria-haspopup="menu" aria-expanded="true">Export</button>
             <div class="zotero-markdown-export-submenu"></div>
@@ -107,6 +112,11 @@ describe("toolbar insert templates", () => {
     }
     setPref("shortcutInsertTask", "accel,alt,shift,J");
     setPref("shortcutInsertImage", "");
+    writeMarkdownCommandShortcuts({
+      ...defaultMarkdownCommandShortcuts(),
+      bold: "accel,alt,B",
+      redo: "",
+    });
     applyMarkdownToolbarPreferences();
     for (const f of fixtures) {
       const task = f.root.querySelector<HTMLButtonElement>(
@@ -124,6 +134,21 @@ describe("toolbar insert templates", () => {
       )!;
       assert.equal(image.dataset.shortcut, "");
       assert.equal(image.title, "image");
+      const bold = f.root.querySelector<HTMLButtonElement>(
+        '[data-action="bold"]',
+      )!;
+      assert.equal(
+        bold.dataset.shortcut,
+        shortcuts.markdownShortcutLabel(
+          "accel,alt,B",
+          f.win.navigator.platform,
+        ),
+      );
+      const redo = f.root.querySelector<HTMLButtonElement>(
+        '[data-action="redo"]',
+      )!;
+      assert.equal(redo.dataset.shortcut, "");
+      assert.equal(redo.title, "redo");
     }
     setPref("markdownToolbarVisible", false);
     applyMarkdownToolbarPreferences();

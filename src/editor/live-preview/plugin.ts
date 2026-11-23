@@ -22,6 +22,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
   WidgetType,
+  runScopeHandlers,
 } from "@codemirror/view";
 import {
   activeLinesFromSelection,
@@ -68,7 +69,6 @@ import {
   TABLE_CELL_ACTIVATE_EVENT,
   TABLE_CELL_COMMIT_EVENT,
   TABLE_CELL_INPUT_EVENT,
-  TABLE_CELL_NAVIGATE_EVENT,
   type TableCellActivateDetail,
   type TableCellEditTarget,
 } from "../table-cell-edit";
@@ -361,7 +361,7 @@ class TableCellWidget extends WidgetType {
     cell.dataset.zmdTableCellColumn = String(this.columnIndex);
   }
 
-  toDOM() {
+  toDOM(view: EditorView) {
     const cell = document.createElement("span");
     this.applyDomIdentity(cell);
     if (this.editing) cell.classList.add("zmd-lp-table-cell-active");
@@ -471,16 +471,15 @@ class TableCellWidget extends WidgetType {
         emitInput();
       });
       cell.addEventListener("keydown", (event) => {
-        if (event.key === "Tab") {
+        if (
+          !composing &&
+          !event.isComposing &&
+          event.keyCode !== 229 &&
+          !event.repeat &&
+          runScopeHandlers(view, event, "table-navigation")
+        ) {
           event.preventDefault();
-          const CustomEventConstructor =
-            cell.ownerDocument.defaultView?.CustomEvent || CustomEvent;
-          cell.dispatchEvent(
-            new CustomEventConstructor(TABLE_CELL_NAVIGATE_EVENT, {
-              bubbles: true,
-              detail: { backwards: event.shiftKey },
-            }),
-          );
+          event.stopPropagation();
         } else if (event.key === "Escape" || event.key === "Enter") {
           event.preventDefault();
           const CustomEventConstructor =

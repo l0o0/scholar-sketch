@@ -1,3 +1,4 @@
+import { defaultWhiteboardShortcuts } from "../packages/whiteboard/src/model/shortcuts.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -19,45 +20,43 @@ const labels = new Proxy({} as WhiteboardLabels, {
   get: (_target, property) => String(property),
 });
 
-test("shortcut help explains free dragging and both precise movement steps", () => {
+test("shortcut help and toolbar display the current configured actions", () => {
+  const shortcuts = {
+    ...defaultWhiteboardShortcuts("Win32"),
+    freeMove: "F7",
+    nudgeUp: "F8",
+    nudgeUpLarge: "shift,F8",
+    rect: "P",
+    frame: "",
+  };
+  const configuredLabels = {
+    ...labels,
+    shortcutFreeMove: "Move freely",
+    shortcutNudgeUp: "Move up 1",
+    shortcutNudgeUpLarge: "Move up 16",
+  };
+  const help = keyboardShortcuts(configuredLabels, shortcuts, "Win32");
+  assert.deepEqual(
+    help.find((item) => item.action === "freeMove"),
+    { action: "freeMove", keys: "F7", label: "Move freely" },
+  );
+  assert.deepEqual(
+    help.find((item) => item.action === "nudgeUpLarge"),
+    { action: "nudgeUpLarge", keys: "Shift + F8", label: "Move up 16" },
+  );
+  assert.equal(
+    help.some((item) => item.action === "frame"),
+    false,
+  );
   const markup = renderToStaticMarkup(
     createElement(ShortcutsOverlay, {
-      labels: {
-        ...labels,
-        shortcutFreeMove: "Free drag with snapping temporarily disabled",
-        shortcutNudge: "Move selection by one canvas unit",
-        shortcutNudgeLarge: "Move selection by sixteen canvas units",
-      },
+      labels: configuredLabels,
+      shortcuts,
       onClose: () => {},
     }),
   );
-  assert.match(
-    markup,
-    /<kbd>Alt \+ drag<\/kbd><span>Free drag with snapping temporarily disabled<\/span>/,
-  );
-  assert.match(
-    markup,
-    /<kbd>↑ ↓ ← →<\/kbd><span>Move selection by one canvas unit<\/span>/,
-  );
-  assert.match(
-    markup,
-    /<kbd>Shift \+ ↑ ↓ ← →<\/kbd><span>Move selection by sixteen canvas units<\/span>/,
-  );
-
-  const olderHostLabels = {} as WhiteboardLabels;
-  const help = keyboardShortcuts(olderHostLabels);
-  assert.equal(
-    help.find((item) => item.keys === "Alt + drag")?.label,
-    "Move freely (temporarily disable snapping)",
-  );
-  assert.equal(
-    help.find((item) => item.keys === "↑ ↓ ← →")?.label,
-    "Nudge selection by 1 unit",
-  );
-  assert.equal(
-    help.find((item) => item.keys === "Shift + ↑ ↓ ← →")?.label,
-    "Nudge selection by 16 units",
-  );
+  assert.match(markup, /<kbd>F7<\/kbd><span>Move freely<\/span>/);
+  assert.match(markup, /<kbd>F8<\/kbd><span>Move up 1<\/span>/);
 });
 
 function renderToolbar(selectedNodeCount: number, selectedEdgeCount: number) {

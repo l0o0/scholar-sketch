@@ -1,3 +1,9 @@
+import { keyboardShortcutKeyBinding } from "../../../../src/modules/markdown/shortcut";
+import {
+  defaultWhiteboardShortcuts,
+  whiteboardShortcutMatches,
+  type WhiteboardShortcuts,
+} from "../model/shortcuts";
 import {
   selectedDocument,
   cloneSelection,
@@ -51,7 +57,6 @@ import {
   addEdge,
   applyEdgeChanges,
   reconnectEdge,
-  useKeyPress,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -149,7 +154,6 @@ import {
   isDrawTool,
   isLibraryKind,
   isStampTool,
-  noteTemplateShortcut,
   shouldEditOnCreate,
   toolAfterDraw,
   type DrawFrame,
@@ -227,8 +231,10 @@ import {
   type FrameDragState,
 } from "./frame";
 import {
-  captureCanvasArrowKey,
   handleGlobalCanvasKeyDown,
+  createCanvasHeldShortcuts,
+  emptyCanvasHeldShortcuts,
+  isCanvasShortcutTarget,
   isEditableTarget,
 } from "./keyboard";
 import {
@@ -565,6 +571,7 @@ export interface WhiteboardAppProps {
   sidebarFocused?: boolean;
   colorScheme?: ColorSchemeID;
   appearance?: WhiteboardAppearance;
+  shortcuts?: WhiteboardShortcuts;
   labels?: WhiteboardLabels;
   initialSnapshot?: CanvasDocument;
   templates?: NoteTemplate[];
@@ -630,6 +637,7 @@ export interface WhiteboardRuntime {
   setTheme: (theme: WhiteboardTheme) => void;
   setColorScheme: (scheme: ColorSchemeID) => void;
   setAppearance: (appearance: WhiteboardAppearance) => void;
+  setShortcuts: (shortcuts: WhiteboardShortcuts) => void;
   setLabels: (labels: WhiteboardLabels) => void;
   setTemplates: (templates: NoteTemplate[]) => void;
   loadSnapshot: (snapshot: CanvasDocument) => void;
@@ -1166,9 +1174,14 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }
   const sourceRefreshRuntime = sourceRefreshRuntimeRef.current;
   const [selectedTool, setActiveTool] = useState<CanvasTool>("select");
-  const spacePressed = useKeyPress("Space", {
-    actInsideInputWithModifier: false,
-  });
+  const [shortcuts, setShortcuts] = useState<WhiteboardShortcuts>(
+    () => props.shortcuts ?? defaultWhiteboardShortcuts(),
+  );
+  const [heldShortcuts, setHeldShortcuts] = useState(emptyCanvasHeldShortcuts);
+  const heldController = useMemo(
+    () => createCanvasHeldShortcuts(shortcuts, setHeldShortcuts),
+    [shortcuts],
+  );
   const [activeNoteTemplateId, setActiveNoteTemplateId] = useState<string>(
     BUILTIN_NOTE_TEMPLATE_IDS.note,
   );
@@ -1278,10 +1291,59 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   const [detailsTarget, setDetailsTarget] = useState<string | null>(null);
   const [annotationBrowser, setAnnotationBrowser] =
     useState<AnnotationBrowserSession | null>(null);
-  // Space temporarily owns all pointer gestures, including those over cards.
+  // The configured pan key temporarily owns pointer gestures over cards.
   const activeTool =
-    spacePressed && !editing && !annotationBrowser ? "hand" : selectedTool;
+    heldShortcuts.pan && !editing && !editingEdge && !annotationBrowser
+      ? "hand"
+      : selectedTool;
   const eraser = activeTool === "eraser";
+  useEffect(() => {
+    const blocked = Boolean(
+      editing ||
+      editingEdge ||
+      annotationBrowser ||
+      imageViewer ||
+      groupPicker ||
+      markdownExportOpen ||
+      formatPainter,
+    );
+    const onDown = (event: KeyboardEvent) => {
+      const held = heldController.keyDown(
+        event,
+        blocked || !isCanvasShortcutTarget(event.target),
+      );
+      if (
+        held.pan &&
+        keyboardShortcutKeyBinding(shortcuts.pan) !== null &&
+        whiteboardShortcutMatches(event, "pan", shortcuts)
+      )
+        event.preventDefault();
+    };
+    const onUp = (event: KeyboardEvent) =>
+      heldController.keyUp(
+        event,
+        blocked || !isCanvasShortcutTarget(event.target),
+      );
+    window.addEventListener("keydown", onDown, true);
+    window.addEventListener("keyup", onUp, true);
+    window.addEventListener("blur", heldController.clear);
+    return () => {
+      window.removeEventListener("keydown", onDown, true);
+      window.removeEventListener("keyup", onUp, true);
+      window.removeEventListener("blur", heldController.clear);
+      heldController.clear();
+    };
+  }, [
+    heldController,
+    shortcuts,
+    editing,
+    editingEdge,
+    annotationBrowser,
+    imageViewer,
+    groupPicker,
+    markdownExportOpen,
+    formatPainter,
+  ]);
   const annotationBrowserRef = useRef<AnnotationBrowserSession | null>(null);
   annotationBrowserRef.current = annotationBrowser;
   const nativePasteBlockedRef = useRef(false);
@@ -2025,7 +2087,8 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       nodeDragRef.current = {
         ids: new Set(draggedNodes.map((dragged) => dragged.id)),
         primaryId: node.id,
-        disabled: "altKey" in event && event.altKey,
+        disabled:
+          "altKey" in event ? heldController.pointer(event).freeMove : false,
         ending: false,
       };
       frameDragRef.current =
@@ -2034,7 +2097,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           draggedNodes.map((dragged) => dragged.id),
         ) ?? null;
     },
-    [clearSmartGuides, pushHistory, workingSnapshot],
+    [clearSmartGuides, pushHistory, workingSnapshot, heldController],
   );
 
   const endFrameDrag = useCallback(() => {
@@ -2054,30 +2117,31 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
   }, [bump, clearSmartGuides]);
 
   useEffect(() => {
-    const onMove = (event: MouseEvent) => {
+    const onMove = (event: MouseEvent | KeyboardEvent) => {
       if (!nodeDragRef.current) return;
-      nodeDragRef.current.disabled = event.altKey;
-      if (event.altKey) clearSmartGuides();
-    };
-    const onModifier = (event: KeyboardEvent) => {
-      if (!nodeDragRef.current || event.key !== "Alt") return;
-      nodeDragRef.current.disabled = event.type === "keydown";
-      if (nodeDragRef.current.disabled) clearSmartGuides();
+      const held =
+        event instanceof KeyboardEvent
+          ? event.type === "keyup"
+            ? heldController.keyUp(event)
+            : heldController.keyDown(event)
+          : heldController.pointer(event);
+      nodeDragRef.current.disabled = held.freeMove;
+      if (held.freeMove) clearSmartGuides();
     };
     // Capture modifiers before React Flow's window-level drag handler.
     window.addEventListener("mousemove", onMove, true);
-    window.addEventListener("keydown", onModifier, true);
-    window.addEventListener("keyup", onModifier, true);
+    window.addEventListener("keydown", onMove, true);
+    window.addEventListener("keyup", onMove, true);
     window.addEventListener("blur", endFrameDrag);
     window.addEventListener("pointercancel", endFrameDrag);
     return () => {
       window.removeEventListener("mousemove", onMove, true);
-      window.removeEventListener("keydown", onModifier, true);
-      window.removeEventListener("keyup", onModifier, true);
+      window.removeEventListener("keydown", onMove, true);
+      window.removeEventListener("keyup", onMove, true);
       window.removeEventListener("blur", endFrameDrag);
       window.removeEventListener("pointercancel", endFrameDrag);
     };
-  }, [clearSmartGuides, endFrameDrag]);
+  }, [clearSmartGuides, endFrameDrag, heldController]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -2814,6 +2878,9 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         clientY: number;
         pointerId: number;
         shiftKey: boolean;
+        ctrlKey: boolean;
+        metaKey: boolean;
+        altKey: boolean;
       },
       kind: DrawKind,
     ) => {
@@ -2821,7 +2888,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       const nodeId = newId(kind);
       const frame = frameFromDrag(origin, origin, {
         kind,
-        shift: event.shiftKey,
+        shift: heldController.pointer(event).constrain,
       });
       preDrawRef.current = {
         working: workingSnapshot(),
@@ -2851,7 +2918,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       };
       setNodes((current) => [...current, created]);
     },
-    [flowPoint, snapshotNow, workingSnapshot],
+    [flowPoint, snapshotNow, workingSnapshot, heldController],
   );
 
   const eraseNode = useCallback(
@@ -3862,10 +3929,13 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
     [snapshotWithDraft, labels, appearance, theme],
   );
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
+  const onCanvasKeyDown = useCallback(
+    (event: KeyboardEvent) => {
       if (markdownExportOpen) return;
-      if (formatPainterRef.current && event.key === "Escape") {
+      if (
+        formatPainterRef.current &&
+        whiteboardShortcutMatches(event, "cancel", shortcuts)
+      ) {
         event.preventDefault();
         cancelFormatPainter();
         setMenu(null);
@@ -3880,50 +3950,26 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       )
         return;
       if (
-        event.key === "Escape" &&
+        whiteboardShortcutMatches(event, "cancel", shortcuts) &&
         (continuationRef.current || reconnectingRef.current)
       ) {
         continuationRef.current = null;
         connectionCanceledRef.current = true;
       }
       if (groupPicker) {
-        if (event.key === "Escape") {
+        if (whiteboardShortcutMatches(event, "cancel", shortcuts)) {
           event.preventDefault();
           closeGroupPicker();
         }
         return;
       }
       if (imageViewer) {
-        if (event.key === "Escape") {
+        if (whiteboardShortcutMatches(event, "cancel", shortcuts)) {
           event.preventDefault();
           event.stopPropagation();
           setImageViewer(null);
         }
         return;
-      }
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "f" &&
-        !isEditableTarget(event.target) &&
-        !editing &&
-        !editingEdge &&
-        !annotationBrowserRef.current
-      ) {
-        event.preventDefault();
-        setSearchOpen(true);
-        return;
-      }
-      if (
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !editing &&
-        !editingEdge &&
-        annotationBrowserRef.current === null &&
-        !isEditableTarget(event.target)
-      ) {
-        const templateId = noteTemplateShortcut(event.key);
-        if (templateId) setActiveNoteTemplateId(templateId);
       }
       handleGlobalCanvasKeyDown(
         event,
@@ -3950,6 +3996,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
             cancelFormatPainter();
             setActiveTool(tool);
           },
+          save: props.onSave,
+          find: () => setSearchOpen(true),
+          setNoteTemplate(type) {
+            setActiveNoteTemplateId(BUILTIN_NOTE_TEMPLATE_IDS[type]);
+          },
           deleteSelection: deleteCanvasElements,
           nudgeSelected,
           fitView,
@@ -3957,39 +4008,54 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           undo: undoCanvas,
           redo: redoCanvas,
         },
+        shortcuts,
       );
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    editing,
-    editingEdge,
-    imageViewer,
-    groupPicker,
-    markdownExportOpen,
-    cancelFormatPainter,
-    closeGroupPicker,
-    cancelDraw,
-    deleteCanvasElements,
-    edgesRef,
-    endFrameDrag,
-    fitSelection,
-    fitView,
-    nudgeSelected,
-    redoCanvas,
-    undoCanvas,
-  ]);
+    },
+    [
+      editing,
+      editingEdge,
+      imageViewer,
+      groupPicker,
+      markdownExportOpen,
+      cancelFormatPainter,
+      closeGroupPicker,
+      cancelDraw,
+      deleteCanvasElements,
+      edgesRef,
+      endFrameDrag,
+      fitSelection,
+      fitView,
+      nudgeSelected,
+      redoCanvas,
+      undoCanvas,
+      shortcuts,
+      props.onSave,
+    ],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", onCanvasKeyDown);
+    return () => window.removeEventListener("keydown", onCanvasKeyDown);
+  }, [onCanvasKeyDown]);
 
   useEffect(() => {
     const onMove = (event: PointerEvent) => {
       if (!drawRef.current || event.pointerId !== drawRef.current.pointerId)
         return;
-      updateDraw(event.clientX, event.clientY, event.shiftKey);
+      updateDraw(
+        event.clientX,
+        event.clientY,
+        heldController.pointer(event).constrain,
+      );
     };
     const onUp = (event: PointerEvent) => {
       if (!drawRef.current || event.pointerId !== drawRef.current.pointerId)
         return;
-      updateDraw(event.clientX, event.clientY, event.shiftKey);
+      updateDraw(
+        event.clientX,
+        event.clientY,
+        heldController.pointer(event).constrain,
+      );
       finishDraw();
     };
     window.addEventListener("pointermove", onMove);
@@ -4000,7 +4066,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [finishDraw, updateDraw]);
+  }, [finishDraw, updateDraw, heldController]);
 
   useEffect(() => {
     if (!menu) return;
@@ -4029,6 +4095,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
       setTheme,
       setColorScheme,
       setAppearance,
+      setShortcuts,
       setLabels,
       setTemplates(templates) {
         setCustomTemplates(parseNoteTemplateRegistry(templates));
@@ -4702,6 +4769,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
           canRedo={documentHistory.canRedo}
           labels={labels}
           theme={theme}
+          shortcuts={shortcuts}
           onOpenSettings={props.onOpenSettings}
           activeTool={activeTool}
           onSelectTool={(tool) => {
@@ -5071,14 +5139,11 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
               }
               return;
             }
-            captureCanvasArrowKey(
-              event,
-              Boolean(editing || imageViewer),
-              nudgeSelected,
-            );
+            onCanvasKeyDown(event.nativeEvent);
+            if (event.nativeEvent.defaultPrevented) event.stopPropagation();
           }}
           panOnDrag={activeTool === "hand" ? true : [1, 2]}
-          panOnScroll={spacePressed && activeTool === "hand"}
+          panOnScroll={heldShortcuts.pan && activeTool === "hand"}
           selectionOnDrag={!formatPainting && activeTool === "select"}
           elementsSelectable={!formatPainting && activeTool === "select"}
           nodesDraggable={
@@ -6019,6 +6084,7 @@ export function WhiteboardApp(props: WhiteboardAppProps): ReactElement {
         {helpOpen ? (
           <ShortcutsOverlay
             labels={labels}
+            shortcuts={shortcuts}
             onClose={() => setHelpOpen(false)}
           />
         ) : null}

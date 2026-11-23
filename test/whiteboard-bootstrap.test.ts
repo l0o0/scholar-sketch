@@ -1,3 +1,7 @@
+import {
+  defaultWhiteboardShortcuts,
+  type WhiteboardShortcuts,
+} from "../packages/whiteboard/src/model/shortcuts.ts";
 import { runInNewContext } from "node:vm";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1762,5 +1766,90 @@ test("PDF selection transfers reach canvas and note drafts through the owning re
   handle.destroy();
   const count = posted.length;
   assert.equal(dispatch("paste", textarea).defaultPrevented, false);
+  assert.equal(posted.length, count);
+});
+
+test("configured shortcuts initialize and update the running canvas through the validated bridge", (t) => {
+  const window = installProductionEditorWindow(t);
+  const parent = window.document.createElement("div");
+  window.document.body.append(parent);
+  const initial = defaultWhiteboardShortcuts("MacIntel");
+  const latest = {
+    ...initial,
+    rect: "P",
+    pan: "F6",
+    constrain: "X",
+    delete: "",
+  };
+  const handle = createWhiteboardEditor(parent as unknown as HTMLElement, {
+    win: window as unknown as globalThis.Window,
+    channel: "shortcut-test",
+    shortcuts: initial,
+  });
+  const iframe = parent.querySelector("iframe")!;
+  const posted: Array<{
+    type: string;
+    payload?: { shortcuts?: WhiteboardShortcuts };
+  }> = [];
+  iframe.contentWindow!.postMessage = ((message: unknown) =>
+    posted.push(
+      message as (typeof posted)[number],
+    )) as typeof iframe.contentWindow.postMessage;
+  handle.setShortcuts({ ...initial, rect: "F7" });
+  handle.setShortcuts(latest);
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      source: null,
+      data: {
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        channel: "shortcut-test",
+        v: WHITEBOARD_PROTOCOL_VERSION,
+        type: "ready",
+      },
+    }),
+  );
+  assert.deepEqual(posted[0].payload?.shortcuts, initial);
+  assert.equal(
+    posted.filter((message) => message.type === "setShortcuts").length,
+    1,
+  );
+  assert.deepEqual(posted.at(-1)?.payload?.shortcuts, latest);
+  const accepted: ParentToWhiteboardMessage[] = [];
+  const message = {
+    ...posted.at(-1)!,
+    source: WHITEBOARD_MESSAGE_SOURCE,
+    channel: "shortcut-test",
+    v: WHITEBOARD_PROTOCOL_VERSION,
+  };
+  assert.equal(
+    dispatchWhiteboardParentMessageEvent(
+      { source: null, data: message } as MessageEvent,
+      iframe.contentWindow as unknown as WindowProxy,
+      "shortcut-test",
+      (message) => accepted.push(message),
+    ),
+    true,
+  );
+  assert.equal(accepted.length, 1);
+  assert.equal(
+    dispatchWhiteboardParentMessageEvent(
+      {
+        source: null,
+        data: {
+          ...message,
+          payload: { shortcuts: { ...latest, rect: "unknown key" } },
+        },
+      } as MessageEvent,
+      iframe.contentWindow as unknown as WindowProxy,
+      "shortcut-test",
+      (message) => accepted.push(message),
+    ),
+    false,
+  );
+  handle.setShortcuts(initial);
+  assert.deepEqual(posted.at(-1)?.payload?.shortcuts, initial);
+  handle.destroy();
+  const count = posted.length;
+  handle.setShortcuts(latest);
   assert.equal(posted.length, count);
 });

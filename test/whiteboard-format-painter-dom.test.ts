@@ -333,6 +333,11 @@ test("format painter preserves content and handles canvas interaction modes", as
         await key("Enter", "keydown", node("target-a"));
         assert.equal(snapshotNode("target-a").style?.fill, "#abcdef");
         await key(" ", "keydown", node("target-b"));
+        assert.equal(
+          container.querySelector(".zmd-board-host.is-hand"),
+          null,
+          "format-painter Space activation does not engage temporary pan",
+        );
         assert.equal(snapshotNode("target-b").style?.fill, "#abcdef");
         assert.ok(cancelButton());
         await key("Escape");

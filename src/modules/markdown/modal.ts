@@ -14,11 +14,8 @@ import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
   DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
   MARKDOWN_INSERT_COMMANDS,
-  MARKDOWN_HEADING_SHORTCUTS,
-  markdownHeadingShortcutLabel,
-  markdownRedoShortcutLabel,
   markdownInsertShortcutFromKeyboardEvent,
-  validateMarkdownInsertShortcut,
+  keyboardShortcutFromKeyboardEvent,
   isShortcutModifierKey,
   shortcutFromKeyboardEvent,
   shortcutKeycaps,
@@ -29,6 +26,31 @@ import {
   readMarkdownInsertShortcuts,
   writeMarkdownInsertShortcuts,
 } from "./insert-shortcut-preferences";
+import {
+  MARKDOWN_COMMAND_ACTIONS,
+  MARKDOWN_COMMAND_LABELS,
+  defaultMarkdownCommandShortcuts,
+  markdownCommandShortcutFromKeyboardEvent,
+  validateMarkdownShortcutAssignment,
+  type MarkdownCommandShortcuts,
+  type MarkdownShortcutAction,
+} from "./markdown-command-shortcuts";
+import {
+  readMarkdownCommandShortcuts,
+  writeMarkdownCommandShortcuts,
+} from "./command-shortcut-preferences";
+import {
+  WHITEBOARD_SHORTCUT_ACTIONS,
+  WHITEBOARD_HOLD_SHORTCUT_ACTIONS,
+  defaultWhiteboardShortcuts,
+  validateWhiteboardShortcut,
+  type WhiteboardShortcuts,
+  type WhiteboardShortcutAction,
+} from "../../../packages/whiteboard/src/model/shortcuts";
+import {
+  readWhiteboardShortcuts,
+  writeWhiteboardShortcuts,
+} from "../whiteboard/shortcut-preferences";
 import { getString } from "../../utils/locale";
 import type { FluentMessageId } from "../../../typings/i10n";
 import {
@@ -96,6 +118,8 @@ export interface SettingsModalData {
   markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
   markdownInsertShortcuts: MarkdownInsertShortcuts;
+  markdownCommandShortcuts: MarkdownCommandShortcuts;
+  whiteboardShortcuts: WhiteboardShortcuts;
   whiteboardColorScheme: ColorSchemeID;
   whiteboardFontFamily: FontFamilyID;
   whiteboardBackgroundColor: string;
@@ -136,20 +160,63 @@ const INSERT_SHORTCUT_LABELS: Record<MarkdownInsertCommand, FluentMessageId> = {
   code: "tab-code",
 };
 
-function insertShortcutProblemText(
-  problem: NonNullable<ReturnType<typeof validateMarkdownInsertShortcut>>,
+const WHITEBOARD_SHORTCUT_SETTING_LABELS: Record<
+  WhiteboardShortcutAction,
+  FluentMessageId
+> = {
+  save: "whiteboard-save",
+  find: "whiteboard-search-canvas",
+  select: "whiteboard-shortcut-select",
+  hand: "whiteboard-shortcut-hand",
+  pan: "whiteboard-shortcut-pan",
+  freeMove: "whiteboard-shortcut-free-move",
+  nudgeUp: "whiteboard-shortcut-nudge-up",
+  nudgeDown: "whiteboard-shortcut-nudge-down",
+  nudgeLeft: "whiteboard-shortcut-nudge-left",
+  nudgeRight: "whiteboard-shortcut-nudge-right",
+  nudgeUpLarge: "whiteboard-shortcut-nudge-up-large",
+  nudgeDownLarge: "whiteboard-shortcut-nudge-down-large",
+  nudgeLeftLarge: "whiteboard-shortcut-nudge-left-large",
+  nudgeRightLarge: "whiteboard-shortcut-nudge-right-large",
+  fitView: "whiteboard-fit-view",
+  fitSelection: "whiteboard-fit-selection",
+  rect: "whiteboard-shortcut-rect",
+  ellipse: "whiteboard-shortcut-ellipse",
+  arrow: "whiteboard-shortcut-arrow",
+  line: "whiteboard-shortcut-line",
+  text: "whiteboard-shortcut-text",
+  question: "whiteboard-shortcut-question",
+  claim: "whiteboard-shortcut-claim",
+  frame: "whiteboard-shortcut-frame",
+  eraser: "whiteboard-shortcut-eraser",
+  constrain: "whiteboard-shortcut-constrain",
+  cancel: "whiteboard-shortcut-cancel",
+  delete: "whiteboard-shortcut-delete",
+  undo: "whiteboard-undo",
+  redo: "whiteboard-redo",
+};
+const MARKDOWN_SHORTCUT_LABELS: Record<
+  MarkdownShortcutAction,
+  FluentMessageId
+> = {
+  ...MARKDOWN_COMMAND_LABELS,
+  ...INSERT_SHORTCUT_LABELS,
+  "new-note": "settings-shortcut-new-standalone",
+};
+
+function shortcutProblemText(
+  problem:
+    | { kind: "invalid" }
+    | { kind: "reserved" }
+    | { kind: "duplicate"; command: string },
+  labels: Record<string, FluentMessageId> = MARKDOWN_SHORTCUT_LABELS,
+  invalidLabel: FluentMessageId = "settings-shortcut-invalid",
 ): string {
-  if (problem.kind === "invalid") return getString("settings-shortcut-invalid");
+  if (problem.kind === "invalid") return getString(invalidLabel);
   if (problem.kind === "reserved")
     return getString("settings-shortcut-reserved");
   return getString("settings-shortcut-duplicate", {
-    args: {
-      action: getString(
-        problem.command === "new-note"
-          ? "settings-shortcut-new-standalone"
-          : INSERT_SHORTCUT_LABELS[problem.command],
-      ),
-    },
+    args: { action: getString(labels[problem.command]) },
   });
 }
 
@@ -199,6 +266,8 @@ export function settingsFromPrefs(
     ),
     shortcutNewStandaloneMd: String(getPref("shortcutNewStandaloneMd") || ""),
     markdownInsertShortcuts: readMarkdownInsertShortcuts(),
+    markdownCommandShortcuts: readMarkdownCommandShortcuts(),
+    whiteboardShortcuts: readWhiteboardShortcuts(),
     whiteboardColorScheme: normalizeColorScheme(
       getPref("whiteboardColorScheme"),
     ),
@@ -225,6 +294,8 @@ export function settingsFromPrefs(
     ),
     shortcutNewStandaloneMd: String(prefs.shortcutNewStandaloneMd || ""),
     markdownInsertShortcuts: { ...prefs.markdownInsertShortcuts },
+    markdownCommandShortcuts: { ...prefs.markdownCommandShortcuts },
+    whiteboardShortcuts: { ...prefs.whiteboardShortcuts },
     whiteboardColorScheme: normalizeColorScheme(prefs.whiteboardColorScheme),
     whiteboardFontFamily: normalizeFontFamily(prefs.whiteboardFontFamily),
     whiteboardBackgroundColor: normalizeColor(prefs.whiteboardBackgroundColor),
@@ -429,6 +500,12 @@ export function createMarkdownModalController(
         String(getPref("shortcutNewStandaloneMd") || ""),
       markdownInsertShortcuts:
         payload.markdownInsertShortcuts ?? readMarkdownInsertShortcuts(),
+      markdownCommandShortcuts:
+        payload.markdownCommandShortcuts ??
+        readMarkdownCommandShortcuts(doc.defaultView?.navigator.platform),
+      whiteboardShortcuts:
+        payload.whiteboardShortcuts ??
+        readWhiteboardShortcuts(doc.defaultView?.navigator.platform),
       whiteboardColorScheme:
         payload.whiteboardColorScheme ??
         normalizeColorScheme(getPref("whiteboardColorScheme")),
@@ -668,83 +745,6 @@ export function createMarkdownModalController(
       list.className = "zotero-markdown-settings-shortcut-list";
       const renderRows = (kind: "markdown" | "whiteboard") => {
         list.replaceChildren();
-        let headingRow: HTMLElement | null = null;
-        const rows: Array<[string, FluentMessageId]> =
-          kind === "markdown"
-            ? [
-                ["Ctrl/Meta + S", "whiteboard-save"],
-                ["Ctrl/Meta + F", "more-find"],
-                ["Ctrl/Meta + G", "settings-shortcut-find-next"],
-                ["Ctrl/Meta + Shift + G", "settings-shortcut-find-previous"],
-                ["Ctrl/Meta + B", "sidebar-bold"],
-                ["Ctrl/Meta + I", "sidebar-italic"],
-                ["Ctrl/Meta + K", "sidebar-link"],
-                ...MARKDOWN_HEADING_SHORTCUTS.map(
-                  ({ level }): [string, FluentMessageId] => [
-                    markdownHeadingShortcutLabel(
-                      level,
-                      doc.defaultView?.navigator.platform,
-                    ),
-                    `tab-h${level}`,
-                  ],
-                ),
-                ["Ctrl/Meta + Z", "whiteboard-undo"],
-                [
-                  markdownRedoShortcutLabel(
-                    doc.defaultView?.navigator.platform,
-                  ),
-                  "whiteboard-redo",
-                ],
-                ["Tab", "settings-shortcut-indent"],
-                ["Shift + Tab", "settings-shortcut-unindent"],
-                ["Tab", "settings-shortcut-table-next"],
-                ["Shift + Tab", "settings-shortcut-table-previous"],
-              ]
-            : [
-                ["Ctrl/Meta + S", "whiteboard-save"],
-                ["Ctrl/Meta + F", "whiteboard-search-canvas"],
-                ["V", "whiteboard-shortcut-select"],
-                ["H / Space + drag", "whiteboard-shortcut-hand"],
-                ["Alt + drag", "whiteboard-shortcut-free-move"],
-                ["↑ ↓ ← →", "whiteboard-shortcut-nudge"],
-                ["Shift + ↑ ↓ ← →", "whiteboard-shortcut-nudge-large"],
-                ["Shift + 1", "whiteboard-fit-view"],
-                ["Shift + 2", "whiteboard-fit-selection"],
-                ["R", "whiteboard-shortcut-rect"],
-                ["O", "whiteboard-shortcut-ellipse"],
-                ["A", "whiteboard-shortcut-arrow"],
-                ["L", "whiteboard-shortcut-line"],
-                ["T", "whiteboard-shortcut-text"],
-                ["Q", "whiteboard-shortcut-question"],
-                ["C", "whiteboard-shortcut-claim"],
-                ["F", "whiteboard-shortcut-frame"],
-                ["E", "whiteboard-shortcut-eraser"],
-                ["Shift", "whiteboard-shortcut-constrain"],
-                ["Esc", "whiteboard-shortcut-cancel"],
-                ["Delete", "whiteboard-shortcut-delete"],
-                ["Ctrl/Meta + Z", "whiteboard-undo"],
-                ["Ctrl/Meta + Shift + Z", "whiteboard-redo"],
-              ];
-        for (const [keys, labelKey] of rows) {
-          const row = doc.createElement("div");
-          row.className = "zotero-markdown-settings-shortcut-row";
-          const key = textElement(
-            doc,
-            "kbd",
-            keys.replace(
-              "Ctrl/Meta",
-              /Mac|iPhone|iPad/.test(doc.defaultView?.navigator.platform || "")
-                ? "⌘"
-                : "Ctrl",
-            ),
-            "zotero-markdown-settings-shortcut-keys",
-          );
-          row.append(key, textElement(doc, "span", getString(labelKey)));
-          if (labelKey === "tab-h1") headingRow = row;
-          list.appendChild(row);
-        }
-        if (kind !== "markdown") return;
-
         let stopRecording: (() => void) | undefined;
         const closeShortcutMenus = () => {
           for (const menu of list.querySelectorAll<HTMLElement>(
@@ -757,13 +757,16 @@ export function createMarkdownModalController(
             trigger.setAttribute("aria-expanded", "false");
         };
         const editableRow = (options: {
-          id: MarkdownInsertCommand | "new-note";
+          id: string;
           label: FluentMessageId;
           read: () => string;
           write: (value: string) => void;
           defaultValue: string;
           validate: (value: string) => string;
           record: (event: KeyboardEvent) => string | null;
+          allowHeldModifier?: boolean;
+          deleteClears?: boolean;
+          invalidLabel?: FluentMessageId;
         }) => {
           const label = getString(options.label);
           const row = doc.createElement("div");
@@ -831,10 +834,12 @@ export function createMarkdownModalController(
             if (stopRecording === finishRecording) stopRecording = undefined;
           };
           let recordingPrevious = options.read();
+          let pendingModifier: string | undefined;
           const beginRecording = () => {
             stopRecording?.();
             closeShortcutMenus();
             recordingPrevious = options.read();
+            pendingModifier = undefined;
             showError("");
             shortcutControl.classList.add("is-recording");
             shortcutControl.setAttribute("aria-live", "polite");
@@ -860,19 +865,41 @@ export function createMarkdownModalController(
             if (!shortcutControl.classList.contains("is-recording")) return;
             if (event.isComposing || event.keyCode === 229 || event.repeat)
               return;
-            if (event.key === "Escape") {
+            if (
+              event.key === "Escape" &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.altKey &&
+              !event.shiftKey
+            ) {
               event.preventDefault();
               options.write(recordingPrevious);
               showError("");
-            } else if (event.key === "Backspace" || event.key === "Delete") {
+            } else if (
+              options.deleteClears !== false &&
+              (event.key === "Backspace" || event.key === "Delete")
+            ) {
               event.preventDefault();
               setShortcut("");
             } else {
+              if (
+                options.allowHeldModifier &&
+                isShortcutModifierKey(event.key)
+              ) {
+                pendingModifier = event.key;
+                event.preventDefault();
+                return;
+              }
+              pendingModifier = undefined;
               const recorded = options.record(event);
               if (!recorded) {
                 if (!isShortcutModifierKey(event.key)) {
                   event.preventDefault();
-                  showError(getString("settings-shortcut-invalid"));
+                  showError(
+                    getString(
+                      options.invalidLabel ?? "settings-shortcut-invalid",
+                    ),
+                  );
                 }
                 return;
               }
@@ -880,6 +907,18 @@ export function createMarkdownModalController(
               if (!setShortcut(recorded)) return;
             }
             finishRecording();
+          });
+          shortcutControl.addEventListener("keyup", (event) => {
+            if (
+              !shortcutControl.classList.contains("is-recording") ||
+              event.key !== pendingModifier
+            )
+              return;
+            pendingModifier = undefined;
+            const recorded = options.record(event);
+            if (!recorded) return;
+            event.preventDefault();
+            if (setShortcut(recorded)) finishRecording();
           });
           const overflow = doc.createElement("button");
           overflow.type = "button";
@@ -924,31 +963,101 @@ export function createMarkdownModalController(
           row.appendChild(controls);
           return row;
         };
+        const platform = doc.defaultView?.navigator.platform;
+        if (kind === "whiteboard") {
+          for (const action of WHITEBOARD_SHORTCUT_ACTIONS) {
+            const isHold = WHITEBOARD_HOLD_SHORTCUT_ACTIONS.some(
+              (value) => value === action,
+            );
+            list.appendChild(
+              editableRow({
+                id: `wb-${action}`,
+                label: WHITEBOARD_SHORTCUT_SETTING_LABELS[action],
+                read: () => pendingSettings!.whiteboardShortcuts[action],
+                write: (value) => {
+                  pendingSettings!.whiteboardShortcuts[action] = value;
+                },
+                defaultValue: defaultWhiteboardShortcuts(platform)[action],
+                validate: (value) => {
+                  const problem = validateWhiteboardShortcut(
+                    action,
+                    value,
+                    pendingSettings!.whiteboardShortcuts,
+                    pendingSettings!.shortcutNewStandaloneMd,
+                    platform,
+                  );
+                  return problem
+                    ? shortcutProblemText(
+                        problem,
+                        {
+                          ...WHITEBOARD_SHORTCUT_SETTING_LABELS,
+                          "new-note": "settings-shortcut-new-standalone",
+                        },
+                        "settings-shortcut-invalid-whiteboard",
+                      )
+                    : "";
+                },
+                record: (event) =>
+                  keyboardShortcutFromKeyboardEvent(event, platform, {
+                    allowModifierOnly: isHold,
+                  }),
+                allowHeldModifier: isHold,
+                deleteClears: false,
+                invalidLabel: "settings-shortcut-invalid-whiteboard",
+              }),
+            );
+          }
+          return;
+        }
+        const validateMarkdown = (
+          action: MarkdownShortcutAction,
+          value: string,
+        ) => {
+          const problem = validateMarkdownShortcutAssignment(
+            action,
+            value,
+            pendingSettings!.markdownCommandShortcuts,
+            pendingSettings!.markdownInsertShortcuts,
+            pendingSettings!.shortcutNewStandaloneMd,
+            platform,
+          );
+          return problem ? shortcutProblemText(problem) : "";
+        };
+        for (const action of MARKDOWN_COMMAND_ACTIONS) {
+          list.appendChild(
+            editableRow({
+              id: action,
+              label: MARKDOWN_COMMAND_LABELS[action],
+              read: () => pendingSettings!.markdownCommandShortcuts[action],
+              write: (value) => {
+                pendingSettings!.markdownCommandShortcuts[action] = value;
+              },
+              defaultValue: defaultMarkdownCommandShortcuts(platform)[action],
+              validate: (value) => validateMarkdown(action, value),
+              record: (event) =>
+                markdownCommandShortcutFromKeyboardEvent(
+                  action,
+                  event,
+                  platform,
+                ),
+            }),
+          );
+        }
         for (const command of MARKDOWN_INSERT_COMMANDS) {
-          const row = editableRow({
-            id: command,
-            label: INSERT_SHORTCUT_LABELS[command],
-            read: () => pendingSettings!.markdownInsertShortcuts[command],
-            write: (value) => {
-              pendingSettings!.markdownInsertShortcuts[command] = value;
-            },
-            defaultValue: DEFAULT_MARKDOWN_INSERT_SHORTCUTS[command],
-            validate: (value) => {
-              const problem = validateMarkdownInsertShortcut(
-                command,
-                value,
-                pendingSettings!.markdownInsertShortcuts,
-                pendingSettings!.shortcutNewStandaloneMd,
-              );
-              return problem ? insertShortcutProblemText(problem) : "";
-            },
-            record: (event) =>
-              markdownInsertShortcutFromKeyboardEvent(
-                event,
-                doc.defaultView?.navigator.platform,
-              ),
-          });
-          list.insertBefore(row, headingRow);
+          list.appendChild(
+            editableRow({
+              id: command,
+              label: INSERT_SHORTCUT_LABELS[command],
+              read: () => pendingSettings!.markdownInsertShortcuts[command],
+              write: (value) => {
+                pendingSettings!.markdownInsertShortcuts[command] = value;
+              },
+              defaultValue: DEFAULT_MARKDOWN_INSERT_SHORTCUTS[command],
+              validate: (value) => validateMarkdown(command, value),
+              record: (event) =>
+                markdownInsertShortcutFromKeyboardEvent(event, platform),
+            }),
+          );
         }
         list.appendChild(
           editableRow({
@@ -960,35 +1069,56 @@ export function createMarkdownModalController(
             },
             defaultValue: DEFAULT_NEW_MARKDOWN_SHORTCUT,
             validate: (value) => {
-              for (const command of MARKDOWN_INSERT_COMMANDS) {
-                const problem = validateMarkdownInsertShortcut(
-                  command,
-                  pendingSettings!.markdownInsertShortcuts[command],
-                  pendingSettings!.markdownInsertShortcuts,
+              const markdownError = validateMarkdown("new-note", value);
+              if (markdownError) return markdownError;
+              for (const action of WHITEBOARD_SHORTCUT_ACTIONS) {
+                const problem = validateWhiteboardShortcut(
+                  action,
+                  pendingSettings!.whiteboardShortcuts[action],
+                  pendingSettings!.whiteboardShortcuts,
                   value,
+                  platform,
                 );
                 if (
                   problem?.kind === "duplicate" &&
                   problem.command === "new-note"
                 )
-                  return insertShortcutProblemText({
-                    kind: "duplicate",
-                    command,
+                  return getString("settings-shortcut-duplicate", {
+                    args: {
+                      action: `${getString("settings-shortcut-surface-whiteboard")} · ${getString(WHITEBOARD_SHORTCUT_SETTING_LABELS[action])}`,
+                    },
                   });
               }
               return "";
             },
-            record: (event) =>
-              shortcutFromKeyboardEvent(
-                event,
-                doc.defaultView?.navigator.platform,
-              ),
+            record: (event) => shortcutFromKeyboardEvent(event, platform),
           }),
         );
       };
-      bindSegmentedOptions(surfaceButtons, (index) =>
-        renderRows(surfaces[index][0]),
+      let activeSurface: "markdown" | "whiteboard" = "markdown";
+      const restoreAll = button(
+        doc,
+        getString("settings-shortcut-restore-all"),
+        "shortcut-restore-all",
       );
+      restoreAll.addEventListener("click", () => {
+        pendingSettings!.markdownCommandShortcuts =
+          defaultMarkdownCommandShortcuts(doc.defaultView?.navigator.platform);
+        pendingSettings!.markdownInsertShortcuts = {
+          ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+        };
+        pendingSettings!.whiteboardShortcuts = defaultWhiteboardShortcuts(
+          doc.defaultView?.navigator.platform,
+        );
+        pendingSettings!.shortcutNewStandaloneMd =
+          DEFAULT_NEW_MARKDOWN_SHORTCUT;
+        renderRows(activeSurface);
+      });
+      header.appendChild(restoreAll);
+      bindSegmentedOptions(surfaceButtons, (index) => {
+        activeSurface = surfaces[index][0];
+        renderRows(activeSurface);
+      });
       pageContent.appendChild(list);
       return heading;
     };
@@ -1396,27 +1526,73 @@ export function createMarkdownModalController(
     }
     if (action === "save-settings") {
       if (savingSettings) return;
-      for (const command of MARKDOWN_INSERT_COMMANDS) {
-        const problem = validateMarkdownInsertShortcut(
-          command,
-          pendingSettings!.markdownInsertShortcuts[command],
-          pendingSettings!.markdownInsertShortcuts,
-          pendingSettings!.shortcutNewStandaloneMd,
-        );
-        if (!problem) continue;
+      const platform = doc.defaultView?.navigator.platform;
+      const showShortcutError = (
+        id: string,
+        message: string,
+        whiteboard = false,
+      ) => {
         selectSettingsPage!("shortcuts", true);
+        if (whiteboard)
+          body
+            .querySelector<HTMLButtonElement>(
+              '[data-shortcut-surface="whiteboard"]',
+            )!
+            .click();
         const row = body.querySelector<HTMLElement>(
-          `[data-shortcut-id="${command}"]`,
+          `[data-shortcut-id="${id}"]`,
         )!;
         const error = row.querySelector<HTMLElement>("[data-shortcut-error]")!;
-        error.textContent = insertShortcutProblemText(problem);
+        error.textContent = message;
         error.hidden = false;
         const control = row.querySelector<HTMLButtonElement>(
           ".zotero-markdown-modal-shortcut-control",
         )!;
         control.setAttribute("aria-invalid", "true");
         control.focus();
-        return;
+      };
+      const markdownBindings = {
+        ...pendingSettings!.markdownCommandShortcuts,
+        ...pendingSettings!.markdownInsertShortcuts,
+        "new-note": pendingSettings!.shortcutNewStandaloneMd,
+      };
+      for (const command of [
+        ...MARKDOWN_COMMAND_ACTIONS,
+        ...MARKDOWN_INSERT_COMMANDS,
+        "new-note",
+      ] as const) {
+        const problem = validateMarkdownShortcutAssignment(
+          command,
+          markdownBindings[command],
+          pendingSettings!.markdownCommandShortcuts,
+          pendingSettings!.markdownInsertShortcuts,
+          pendingSettings!.shortcutNewStandaloneMd,
+          platform,
+        );
+        if (problem)
+          return showShortcutError(command, shortcutProblemText(problem));
+      }
+      for (const action of WHITEBOARD_SHORTCUT_ACTIONS) {
+        const problem = validateWhiteboardShortcut(
+          action,
+          pendingSettings!.whiteboardShortcuts[action],
+          pendingSettings!.whiteboardShortcuts,
+          pendingSettings!.shortcutNewStandaloneMd,
+          platform,
+        );
+        if (problem)
+          return showShortcutError(
+            `wb-${action}`,
+            shortcutProblemText(
+              problem,
+              {
+                ...WHITEBOARD_SHORTCUT_SETTING_LABELS,
+                "new-note": "settings-shortcut-new-standalone",
+              },
+              "settings-shortcut-invalid-whiteboard",
+            ),
+            true,
+          );
       }
       const invalid = pendingSettings!.markdownStyles.presets.find(
         (preset) => !compileMarkdownStyleCss(preset.css).ok,
@@ -1554,9 +1730,11 @@ export function createMarkdownModalController(
   };
 }
 
-export function applySettings(settings: SettingsModalData) {
+export function applySettings(settings: SettingsModalData, platform?: string) {
   const values = prefsFromSettings(settings);
   writeMarkdownInsertShortcuts(values.markdownInsertShortcuts);
+  writeMarkdownCommandShortcuts(values.markdownCommandShortcuts, platform);
+  writeWhiteboardShortcuts(values.whiteboardShortcuts, platform);
   setPref("enable", values.enable);
   setPref("frontmatter", values.frontmatter);
   writeMarkdownStyleSettings(values.markdownStyles);

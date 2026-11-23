@@ -889,7 +889,20 @@ describe("responsive Markdown toolbar", () => {
     }
   });
 
-  it("routes compact Save and Redo through the actual more-menu command handlers", async () => {
+  it("routes compact Save and Redo through the actual more-menu command handlers", async (t) => {
+    const previousZotero = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "Zotero",
+    );
+    Object.defineProperty(globalThis, "Zotero", {
+      configurable: true,
+      value: { Prefs: { get: () => JSON.stringify({ find: "accel,alt,F" }) } },
+    });
+    t.after(() => {
+      if (previousZotero)
+        Object.defineProperty(globalThis, "Zotero", previousZotero);
+      else Reflect.deleteProperty(globalThis, "Zotero");
+    });
     const f = fixture(400);
     const saves: unknown[] = [];
     const commands: string[] = [];
@@ -897,6 +910,7 @@ describe("responsive Markdown toolbar", () => {
     const session: any = {
       mode: "live",
       surface: "tab",
+      win: f.win,
       view: { root: f.root },
       editor: {
         isComposing: () => composing,
@@ -909,6 +923,12 @@ describe("responsive Markdown toolbar", () => {
       },
     };
     mountMoreMenu(session);
+    assert.equal(
+      f.root.querySelector(
+        '[data-menu-action="find"] .zotero-markdown-more-menu-shortcut',
+      )!.textContent,
+      shortcuts.markdownShortcutLabel("accel,alt,F", f.win.navigator.platform),
+    );
     const save = f.root.querySelector<HTMLButtonElement>(
       '[data-menu-action="save"]',
     )!;

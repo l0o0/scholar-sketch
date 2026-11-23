@@ -276,3 +276,181 @@ test("recording insertion bindings names Option letters while preserving AltGr a
     null,
   );
 });
+
+test("all Markdown command assignments share conflicts and context-safe defaults", async () => {
+  const {
+    MARKDOWN_COMMAND_ACTIONS,
+    defaultMarkdownCommandShortcuts,
+    validateMarkdownShortcutAssignment,
+    markdownCommandBindings,
+    markdownCommandShortcutFromKeyboardEvent,
+  } = await import("../src/modules/markdown/markdown-command-shortcuts.ts");
+  for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
+    const commands = defaultMarkdownCommandShortcuts(platform);
+    for (const action of MARKDOWN_COMMAND_ACTIONS) {
+      assert.equal(
+        validateMarkdownShortcutAssignment(
+          action,
+          commands[action],
+          commands,
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+          DEFAULT_NEW_MARKDOWN_SHORTCUT,
+          platform,
+        ),
+        null,
+        `${platform} ${action}`,
+      );
+    }
+    for (const action of MARKDOWN_INSERT_COMMANDS) {
+      assert.equal(
+        validateMarkdownShortcutAssignment(
+          action,
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS[action],
+          commands,
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+          DEFAULT_NEW_MARKDOWN_SHORTCUT,
+          platform,
+        ),
+        null,
+      );
+    }
+    assert.deepEqual(
+      validateMarkdownShortcutAssignment(
+        "image",
+        "accel,B",
+        commands,
+        DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+        DEFAULT_NEW_MARKDOWN_SHORTCUT,
+        platform,
+      ),
+      { kind: "duplicate", command: "bold" },
+    );
+    commands.bold = "";
+    assert.equal(
+      validateMarkdownShortcutAssignment(
+        "image",
+        "accel,B",
+        commands,
+        DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+        DEFAULT_NEW_MARKDOWN_SHORTCUT,
+        platform,
+      ),
+      null,
+    );
+    assert.deepEqual(
+      validateMarkdownShortcutAssignment(
+        "save",
+        "accel,alt,shift,I",
+        commands,
+        DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+        DEFAULT_NEW_MARKDOWN_SHORTCUT,
+        platform,
+      ),
+      { kind: "reserved" },
+    );
+    assert.deepEqual(
+      validateMarkdownShortcutAssignment(
+        "h1",
+        "accel,1",
+        commands,
+        DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+        DEFAULT_NEW_MARKDOWN_SHORTCUT,
+        platform,
+      ),
+      { kind: "reserved" },
+    );
+    for (const raw of ["A", "shift,A", "alt,A", "Space"])
+      assert.deepEqual(
+        validateMarkdownShortcutAssignment(
+          "tableNext",
+          raw,
+          commands,
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+          DEFAULT_NEW_MARKDOWN_SHORTCUT,
+          platform,
+        ),
+        { kind: "invalid" },
+      );
+    assert.deepEqual(markdownCommandBindings("findNext", commands, platform), [
+      "accel,G",
+      "F3",
+    ]);
+    commands.findNext = "accel,alt,N";
+    assert.deepEqual(markdownCommandBindings("findNext", commands, platform), [
+      "accel,alt,N",
+    ]);
+    commands.findNext = "";
+    assert.deepEqual(
+      markdownCommandBindings("findNext", commands, platform),
+      [],
+    );
+  }
+  const tab = {
+    key: "Tab",
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    altKey: false,
+  };
+  assert.equal(markdownCommandShortcutFromKeyboardEvent("indent", tab), "Tab");
+  assert.equal(markdownCommandShortcutFromKeyboardEvent("bold", tab), null);
+  assert.equal(
+    markdownCommandShortcutFromKeyboardEvent("indent", {
+      ...tab,
+      key: "a",
+      shiftKey: true,
+    }),
+    null,
+  );
+});
+
+test("Markdown command preferences retain cleared bindings and portable redo defaults", async (t) => {
+  const { readMarkdownCommandShortcuts, writeMarkdownCommandShortcuts } =
+    await import("../src/modules/markdown/command-shortcut-preferences.ts");
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  const stored = new Map<string, unknown>();
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Prefs: {
+        get: (key: string) => stored.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+  });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const defaults = readMarkdownCommandShortcuts("MacIntel");
+  assert.equal(defaults.redo, "accel,shift,Z");
+  writeMarkdownCommandShortcuts(
+    { ...defaults, bold: "", save: "accel,alt,S" },
+    "MacIntel",
+  );
+  const saved = readMarkdownCommandShortcuts("Win32");
+  assert.equal(saved.bold, "");
+  assert.equal(saved.save, "accel,alt,S");
+  assert.equal(saved.redo, "accel,Y");
+  writeMarkdownCommandShortcuts(defaults, "MacIntel");
+  assert.deepEqual(readMarkdownCommandShortcuts("MacIntel"), defaults);
+});
+
+test("shortcut configuration messages reject text-consuming Markdown assignments", async () => {
+  const { isEditorProtocolMessage, EDITOR_MESSAGE_SOURCE } =
+    await import("../src/modules/markdown/editor-protocol.ts");
+  const { defaultMarkdownCommandShortcuts } =
+    await import("../src/modules/markdown/markdown-command-shortcuts.ts");
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    type: "setCommandShortcuts",
+    payload: defaultMarkdownCommandShortcuts(),
+  };
+  assert.equal(isEditorProtocolMessage(message), true);
+  for (const payload of [
+    { ...message.payload, bold: "A" },
+    { ...message.payload, tableNext: "shift,A" },
+    { ...message.payload, save: undefined },
+  ])
+    assert.equal(isEditorProtocolMessage({ ...message, payload }), false);
+});
