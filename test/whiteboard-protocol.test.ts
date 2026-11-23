@@ -626,6 +626,23 @@ const activeHostToIframeMessages = [
   },
   {
     ...protocolBase,
+    type: "pdfSelectionTransferred",
+    payload: {
+      markdown:
+        "> A passage\n\n[Source](zotero://open-pdf/library/items/PDF12345?page=2)",
+      position: { x: 10, y: 20 },
+      interaction: "paste",
+      editing: {
+        nodeId: "note-1",
+        revision: 2,
+        value: "Draft",
+        from: 0,
+        to: 5,
+      },
+    },
+  },
+  {
+    ...protocolBase,
     type: "academicDropRejected",
     payload: { code: "drop-malformed" },
   },
@@ -1786,4 +1803,40 @@ test("color schemes accept known values only on init and updates", () => {
       );
     }
   }
+});
+
+test("PDF selection draft targets require an ordered in-bounds selection", () => {
+  const message = {
+    ...protocolBase,
+    type: "pdfSelectionTransferred",
+    payload: {
+      markdown: "> Passage",
+      position: { x: 1, y: 2 },
+      interaction: "paste",
+      editing: {
+        nodeId: "note-1",
+        revision: 2,
+        value: "Draft",
+        from: 0,
+        to: 5,
+      },
+    },
+  };
+  assert.equal(
+    isParentToWhiteboardMessageForChannel(message, protocolBase.channel),
+    true,
+  );
+  for (const editing of [
+    { ...message.payload.editing, to: 6 },
+    { ...message.payload.editing, from: -1 },
+    { ...message.payload.editing, from: 4, to: 2 },
+    { ...message.payload.editing, revision: -1 },
+  ])
+    assert.equal(
+      isParentToWhiteboardMessageForChannel(
+        { ...message, payload: { ...message.payload, editing } },
+        protocolBase.channel,
+      ),
+      false,
+    );
 });

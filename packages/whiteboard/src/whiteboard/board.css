@@ -3939,3 +3939,63 @@ html[data-theme="dark"] .zmd-board-pdf-page,
   outline: 2px solid var(--zmd-board-accent);
   outline-offset: 2px;
 }
+
+.zmd-board-note-source-actions {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.zmd-board-card:is(:hover, :focus-within) .zmd-board-note-source-actions,
+.zmd-board-note-source-actions.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.zmd-board-note-source-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-block: -5px;
+  padding: 3px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--zmd-node-ink-muted, var(--zmd-board-muted, #6b7280));
+  cursor: pointer;
+}
+
+.zmd-board-note-source-button:hover,
+.zmd-board-note-source-button[aria-expanded="true"] {
+  background: var(--zmd-board-hover, #f3f4f6);
+  color: var(--zmd-node-ink, var(--zmd-board-text, #111827));
+}
+
+.zmd-board-note-source-button:focus-visible,
+.zmd-board-note-source-menu button:focus-visible {
+  outline: 2px solid var(--zmd-board-accent, #2563eb);
+  outline-offset: 2px;
+}
+
+.zmd-board-note-source-menu {
+  z-index: 20;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.zmd-board-note-source-menu button span {
+  overflow-wrap: anywhere;
+}
+
+.zmd-board-note-source-menu button svg {
+  flex: 0 0 auto;
+}
+
+.zmd-board-host[data-exporting] .zmd-board-note-source-actions,
+.zmd-board-host[data-exporting] .zmd-board-note-source-menu {
+  display: none;
+}

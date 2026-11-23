@@ -11,6 +11,7 @@ import { getString } from "../../utils/locale";
 import type { EditorOutlineItem, ImageAssetMap } from "./editor-protocol";
 import { THEME_TOKENS, themeTokenCss } from "./theme-tokens";
 import { documentTitleCore, renderMarkdownCore } from "./preview-render-core";
+import { mountRenderedMarkdown } from "./preview-dom";
 import { showImageViewer } from "./image-viewer";
 import { mermaidStyles, mountMermaidBlock } from "./mermaid-view";
 
@@ -481,16 +482,7 @@ export function mountPreviewHtml(
   try {
     const view = doc.defaultView;
     if (view?.DOMParser) {
-      const parsed = new view.DOMParser().parseFromString(
-        `<div>${rendered.bodyHtml}</div>`,
-        "text/html",
-      );
-      const inner = parsed.body.firstElementChild;
-      if (inner) {
-        for (const child of Array.from(inner.childNodes)) {
-          article.appendChild(doc.importNode(child, true));
-        }
-      }
+      mountRenderedMarkdown(article, rendered.bodyHtml);
     } else {
       article.innerHTML = rendered.bodyHtml;
     }

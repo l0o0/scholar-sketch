@@ -1,4 +1,8 @@
 /** Data-only Markdown document link helpers shared by chrome and host code. */
+import {
+  parsePdfTextPosition,
+  type PdfTextPosition,
+} from "../../utils/pdf-position";
 
 export type DocumentLinkReference =
   | { scope: "library"; key: string }
@@ -67,9 +71,58 @@ export function documentLinkTitle(value: string): string {
   return value.trim().replace(/^(?:zmd-)+/i, "");
 }
 
-/** Canonical PDF/annotation links; reject arbitrary Zotero protocol commands. */
-export function isPdfDocumentLink(value: string): boolean {
-  return /^zotero:\/\/open-pdf\/(?:library|groups\/[1-9][0-9]*)\/items\/[A-Za-z0-9]{8}(?:\?(?:page=[1-9][0-9]*(?:&annotation=[A-Za-z0-9]{8})?|annotation=[A-Za-z0-9]{8}))?$/.test(
-    value,
+export interface PdfDocumentLink {
+  reference: DocumentLinkReference;
+  page?: number;
+  annotationKey?: string;
+  position?: PdfTextPosition;
+}
+
+/** Canonical PDF links, including the page-coordinate text selection we persist. */
+export function parsePdfDocumentLink(value: string): PdfDocumentLink | null {
+  const match =
+    /^zotero:\/\/open-pdf\/(library|groups\/([1-9][0-9]*))\/items\/([A-Za-z0-9]{8})(?:\?(.+))?$/.exec(
+      value,
+    );
+  if (!match) return null;
+  const reference = parseDocumentLink(
+    `zotero://select/${match[1]}/items/${match[3]}`,
   );
+  if (!reference) return null;
+  if (!match[4]) return { reference };
+  const selection = /^page=([1-9][0-9]*)&position=([^&#\s]+)$/.exec(match[4]);
+  if (selection) {
+    try {
+      const position = parsePdfTextPosition(
+        JSON.parse(decodeURIComponent(selection[2])),
+      );
+      const page = Number(selection[1]);
+      return position &&
+        Number.isSafeInteger(page) &&
+        page === position.pageIndex + 1
+        ? { reference, page, position }
+        : null;
+    } catch (error) {
+      if (error instanceof SyntaxError || error instanceof URIError)
+        return null;
+      throw error;
+    }
+  }
+  const location =
+    /^(?:page=([1-9][0-9]*)(?:&annotation=([A-Za-z0-9]{8}))?|annotation=([A-Za-z0-9]{8}))$/.exec(
+      match[4],
+    );
+  if (!location) return null;
+  const page = location[1] ? Number(location[1]) : undefined;
+  if (page !== undefined && !Number.isSafeInteger(page)) return null;
+  const annotationKey = location[2] || location[3];
+  return {
+    reference,
+    ...(page !== undefined ? { page } : {}),
+    ...(annotationKey ? { annotationKey } : {}),
+  };
+}
+
+export function isPdfDocumentLink(value: string): boolean {
+  return parsePdfDocumentLink(value) !== null;
 }

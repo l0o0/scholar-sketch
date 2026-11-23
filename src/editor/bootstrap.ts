@@ -22,6 +22,7 @@ import { editorMermaidLabels } from "./live-preview/mermaid";
 import { openEditorLink } from "./link-target";
 import { editorLinkHover } from "./link-hover";
 import { editorTextSelection } from "./text-selection";
+import { pdfSelectionInput } from "./pdf-selection";
 import {
   normalizeFontFamily,
   normalizeBackgroundColor,
@@ -1278,6 +1279,7 @@ function modeUiForMode(mode: EditorMode): Extension {
 
 function topInsetExtension(topInset: number): Extension {
   return [
+    pdfSelectionInput(() => runtime.composing),
     EditorView.theme({
       "&": { "--zmd-editor-top-inset": `${topInset}px` },
     }),

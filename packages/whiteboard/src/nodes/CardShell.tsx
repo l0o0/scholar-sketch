@@ -121,6 +121,7 @@ export function CardShell(props: {
   nodeStyle?: Partial<CanvasNodeStyle>;
   children: ReactNode;
   footer?: ReactNode;
+  actions?: ReactNode;
 }) {
   const nodeStyle = props.nodeStyle ?? {};
   const light =
@@ -207,6 +208,7 @@ export function CardShell(props: {
             <span className="zmd-board-note-badge">{props.badge}</span>
           </>
         ) : null}
+        {props.actions}
       </header>
       <div
         className="zmd-board-card-body nowheel"

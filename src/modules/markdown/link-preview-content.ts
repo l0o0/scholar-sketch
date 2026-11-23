@@ -4,7 +4,11 @@ import {
   searchDocumentLinks,
   type DocumentLinkCandidate,
 } from "./document-links";
-import { isPdfDocumentLink, parseDocumentLink } from "./document-link-shared";
+import {
+  parsePdfDocumentLink,
+  parseDocumentLink,
+} from "./document-link-shared";
+import type { PdfLinkPreviewLocation } from "./link-preview-pdf";
 import { isMarkdownAttachment } from "./detect";
 import {
   cachedNoteMetadata,
@@ -44,7 +48,7 @@ export type LinkPreviewContent =
       kind: "pdf";
       /** Host-only reader input; never forward this local ID to the iframe. */
       attachmentID: number;
-      location?: { pageIndex?: number; annotationID?: string };
+      location?: PdfLinkPreviewLocation;
     })
   | { status: "unresolved" | "ambiguous" | "unavailable"; href: string };
 
@@ -60,7 +64,7 @@ const MAX_TEXT_CHARS = 2400;
 type Target = {
   candidate: DocumentLinkCandidate;
   heading?: string;
-  location?: { pageIndex?: number; annotationID?: string };
+  location?: PdfLinkPreviewLocation;
 };
 
 function libraryFor(
@@ -86,28 +90,21 @@ async function resolveTarget(
   href: string,
   { currentItem, win }: LinkPreviewContentOptions,
 ): Promise<Target | "unresolved" | "ambiguous"> {
-  if (isPdfDocumentLink(href)) {
-    const match =
-      /^zotero:\/\/open-pdf\/(library|groups\/([1-9][0-9]*))\/items\/([A-Za-z0-9]{8})(?:\?(.*))?$/.exec(
-        href,
-      )!;
+  const pdf = parsePdfDocumentLink(href);
+  if (pdf) {
     const libraryID = libraryFor(
-      match[1] === "library" ? "library" : "group",
-      Number(match[2]),
+      pdf.reference.scope,
+      pdf.reference.scope === "group" ? pdf.reference.groupID : undefined,
     );
     if (libraryID === null) return "unresolved";
-    const target = await directTarget(libraryID, match[3]);
+    const target = await directTarget(libraryID, pdf.reference.key);
     if (!target) return "unresolved";
-    const params = new URLSearchParams(match[4] || "");
-    const page = Number(params.get("page"));
-    const annotationID = params.get("annotation");
     return {
       ...target,
       location: {
-        ...(Number.isSafeInteger(page) && page > 0
-          ? { pageIndex: page - 1 }
-          : {}),
-        ...(annotationID ? { annotationID } : {}),
+        ...(pdf.page ? { pageIndex: pdf.page - 1 } : {}),
+        ...(pdf.annotationKey ? { annotationID: pdf.annotationKey } : {}),
+        ...(pdf.position ? { position: pdf.position } : {}),
       },
     };
   }

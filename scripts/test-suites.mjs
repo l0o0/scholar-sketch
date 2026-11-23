@@ -66,6 +66,8 @@ export const testSuites = {
       "test/markdown-export-flush.test.ts",
       "test/markdown-filename.test.ts",
       "test/markdown-iframe-drop.test.ts",
+      "test/editor-pdf-selection.test.ts",
+      "test/pdf-selection.test.ts",
       "test/markdown-image-auto-repair.test.ts",
       "test/markdown-image-auto-session.test.ts",
       "test/markdown-image-compat.test.ts",
