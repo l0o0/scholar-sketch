@@ -176,6 +176,7 @@ export function markdownShortcutLabel(raw: string, platform?: string): string {
 
 // Fixed editing commands and native Zotero commands that cannot be reassigned here.
 const RESERVED_INSERT_SHORTCUTS = new Set([
+  "accel,alt,shift,I",
   ...[
     "S",
     "F",

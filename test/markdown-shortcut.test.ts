@@ -189,6 +189,15 @@ test("custom insertion bindings reject duplicate, reserved and plain typing keys
   );
   assert.deepEqual(
     validateMarkdownInsertShortcut(
+      "image",
+      "accel,alt,shift,I",
+      defaults,
+      DEFAULT_NEW_MARKDOWN_SHORTCUT,
+    ),
+    { kind: "reserved" },
+  );
+  assert.deepEqual(
+    validateMarkdownInsertShortcut(
       "task",
       "alt,X",
       defaults,
