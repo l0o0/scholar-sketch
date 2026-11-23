@@ -26,7 +26,7 @@ function initLocale() {
     new FileSourceCtor(
       config.addonRef,
       "app",
-      ["en-US", "zh-CN"],
+      ["en-US", "zh-CN", "ru-RU"],
       `${rootURI}locale/{locale}/`,
     ),
   ]);

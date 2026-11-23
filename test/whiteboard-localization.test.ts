@@ -68,7 +68,11 @@ test("addon reload reads new translations without reusing Zotero's shared Fluent
     registries[1].sources[0].path,
     "file:///plugin/locale/{locale}/",
   );
-  assert.deepEqual(registries[1].sources[0].locales, ["en-US", "zh-CN"]);
+  assert.deepEqual(registries[1].sources[0].locales, [
+    "en-US",
+    "zh-CN",
+    "ru-RU",
+  ]);
 });
 
 const hostKeys = [

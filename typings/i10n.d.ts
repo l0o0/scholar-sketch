@@ -134,6 +134,8 @@ export type FluentMessageId =
   | 'feature-updates-reference-sidebar-body'
   | 'feature-updates-reference-sidebar-title'
   | 'feature-updates-release-notes'
+  | 'feature-updates-russian-locale-body'
+  | 'feature-updates-russian-locale-title'
   | 'feature-updates-selection-services-body'
   | 'feature-updates-selection-services-title'
   | 'feature-updates-selection-translate-body'

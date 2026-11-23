@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-9%2F10%2F11-green?style=flat-square&amp;logo=zotero&amp;logoColor=CC2936" alt="Zotero compatibility" /></a>
-  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.26-blue?style=flat-square" alt="version" /></a>
+  <a href="https://github.com/l0o0/scholar-sketch/releases"><img src="https://img.shields.io/badge/version-0.2.30-blue?style=flat-square" alt="version" /></a>
   <a href="../LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="license" /></a>
 </p>
 
@@ -31,6 +31,8 @@ Scholar Sketch 为 Zotero 扩展 Markdown 笔记与可视化白板，让文献�
 ## 安装
 
 支持 **Zotero 9 / 10 / 11 桌面版**。
+
+插件界面跟随 Zotero 的语言设置，支持简体中文、英语和俄语。
 
 1. 从 [Releases](https://github.com/l0o0/scholar-sketch/releases/latest) 下载 `scholarsketch-v{version}.xpi`。
 2. 在 Zotero 中打开 **工具 → 插件 → 齿轮 → 从文件安装插件…**，选择下载的文件。
