@@ -11,10 +11,7 @@ import {
   EDITOR_MESSAGE_SOURCE,
   isEditorProtocolMessage,
 } from "../src/modules/markdown/editor-protocol.ts";
-import {
-  MARKDOWN_IMAGE_SHORTCUT,
-  markdownImageShortcutLabel,
-} from "../src/modules/markdown/shortcut.ts";
+import { DEFAULT_MARKDOWN_INSERT_SHORTCUTS } from "../src/modules/markdown/shortcut.ts";
 
 const macKeymap = /Mac/.test(globalThis.navigator?.platform ?? "");
 const windowsKeymap = /Win/.test(globalThis.navigator?.platform ?? "");
@@ -46,6 +43,8 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   const container = browser.document.createElement("div");
   browser.document.body.append(container);
   const images: { bytes: ArrayBuffer; mimeType: string; name: string }[] = [];
+  let annotationRequests = 0;
+  let tableRequests = 0;
   let holdWrite: Promise<void> | undefined;
   const editor = createMarkdownEditor(container, {
     win: browser as unknown as Window,
@@ -53,6 +52,8 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     doc: "A note",
     pageURL: "https://host.example/editor.html",
     onResolveAsset: async () => ({ error: "Test image preview unavailable" }),
+    onInsertAnnotations: () => annotationRequests++,
+    onInsertTable: () => tableRequests++,
     onPasteImage: async (payload) => {
       images.push(payload);
       await holdWrite;
@@ -120,6 +121,7 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
       altGraph?: boolean;
       shiftKey?: boolean;
       key?: string;
+      code?: string;
       keyCode?: number;
       ctrlKey?: boolean;
       metaKey?: boolean;
@@ -151,6 +153,21 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     view.contentDOM.dispatchEvent(event);
     return event;
   };
+  const annotationShortcut = (options: Parameters<typeof shortcut>[0] = {}) =>
+    shortcut({
+      key: options.shiftKey ? "A" : "a",
+      code: "KeyA",
+      keyCode: 65,
+      ...options,
+    });
+  const tableShortcut = (options: Parameters<typeof shortcut>[0] = {}) =>
+    shortcut({
+      key: "T",
+      code: "KeyT",
+      keyCode: 84,
+      shiftKey: true,
+      ...options,
+    });
   const select = (arrayBuffer: () => Promise<ArrayBuffer>) => {
     const input = picker();
     assert.ok(input);
@@ -161,6 +178,37 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   };
 
   for (const mode of ["live", "source"] as const) {
+    await t.test(
+      `${mode}: table shortcut reaches its owning size picker`,
+      async () => {
+        editor.setMode(mode);
+        await tick();
+        const original = view.state.doc.toString();
+        const before = tableRequests;
+        assert.equal(tableShortcut().defaultPrevented, true);
+        await tick();
+        assert.equal(tableRequests, before + 1);
+        assert.equal(view.state.doc.toString(), original);
+      },
+    );
+    await t.test(
+      `${mode}: annotation shortcut reaches its owning host without changing text`,
+      async () => {
+        editor.setMode(mode);
+        await tick();
+        const original = view.state.doc.toString();
+        const before = annotationRequests;
+        assert.equal(annotationShortcut().defaultPrevented, true);
+        await tick();
+        assert.equal(annotationRequests, before + 1);
+        assert.equal(view.state.doc.toString(), original);
+        if (macKeymap) {
+          assert.equal(annotationShortcut({ key: "å" }).defaultPrevented, true);
+          await tick();
+          assert.equal(annotationRequests, before + 2);
+        }
+      },
+    );
     await t.test(
       `${mode}: opens one picker and inserts the chosen image at the selection`,
       async () => {
@@ -203,6 +251,174 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   }
 
   await t.test(
+    "preferences replace all insertion keys in the open editor without losing text or undo",
+    async () => {
+      editor.setValue("A note");
+      await tick();
+      view.dispatch({ changes: { from: 6, insert: "!" } });
+      const prefs = {
+        annotation: ["shortcutInsertAnnotation", "accel,alt,Q", "q"],
+        image: ["shortcutInsertImage", "accel,alt,J", "j"],
+        table: ["shortcutInsertTable", "accel,alt,U", "u"],
+        task: ["shortcutInsertTask", "accel,alt,R", "r"],
+        code: ["shortcutInsertCode", "accel,alt,E", "e"],
+      } as const;
+      for (const [pref, value] of Object.values(prefs))
+        fake.Zotero.Prefs.set(`extensions.zotero.bamboo.${pref}`, value, true);
+      editor.applyPreferences();
+      await tick();
+      assert.equal(
+        EditorView.findFromDOM(
+          frame.document.querySelector(".cm-editor") as HTMLElement,
+        ),
+        view,
+      );
+      assert.equal(view.state.doc.toString(), "A note!");
+      editor.command("undo");
+      await tick();
+      assert.equal(view.state.doc.toString(), "A note");
+      const beforeAnnotation = annotationRequests;
+      const beforeTable = tableRequests;
+      assert.equal(annotationShortcut().defaultPrevented, false);
+      assert.equal(shortcut().defaultPrevented, false);
+      assert.equal(tableShortcut().defaultPrevented, false);
+      for (const key of ["x", "c"])
+        assert.equal(
+          shortcut({
+            key,
+            code: `Key${key.toUpperCase()}`,
+            keyCode: key.toUpperCase().charCodeAt(0),
+          }).defaultPrevented,
+          false,
+        );
+      assert.equal(view.state.doc.toString(), "A note");
+      for (const command of ["annotation", "image", "table"] as const) {
+        const key = prefs[command][2];
+        assert.equal(
+          shortcut({
+            key,
+            code: `Key${key.toUpperCase()}`,
+            keyCode: key.toUpperCase().charCodeAt(0),
+          }).defaultPrevented,
+          true,
+        );
+        await tick();
+        if (command === "image")
+          picker()!.dispatchEvent(new browser.Event("cancel"));
+      }
+      assert.equal(annotationRequests, beforeAnnotation + 1);
+      assert.equal(tableRequests, beforeTable + 1);
+      assert.equal(
+        shortcut({ key: "r", code: "KeyR", keyCode: 82 }).defaultPrevented,
+        true,
+      );
+      assert.equal(view.state.doc.toString(), "- [ ] A note");
+      editor.command("undo");
+      await tick();
+      view.dispatch({ selection: { anchor: 2, head: 6 } });
+      assert.equal(
+        shortcut({ key: "e", code: "KeyE", keyCode: 69 }).defaultPrevented,
+        true,
+      );
+      assert.equal(view.state.doc.toString(), "A `note`");
+      const beforeClear = view.state.doc.toString();
+      for (const [pref] of Object.values(prefs))
+        fake.Zotero.Prefs.set(`extensions.zotero.bamboo.${pref}`, "", true);
+      editor.applyPreferences();
+      await tick();
+      for (const [, , key] of Object.values(prefs))
+        assert.equal(
+          shortcut({
+            key,
+            code: `Key${key.toUpperCase()}`,
+            keyCode: key.toUpperCase().charCodeAt(0),
+          }).defaultPrevented,
+          false,
+        );
+      assert.equal(annotationRequests, beforeAnnotation + 1);
+      assert.equal(tableRequests, beforeTable + 1);
+      assert.equal(view.state.doc.toString(), beforeClear);
+      for (const [command, [pref]] of Object.entries(prefs))
+        fake.Zotero.Prefs.set(
+          `extensions.zotero.bamboo.${pref}`,
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS[command as keyof typeof prefs],
+          true,
+        );
+      editor.applyPreferences();
+      await tick();
+    },
+  );
+
+  await t.test(
+    "custom Shift punctuation matches the browser's generated character",
+    async () => {
+      editor.setValue("Inline");
+      await tick();
+      view.dispatch({ selection: { anchor: 0, head: 6 } });
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.shortcutInsertCode",
+        "accel,shift,~",
+        true,
+      );
+      editor.applyPreferences();
+      await tick();
+      try {
+        assert.equal(
+          shortcut({
+            key: "~",
+            code: "Backquote",
+            keyCode: 192,
+            altKey: false,
+            shiftKey: true,
+          }).defaultPrevented,
+          true,
+        );
+        assert.equal(view.state.doc.toString(), "`Inline`");
+      } finally {
+        fake.Zotero.Prefs.set(
+          "extensions.zotero.bamboo.shortcutInsertCode",
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS.code,
+          true,
+        );
+        editor.applyPreferences();
+        await tick();
+      }
+    },
+  );
+
+  await t.test(
+    "custom insertion keys precede CodeMirror's overridable defaults",
+    async () => {
+      editor.setValue("Inline");
+      await tick();
+      view.dispatch({ selection: { anchor: 6 } });
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.shortcutInsertTask",
+        "accel,Enter",
+        true,
+      );
+      editor.applyPreferences();
+      await tick();
+      try {
+        assert.equal(
+          shortcut({ key: "Enter", code: "Enter", keyCode: 13, altKey: false })
+            .defaultPrevented,
+          true,
+        );
+        assert.equal(view.state.doc.toString(), "- [ ] Inline");
+      } finally {
+        fake.Zotero.Prefs.set(
+          "extensions.zotero.bamboo.shortcutInsertTask",
+          DEFAULT_MARKDOWN_INSERT_SHORTCUTS.task,
+          true,
+        );
+        editor.applyPreferences();
+        await tick();
+      }
+    },
+  );
+
+  await t.test(
     "repeat, IME, read-only and extra modifiers do not open a picker",
     async () => {
       for (const options of [
@@ -221,13 +437,30 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
           replies.filter((message) => message.type === "importImage").length,
           before,
         );
+        const annotationBefore = annotationRequests;
+        annotationShortcut(options);
+        await tick();
+        assert.equal(
+          annotationRequests,
+          annotationBefore,
+          JSON.stringify(options),
+        );
+        if (!("shiftKey" in options)) {
+          const tableBefore = tableRequests;
+          tableShortcut(options);
+          await tick();
+          assert.equal(tableRequests, tableBefore);
+        }
       }
       view.contentDOM.dispatchEvent(
         new frame.CompositionEvent("compositionstart", { bubbles: true }),
       );
       shortcut();
+      const annotationBefore = annotationRequests;
+      annotationShortcut();
       await tick();
       assert.equal(!!picker(), false);
+      assert.equal(annotationRequests, annotationBefore);
       view.contentDOM.dispatchEvent(
         new frame.CompositionEvent("compositionend", { bubbles: true }),
       );
@@ -235,16 +468,21 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
       editor.setReadOnly(true);
       await tick();
       shortcut();
+      annotationShortcut();
+      const tableBefore = tableRequests;
+      tableShortcut();
       editor.importImage();
       await tick();
       assert.equal(!!picker(), false);
+      assert.equal(annotationRequests, annotationBefore);
+      assert.equal(tableRequests, tableBefore);
       editor.setReadOnly(false);
       await tick();
     },
   );
 
   await t.test(
-    "native character-entry modifiers do not turn their physical I key into image import",
+    "native character-entry modifiers do not open image or annotation pickers",
     async () => {
       const before = replies.filter(
         (message) => message.type === "importImage",
@@ -263,6 +501,17 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
         replies.filter((message) => message.type === "importImage").length,
         before,
       );
+      const annotationBefore = annotationRequests;
+      const annotationEvent = annotationShortcut({
+        key: "ą",
+        ctrlKey: windowsKeymap,
+        metaKey: false,
+        altKey: windowsKeymap || macKeymap,
+        altGraph: true,
+      });
+      assert.equal(annotationEvent.defaultPrevented, false);
+      await tick();
+      assert.equal(annotationRequests, annotationBefore);
     },
   );
 
@@ -363,19 +612,12 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
   );
 });
 
-test("image shortcut labels and the request boundary match the public binding", () => {
-  assert.equal(MARKDOWN_IMAGE_SHORTCUT, "Mod-Alt-i");
-  assert.equal(markdownImageShortcutLabel("MacIntel"), "Cmd + Option + I");
-  assert.equal(markdownImageShortcutLabel("Win32"), "Ctrl + Alt + I");
-  const request = { source: EDITOR_MESSAGE_SOURCE, type: "importImage" };
-  assert.equal(isEditorProtocolMessage(request), true);
-  assert.equal(
-    isEditorProtocolMessage({
-      ...request,
-      payload: { path: "/tmp/image.png" },
-    }),
-    false,
-  );
+test("host insertion picker requests carry no untrusted payload", () => {
+  for (const type of ["importImage", "insertAnnotations", "insertTable"]) {
+    const request = { source: EDITOR_MESSAGE_SOURCE, type };
+    assert.equal(isEditorProtocolMessage(request), true);
+    assert.equal(isEditorProtocolMessage({ ...request, payload: {} }), false);
+  }
 });
 
 if (!process.env.SCHOLAR_IMAGE_SHORTCUT_PLATFORM) {

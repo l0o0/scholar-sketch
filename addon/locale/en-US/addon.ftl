@@ -409,7 +409,7 @@ settings-theme = Appearance
 settings-theme-system = System
 settings-theme-light = Light
 settings-theme-dark = Dark
-settings-shortcut-hint = Click a shortcut to edit it; changes apply immediately
+settings-shortcut-hint = Click a shortcut to edit it, then select Done to apply
 settings-shortcut-new-standalone = New standalone Markdown note
 settings-shortcut-surface = Shortcut set
 settings-shortcut-surface-markdown = Markdown
@@ -523,6 +523,11 @@ error-image-too-large = Images must be 15 MB or smaller.
 error-attachment-directory = Could not locate the attachment directory.
 export-html-title = Export HTML
 settings-shortcut-edit-aria = Edit shortcut
+settings-shortcut-edit-action = Edit shortcut: { $action }
+settings-shortcut-more-action = More shortcut actions: { $action }
+settings-shortcut-invalid = Use Ctrl or Cmd with a letter, number, or supported key.
+settings-shortcut-reserved = This shortcut is already used by the editor or Zotero.
+settings-shortcut-duplicate = This shortcut is already assigned to “{ $action }”.
 
 whiteboard-tutorial-image-title = Images & PDF snapshots
 
@@ -760,6 +765,27 @@ annotation-export-toggle = Select all / none
 annotation-export-failed = Could not create the note. Please try again.
 
 annotation-export-read-only = This library is read-only. Annotations cannot be saved as a new note here.
+
+markdown-insert-annotation = Annotation
+markdown-insert-annotation-title = Insert annotations ({ $shortcut })
+markdown-insert-shortcut-title = { $action } ({ $shortcut })
+markdown-annotation-insert-title = Insert annotations
+markdown-annotation-insert-hint = Choose a paper or PDF, then select text annotations and comments. Filter by attachment, type, color or tag. Inserted page links return to the original annotations.
+markdown-annotation-source-search = Search papers or PDF attachments…
+markdown-annotation-source = Source
+markdown-annotation-choose-source = Choose a paper or PDF
+markdown-annotation-source-searching = Searching sources…
+markdown-annotation-no-sources = No matching papers or PDFs found.
+markdown-annotation-source-failed = Could not search sources.
+markdown-annotation-refresh-source = Refresh source
+markdown-annotation-loading = Loading annotations…
+markdown-annotation-load-failed = Could not load annotations. Refresh the source to try again.
+markdown-annotation-attachment = Attachment
+markdown-annotation-all-attachments = All attachments
+markdown-annotation-insert-selected = Insert selected annotations
+markdown-annotation-document-changed = The document changed. Close the annotations window and try again.
+markdown-annotation-source-changed = Selected annotations changed. Refresh the source and select them again.
+markdown-annotation-insert-failed = Could not insert annotations.
 
 whiteboard-tutorial-quick-start = Quick controls
 whiteboard-tutorial-quick-start-body =

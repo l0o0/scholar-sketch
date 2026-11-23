@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   formatModalBytes,
   formatModalDate,
+  applySettings,
   modalTitle,
   normalizeMarkdownFilename,
   prefsFromSettings,
@@ -17,6 +18,12 @@ import { markdownModalCSS } from "../src/modules/markdown/styles.ts";
 import { version } from "../package.json";
 import { releaseHighlights } from "../src/modules/release-highlights.ts";
 import { resolveMarkdownToolbarMode } from "../src/modules/markdown/preferences.ts";
+import {
+  DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+  MARKDOWN_INSERT_COMMANDS,
+  shortcutKeycaps,
+  type MarkdownInsertCommand,
+} from "../src/modules/markdown/shortcut.ts";
 
 test("About shows installed release highlights and opens help links once across repeated visits", async (t) => {
   const { Window } = await import("happy-dom");
@@ -449,6 +456,7 @@ test("maps plugin preferences to independent settings drafts", () => {
     markdownToolbarMode: "always" as const,
     markdownSlashSearchLanguage: "auto" as const,
     shortcutNewStandaloneMd: "accel,shift,M",
+    markdownInsertShortcuts: { ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS },
     whiteboardColorScheme: "traditional" as const,
     whiteboardFontFamily: "system" as const,
     whiteboardBackgroundColor: "",
@@ -458,10 +466,16 @@ test("maps plugin preferences to independent settings drafts", () => {
   settings.markdownStyles.presets[0].css =
     ".markdown { --zmd-style-size: 18px; }";
   assert.equal(input.markdownStyles.presets[0].css, BUILTIN_CSS_PRESETS[0].css);
+  settings.markdownInsertShortcuts.table = "accel,alt,R";
+  assert.equal(input.markdownInsertShortcuts.table, "accel,alt,shift,T");
   assert.deepEqual(prefsFromSettings(settings), settings);
   assert.notEqual(
     prefsFromSettings(settings).markdownStyles.presets[0],
     settings.markdownStyles.presets[0],
+  );
+  assert.notEqual(
+    prefsFromSettings(settings).markdownInsertShortcuts,
+    settings.markdownInsertShortcuts,
   );
   assert.equal(
     settingsFromPrefs({
@@ -1023,11 +1037,16 @@ test("shortcut categories expose one tab stop and switch the visible list with p
   const keysFor = (id: string) =>
     shortcutRows
       .find((row) => row.textContent.includes(`bamboo-${id}`))
-      ?.querySelector("kbd")?.textContent;
+      ?.querySelector(".zotero-markdown-modal-shortcut-value, kbd")
+      ?.textContent;
   const isMac = /Mac|iPhone|iPad/.test(window.navigator.platform);
   assert.equal(
+    keysFor("markdown-annotation-insert-title"),
+    shortcutKeycaps("accel,alt,A", window.navigator.platform).join(""),
+  );
+  assert.equal(
     keysFor("settings-shortcut-import-image"),
-    isMac ? "Cmd + Option + I" : "Ctrl + Alt + I",
+    shortcutKeycaps("accel,alt,I", window.navigator.platform).join(""),
   );
   assert.equal(
     keysFor("whiteboard-redo"),
@@ -1610,4 +1629,314 @@ test("CSS style drafts preview, copy prompts and validate all presets before sav
   controller.destroy();
   assert.equal(disposedChild.open, false);
   assert.equal(disposedChild.isConnected, false);
+});
+
+async function insertShortcutSettingsFixture(
+  t: import("node:test").TestContext,
+  platform = "Win32",
+) {
+  const { Window } = await import("happy-dom");
+  const { createMarkdownModalController } =
+    await import("../src/modules/markdown/modal.ts");
+  const window = new Window();
+  Object.defineProperty(window.navigator, "platform", { value: platform });
+  const stored = new Map<string, unknown>();
+  const prefix = "extensions.zotero.bamboo.";
+  const defaults = new Map<string, unknown>([
+    [`${prefix}shortcutNewStandaloneMd`, "accel,shift,M"],
+  ]);
+  const ftl = readFileSync("addon/locale/en-US/addon.ftl", "utf8");
+  const messages = new Map(
+    [...ftl.matchAll(/^([\w-]+) = (.+)$/gm)].map((match) => [
+      `bamboo-${match[1]}`,
+      match[2],
+    ]),
+  );
+  for (const [key, value] of Object.entries({
+    Zotero: {
+      Prefs: {
+        get: (key: string) =>
+          stored.has(key) ? stored.get(key) : defaults.get(key),
+        set: (key: string, value: unknown) => stored.set(key, value),
+      },
+    },
+    addon: {
+      data: {
+        locale: {
+          current: {
+            formatMessagesSync: (
+              input: Array<{ id: string; args?: Record<string, unknown> }>,
+            ) =>
+              input.map(({ id, args }) => ({
+                value: (messages.get(id) ?? id).replace(
+                  /\{ \$(\w+) \}/g,
+                  (_match, key) => String(args?.[key] ?? ""),
+                ),
+                attributes: null,
+              })),
+          },
+        },
+      },
+    },
+  })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (previous) Object.defineProperty(globalThis, key, previous);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+  const applied: unknown[] = [];
+  const controller = createMarkdownModalController(
+    window.document as unknown as Document,
+    {
+      onSettings(settings) {
+        applySettings(settings);
+        applied.push(settings);
+      },
+    },
+  );
+  t.after(async () => {
+    controller.destroy();
+    await window.happyDOM.close();
+  });
+  const row = (id: MarkdownInsertCommand | "new-note") => {
+    const element = window.document.querySelector<HTMLElement>(
+      `[data-shortcut-id="${id}"]`,
+    );
+    assert.ok(element, `Missing editable ${id} shortcut`);
+    return element;
+  };
+  const control = (id: MarkdownInsertCommand | "new-note") =>
+    row(id).querySelector<HTMLButtonElement>(
+      ".zotero-markdown-modal-shortcut-control",
+    )!;
+  const begin = (id: MarkdownInsertCommand | "new-note") => {
+    row(id)
+      .querySelector<HTMLButtonElement>('[data-modal-action="shortcut-edit"]')!
+      .click();
+    return control(id);
+  };
+  const key = (
+    id: MarkdownInsertCommand | "new-note",
+    init: KeyboardEventInit & { keyCode?: number },
+  ) => {
+    const event = new window.KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    control(id).dispatchEvent(event);
+    return event;
+  };
+  const action = (
+    id: MarkdownInsertCommand | "new-note",
+    action: "clear" | "restore",
+  ) => {
+    row(id)
+      .querySelector<HTMLButtonElement>(".zotero-markdown-shortcut-overflow")!
+      .click();
+    row(id)
+      .querySelector<HTMLButtonElement>(
+        `[data-modal-action="shortcut-${action}"]`,
+      )!
+      .click();
+  };
+  const save = async () => {
+    window.document
+      .querySelector<HTMLButtonElement>('[data-modal-action="save-settings"]')!
+      .click();
+    await window.happyDOM.waitUntilComplete();
+  };
+  const open = (insertShortcuts = { ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS }) =>
+    controller.open(
+      "settings",
+      { markdownInsertShortcuts: insertShortcuts },
+      "shortcuts",
+    );
+  open();
+  return {
+    window,
+    stored,
+    prefix,
+    applied,
+    controller,
+    row,
+    control,
+    begin,
+    key,
+    action,
+    save,
+    open,
+  };
+}
+
+test("all insert shortcut drafts support cancel, per-action clear/restore and saved preference reload", async (t) => {
+  const f = await insertShortcutSettingsFixture(t);
+  assert.deepEqual(
+    [...f.window.document.querySelectorAll("[data-shortcut-id]")].map(
+      (row) => (row as HTMLElement).dataset.shortcutId,
+    ),
+    [...MARKDOWN_INSERT_COMMANDS, "new-note"],
+  );
+  for (const command of MARKDOWN_INSERT_COMMANDS) {
+    assert.ok(
+      f
+        .control(command)
+        .getAttribute("aria-label")!
+        .includes(f.row(command).getAttribute("aria-label")!),
+    );
+  }
+  f.begin("table");
+  f.key("table", { key: "r", code: "KeyR", ctrlKey: true, altKey: true });
+  f.action("task", "clear");
+  assert.equal(f.stored.size, 0);
+  f.controller.close();
+  f.controller.open("settings", undefined, "shortcuts");
+  assert.equal(
+    f.control("table").textContent,
+    shortcutKeycaps(DEFAULT_MARKDOWN_INSERT_SHORTCUTS.table, "Win32").join(""),
+  );
+  assert.equal(
+    f.control("task").textContent,
+    shortcutKeycaps(DEFAULT_MARKDOWN_INSERT_SHORTCUTS.task, "Win32").join(""),
+  );
+
+  f.begin("table");
+  f.key("table", { key: "r", code: "KeyR", ctrlKey: true, altKey: true });
+  f.action("task", "clear");
+  f.begin("code");
+  f.key("code", { key: "`", code: "Backquote", ctrlKey: true, altKey: true });
+  f.begin("new-note");
+  f.key("new-note", { key: "r", code: "KeyR", ctrlKey: true, altKey: true });
+  assert.match(
+    f.row("new-note").querySelector("[data-shortcut-error]")!.textContent!,
+    /already assigned to “Insert table”/,
+  );
+  f.key("new-note", { key: "Escape" });
+  f.begin("new-note");
+  f.key("new-note", { key: "q", code: "KeyQ", ctrlKey: true, altKey: true });
+  f.begin("task");
+  f.key("task", { key: "q", code: "KeyQ", ctrlKey: true, altKey: true });
+  assert.match(
+    f.row("task").querySelector("[data-shortcut-error]")!.textContent!,
+    /already assigned to “New standalone Markdown note”/,
+  );
+  f.key("task", { key: "Escape" });
+  assert.equal(f.stored.size, 0);
+  await f.save();
+  assert.equal(f.applied.length, 1);
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertTable`), "accel,alt,R");
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertTask`), "");
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertCode`), "accel,alt,`");
+  assert.equal(
+    f.stored.get(`${f.prefix}shortcutInsertAnnotation`),
+    "accel,alt,A",
+  );
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertImage`), "accel,alt,I");
+  assert.equal(
+    f.stored.get(`${f.prefix}shortcutNewStandaloneMd`),
+    "accel,alt,Q",
+  );
+
+  f.controller.open("settings", undefined, "shortcuts");
+  assert.equal(f.control("table").textContent, "CtrlAltR");
+  assert.equal(f.control("task").textContent, "Not set");
+  assert.equal(f.control("code").textContent, "CtrlAlt`");
+  f.action("task", "restore");
+  await f.save();
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertTask`), "accel,alt,X");
+});
+
+test("shortcut recording rejects conflicts and unsafe character input while retaining the previous binding", async (t) => {
+  const f = await insertShortcutSettingsFixture(t, "MacIntel");
+  const error = (id: MarkdownInsertCommand | "new-note") =>
+    f.row(id).querySelector<HTMLElement>("[data-shortcut-error]")!;
+  f.begin("image");
+  f.key("image", {
+    key: "å",
+    code: "KeyA",
+    keyCode: 65,
+    metaKey: true,
+    altKey: true,
+  });
+  assert.match(
+    error("image").textContent!,
+    /already assigned to “Insert annotations”/,
+  );
+  assert.equal(f.control("image").classList.contains("is-recording"), true);
+  f.key("image", {
+    key: "ø",
+    code: "KeyO",
+    keyCode: 79,
+    metaKey: true,
+    altKey: true,
+  });
+  assert.equal(error("image").hidden, true);
+  assert.equal(f.control("image").textContent, "⌘⌥O");
+
+  f.begin("table");
+  f.key("table", { key: "b", code: "KeyB", metaKey: true });
+  assert.match(error("table").textContent!, /editor or Zotero/);
+  f.key("table", { key: "Escape" });
+  assert.equal(error("table").hidden, true);
+  assert.equal(f.control("table").textContent, "⌘⌥⇧T");
+
+  f.begin("code");
+  f.key("code", { key: "A", code: "KeyA", shiftKey: true });
+  assert.equal(f.control("code").getAttribute("aria-invalid"), "true");
+  assert.equal(f.control("code").classList.contains("is-recording"), true);
+  f.key("code", { key: "Escape" });
+  f.begin("code");
+  f.key("code", {
+    key: "r",
+    code: "KeyR",
+    metaKey: true,
+    altKey: true,
+    repeat: true,
+  });
+  f.key("code", {
+    key: "r",
+    code: "KeyR",
+    metaKey: true,
+    altKey: true,
+    isComposing: true,
+  });
+  assert.equal(error("code").hidden, true);
+  assert.equal(f.control("code").classList.contains("is-recording"), true);
+  f.key("code", { key: "Escape" });
+
+  await f.save();
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertImage`), "accel,alt,O");
+  assert.equal(
+    f.stored.get(`${f.prefix}shortcutInsertTable`),
+    DEFAULT_MARKDOWN_INSERT_SHORTCUTS.table,
+  );
+  assert.equal(
+    f.stored.get(`${f.prefix}shortcutInsertCode`),
+    DEFAULT_MARKDOWN_INSERT_SHORTCUTS.code,
+  );
+  assert.equal(
+    f.stored.get(`${f.prefix}shortcutNewStandaloneMd`),
+    "accel,shift,M",
+  );
+});
+
+test("Done validates every insert shortcut before any settings are written", async (t) => {
+  const f = await insertShortcutSettingsFixture(t);
+  f.controller.close();
+  f.open({ ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS, table: "accel,B" });
+  await f.save();
+  assert.equal(f.applied.length, 0);
+  assert.equal(f.stored.size, 0);
+  assert.equal(f.window.document.activeElement, f.control("table"));
+  assert.equal(
+    f.row("table").querySelector<HTMLElement>("[data-shortcut-error]")!.hidden,
+    false,
+  );
+  f.begin("table");
+  f.key("table", { key: "r", code: "KeyR", ctrlKey: true, altKey: true });
+  await f.save();
+  assert.equal(f.applied.length, 1);
+  assert.equal(f.stored.get(`${f.prefix}shortcutInsertTable`), "accel,alt,R");
 });

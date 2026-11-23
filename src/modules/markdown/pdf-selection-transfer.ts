@@ -5,6 +5,23 @@ import {
 
 type PdfSelectionTransfer = Pick<DataTransfer, "types" | "getData">;
 
+/** Share CodeMirror's block insertion and undo boundary with the annotation picker. */
+export function insertPdfQuotation(
+  content: Element,
+  payload: PdfSelectionInsertion,
+): boolean {
+  const input = content.ownerDocument.createEvent("CustomEvent");
+  // A string crosses Gecko's chrome compartments without exposing host objects.
+  input.initCustomEvent(
+    PDF_SELECTION_EVENT,
+    true,
+    true,
+    JSON.stringify(payload),
+  );
+  content.dispatchEvent(input);
+  return input.defaultPrevented;
+}
+
 /** Bind to the iframe document only after its owning ready handshake. */
 export function attachMarkdownPdfSelectionTransfer(
   document: Document,
@@ -34,17 +51,7 @@ export function attachMarkdownPdfSelectionTransfer(
       return;
     }
     if (!markdown) return;
-    const payload: PdfSelectionInsertion = { markdown, position };
-    const input = document.createEvent("CustomEvent");
-    // A string crosses Gecko's chrome compartments without exposing host objects.
-    input.initCustomEvent(
-      PDF_SELECTION_EVENT,
-      true,
-      true,
-      JSON.stringify(payload),
-    );
-    content.dispatchEvent(input);
-    if (!input.defaultPrevented) return;
+    if (!insertPdfQuotation(content, { markdown, position })) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   };

@@ -555,11 +555,31 @@ describe("responsive Markdown toolbar", () => {
         [...f.menu.querySelectorAll("button")].map(
           (b) => b.dataset.toolbarCommand,
         ),
-        ["image", "table", "task", "code"],
+        ["annotation", "image", "table", "task", "code"],
       );
-      f.menu
-        .querySelector<HTMLButtonElement>('[data-toolbar-command="table"]')!
-        .click();
+      const annotation = f.menu.querySelector<HTMLButtonElement>(
+        '[data-toolbar-command="annotation"]',
+      )!;
+      assert.equal(f.win.document.activeElement, annotation);
+      assert.equal(
+        annotation.querySelector(".zotero-markdown-more-menu-shortcut")
+          ?.textContent,
+        shortcuts.markdownShortcutLabel(
+          shortcuts.DEFAULT_MARKDOWN_INSERT_SHORTCUTS.annotation,
+          f.win.navigator.platform,
+        ),
+      );
+      assert.equal(
+        f.menu
+          .querySelector('[data-toolbar-command="image"]')
+          ?.querySelector(".zotero-markdown-more-menu-shortcut")?.textContent,
+        shortcuts.markdownShortcutLabel(
+          shortcuts.DEFAULT_MARKDOWN_INSERT_SHORTCUTS.image,
+          f.win.navigator.platform,
+        ),
+      );
+      annotation.click();
+      assert.equal(f.commands[1].command, "annotation");
       assert.equal(f.commands[1].anchor, f.trigger("insert"));
       assert.equal(f.menu.hidden, true);
       assert.equal(
@@ -756,11 +776,14 @@ describe("responsive Markdown toolbar", () => {
   it("opens the actual shared table picker from Insert and inserts the selected dimensions once", async () => {
     const f = fixture(400);
     const insertions: unknown[][] = [];
+    let editorFocuses = 0;
     const session: any = {
       mode: "live",
+      win: f.win,
       view: { root: f.root, workspaceEl: f.root },
       editor: {
         isComposing: () => false,
+        focus: () => editorFocuses++,
         insertText: (...args: unknown[]) => insertions.push(args),
       },
     };
@@ -814,17 +837,14 @@ describe("responsive Markdown toolbar", () => {
     }) as (
       session: unknown,
       command: ToolbarCommand,
-      anchor: HTMLButtonElement,
+      anchor?: HTMLButtonElement,
     ) => void;
     f.commandHandler = (command, anchor) => execute(session, command, anchor);
     try {
       const picker = f.root.querySelector<HTMLElement>(
         ".zotero-markdown-table-picker",
       )!;
-      assert.equal(
-        picker.parentElement?.className,
-        "zotero-markdown-toolbar-inner",
-      );
+      assert.equal(picker.closest(".zotero-markdown-toolbar"), null);
       assert.equal(
         f.win.getComputedStyle(
           f.root.querySelector(".zotero-markdown-table-control")!,
@@ -856,6 +876,13 @@ describe("responsive Markdown toolbar", () => {
       ]);
       assert.equal(picker.hidden, true);
       assert.equal(f.trigger("insert").getAttribute("aria-expanded"), "false");
+      f.toolbar.hidden = true;
+      execute(session, "table");
+      assert.equal(picker.hidden, false);
+      assert.notEqual(f.win.getComputedStyle(picker).display, "none");
+      f.key("Escape");
+      assert.equal(picker.hidden, true);
+      assert.equal(editorFocuses, 1);
     } finally {
       session.unbindTablePicker?.();
       await f.destroy();

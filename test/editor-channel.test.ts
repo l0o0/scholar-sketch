@@ -5,6 +5,41 @@ import {
   applyDocChanges,
   isEditorProtocolMessageForChannel,
 } from "../src/modules/markdown/editor-protocol.ts";
+import { DEFAULT_MARKDOWN_INSERT_SHORTCUTS } from "../src/modules/markdown/shortcut.ts";
+
+test("live insertion-key updates require all five serialized shortcut values", () => {
+  const message = {
+    source: EDITOR_MESSAGE_SOURCE,
+    channel: "insert-keys",
+    type: "setInsertShortcuts",
+  };
+  assert.equal(
+    isEditorProtocolMessageForChannel(
+      { ...message, payload: DEFAULT_MARKDOWN_INSERT_SHORTCUTS },
+      "insert-keys",
+    ),
+    true,
+  );
+  assert.equal(
+    isEditorProtocolMessageForChannel(
+      {
+        ...message,
+        payload: { ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS, code: "" },
+      },
+      "insert-keys",
+    ),
+    true,
+  );
+  const { table: _, ...missing } = DEFAULT_MARKDOWN_INSERT_SHORTCUTS;
+  for (const payload of [
+    missing,
+    { ...DEFAULT_MARKDOWN_INSERT_SHORTCUTS, task: true },
+  ])
+    assert.equal(
+      isEditorProtocolMessageForChannel({ ...message, payload }, "insert-keys"),
+      false,
+    );
+});
 
 test("accepts editor messages only from the matching session channel", () => {
   const message = {

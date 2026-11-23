@@ -66,6 +66,7 @@ describe("toolbar insert templates", () => {
       root.innerHTML = `
         <div class="zotero-markdown-toolbar">
           <button data-action="more" aria-expanded="true">More</button>
+          ${shortcuts.MARKDOWN_INSERT_COMMANDS.map((command) => `<button data-action="${command}" aria-label="${command}"></button>`).join("")}
           <div class="zotero-markdown-more-menu">
             <button aria-haspopup="menu" aria-expanded="true">Export</button>
             <div class="zotero-markdown-export-submenu"></div>
@@ -103,6 +104,26 @@ describe("toolbar insert templates", () => {
       );
       assert.equal(f.win.getComputedStyle(restore(f)).display, "none");
       more(f).focus();
+    }
+    setPref("shortcutInsertTask", "accel,alt,shift,J");
+    setPref("shortcutInsertImage", "");
+    applyMarkdownToolbarPreferences();
+    for (const f of fixtures) {
+      const task = f.root.querySelector<HTMLButtonElement>(
+        '[data-action="task"]',
+      )!;
+      assert.equal(
+        task.dataset.shortcut,
+        shortcuts.markdownShortcutLabel(
+          "accel,alt,shift,J",
+          f.win.navigator.platform,
+        ),
+      );
+      const image = f.root.querySelector<HTMLButtonElement>(
+        '[data-action="image"]',
+      )!;
+      assert.equal(image.dataset.shortcut, "");
+      assert.equal(image.title, "image");
     }
     setPref("markdownToolbarVisible", false);
     applyMarkdownToolbarPreferences();
@@ -325,6 +346,10 @@ describe("toolbar insert templates", () => {
           ],
           ["redo", platform === "MacIntel" ? "Cmd + Shift + Z" : "Ctrl + Y"],
           [
+            "annotation",
+            platform === "MacIntel" ? "Cmd + Option + A" : "Ctrl + Alt + A",
+          ],
+          [
             "image",
             platform === "MacIntel" ? "Cmd + Option + I" : "Ctrl + Alt + I",
           ],
@@ -335,6 +360,13 @@ describe("toolbar insert templates", () => {
               ?.getAttribute("title"),
             `${label} (${shortcut})`,
           );
+          if (action === "image" || action === "annotation")
+            assert.equal(
+              root
+                .querySelector(`[data-action="${action}"]`)
+                ?.getAttribute("data-shortcut"),
+              shortcut,
+            );
         }
         assert.equal(actions.parentElement, inner);
         assert.deepEqual(
@@ -399,6 +431,7 @@ describe("toolbar insert templates", () => {
           }
         // Drive the real picker binding on the production toolbar DOM.
         const session: any = {
+          win: window,
           view: { root },
           editor: { isComposing: () => false },
         };

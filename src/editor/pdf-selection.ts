@@ -20,6 +20,11 @@ function readInsertion(event: Event): PdfSelectionInsertion | null {
   if (typeof payload.markdown !== "string" || !payload.markdown.trim())
     return null;
   if (
+    payload.expectedValue !== undefined &&
+    typeof payload.expectedValue !== "string"
+  )
+    return null;
+  if (
     payload.position !== undefined &&
     (!payload.position ||
       typeof payload.position !== "object" ||
@@ -69,6 +74,11 @@ export function pdfSelectionInput(isComposing: () => boolean) {
         return false;
       const payload = readInsertion(event);
       if (!payload) return false;
+      if (
+        payload.expectedValue !== undefined &&
+        view.state.doc.toString() !== payload.expectedValue
+      )
+        return false;
       const position = payload.position
         ? view.posAtCoords(payload.position)
         : undefined;

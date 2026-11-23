@@ -31,7 +31,10 @@ import {
 import { validViewState } from "../modules/markdown/editor-view-state";
 import {
   MARKDOWN_HEADING_SHORTCUTS,
-  MARKDOWN_IMAGE_SHORTCUT,
+  MARKDOWN_INSERT_COMMANDS,
+  DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+  markdownInsertKeyBinding,
+  type MarkdownInsertShortcuts,
 } from "../modules/markdown/shortcut";
 /**
  * iframe-side entry: runs CodeMirror 6 inside a clean Web document.
@@ -170,6 +173,7 @@ const editorEditableCompartment = new Compartment();
 const liveCompartment = new Compartment();
 const guttersCompartment = new Compartment();
 const modeAttrCompartment = new Compartment();
+const insertShortcutsCompartment = new Compartment();
 
 const fromParentAnnotation = Annotation.define<boolean>();
 
@@ -219,6 +223,8 @@ interface EditorRuntime {
   slashCompletion: SlashCommandPopup | null;
   dismissedSlash: string | null;
   composing: boolean;
+  annotationInsertion: boolean;
+  tableInsertion: boolean;
   removeCompositionListeners: (() => void) | null;
 }
 
@@ -254,6 +260,8 @@ const runtime: EditorRuntime = {
   slashCompletion: null,
   dismissedSlash: null,
   composing: false,
+  annotationInsertion: false,
+  tableInsertion: false,
   removeCompositionListeners: null,
 };
 
@@ -1186,6 +1194,8 @@ function postToParent(message: {
     | "textSelection"
     | "save"
     | "importImage"
+    | "insertAnnotations"
+    | "insertTable"
     | "error"
     | "pasteImage"
     | "imageDebug";
@@ -1289,6 +1299,41 @@ function topInsetExtension(topInset: number): Extension {
   ];
 }
 
+function insertShortcutExtension(
+  shortcuts: MarkdownInsertShortcuts,
+): Extension {
+  return keymap.of(
+    MARKDOWN_INSERT_COMMANDS.flatMap((command) => {
+      const key = markdownInsertKeyBinding(shortcuts[command]);
+      if (!key) return [];
+      return [
+        {
+          key,
+          win:
+            markdownInsertKeyBinding(shortcuts[command], "Win32") ?? undefined,
+          scope: "insert",
+          run: (view: EditorView) => {
+            if (command === "annotation") {
+              if (!runtime.annotationInsertion) return false;
+              postToParent({ type: "insertAnnotations" });
+            } else if (command === "table") {
+              if (!runtime.tableInsertion) return false;
+              postToParent({ type: "insertTable" });
+            } else if (command === "image") {
+              postToParent({ type: "importImage" });
+            } else if (command === "task") {
+              prefixLineInView(view, "- [ ] ");
+            } else {
+              wrapSelectionInView(view, "`", "`");
+            }
+            return true;
+          },
+        },
+      ];
+    }),
+  );
+}
+
 function buildExtensions(
   init: EditorInitPayload,
   disableLivePreview = false,
@@ -1302,6 +1347,8 @@ function buildExtensions(
   };
   runtime.mode = init.mode === "source" ? "source" : "live";
   runtime.surface = init.surface === "sidebar" ? "sidebar" : "default";
+  runtime.annotationInsertion = init.annotationInsertion === true;
+  runtime.tableInsertion = init.tableInsertion === true;
 
   return [
     editorLinkHover((payload) => postToParent({ type: "linkHover", payload })),
@@ -1348,14 +1395,6 @@ function buildExtensions(
     keymap.of([
       ...tableKeymap,
       {
-        key: MARKDOWN_IMAGE_SHORTCUT,
-        scope: "import-image",
-        run: () => {
-          postToParent({ type: "importImage" });
-          return true;
-        },
-      },
-      {
         key: "Mod-s",
         run: () => {
           postToParent({ type: "save" });
@@ -1401,6 +1440,11 @@ function buildExtensions(
       ...foldKeymap,
       indentWithTab,
     ]),
+    insertShortcutsCompartment.of(
+      insertShortcutExtension(
+        init.insertShortcuts ?? DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+      ),
+    ),
     themeCompartment.of([
       editorThemeExtension(
         init.theme,
@@ -1500,23 +1544,25 @@ function buildExtensions(
         },
       });
     }),
+    Prec.high(
+      EditorView.domEventHandlers({
+        keydown(event, view) {
+          if (
+            view.state.readOnly ||
+            runtime.composing ||
+            view.compositionStarted ||
+            event.isComposing ||
+            event.keyCode === 229 ||
+            event.repeat
+          )
+            return false;
+          // Accepted custom bindings precede CodeMirror's ordinary defaults.
+          // Its platform matcher preserves AltGr input without a keyCode fallback.
+          return runScopeHandlers(view, event, "insert");
+        },
+      }),
+    ),
     EditorView.domEventHandlers({
-      keydown(event, view) {
-        if (
-          view.state.readOnly ||
-          runtime.composing ||
-          view.compositionStarted ||
-          event.isComposing ||
-          event.keyCode === 229 ||
-          event.repeat
-        )
-          return false;
-        // Use CodeMirror's platform/layout matching, while keeping a picker
-        // shortcut away from repeated keys and native composition input.
-        // Firefox also reports AltGraph for ordinary Cmd+Option / Ctrl+Alt;
-        // CodeMirror preserves Windows AltGr characters without a keyCode fallback.
-        return runScopeHandlers(view, event, "import-image");
-      },
       contextmenu(event, editorView) {
         const target = event.target as Element | null;
         const liveCell = target?.closest?.(
@@ -2043,6 +2089,14 @@ function handleParentMessage(data: ParentToEditorMessage) {
         updateSlashCompletion(runtime.view);
       break;
     }
+    case "setInsertShortcuts": {
+      runtime.view?.dispatch({
+        effects: insertShortcutsCompartment.reconfigure(
+          insertShortcutExtension(data.payload),
+        ),
+      });
+      break;
+    }
     case "setFontSize": {
       if (!runtime.view) return;
       runtime.fontSize = data.payload.fontSize;
@@ -2195,6 +2249,7 @@ const PARENT_TO_EDITOR_TYPES = new Set([
   "setFontSize",
   "setAppearance",
   "setSlashSearchLanguage",
+  "setInsertShortcuts",
   "setReadOnly",
   "setMode",
   "setImageAssets",

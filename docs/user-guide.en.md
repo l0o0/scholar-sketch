@@ -154,7 +154,11 @@ Common default shortcuts include:
 | `Ctrl/Cmd + B`                                               | Bold                                                      |
 | `Ctrl/Cmd + I`                                               | Italic                                                    |
 | `Ctrl/Cmd + K`                                               | Insert a standard Markdown link                           |
+| `Ctrl + Alt + A` (macOS: `Cmd + Option + A`)                 | Insert PDF annotations                                    |
 | `Ctrl + Alt + I` (macOS: `Cmd + Option + I`)                 | Import a local image                                      |
+| `Ctrl + Alt + Shift + T` (macOS: `Cmd + Option + Shift + T`) | Choose table dimensions and insert                        |
+| `Ctrl + Alt + X` (macOS: `Cmd + Option + X`)                 | Task list                                                 |
+| `Ctrl + Alt + C` (macOS: `Cmd + Option + C`)                 | Inline code                                               |
 | `Ctrl/Cmd + F`                                               | Find and replace                                          |
 | `Ctrl/Cmd + G` / `Ctrl/Cmd + Shift + G`                      | Find next / previous match                                |
 | `Ctrl + Alt + 1 / 2 / 3` (macOS: `Cmd + Option + 1 / 2 / 3`) | Heading level 1 / 2 / 3                                   |
@@ -162,6 +166,8 @@ Common default shortcuts include:
 | `Tab` / `Shift + Tab` inside a table                         | Next / previous cell; `Tab` from the last cell adds a row |
 
 `Ctrl/Cmd + 1…9` remains available for switching Zotero tabs. For more shortcuts and the shortcuts you can customize, see **More → Shortcuts** and the **Shortcuts** page in settings.
+
+Customize annotations, images, tables, task lists, and inline code in **More → Shortcuts** or **Settings → Shortcuts → Markdown**. Click a row’s keys or **Edit**, then press a combination containing `Ctrl` (`Cmd` on macOS). `Esc` cancels recording; Delete clears it. The row’s three-dot menu offers **Clear shortcut** and **Restore default**. Duplicate or known reserved bindings show a conflict. Resolve it and click **Done** to update open editors and toolbar menus; closing settings discards the draft. Clearing a shortcut leaves its menu action available.
 
 Use the local-image shortcut inside an editable Markdown editor, including Source mode and the sidebar editor. Selected images use the same image-saving flow as the toolbar. Cancelling the picker inserts nothing. `Ctrl/Cmd + Shift + I` remains available for Zotero's Import command.
 
@@ -278,6 +284,15 @@ Select text in Zotero's PDF reader and paste it into Markdown, or drag it to the
 Click the source link in reading preview to return to the original passage. In Live Preview and Source mode, use `Ctrl/Cmd + click`.
 
 Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When editing an existing Note card, the quotation is inserted into its content. The card body shows the excerpt. Hover over the card or focus it with the keyboard to reveal the **Open source** icon at the top right. Click it to return to the PDF, or choose a destination when the card has several sources. Saved Markdown and Markdown exports include the source links. The import can be undone in one step.
+
+## Insert PDF annotations into the current note
+
+1. Place the cursor at the insertion point in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. You can also use the default shortcut `Ctrl + Alt + A` (macOS: `Cmd + Option + A`) to open the dialog.
+2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. Click a result below the search field to change the source; typing alone keeps the current source and selections. The current source appears beside **Refresh source**. A paper's annotations are grouped by PDF attachment.
+3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
+4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.
+
+Highlights, underlines, sticky notes, text annotations, and other annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. If the original annotations change, use **Refresh source** to reload them and select again.
 
 ## Create notes from PDF annotations
 

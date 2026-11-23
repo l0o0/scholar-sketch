@@ -87,6 +87,71 @@ test("the real editor keeps host tab keys free and applies its documented format
     }
   });
 
+  await t.test(
+    "annotation and table bindings stay free when their host has no picker",
+    () => {
+      const view = init("A note");
+      assert.equal(keydown(view, "a", true).defaultPrevented, false);
+      const table = new browser.KeyboardEvent("keydown", {
+        key: "T",
+        code: "KeyT",
+        keyCode: 84,
+        ctrlKey: !macKeymap,
+        metaKey: macKeymap,
+        altKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      view.contentDOM.dispatchEvent(table);
+      assert.equal(table.defaultPrevented, false);
+      assert.equal(
+        messages.some(
+          (message) =>
+            message.type === "insertAnnotations" ||
+            message.type === "insertTable",
+        ),
+        false,
+      );
+      assert.equal(view.state.doc.toString(), "A note");
+    },
+  );
+
+  await t.test(
+    "task and inline-code insertion use the existing formatting transactions",
+    () => {
+      let view = init("A note");
+      assert.equal(keydown(view, "x", true).defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "- [ ] A note");
+      send("command", { command: "undo" });
+      assert.equal(view.state.doc.toString(), "A note");
+      view = init("A note");
+      view.dispatch({ selection: { anchor: 2, head: 6 } });
+      assert.equal(keydown(view, "c", true).defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "A `note`");
+      assert.equal(keydown(view, "c", true).defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "A note");
+      for (const readOnly of [false, true]) {
+        view = init("Keep this", readOnly);
+        for (const key of ["x", "c"]) {
+          const event = new browser.KeyboardEvent("keydown", {
+            key,
+            code: `Key${key.toUpperCase()}`,
+            ctrlKey: !macKeymap,
+            metaKey: macKeymap,
+            altKey: true,
+            repeat: !readOnly,
+            bubbles: true,
+            cancelable: true,
+          });
+          view.contentDOM.dispatchEvent(event);
+          assert.equal(event.defaultPrevented, false);
+          assert.equal(view.state.doc.toString(), "Keep this");
+        }
+      }
+    },
+  );
+
   await t.test("Ctrl+Alt+1/2/3 set and replace headings", () => {
     const view = init("A note");
     for (let level = 1; level <= 3; level++) {

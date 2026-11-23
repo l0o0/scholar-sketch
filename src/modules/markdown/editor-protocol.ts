@@ -5,6 +5,10 @@ import { parseDocumentLink } from "./document-link-shared";
 import { parseNoteLink, portableNoteFilename } from "./note-links";
 import type { EditorTableLabels } from "../../editor/table-labels";
 import { config } from "../../../package.json";
+import {
+  MARKDOWN_INSERT_COMMANDS,
+  type MarkdownInsertShortcuts,
+} from "./shortcut";
 
 /**
  * postMessage protocol between the Zotero tab (parent) and the
@@ -20,6 +24,8 @@ export const PDF_SELECTION_EVENT = "zmd-pdf-selection";
 export interface PdfSelectionInsertion {
   markdown: string;
   position?: { x: number; y: number };
+  /** Picker results apply only to the document from which the picker opened. */
+  expectedValue?: string;
 }
 
 export type EditorTheme = "light" | "dark";
@@ -125,6 +131,11 @@ export interface EditorInitPayload {
   appearance?: EditorAppearance;
   doc: string;
   readOnly: boolean;
+  /** The host owns an annotation picker for this mounted editor. */
+  annotationInsertion?: boolean;
+  /** The host owns a table-size picker for this mounted editor. */
+  tableInsertion?: boolean;
+  insertShortcuts?: MarkdownInsertShortcuts;
   fontSize: number;
   theme: EditorTheme;
   /** Default interpreted as `"live"` by the iframe bootstrap. */
@@ -245,6 +256,11 @@ export type ParentToEditorMessage = (
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "setSlashSearchLanguage";
       payload: { language: ResolvedSlashSearchLanguage };
+    }
+  | {
+      source: typeof EDITOR_MESSAGE_SOURCE;
+      type: "setInsertShortcuts";
+      payload: MarkdownInsertShortcuts;
     }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
@@ -379,6 +395,8 @@ export type EditorToParentMessage = (
     }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "save" }
   | { source: typeof EDITOR_MESSAGE_SOURCE; type: "importImage" }
+  | { source: typeof EDITOR_MESSAGE_SOURCE; type: "insertAnnotations" }
+  | { source: typeof EDITOR_MESSAGE_SOURCE; type: "insertTable" }
   | {
       source: typeof EDITOR_MESSAGE_SOURCE;
       type: "imageDebug";
@@ -418,15 +436,38 @@ export function isEditorProtocolMessage(
   return isLinkMessagePayloadValid(data as Record<string, unknown>);
 }
 
+function isInsertShortcutPayload(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    MARKDOWN_INSERT_COMMANDS.every(
+      (command) =>
+        typeof (value as Record<string, unknown>)[command] === "string",
+    )
+  );
+}
+
 function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
+  if (data.type === "setInsertShortcuts")
+    return isInsertShortcutPayload(data.payload);
   if (data.type === "init" || data.type === "setTopInset") {
     const payload = data.payload as {
       topInset?: unknown;
+      annotationInsertion?: unknown;
+      tableInsertion?: unknown;
+      insertShortcuts?: unknown;
       appearance?: { style?: unknown };
     } | null;
     return (
       !!payload &&
       typeof payload === "object" &&
+      (payload.annotationInsertion === undefined ||
+        typeof payload.annotationInsertion === "boolean") &&
+      (payload.tableInsertion === undefined ||
+        typeof payload.tableInsertion === "boolean") &&
+      (payload.insertShortcuts === undefined ||
+        isInsertShortcutPayload(payload.insertShortcuts)) &&
       (payload.appearance?.style === undefined ||
         isMarkdownStyle(payload.appearance.style)) &&
       ((data.type === "init" && payload.topInset === undefined) ||
@@ -456,7 +497,12 @@ function isLinkMessagePayloadValid(data: Record<string, unknown>): boolean {
           payload.deletedImages.every((source) => typeof source === "string")))
     );
   }
-  if (data.type === "importImage") return data.payload === undefined;
+  if (
+    data.type === "importImage" ||
+    data.type === "insertAnnotations" ||
+    data.type === "insertTable"
+  )
+    return data.payload === undefined;
   if (data.type === "applyIfUnchanged") {
     const payload = data.payload as Record<string, unknown> | null;
     return (

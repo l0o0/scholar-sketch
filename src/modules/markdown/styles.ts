@@ -20,6 +20,7 @@ export function responsiveToolbarSizingCSS(): string {
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="h2"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="h3"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="image"],
+.zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="annotation"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-table-control,
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="task"],
 .zotero-markdown-toolbar:not([data-toolbar-layout="full"]) .zotero-markdown-fmt > [data-action="code"],
@@ -1557,17 +1558,21 @@ ${toolbarWidthAlignmentCSS()}
 }
 
 .zotero-markdown-group-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 15px;
   font-weight: 550;
   line-height: 1;
 }
-[data-toolbar-group="insert"] .zotero-markdown-group-symbol { font-size: 23px; font-weight: 400; }
-.zotero-markdown-group-chevron { margin-left: 1px; font-size: 10px; line-height: 1; }
+.zotero-markdown-group-chevron { display: inline-flex; margin-left: 1px; }
+.zotero-markdown-group-chevron .zmd-icon { width: 8px; height: 8px; }
 .zotero-markdown-toolbar-popover {
   position: fixed;
   z-index: 20;
   box-sizing: border-box;
-  width: 168px;
+  width: max-content;
+  min-width: 168px;
   padding: 4px;
   overflow: auto;
   border: 1px solid var(--zmd-border);
@@ -1577,6 +1582,7 @@ ${toolbarWidthAlignmentCSS()}
 }
 .zotero-markdown-toolbar-popover[hidden] { display: none; }
 .zotero-markdown-toolbar-popover .zmd-btn-inner { display: flex; }
+.zotero-markdown-toolbar-popover .zotero-markdown-more-menu-item { white-space: nowrap; }
 .zotero-markdown-toolbar-popover button:focus-visible,
 .zotero-markdown-more-menu-item:focus-visible {
   outline: 2px solid var(--zmd-accent);

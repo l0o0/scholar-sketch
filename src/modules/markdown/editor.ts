@@ -1,7 +1,10 @@
 import { currentMarkdownStyle } from "./style-preferences";
 import { applyPreviewStyle } from "./preview";
 import { attachMarkdownIframeDrop } from "./iframe-drop";
-import { attachMarkdownPdfSelectionTransfer } from "./pdf-selection-transfer";
+import {
+  attachMarkdownPdfSelectionTransfer,
+  insertPdfQuotation,
+} from "./pdf-selection-transfer";
 import { pdfSelectionTransferMarkdown } from "../pdf-selection";
 import {
   DEFAULT_TABLE_LABELS,
@@ -14,6 +17,7 @@ import type { DocumentViewState } from "./editor-view-state";
  * CodeMirror 6 in a stable Web document, and bridges via postMessage.
  */
 import { getPref } from "../../utils/prefs";
+import { readMarkdownInsertShortcuts } from "./insert-shortcut-preferences";
 import { ensureDOMGlobals } from "../../utils/dom";
 import { getString } from "../../utils/locale";
 import {
@@ -69,6 +73,8 @@ export interface MarkdownEditorHandle {
     selectionFrom?: number,
     selectionTo?: number,
   ) => void;
+  /** Insert a PDF quotation as one block transaction at the live selection. */
+  insertPdfQuotation: (markdown: string, expectedValue: string) => boolean;
   /** Open a local image picker owned by this editor and reuse its image writer. */
   importImage: () => void;
   wrapSelection: (before: string, after?: string) => void;
@@ -130,6 +136,7 @@ type PendingCommand = Extract<
       | "setFontSize"
       | "setAppearance"
       | "setSlashSearchLanguage"
+      | "setInsertShortcuts"
       | "setReadOnly"
       | "setMode"
       | "setImageAssets"
@@ -182,6 +189,8 @@ export function createMarkdownEditor(
     ) => void;
     onOutlineActive?: (activeID: string | null) => void;
     onSave?: () => void;
+    onInsertAnnotations?: () => void;
+    onInsertTable?: () => void;
     onPasteImage?: (payload: {
       bytes: ArrayBuffer;
       mimeType: string;
@@ -220,6 +229,8 @@ export function createMarkdownEditor(
     onOutline,
     onOutlineActive,
     onSave,
+    onInsertAnnotations,
+    onInsertTable,
     onPasteImage,
     onResolveAsset,
     onLinkSearch,
@@ -426,6 +437,7 @@ export function createMarkdownEditor(
         message.type === "setFontSize" ||
         message.type === "setAppearance" ||
         message.type === "setSlashSearchLanguage" ||
+        message.type === "setInsertShortcuts" ||
         message.type === "setReadOnly" ||
         message.type === "setMode"
       ) {
@@ -533,6 +545,9 @@ export function createMarkdownEditor(
             doc: lastValue,
             viewState: options.viewState,
             readOnly,
+            annotationInsertion: Boolean(onInsertAnnotations),
+            tableInsertion: Boolean(onInsertTable),
+            insertShortcuts: readMarkdownInsertShortcuts(),
             fontSize: resolveFontSize(),
             appearance: resolveAppearance(),
             slashSearchLanguage: resolveSlashSearchLanguage(
@@ -774,6 +789,14 @@ export function createMarkdownEditor(
         importImage();
         break;
       }
+      case "insertAnnotations": {
+        if (!currentReadOnly && !composing) onInsertAnnotations?.();
+        break;
+      }
+      case "insertTable": {
+        if (!currentReadOnly && !composing) onInsertTable?.();
+        break;
+      }
       case "imageDebug": {
         const message = `[Bamboo][ImageDebug] ${data.payload.event}`;
         try {
@@ -872,6 +895,11 @@ export function createMarkdownEditor(
           Zotero.locale || "en-US",
         ),
       },
+    });
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setInsertShortcuts",
+      payload: readMarkdownInsertShortcuts(),
     });
   };
   preferenceRefreshers.add(applyPreferences);
@@ -1000,6 +1028,14 @@ export function createMarkdownEditor(
         type: "insertText",
         payload: { text, selectionFrom, selectionTo },
       });
+    },
+    insertPdfQuotation: (markdown, expectedValue) => {
+      if (destroyed || !iframeReady || currentReadOnly || composing)
+        return false;
+      const content = iframe.contentDocument?.querySelector(".cm-content");
+      return content
+        ? insertPdfQuotation(content, { markdown, expectedValue })
+        : false;
     },
     importImage,
     wrapSelection: (before: string, after: string = before) => {
