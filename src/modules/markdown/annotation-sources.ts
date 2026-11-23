@@ -1,4 +1,4 @@
-import type { AnnotationInsertSource } from "./annotation-dialog";
+import type { AnnotationInsertSource } from "./annotation-search";
 import {
   AnnotationSourceUnavailableError,
   markdownAnnotationAttachments,
@@ -13,7 +13,16 @@ function sourceOption(item: Zotero.Item): AnnotationInsertSource {
       item.key,
   );
   const parent = item.isAttachment() ? item.parentItem : undefined;
-  const detail = parent ? String(parent.getField("title") || "") : "";
+  const detail = parent
+    ? String(parent.getField("title") || "")
+    : item.isRegularItem()
+      ? [
+          item.getField("firstCreator"),
+          String(item.getField("date") || "").match(/\b\d{4}\b/)?.[0],
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
   return {
     id: item.id,
     title,
@@ -50,7 +59,13 @@ export async function searchAnnotationSources(
   if (!needle) return getInitialAnnotationSources(currentItem);
   const search = new Zotero.Search({ libraryID: currentItem.libraryID });
   search.addCondition("title", "contains", needle);
-  const ids = await search.search();
+  const creatorSearch = new Zotero.Search({ libraryID: currentItem.libraryID });
+  creatorSearch.addCondition("creator", "contains", needle);
+  const ids = [
+    ...new Set(
+      (await Promise.all([search.search(), creatorSearch.search()])).flat(),
+    ),
+  ];
   const sources: AnnotationInsertSource[] = [];
   for (
     let offset = 0;

@@ -58,9 +58,33 @@ function fixture(t: TestContext) {
         annotationPageLabel: "153",
         annotationPosition: '{"pageIndex":1}',
       },
+      {
+        id: 6,
+        key: "PAPER006",
+        itemType: "journalArticle",
+        fields: { title: "Other paper" },
+      },
+      {
+        id: 7,
+        key: "PDF00007",
+        itemType: "attachment",
+        parentID: 6,
+        attachmentContentType: "application/pdf",
+        fields: { title: "Other PDF" },
+      },
+      {
+        id: 8,
+        key: "ANNO0008",
+        itemType: "annotation",
+        parentID: 7,
+        annotationType: "highlight",
+        annotationText: "Other passage",
+        annotationPageLabel: "4",
+        annotationPosition: '{"pageIndex":3}',
+      },
     ],
   });
-  for (const id of [1, 2, 3, 4])
+  for (const id of [1, 2, 3, 4, 6, 7, 8])
     Object.assign(fake.Zotero.Items.get(id)!, { isEditable: () => true });
 
   let readGate:
@@ -77,6 +101,52 @@ function fixture(t: TestContext) {
       readGate = undefined;
       pending.entered.resolve();
       await pending.done.promise;
+    },
+  });
+  // This fixture extends only the native search boundary absent from Fake Zotero.
+  const MetadataSearch = fake.Zotero.Search;
+  Object.assign(fake.Zotero, {
+    Search: class extends MetadataSearch {
+      private extra: Array<[string, string]> = [];
+      addCondition(field: string, operator: string, value: string): number {
+        if (
+          ["annotationText", "annotationComment", "tag", "creator"].includes(
+            field,
+          )
+        ) {
+          assert.equal(operator, "contains");
+          return this.extra.push([field, value]);
+        }
+        return super.addCondition(field, operator, value);
+      }
+      async search() {
+        return (await super.search()).filter((id) =>
+          this.extra.every(([field, value]) => {
+            const item = fake.Zotero.Items.get(id)!;
+            const text =
+              field === "annotationText"
+                ? item.annotationText
+                : field === "annotationComment"
+                  ? item.annotationComment
+                  : field === "tag"
+                    ? item
+                        .getTags()
+                        .map((t) => t.tag)
+                        .join(" ")
+                    : item.getField("firstCreator");
+            return String(text ?? "")
+              .toLocaleLowerCase()
+              .includes(value.toLocaleLowerCase());
+          }),
+        );
+      }
+    },
+    DB: { columnQueryAsync: async () => [] },
+    Annotations: {
+      COLORS: [
+        ["general-yellow", "#ffd400"],
+        ["general-red", "#ff6666"],
+      ],
     },
   });
   const restore = fake.install(globalThis);
@@ -137,12 +207,20 @@ function fixture(t: TestContext) {
     await insertSessionAnnotations(session, () => true);
     await setImmediate();
     assert.equal(win.document.querySelectorAll("dialog").length, 1);
+    query<HTMLButtonElement>('[data-source-id="1"]').click();
+    await win.happyDOM.waitUntilComplete();
     assert.equal(
       win.document.querySelectorAll(".ss-annotation-card").length,
       1,
     );
     action("select-results").click();
     assert.equal(action("insert").disabled, false);
+  };
+  const searchQuery = async (value: string) => {
+    const search = query<HTMLInputElement>(".ss-annotation-search");
+    search.value = value;
+    search.dispatchEvent(new win.Event("input"));
+    await win.happyDOM.waitUntilComplete();
   };
   const closeSession = () => {
     session.closing = true;
@@ -170,6 +248,7 @@ function fixture(t: TestContext) {
     query,
     action,
     open,
+    searchQuery,
     closeSession,
     blockRead,
     blockSnapshot,
@@ -210,7 +289,7 @@ test("a changed document rejects insertion without replacing its new content or 
   assert.equal(f.state.insertions.length, 0);
   assert.equal(f.state.content, "# Edited while choosing annotations");
   assert.match(
-    f.query(".ss-annotation-error").textContent!,
+    f.query(".ss-annotation-error:not([hidden])").textContent!,
     /markdown-annotation-document-changed/,
   );
   assert.equal(f.query<HTMLDialogElement>("dialog").open, true);
@@ -226,7 +305,7 @@ test("changed source text is reread and rejected instead of inserting the stale 
   assert.equal(f.state.insertions.length, 0);
   assert.equal(f.state.content, "# Current draft");
   assert.match(
-    f.query(".ss-annotation-error").textContent!,
+    f.query(".ss-annotation-error:not([hidden])").textContent!,
     /markdown-annotation-source-changed/,
   );
   assert.equal(f.query<HTMLDialogElement>("dialog").open, true);
@@ -263,4 +342,90 @@ test("closing a session during the source reread removes the picker and discards
   assert.equal(f.state.content, "# Current draft");
   assert.equal(f.state.focused, 0);
   assert.equal(f.win.document.querySelector("dialog"), null);
+});
+
+test("one picker collects annotations across searches and inserts grouped sources atomically", async (t) => {
+  const f = fixture(t);
+  await insertSessionAnnotations(f.session, () => true);
+  assert.equal(
+    f.query<HTMLInputElement>(".ss-annotation-search").disabled,
+    false,
+  );
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card").length,
+    0,
+  );
+  await f.searchQuery("Selected");
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card").length,
+    1,
+  );
+  f.action("select-results").click();
+  await f.searchQuery("Other");
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card").length,
+    1,
+  );
+  f.action("select-results").click();
+  f.action("view-selected").click();
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card input:checked").length,
+    2,
+  );
+  f.action("insert").click();
+  await setImmediate();
+  assert.equal(f.state.insertions.length, 1);
+  const markdown = f.state.insertions[0].markdown;
+  assert.ok(markdown.includes("### Research paper"));
+  assert.ok(markdown.includes("### Other paper"));
+  assert.ok(markdown.includes("items/PDF00002?page=2&annotation=ANNO0004"));
+  assert.ok(markdown.includes("items/PDF00007?page=4&annotation=ANNO0008"));
+  assert.equal(f.win.document.querySelector("dialog"), null);
+});
+
+test("a deleted annotation in a mixed selection prevents partial insertion and retains the selection", async (t) => {
+  const f = fixture(t);
+  await insertSessionAnnotations(f.session, () => true);
+  await f.searchQuery("passage");
+  f.action("select-results").click();
+  f.fake.Zotero.Items.get(8)!.deleted = true;
+  f.action("insert").click();
+  await setImmediate();
+  assert.equal(f.state.insertions.length, 0);
+  assert.equal(f.state.content, "# Current draft");
+  f.action("view-selected").click();
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card input:checked").length,
+    2,
+  );
+  assert.ok(
+    f
+      .query(".ss-annotation-error:not([hidden])")
+      .textContent!.includes("markdown-annotation-source-changed"),
+  );
+});
+
+test("opening an original annotation preserves the picker and uses the correct PDF window location", async (t) => {
+  const f = fixture(t);
+  const opened: unknown[][] = [];
+  Object.assign(f.fake.Zotero.Reader, {
+    open: async (...args: unknown[]) => {
+      opened.push(args);
+    },
+  });
+  await f.open();
+  f.query<HTMLButtonElement>(".ss-annotation-location").click();
+  await setImmediate();
+  assert.deepEqual(opened, [
+    [
+      2,
+      { annotationID: "ANNO0004", pageIndex: 1 },
+      { openInWindow: true, allowDuplicate: true },
+    ],
+  ]);
+  assert.equal(f.query<HTMLDialogElement>("dialog").open, true);
+  assert.equal(
+    f.win.document.querySelectorAll(".ss-annotation-card input:checked").length,
+    1,
+  );
 });

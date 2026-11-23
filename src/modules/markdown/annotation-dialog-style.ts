@@ -25,18 +25,12 @@ export const annotationDialogCSS = `
 .ss-annotation-guidance { position: absolute; z-index: 4; top: 100%; inset-inline-end: 0; width: min(300px, calc(92vw - 60px)); margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; background: Canvas; color: CanvasText; box-shadow: 0 4px 16px #0003; font-size: 12px; line-height: 1.6; }
 .ss-annotation-filters { padding: 0 14px; flex: 0 0 auto; }
 .ss-annotation-source-picker { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 10px; flex: 0 0 auto; }
-.ss-annotation-source-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
-.ss-annotation-source-controls { display: flex; align-items: center; gap: 6px; }
-.ss-annotation-current-source { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 8px; min-width: 0; flex: 1; }
-.ss-annotation-source-caption, .ss-annotation-source-detail { font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-source-title { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
-.ss-annotation-current-source .ss-annotation-source-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ss-annotation-current-source .ss-annotation-source-detail { grid-column: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-annotation-source-detail { font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-source-results { max-height: 152px; overflow: auto; overscroll-behavior: contain; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; padding: 3px; }
 .ss-annotation-dialog .ss-annotation-source-choice { display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; padding: 6px 8px; text-align: start; }
 .ss-annotation-source-choice .ss-annotation-source-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .ss-annotation-source-choice .ss-annotation-source-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ss-annotation-source-controls button { flex: 0 0 auto; white-space: nowrap; }
 .ss-annotation-source-feedback { margin: 0; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-search { width: 100%; padding: 6px 10px; background: color-mix(in srgb, CanvasText 4%, Canvas); border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 7px; }
 .ss-annotation-filter-row { display: flex; align-items: center; gap: 6px; margin: 6px 0 4px; }
@@ -45,8 +39,8 @@ export const annotationDialogCSS = `
 .ss-annotation-dialog button[aria-pressed="true"] { background: color-mix(in srgb, Highlight 12%, Canvas); border-color: color-mix(in srgb, Highlight 55%, Canvas); }
 .ss-annotation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ss-annotation-tools:not(:empty) { margin-bottom: 4px; }
-.ss-annotation-tag-filter, .ss-annotation-attachment-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
-.ss-annotation-tag-filter select, .ss-annotation-attachment-filter select { max-width: 220px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
+.ss-annotation-tag-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.ss-annotation-tag-filter select { max-width: 220px; padding: 4px 8px; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: 6px; background: Canvas; }
 .ss-annotation-color-picker { position: relative; flex: 0 0 auto; padding-inline-start: 6px; border-inline-start: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); }
 .ss-annotation-dialog .ss-annotation-color-trigger { display: flex; align-items: center; justify-content: center; gap: 3px; width: 38px; height: 30px; padding: 0 4px; }
 .ss-annotation-color-trigger svg { display: block; flex: 0 0 auto; width: 18px; height: 18px; }
@@ -61,7 +55,6 @@ export const annotationDialogCSS = `
 .ss-annotation-color[aria-pressed="true"]::after { content: "✓"; position: absolute; inset-inline-end: 0; bottom: 0; width: 10px; height: 10px; border-radius: 50%; background: Canvas; color: CanvasText; font-size: 9px; line-height: 10px; }
 .ss-annotation-result-count { flex: 0 0 auto; margin: 0; margin-inline-start: auto; text-align: end; white-space: nowrap; font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
 .ss-annotation-results { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 14px 8px; overscroll-behavior: contain; }
-.ss-annotation-group-title { margin: 10px 0 4px; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .ss-annotation-card { margin: 8px 0; border: 1px solid color-mix(in srgb, CanvasText 13%, Canvas); border-inline-start: 3px solid color-mix(in srgb, CanvasText 25%, Canvas); border-radius: 7px; background: Canvas; }
 .ss-annotation-card:has(input:checked) { background: color-mix(in srgb, Highlight 4%, Canvas); }
 .ss-annotation-card label { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; cursor: pointer; }
@@ -79,6 +72,13 @@ export const annotationDialogCSS = `
 .ss-annotation-dialog .ss-annotation-primary { background: #2563eb; color: white; padding: 6px 12px; }
 .ss-annotation-dialog .ss-annotation-primary:hover { background: #1d4ed8; }
 .ss-annotation-error { flex: 0 0 auto; margin: 0; padding: 8px 20px; color: light-dark(#b42318, #ffb4ab); }
+.ss-annotation-source-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ss-annotation-dialog .ss-annotation-source-chip { max-width: 100%; padding: 3px 7px; border-color: color-mix(in srgb, Highlight 35%, Canvas); background: color-mix(in srgb, Highlight 7%, Canvas); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-annotation-card-source { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.ss-annotation-dialog .ss-annotation-location { margin: 0 0 6px 32px; font-size: 12px; padding: 2px 6px; color: LinkText; }
+.ss-annotation-scope { font-size: 12px; color: color-mix(in srgb, CanvasText 65%, Canvas); }
+.ss-annotation-paging { flex: 0 0 auto; padding: 0 14px 6px; text-align: center; }
+.ss-annotation-dialog > [data-action="retry-search"] { align-self: flex-start; margin: 0 14px 6px; }
 @media (max-width: 560px) {
   .ss-annotation-dialog footer { padding: 8px 12px; }
   .ss-annotation-selected { flex-basis: 100%; }

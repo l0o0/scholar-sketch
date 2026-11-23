@@ -287,12 +287,14 @@ Pasting or dragging onto an empty whiteboard creates an excerpt Note card. When 
 
 ## Insert PDF annotations into the current note
 
-1. Place the cursor at the insertion point in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. You can also use the default shortcut `Ctrl + Alt + A` (macOS: `Cmd + Option + A`) to open the dialog.
-2. Choose a paper or a single PDF in the same dialog. The note's parent paper is the default source when it has PDF attachments. You can also search the current library by title for papers and PDFs, including standalone PDFs. Click a result below the search field to change the source; typing alone keeps the current source and selections. The current source appears beside **Refresh source**. A paper's annotations are grouped by PDF attachment.
-3. Filter by PDF, type, tag, or color, or search excerpts, comments, page labels, and tags. Nothing is selected initially. Select individual annotations or use **Select results** to select all matching annotations. Changing filters within a source keeps your selection; changing the source clears it.
-4. Click **Insert selected annotations** to insert excerpts and comments at the cursor in their original PDF order, with page links back to the source annotations. If insertion fails, your selection is kept for a retry.
+1. Place the cursor in a Markdown tab or standalone window, then click **Annotation** in the top toolbar. In a narrower window, choose **Insert → Annotation**. The default shortcut is `Ctrl + Alt + A` (macOS: `Cmd + Option + A`), and it can be customized in settings.
+2. Use the single search field to find excerpts, comments, tags, or page labels across PDF annotations in the current library. Choosing a paper first is optional. An empty query offers sources such as the current paper without automatically restricting the search.
+3. The same field finds papers and PDFs by title or author. Choose a suggested source to add a removable source chip and clear the field, then enter a content query. Multiple source chips narrow the search to those sources; removing them broadens it again.
+4. Filter by type, color, or tag. **Load more** reads subsequent results in batches. Each annotation shows its paper, PDF, and page. A page link opens the original annotation in a separate PDF window while keeping the picker and its selections.
+5. Nothing is selected initially. Select annotations individually or use **Select displayed results**, which selects only the currently displayed, loaded results. Changing the query, source chips, filters, or loaded page preserves prior selections. The footer summarizes the selected annotations and sources; use **View selected** to review or remove entries.
+6. **Insert N annotations** inserts the complete selection together. Multiple papers are grouped by source, and annotations within a PDF follow reading order. Page links return to their original annotations. One undo reverses the batch. Insertion failures retain the selection; changes to the document or native annotations require review rather than overwriting new content.
 
-Highlights, underlines, sticky notes, text annotations, and other annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. If the original annotations change, use **Refresh source** to reload them and select again.
+Highlights, underlines, sticky notes, text annotations, and other PDF annotations with text or comments are supported. Image-only and ink annotations without text or comments are omitted. The scope is the current note's library, including multiple papers and standalone PDFs; results do not mix personal and other group libraries.
 
 ## Create notes from PDF annotations
 

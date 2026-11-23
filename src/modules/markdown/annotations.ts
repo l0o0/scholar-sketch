@@ -6,6 +6,10 @@ export interface MarkdownAnnotation {
   key: string;
   attachmentKey: string;
   attachmentTitle: string;
+  sourceKey?: string;
+  sourceTitle?: string;
+  sourceDetail?: string;
+  sortIndex?: string;
   groupID?: number;
   pageLabel: string;
   page?: number;
@@ -15,7 +19,8 @@ export interface MarkdownAnnotation {
   color?: string;
   tags?: string[];
 }
-const escape = (value: string) => value.replace(/([\\`*_{}[\]<>#!|])/g, "\\$1");
+export const escapeAnnotationMarkdown = (value: string) =>
+  value.replace(/([\\`*_{}[\]<>#!|])/g, "\\$1");
 
 function annotationLines(annotation: MarkdownAnnotation): string[] {
   if (
@@ -37,14 +42,18 @@ function annotationLines(annotation: MarkdownAnnotation): string[] {
   const parts: string[] = [];
   if (annotation.text)
     parts.push(
-      escape(annotation.text)
+      escapeAnnotationMarkdown(annotation.text)
         .split(/\r?\n/)
         .map((line) => `> ${line}`)
         .join("\n"),
       "",
     );
-  if (annotation.comment) parts.push(escape(annotation.comment), "");
-  parts.push(`[${escape(annotation.pageLabel || "PDF")}](${href})`, "");
+  if (annotation.comment)
+    parts.push(escapeAnnotationMarkdown(annotation.comment), "");
+  parts.push(
+    `[${escapeAnnotationMarkdown(annotation.pageLabel || "PDF")}](${href})`,
+    "",
+  );
   return parts;
 }
 
@@ -59,13 +68,16 @@ export function annotationMarkdown(
   title: string,
   annotations: readonly MarkdownAnnotation[],
 ): string {
-  const parts = [`# ${escape(title).replace(/\n/g, " ")}`, ""];
+  const parts = [
+    `# ${escapeAnnotationMarkdown(title).replace(/\n/g, " ")}`,
+    "",
+  ];
   let attachmentKey = "";
   for (const annotation of annotations) {
     const lines = annotationLines(annotation);
     if (attachmentKey !== annotation.attachmentKey) {
       parts.push(
-        `## ${escape(annotation.attachmentTitle).replace(/\n/g, " ")}`,
+        `## ${escapeAnnotationMarkdown(annotation.attachmentTitle).replace(/\n/g, " ")}`,
         "",
       );
       attachmentKey = annotation.attachmentKey;
@@ -125,75 +137,163 @@ export async function markdownAnnotationAttachments(
   return pdfs;
 }
 
+/** Native keys identify selections independently of a result page or filter. */
+export function annotationIdentity(annotation: MarkdownAnnotation): string {
+  return `${annotation.groupID ? `groups/${annotation.groupID}` : "library"}/${annotation.attachmentKey}/${annotation.key}`;
+}
+
+/** Read only the supplied annotations, validating their complete PDF source chain. */
+export async function readMarkdownAnnotationItems(
+  libraryID: number,
+  items: readonly Zotero.Item[],
+): Promise<MarkdownAnnotation[]> {
+  const library = Zotero.Libraries.get(libraryID);
+  if (!library) throw new AnnotationSourceUnavailableError();
+  const groupID =
+    library.libraryType === "group"
+      ? Zotero.Groups.getGroupIDFromLibraryID(libraryID)
+      : undefined;
+  if (groupID !== undefined && (!Number.isSafeInteger(groupID) || groupID <= 0))
+    throw new AnnotationSourceUnavailableError();
+  const candidates = items.filter(
+    (item) =>
+      item &&
+      item.isAnnotation() &&
+      !item.deleted &&
+      item.libraryID === libraryID &&
+      /^[A-Za-z0-9]{8}$/.test(item.key),
+  );
+  if (!candidates.length) return [];
+  const attachments = (
+    await Zotero.Items.getAsync([
+      ...new Set(
+        candidates
+          .map((item) => item.parentID)
+          .filter((id): id is number => Boolean(id)),
+      ),
+    ])
+  ).filter(
+    (item) =>
+      item &&
+      !item.deleted &&
+      item.libraryID === libraryID &&
+      item.isAttachment() &&
+      item.attachmentContentType === "application/pdf" &&
+      /^[A-Za-z0-9]{8}$/.test(item.key),
+  );
+  const parents = await Zotero.Items.getAsync([
+    ...new Set(
+      attachments
+        .map((item) => item.parentID)
+        .filter((id): id is number => Boolean(id)),
+    ),
+  ]);
+  const sources = new Map(
+    parents
+      .filter(
+        (item) =>
+          item &&
+          !item.deleted &&
+          item.libraryID === libraryID &&
+          item.isRegularItem() &&
+          /^[A-Za-z0-9]{8}$/.test(item.key),
+      )
+      .map((item) => [item.id, item]),
+  );
+  await Zotero.Items.loadDataTypes(
+    [...attachments, ...sources.values()],
+    ["itemData"],
+  );
+  await Zotero.Items.loadDataTypes(candidates, [
+    "annotation",
+    "annotationDeferred",
+    "tags",
+  ]);
+  const byAttachment = new Map(attachments.map((item) => [item.id, item]));
+  const result: MarkdownAnnotation[] = [];
+  for (const annotation of candidates) {
+    const attachment = annotation.parentID
+      ? byAttachment.get(annotation.parentID)
+      : undefined;
+    if (
+      !attachment ||
+      attachment.deleted ||
+      attachment.libraryID !== libraryID ||
+      attachment.attachmentContentType !== "application/pdf" ||
+      annotation.deleted ||
+      annotation.libraryID !== libraryID
+    )
+      continue;
+    const source = attachment.parentID
+      ? sources.get(attachment.parentID)
+      : attachment;
+    if (!source || source.deleted || source.libraryID !== libraryID) continue;
+    if (
+      !annotation.annotationText?.trim() &&
+      !annotation.annotationComment?.trim()
+    )
+      continue;
+    let page: number | undefined;
+    try {
+      const position = JSON.parse(annotation.annotationPosition);
+      if (Number.isInteger(position.pageIndex) && position.pageIndex >= 0)
+        page = position.pageIndex + 1;
+    } catch {
+      // A malformed position does not invalidate the native annotation-key link.
+    }
+    const creator = source.isRegularItem()
+      ? String(source.getField("firstCreator") || "")
+      : "";
+    const year = source.isRegularItem()
+      ? String(source.getField("date") || "").match(/\b\d{4}\b/)?.[0]
+      : "";
+    const sourceDetail = [creator, year].filter(Boolean).join(" · ");
+    const attachmentTitle =
+      attachment.getField("title") || attachment.attachmentFilename || "PDF";
+    result.push({
+      key: annotation.key,
+      attachmentKey: attachment.key,
+      attachmentTitle,
+      sourceKey: source.key,
+      sourceTitle: source.getField("title") || attachmentTitle,
+      ...(sourceDetail ? { sourceDetail } : {}),
+      sortIndex: annotation.annotationSortIndex || "",
+      groupID,
+      page,
+      pageLabel: annotation.annotationPageLabel || "",
+      text: annotation.annotationText || "",
+      comment: annotation.annotationComment || "",
+      type: annotation.annotationType,
+      color: annotation.annotationColor,
+      tags: annotation.getTags().map(({ tag }) => tag),
+    });
+  }
+  return result;
+}
+
 /** Read text-bearing annotations without requiring write access to their source. */
 export async function readMarkdownAnnotations(
   item: Zotero.Item,
 ): Promise<MarkdownAnnotation[]> {
   const attachments = await markdownAnnotationAttachments(item);
   await Zotero.Items.loadDataTypes(attachments, ["childItems"]);
-  const byAttachment = attachments.map((attachment) => ({
-    attachment,
-    annotations: attachment.getAnnotations(),
-  }));
-  await Zotero.Items.loadDataTypes(
-    byAttachment.flatMap(({ annotations }) => annotations),
-    ["annotation", "annotationDeferred", "tags"],
+  const candidates = attachments.flatMap((attachment) =>
+    attachment.getAnnotations(),
   );
-  const annotations: MarkdownAnnotation[] = [];
-  const library = Zotero.Libraries.get(item.libraryID);
-  if (!library || item.deleted) throw new AnnotationSourceUnavailableError();
-  const groupID =
-    library && library.libraryType === "group"
-      ? Zotero.Groups.getGroupIDFromLibraryID(item.libraryID)
-      : undefined;
-  if (groupID !== undefined && (!Number.isSafeInteger(groupID) || groupID <= 0))
-    throw new AnnotationSourceUnavailableError();
-  for (const { attachment, annotations: children } of byAttachment) {
-    if (
-      attachment.deleted ||
-      attachment.libraryID !== item.libraryID ||
-      (item.isRegularItem() && attachment.parentID !== item.id)
-    )
-      continue;
-    for (const annotation of [...children].sort((a, b) =>
-      (a.annotationSortIndex || "").localeCompare(b.annotationSortIndex || ""),
-    )) {
-      if (
-        !annotation.isAnnotation() ||
-        annotation.deleted ||
-        annotation.libraryID !== attachment.libraryID ||
-        annotation.parentID !== attachment.id ||
-        (!annotation.annotationText?.trim() &&
-          !annotation.annotationComment?.trim())
-      )
-        continue;
-      let page: number | undefined;
-      try {
-        const position = JSON.parse(annotation.annotationPosition);
-        if (Number.isInteger(position.pageIndex) && position.pageIndex >= 0)
-          page = position.pageIndex + 1;
-      } catch {
-        /* The annotation key still identifies its location. */
-      }
-      annotations.push({
-        key: annotation.key,
-        attachmentKey: attachment.key,
-        attachmentTitle:
-          attachment.getField("title") ||
-          attachment.attachmentFilename ||
-          "PDF",
-        groupID,
-        page,
-        pageLabel: annotation.annotationPageLabel || "",
-        text: annotation.annotationText || "",
-        comment: annotation.annotationComment || "",
-        type: annotation.annotationType,
-        color: annotation.annotationColor,
-        tags: annotation.getTags().map(({ tag }) => tag),
-      });
-    }
-  }
-  return annotations;
+  const records = await readMarkdownAnnotationItems(item.libraryID, candidates);
+  if (item.deleted) throw new AnnotationSourceUnavailableError();
+  const annotations = item.isRegularItem()
+    ? records.filter((annotation) => annotation.sourceKey === item.key)
+    : records;
+  const attachmentOrder = new Map(
+    attachments.map((attachment, index) => [attachment.key, index]),
+  );
+  return annotations.sort(
+    (a, b) =>
+      attachmentOrder.get(a.attachmentKey)! -
+        attachmentOrder.get(b.attachmentKey)! ||
+      (a.sortIndex || "").localeCompare(b.sortIndex || ""),
+  );
 }
 
 export async function showAnnotationExport(win: Window, item: Zotero.Item) {
