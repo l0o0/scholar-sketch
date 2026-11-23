@@ -22,8 +22,9 @@ export function markdownSettingsAbout() {
 
 export async function saveMarkdownSettings(
   settings: SettingsModalData,
+  platform: string,
 ): Promise<void> {
-  applySettings(settings);
+  applySettings(settings, platform);
   applyMarkdownEditorPreferences();
   const { applyMarkdownToolbarPreferences } = await import("./tab");
   applyMarkdownToolbarPreferences();
@@ -59,7 +60,7 @@ export function openMarkdownSettings(
     target.document,
     {
       async onSettings(settings) {
-        await saveMarkdownSettings(settings);
+        await saveMarkdownSettings(settings, target.navigator.platform);
       },
       onClose() {
         target.setTimeout(destroy, 0);

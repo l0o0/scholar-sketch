@@ -1,3 +1,4 @@
+import { defaultWhiteboardShortcuts } from "../packages/whiteboard/src/model/shortcuts.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -905,10 +906,16 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
     assert.equal(changedEdge.arrow, true);
     assert.equal(changedEdge.startArrow, true);
     assert.equal(changedEdge.dashed, true);
-    await dispatch(container.querySelector('button[title="Undo"]')!, "click");
+    await dispatch(
+      container.querySelector('button[title^="Undo ("]')!,
+      "click",
+    );
     assert.equal(runtime!.getSnapshot().connections[0].dashed, false);
     assert.equal(runtime!.getSnapshot().connections[0].startArrow, true);
-    await dispatch(container.querySelector('button[title="Redo"]')!, "click");
+    await dispatch(
+      container.querySelector('button[title^="Redo ("]')!,
+      "click",
+    );
     assert.equal(runtime!.getSnapshot().connections[0].dashed, true);
     await measureObservedElements();
     await dispatch(edgeElement("edge-a"), "click");
@@ -2316,6 +2323,107 @@ test("canvas editing keeps toolbars exclusive and preserves creation, history, a
       window.document.activeElement,
       boardHost,
       "closing export returns keyboard focus to the canvas",
+    );
+    const defaults = defaultWhiteboardShortcuts(window.navigator.platform);
+    const custom = {
+      ...defaults,
+      rect: "P",
+      frame: "F8",
+      pan: "F6",
+      nudgeRight: "shift,J",
+    };
+    const pressCanvasKey = async (
+      key: string,
+      type = "keydown",
+      options: Record<string, unknown> = {},
+      target: EventTarget = window,
+    ) => {
+      await act(async () =>
+        target.dispatchEvent(
+          new window.KeyboardEvent(type, {
+            key,
+            bubbles: true,
+            cancelable: true,
+            ...options,
+          }),
+        ),
+      );
+    };
+    await act(async () => runtime!.setShortcuts(custom));
+    assert.ok(
+      container.querySelector('button[title="Frame (F8)"]'),
+      "toolbar shortcut updates without remounting the canvas",
+    );
+    await pressCanvasKey("r");
+    assert.equal(
+      boardHost.classList.contains("is-draw"),
+      false,
+      "old tool shortcut is disabled",
+    );
+    await pressCanvasKey("p");
+    assert.equal(boardHost.classList.contains("is-draw"), true);
+    await pressCanvasKey("Escape");
+    await pressCanvasKey(" ");
+    assert.equal(
+      boardHost.classList.contains("is-hand"),
+      false,
+      "old Space pan shortcut is disabled",
+    );
+    await pressCanvasKey("F6");
+    assert.equal(boardHost.classList.contains("is-hand"), true);
+    await pressCanvasKey("F6", "keyup");
+    assert.equal(boardHost.classList.contains("is-hand"), false);
+    await pressCanvasKey("F6");
+    await act(async () => window.dispatchEvent(new window.Event("blur")));
+    assert.equal(
+      boardHost.classList.contains("is-hand"),
+      false,
+      "blur releases the temporary tool",
+    );
+    await pressCanvasKey("F6");
+    await act(async () => runtime!.setShortcuts({ ...custom, pan: "F7" }));
+    assert.equal(
+      boardHost.classList.contains("is-hand"),
+      false,
+      "reconfiguration releases keys from the previous binding",
+    );
+    await dispatch(
+      container.querySelector('[data-id="export-a"].react-flow__node')!,
+      "click",
+    );
+    const beforeNudge = runtime!
+      .getSnapshot()
+      .nodes.find((node) => node.id === "export-a")!.position.x;
+    const focusedCard = container.querySelector(
+      '[data-id="export-a"].react-flow__node',
+    )!;
+    await pressCanvasKey("ArrowRight", "keydown", {}, focusedCard);
+    assert.equal(
+      runtime!.getSnapshot().nodes.find((node) => node.id === "export-a")!
+        .position.x,
+      beforeNudge,
+      "focused React Flow node cannot bypass a reassigned arrow binding",
+    );
+    await pressCanvasKey("J", "keydown", { shiftKey: true }, focusedCard);
+    assert.equal(
+      runtime!.getSnapshot().nodes.find((node) => node.id === "export-a")!
+        .position.x,
+      beforeNudge + 1,
+    );
+    await act(async () => runtime!.setShortcuts(defaults));
+    await pressCanvasKey(" ");
+    assert.equal(
+      boardHost.classList.contains("is-hand"),
+      true,
+      "restoring defaults affects the same running canvas",
+    );
+    await pressCanvasKey(" ", "keyup");
+    await act(async () => runtime!.undo());
+    assert.equal(
+      runtime!.getSnapshot().nodes.find((node) => node.id === "export-a")!
+        .position.x,
+      beforeNudge,
+      "shortcut updates preserve canvas undo history",
     );
     assert.deepEqual(errors, [], "workflow must render without React errors");
   } finally {

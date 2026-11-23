@@ -96,12 +96,13 @@ function canonicalInsertKey(key: string, shift: boolean): string {
 
 function parsedInsertShortcut(
   raw: string,
+  options: KeyboardShortcutOptions = { requireAccel: true },
 ): { modifiers: string[]; key: string; normalized: string } | null {
   const parts = raw.split(",").map((part) => part.trim());
   const key = parts.pop() || "";
   const modifiers = new Set(parts.map((part) => part.toLowerCase()));
   if (
-    !modifiers.has("accel") ||
+    (options.requireAccel && !modifiers.has("accel")) ||
     modifiers.size !== parts.length ||
     [...modifiers].some(
       (part) =>
@@ -127,13 +128,32 @@ function parsedInsertShortcut(
   };
 }
 
+export interface KeyboardShortcutOptions {
+  requireAccel?: boolean;
+  allowModifierOnly?: boolean;
+}
+
+export function normalizeKeyboardShortcut(
+  raw: string,
+  options: KeyboardShortcutOptions = {},
+): string | null {
+  if (
+    options.allowModifierOnly &&
+    SHORTCUT_MODIFIERS.includes(
+      raw.toLowerCase() as (typeof SHORTCUT_MODIFIERS)[number],
+    )
+  )
+    return raw.toLowerCase();
+  return parsedInsertShortcut(raw, options)?.normalized ?? null;
+}
+
 /** Preferences retain the existing comma-separated format; the iframe consumes CM bindings. */
-export function markdownInsertKeyBinding(
+export function keyboardShortcutKeyBinding(
   raw: string,
   platform?: string,
 ): string | null {
   if (!raw) return null;
-  const parsed = parsedInsertShortcut(raw);
+  const parsed = parsedInsertShortcut(raw, {});
   if (!parsed) return null;
   const modifiers: Record<string, string> = {
     accel: "Mod",
@@ -157,9 +177,21 @@ export function markdownInsertKeyBinding(
   return [...parsed.modifiers.map((value) => modifiers[value]), key].join("-");
 }
 
+export function markdownInsertKeyBinding(
+  raw: string,
+  platform?: string,
+): string | null {
+  return parsedInsertShortcut(raw)
+    ? keyboardShortcutKeyBinding(raw, platform)
+    : null;
+}
+
 export function markdownShortcutLabel(raw: string, platform?: string): string {
-  const parsed = parsedInsertShortcut(raw);
-  if (!parsed) return "";
+  const parsed = parsedInsertShortcut(raw, {});
+  if (!parsed)
+    return normalizeKeyboardShortcut(raw, { allowModifierOnly: true })
+      ? shortcutKeycaps(raw, platform).join(" + ")
+      : "";
   const mac = isMacPlatform(platform);
   const modifiers: Record<string, string> = {
     accel: mac ? "Cmd" : "Ctrl",
@@ -174,7 +206,8 @@ export function markdownShortcutLabel(raw: string, platform?: string): string {
   ].join(" + ");
 }
 
-// Fixed editing commands and native Zotero commands that cannot be reassigned here.
+// Legacy insert-only callers validate against the original editing defaults.
+// The full settings form uses validateMarkdownShortcutAssignment instead.
 const RESERVED_INSERT_SHORTCUTS = new Set([
   "accel,alt,shift,I",
   ...[
@@ -229,7 +262,7 @@ export function validateMarkdownInsertShortcut(
 }
 
 /** Option-generated characters name the base shortcut key; AltGr text remains text. */
-export function markdownInsertShortcutFromKeyboardEvent(
+export function keyboardShortcutFromKeyboardEvent(
   event: ShortcutKeyboardEvent & {
     code?: string;
     keyCode?: number;
@@ -238,10 +271,29 @@ export function markdownInsertShortcutFromKeyboardEvent(
     getModifierState?: (key: string) => boolean;
   },
   platform?: string,
+  options: KeyboardShortcutOptions = {},
 ): string | null {
   const mac = isMacPlatform(platform);
+  if (event.isComposing || event.keyCode === 229 || event.repeat) return null;
+  if (options.allowModifierOnly && isShortcutModifierKey(event.key)) {
+    const modifier =
+      event.key === "Shift"
+        ? "shift"
+        : event.key === "Alt"
+          ? "alt"
+          : event.key === "Meta"
+            ? mac
+              ? "accel"
+              : "meta"
+            : event.key === "Control"
+              ? mac
+                ? "control"
+                : "accel"
+              : null;
+    return modifier;
+  }
   if (
-    !(mac ? event.metaKey : event.ctrlKey) ||
+    (options.requireAccel && !(mac ? event.metaKey : event.ctrlKey)) ||
     event.isComposing ||
     event.keyCode === 229 ||
     event.repeat ||
@@ -276,7 +328,90 @@ export function markdownInsertShortcutFromKeyboardEvent(
     },
     platform,
   );
-  return recorded ? (parsedInsertShortcut(recorded)?.normalized ?? null) : null;
+  return normalizeKeyboardShortcut(recorded ?? key, options);
+}
+
+/** Compare stored bindings across Mod/Ctrl aliases on the actual platform. */
+export function keyboardShortcutIdentity(
+  raw: string,
+  platform?: string,
+): string | null {
+  const normalized = normalizeKeyboardShortcut(raw, {
+    allowModifierOnly: true,
+  });
+  if (!normalized) return null;
+  const mac = isMacPlatform(platform);
+  const parts = normalized.split(",");
+  const key = parts.pop()!;
+  if (
+    !parts.length &&
+    SHORTCUT_MODIFIERS.includes(key as (typeof SHORTCUT_MODIFIERS)[number])
+  )
+    return key === "accel" ? (mac ? "meta" : "control") : key;
+  const modifiers = new Set(
+    parts.map((part) => (part === "accel" ? (mac ? "meta" : "control") : part)),
+  );
+  return [
+    ...["control", "meta", "alt", "shift"].filter((part) =>
+      modifiers.has(part),
+    ),
+    key,
+  ].join(",");
+}
+
+export function keyboardShortcutMatches(
+  event: Parameters<typeof keyboardShortcutFromKeyboardEvent>[0],
+  raw: string,
+  platform?: string,
+): boolean {
+  const expected = normalizeKeyboardShortcut(raw, { allowModifierOnly: true });
+  if (!expected || event.isComposing || event.keyCode === 229) return false;
+  if (
+    SHORTCUT_MODIFIERS.includes(expected as (typeof SHORTCUT_MODIFIERS)[number])
+  ) {
+    const mac = isMacPlatform(platform);
+    return expected === "shift"
+      ? event.shiftKey
+      : expected === "alt"
+        ? event.altKey
+        : expected === "accel"
+          ? mac
+            ? event.metaKey
+            : event.ctrlKey
+          : expected === "control"
+            ? event.ctrlKey
+            : event.metaKey;
+  }
+  const actual = keyboardShortcutFromKeyboardEvent(
+    {
+      ...event,
+      key: event.key,
+      code: event.code,
+      keyCode: event.keyCode,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      isComposing: event.isComposing,
+      getModifierState: event.getModifierState?.bind(event),
+      repeat: false,
+    },
+    platform,
+  );
+  return (
+    actual !== null &&
+    keyboardShortcutIdentity(actual, platform) ===
+      keyboardShortcutIdentity(expected, platform)
+  );
+}
+
+export function markdownInsertShortcutFromKeyboardEvent(
+  event: Parameters<typeof keyboardShortcutFromKeyboardEvent>[0],
+  platform?: string,
+): string | null {
+  return keyboardShortcutFromKeyboardEvent(event, platform, {
+    requireAccel: true,
+  });
 }
 
 // Zotero captures Mod-1…9 for tab navigation before the editor receives them.
@@ -317,9 +452,9 @@ const MODIFIER_KEYS = new Set([
   "Shift",
 ]);
 
-function isMacPlatform(platform?: string): boolean {
+export function isMacPlatform(platform?: string): boolean {
   const value = platform ?? globalThis.navigator?.platform ?? "";
-  return /Mac|iPhone|iPad|iPod/i.test(value);
+  return /Mac|Darwin|iPhone|iPad|iPod/i.test(value);
 }
 
 export function isShortcutModifierKey(key: string): boolean {

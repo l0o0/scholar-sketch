@@ -13,7 +13,8 @@ import {
 } from "../src/modules/markdown/editor-protocol.ts";
 import { DEFAULT_MARKDOWN_INSERT_SHORTCUTS } from "../src/modules/markdown/shortcut.ts";
 
-const macKeymap = /Mac/.test(globalThis.navigator?.platform ?? "");
+const shortcutPlatform = globalThis.navigator?.platform ?? "";
+const macKeymap = /Mac/.test(shortcutPlatform);
 const windowsKeymap = /Win/.test(globalThis.navigator?.platform ?? "");
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -40,6 +41,10 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     },
   };
   const browser = new Window({ url: "https://host.example/" });
+  Object.defineProperty(browser.navigator, "platform", {
+    configurable: true,
+    value: shortcutPlatform,
+  });
   const container = browser.document.createElement("div");
   browser.document.body.append(container);
   const images: { bytes: ArrayBuffer; mimeType: string; name: string }[] = [];
@@ -61,6 +66,10 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
     },
   });
   const frame = container.querySelector("iframe")!.contentWindow!;
+  Object.defineProperty(frame.navigator, "platform", {
+    configurable: true,
+    value: shortcutPlatform,
+  });
   frame.document.body.innerHTML = '<div id="editor-root"></div>';
   (frame as any).postMessage = (data: unknown) =>
     queueMicrotask(() =>
@@ -344,6 +353,119 @@ test("local image shortcut crosses the real editor bridge and owns its picker li
           DEFAULT_MARKDOWN_INSERT_SHORTCUTS[command as keyof typeof prefs],
           true,
         );
+      editor.applyPreferences();
+      await tick();
+    },
+  );
+
+  await t.test(
+    "command preference updates cross the mounted host bridge and keep the existing undo history",
+    async () => {
+      editor.setValue("Command");
+      await tick();
+      view.dispatch({
+        changes: { from: 7, insert: "!" },
+        selection: { anchor: 0, head: 7 },
+      });
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.markdownCommandShortcuts",
+        JSON.stringify({ bold: "accel,alt,B", undo: "accel,alt,U", redo: "" }),
+        true,
+      );
+      editor.applyPreferences();
+      await tick();
+      assert.equal(
+        shortcut({ key: "b", code: "KeyB", keyCode: 66, altKey: false })
+          .defaultPrevented,
+        false,
+      );
+      assert.equal(view.state.doc.toString(), "Command!");
+      assert.equal(
+        shortcut({ key: "b", code: "KeyB", keyCode: 66 }).defaultPrevented,
+        true,
+      );
+      assert.equal(view.state.doc.toString(), "**Command**!");
+      assert.equal(
+        shortcut({ key: "z", code: "KeyZ", keyCode: 90, altKey: false })
+          .defaultPrevented,
+        false,
+      );
+      assert.equal(view.state.doc.toString(), "**Command**!");
+      assert.equal(
+        shortcut({ key: "u", code: "KeyU", keyCode: 85 }).defaultPrevented,
+        true,
+      );
+      assert.equal(view.state.doc.toString(), "Command!");
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.markdownCommandShortcuts",
+        "{}",
+        true,
+      );
+      editor.applyPreferences();
+      await tick();
+    },
+  );
+
+  await t.test(
+    "default redo platform aliases remain available until the command is customized",
+    async () => {
+      editor.setValue("Redo");
+      await tick();
+      view.dispatch({ selection: { anchor: 0, head: 4 } });
+      shortcut({ key: "b", code: "KeyB", keyCode: 66, altKey: false });
+      shortcut({ key: "z", code: "KeyZ", keyCode: 90, altKey: false });
+      assert.equal(view.state.doc.toString(), "Redo");
+      shortcut({
+        key: macKeymap ? "Z" : "y",
+        code: macKeymap ? "KeyZ" : "KeyY",
+        keyCode: macKeymap ? 90 : 89,
+        altKey: false,
+        shiftKey: macKeymap,
+      });
+      assert.equal(view.state.doc.toString(), "**Redo**");
+      if (/Linux/.test(shortcutPlatform)) {
+        shortcut({ key: "z", code: "KeyZ", keyCode: 90, altKey: false });
+        shortcut({
+          key: "Z",
+          code: "KeyZ",
+          keyCode: 90,
+          altKey: false,
+          shiftKey: true,
+        });
+        assert.equal(view.state.doc.toString(), "**Redo**");
+      }
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.markdownCommandShortcuts",
+        JSON.stringify({ redo: "accel,alt,R" }),
+        true,
+      );
+      editor.applyPreferences();
+      await tick();
+      shortcut({ key: "z", code: "KeyZ", keyCode: 90, altKey: false });
+      const undone = view.state.doc.toString();
+      shortcut({
+        key: macKeymap ? "Z" : "y",
+        code: macKeymap ? "KeyZ" : "KeyY",
+        keyCode: macKeymap ? 90 : 89,
+        altKey: false,
+        shiftKey: macKeymap,
+      });
+      if (/Linux/.test(shortcutPlatform))
+        shortcut({
+          key: "Z",
+          code: "KeyZ",
+          keyCode: 90,
+          altKey: false,
+          shiftKey: true,
+        });
+      assert.equal(view.state.doc.toString(), undone);
+      shortcut({ key: "r", code: "KeyR", keyCode: 82 });
+      assert.equal(view.state.doc.toString(), "**Redo**");
+      fake.Zotero.Prefs.set(
+        "extensions.zotero.bamboo.markdownCommandShortcuts",
+        "{}",
+        true,
+      );
       editor.applyPreferences();
       await tick();
     },

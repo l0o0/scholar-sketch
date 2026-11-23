@@ -1,43 +1,36 @@
 import type { WhiteboardLabels } from "../model/protocol";
+import {
+  defaultWhiteboardShortcuts,
+  WHITEBOARD_SHORTCUT_ACTIONS,
+  WHITEBOARD_SHORTCUT_LABELS,
+  whiteboardShortcutLabel,
+} from "../model/shortcuts";
 
 export interface ShortcutHelp {
+  action: string;
   keys: string;
   label: string;
 }
 
-export function keyboardShortcuts(labels: WhiteboardLabels): ShortcutHelp[] {
-  return [
-    { keys: "V", label: labels.shortcutSelect },
-    { keys: "H", label: labels.shortcutHand },
-    { keys: "Space + drag", label: labels.shortcutHand },
-    {
-      keys: "Alt + drag",
-      label:
-        labels.shortcutFreeMove ?? "Move freely (temporarily disable snapping)",
-    },
-    {
-      keys: "↑ ↓ ← →",
-      label: labels.shortcutNudge ?? "Nudge selection by 1 unit",
-    },
-    {
-      keys: "Shift + ↑ ↓ ← →",
-      label: labels.shortcutNudgeLarge ?? "Nudge selection by 16 units",
-    },
-    { keys: "Shift + 1", label: labels.fitView },
-    { keys: "Shift + 2", label: labels.fitSelection },
-    { keys: "R", label: labels.shortcutRect },
-    { keys: "O", label: labels.shortcutEllipse },
-    { keys: "A", label: labels.shortcutArrow },
-    { keys: "L", label: labels.shortcutLine },
-    { keys: "T", label: labels.shortcutText },
-    { keys: "Q", label: labels.shortcutQuestion },
-    { keys: "C", label: labels.shortcutClaim },
-    { keys: "F", label: labels.shortcutFrame },
-    { keys: "E", label: labels.shortcutEraser },
-    { keys: "Shift", label: labels.shortcutConstrain },
-    { keys: "Esc", label: labels.shortcutCancel },
-    { keys: "Delete", label: labels.shortcutDelete },
-    { keys: "Ctrl/Meta + Z", label: labels.shortcutUndo },
-    { keys: "Ctrl/Meta + Shift + Z", label: labels.shortcutRedo },
-  ];
+export function keyboardShortcuts(
+  labels: WhiteboardLabels,
+  shortcuts = defaultWhiteboardShortcuts(),
+  platform?: string,
+): ShortcutHelp[] {
+  return WHITEBOARD_SHORTCUT_ACTIONS.filter(
+    (action) => shortcuts[action] !== "",
+  ).map((action) => ({
+    action,
+    keys: whiteboardShortcutLabel(shortcuts[action], platform),
+    label:
+      labels[WHITEBOARD_SHORTCUT_LABELS[action]] ??
+      (action === "pan"
+        ? labels.shortcutHand
+        : action === "freeMove"
+          ? "Move freely (temporarily disable snapping)"
+          : action.startsWith("nudge")
+            ? `${action.includes("Large") ? (labels.shortcutNudgeLarge ?? "Nudge selection by 16 units") : (labels.shortcutNudge ?? "Nudge selection by 1 unit")}`
+            : undefined) ??
+      action,
+  }));
 }

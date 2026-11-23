@@ -24,8 +24,11 @@ pref("shortcutInsertImage", "accel,alt,I");
 pref("shortcutInsertTable", "accel,alt,shift,T");
 pref("shortcutInsertTask", "accel,alt,X");
 pref("shortcutInsertCode", "accel,alt,C");
+pref("markdownCommandShortcuts", "{}");
 
 // Local paths and export choices; manuscript content remains in Markdown.
 pref("paperPandocPath", "");
 pref("paperStyleID", "");
 pref("paperReferenceDoc", "");
+
+pref("whiteboardShortcuts", "{}");

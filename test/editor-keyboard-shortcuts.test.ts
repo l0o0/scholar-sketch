@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import MarkdownIt from "markdown-it";
+import { defaultMarkdownCommandShortcuts } from "../src/modules/markdown/markdown-command-shortcuts.ts";
 import { Window } from "happy-dom";
 import { EditorView } from "@codemirror/view";
+import { SearchQuery, setSearchQuery } from "@codemirror/search";
 import { ensureDOMGlobals } from "../src/utils/dom.ts";
 import { EDITOR_MESSAGE_SOURCE } from "../src/modules/markdown/editor-protocol.ts";
 
@@ -49,13 +51,13 @@ test("the real editor keeps host tab keys free and applies its documented format
   });
   await import("../src/editor/bootstrap.ts");
   browser.document.dispatchEvent(new browser.Event("DOMContentLoaded"));
-  const init = (doc: string, readOnly = false) => {
+  const init = (doc: string, readOnly = false, mode = "source") => {
     send("init", {
       doc,
       readOnly,
       fontSize: 14,
       theme: "light",
-      mode: "source",
+      mode,
     });
     const view = EditorView.findFromDOM(
       browser.document.querySelector(".cm-editor") as unknown as HTMLElement,
@@ -610,6 +612,249 @@ test("the real editor keeps host tab keys free and applies its documented format
       for (const key of ["b", "i", "k"]) keydown(view, key);
       for (const digit of ["1", "2", "3"]) keydown(view, digit, true);
       assert.equal(view.state.doc.toString(), "A note");
+    },
+  );
+
+  const press = (
+    target: Element,
+    key: string,
+    options: Record<string, unknown> = {},
+  ) => {
+    const event = new browser.KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+      ...options,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+  const primary = { ctrlKey: !macKeymap, metaKey: macKeymap };
+  const defaults = () =>
+    defaultMarkdownCommandShortcuts(macKeymap ? "MacIntel" : "Win32");
+
+  await t.test(
+    "custom command bindings replace defaults immediately and preserve the live history",
+    () => {
+      const view = init("A note");
+      view.dispatch({
+        changes: { from: 6, insert: "!" },
+        selection: { anchor: 0, head: 6 },
+      });
+      send("setCommandShortcuts", {
+        ...defaults(),
+        bold: "accel,alt,J",
+        save: "accel,alt,S",
+        italic: "",
+        h1: "accel,alt,H",
+      });
+      assert.equal(view.state.doc.toString(), "A note!");
+      assert.deepEqual(
+        [view.state.selection.main.from, view.state.selection.main.to],
+        [0, 6],
+      );
+      assert.equal(keydown(view, "b").defaultPrevented, false);
+      assert.equal(keydown(view, "i").defaultPrevented, false);
+      keydown(view, "s");
+      assert.equal(
+        messages.some((message) => message.type === "save"),
+        false,
+      );
+      assert.equal(keydown(view, "j", true).defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "**A note**!");
+      send("command", { command: "undo" });
+      assert.equal(view.state.doc.toString(), "A note!");
+      assert.equal(keydown(view, "s", true).defaultPrevented, true);
+      assert.ok(messages.some((message) => message.type === "save"));
+      assert.equal(keydown(view, "1", true).defaultPrevented, false);
+      assert.equal(keydown(view, "h", true).defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "# A note!");
+    },
+  );
+
+  await t.test(
+    "cleared commands release their former CodeMirror defaults and aliases",
+    () => {
+      const view = init("match match");
+      view.dispatch({ changes: { from: 11, insert: "!" } });
+      send(
+        "setCommandShortcuts",
+        Object.fromEntries(
+          Object.keys(defaults()).map((action) => [action, ""]),
+        ),
+      );
+      const before = view.state.doc.toString();
+      for (const key of ["s", "f", "g", "z", "y", "i", "]", "["])
+        keydown(view, key);
+      press(view.contentDOM, "F3");
+      press(view.contentDOM, "F3", { shiftKey: true });
+      press(view.contentDOM, "Z", { ...primary, shiftKey: true });
+      press(view.contentDOM, "Tab");
+      assert.equal(view.state.doc.toString(), before);
+      assert.equal(view.dom.querySelector(".cm-search"), null);
+    },
+  );
+
+  await t.test(
+    "search aliases follow their command and custom navigation uses the search query",
+    () => {
+      const view = init("hit one hit two hit");
+      send("command", { command: "find" });
+      view.dispatch({
+        effects: setSearchQuery.of(new SearchQuery({ search: "hit" })),
+        selection: { anchor: 0, head: 3 },
+      });
+      assert.equal(press(view.contentDOM, "F3").defaultPrevented, true);
+      assert.deepEqual(
+        [view.state.selection.main.from, view.state.selection.main.to],
+        [8, 11],
+      );
+      send("setCommandShortcuts", {
+        ...defaults(),
+        findNext: "accel,alt,N",
+        findPrevious: "accel,alt,P",
+      });
+      assert.equal(press(view.contentDOM, "F3").defaultPrevented, false);
+      assert.equal(keydown(view, "g").defaultPrevented, false);
+      assert.deepEqual(
+        [view.state.selection.main.from, view.state.selection.main.to],
+        [8, 11],
+      );
+      assert.equal(keydown(view, "n", true).defaultPrevented, true);
+      assert.deepEqual(
+        [view.state.selection.main.from, view.state.selection.main.to],
+        [16, 19],
+      );
+      assert.equal(keydown(view, "p", true).defaultPrevented, true);
+      assert.deepEqual(
+        [view.state.selection.main.from, view.state.selection.main.to],
+        [8, 11],
+      );
+    },
+  );
+
+  await t.test(
+    "search and replace inputs keep formatting and undo within their own selection",
+    () => {
+      const view = init("Before paragraph");
+      view.dispatch({
+        changes: { from: 16, insert: "!" },
+        selection: { anchor: 0 },
+      });
+      send("command", { command: "find" });
+      const expected = view.state.doc.toString();
+      for (const name of ["search", "replace"]) {
+        const input = view.dom.querySelector<HTMLInputElement>(
+          `.cm-search input[name="${name}"]`,
+        )!;
+        assert.ok(input);
+        input.focus();
+        press(input, "b", primary);
+        assert.equal(view.state.doc.toString(), expected);
+        assert.equal(browser.document.activeElement, input);
+        send("setCommandShortcuts", {
+          ...defaults(),
+          bold: "accel,alt,B",
+          h1: "accel,alt,H",
+        });
+        for (const key of ["b", "h"]) {
+          press(input, key, { ...primary, altKey: true });
+          assert.equal(view.state.doc.toString(), expected);
+          assert.equal(browser.document.activeElement, input);
+        }
+        press(input, "z", primary);
+        assert.equal(view.state.doc.toString(), expected);
+        assert.equal(browser.document.activeElement, input);
+        send("setCommandShortcuts", defaults());
+      }
+      send("command", { command: "undo" });
+      assert.equal(view.state.doc.toString(), "Before paragraph");
+    },
+  );
+
+  await t.test(
+    "table and indentation bindings use their own context, including live cell editing",
+    () => {
+      let view = init("plain");
+      assert.equal(press(view.contentDOM, "Tab").defaultPrevented, true);
+      assert.equal(view.state.doc.toString(), "  plain");
+      const doc = "| One | Two |\n| --- | --- |\n| a | b |";
+      view = init(doc);
+      view.dispatch({ selection: { anchor: 2 } });
+      assert.equal(press(view.contentDOM, "Tab").defaultPrevented, true);
+      assert.equal(view.state.selection.main.from, 8);
+      send("setCommandShortcuts", {
+        ...defaults(),
+        tableNext: "accel,alt,N",
+        tablePrevious: "",
+      });
+      const anchor = view.state.selection.main.anchor;
+      assert.equal(press(view.contentDOM, "Tab").defaultPrevented, false);
+      assert.equal(view.state.selection.main.anchor, anchor);
+      assert.equal(keydown(view, "n", true).defaultPrevented, true);
+      assert.ok(view.state.selection.main.anchor > anchor);
+      view = init(`Before paragraph\n\n${doc}`, false, "live");
+      view.dispatch({ selection: { anchor: 0 } });
+      const cell = view.dom.querySelector(".zmd-lp-table-cell")!;
+      assert.ok(cell);
+      cell.dispatchEvent(
+        new browser.MouseEvent("mousedown", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      let editing = view.dom.querySelector(".zmd-lp-table-cell-editing")!;
+      assert.ok(editing);
+      const beforeFormatting = view.state.doc.toString();
+      press(editing, "b", primary);
+      assert.equal(view.state.doc.toString(), beforeFormatting);
+      assert.ok(view.state.doc.toString().startsWith("Before paragraph\n\n"));
+      send("setCommandShortcuts", { ...defaults(), bold: "accel,alt,B" });
+      press(editing, "b", { ...primary, altKey: true });
+      assert.equal(view.state.doc.toString(), beforeFormatting);
+      assert.equal(press(editing, "Tab").defaultPrevented, true);
+      assert.equal(
+        view.dom.querySelector(".zmd-lp-table-cell-editing")!.textContent,
+        "Two",
+      );
+      send("setCommandShortcuts", {
+        ...defaults(),
+        tableNext: "accel,alt,N",
+        tablePrevious: "",
+      });
+      editing = view.dom.querySelector(".zmd-lp-table-cell-editing")!;
+      assert.equal(press(editing, "Tab").defaultPrevented, false);
+      assert.equal(
+        view.dom.querySelector(".zmd-lp-table-cell-editing")!.textContent,
+        "Two",
+      );
+      assert.equal(
+        press(editing, "n", { ...primary, altKey: true }).defaultPrevented,
+        true,
+      );
+      assert.equal(
+        view.dom.querySelector(".zmd-lp-table-cell-editing")!.textContent,
+        "a",
+      );
+    },
+  );
+
+  await t.test(
+    "read-only editors retain custom save and search while disabling formatting",
+    () => {
+      const view = init("Keep this", true);
+      send("setCommandShortcuts", {
+        ...defaults(),
+        save: "accel,alt,S",
+        find: "accel,alt,F",
+        bold: "accel,alt,B",
+      });
+      keydown(view, "b", true);
+      assert.equal(view.state.doc.toString(), "Keep this");
+      assert.equal(keydown(view, "s", true).defaultPrevented, true);
+      assert.ok(messages.some((message) => message.type === "save"));
+      assert.equal(keydown(view, "f", true).defaultPrevented, true);
+      assert.ok(view.dom.querySelector(".cm-search"));
     },
   );
 

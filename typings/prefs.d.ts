@@ -31,9 +31,11 @@ declare namespace _ZoteroTypes {
       "shortcutInsertTable": string;
       "shortcutInsertTask": string;
       "shortcutInsertCode": string;
+      "markdownCommandShortcuts": string;
       "paperPandocPath": string;
       "paperStyleID": string;
       "paperReferenceDoc": string;
+      "whiteboardShortcuts": string;
     };
   }
 }

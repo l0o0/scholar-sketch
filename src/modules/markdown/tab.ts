@@ -1,3 +1,5 @@
+import { MARKDOWN_COMMAND_ACTIONS } from "./markdown-command-shortcuts";
+import { readMarkdownCommandShortcuts } from "./command-shortcut-preferences";
 import { currentMarkdownStyle } from "./style-preferences";
 import {
   insertSessionAnnotations,
@@ -100,11 +102,7 @@ import {
   type ImageAssetRepairReport,
 } from "./images/repair";
 import { openImageRepairDialog } from "./images/repair-dialog";
-import {
-  createMarkdownModalController,
-  type DocumentModalData,
-  type SettingsModalData,
-} from "./modal";
+import { createMarkdownModalController, type DocumentModalData } from "./modal";
 import { renameMarkdownAttachment } from "./rename";
 import { markdownSettingsAbout, saveMarkdownSettings } from "./settings";
 import { formatSavedStatus, formatStats } from "./status";
@@ -1369,7 +1367,8 @@ function mountEditorUI(
     {
       onRename: (filename) => renameSessionAttachment(session, filename),
       onReveal: () => revealSessionFolder(session),
-      onSettings: (settings) => saveModalSettings(settings),
+      onSettings: (settings) =>
+        saveMarkdownSettings(settings, session.win.navigator.platform),
       onClose: () => {
         if (toolbar?.hasAttribute("hidden"))
           root
@@ -1579,11 +1578,18 @@ function applyToolbarPreference(session: OpenSession) {
   const root = session.view?.root;
   if (!root) return;
   const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
-  const bindings = readMarkdownInsertShortcuts();
-  for (const command of MARKDOWN_INSERT_COMMANDS) {
+  const bindings = {
+    ...readMarkdownInsertShortcuts(),
+    ...readMarkdownCommandShortcuts(session.win.navigator.platform),
+  };
+  for (const command of [
+    ...MARKDOWN_INSERT_COMMANDS,
+    ...MARKDOWN_COMMAND_ACTIONS,
+  ]) {
     const button = toolbar.querySelector<HTMLButtonElement>(
       `[data-action="${command}"]`,
-    )!;
+    );
+    if (!button) continue;
     const shortcut = markdownShortcutLabel(
       bindings[command],
       session.win.navigator.platform,
@@ -1870,10 +1876,17 @@ export function mountMoreMenu(session: OpenSession) {
           ? getString("more-open-tab")
           : moreMenuLabel(item.action),
       );
-      if (item.shortcut) {
+      const configuredShortcut =
+        item.action === "find"
+          ? markdownShortcutLabel(
+              readMarkdownCommandShortcuts(session.win.navigator.platform).find,
+              session.win.navigator.platform,
+            )
+          : item.shortcut;
+      if (configuredShortcut) {
         const shortcut = menu.ownerDocument.createElement("span");
         shortcut.className = "zotero-markdown-more-menu-shortcut";
-        shortcut.textContent = item.shortcut;
+        shortcut.textContent = configuredShortcut;
         button.appendChild(shortcut);
       }
       if (item.submenu) {
@@ -2435,10 +2448,6 @@ async function revealSessionFolder(session: OpenSession) {
   const parent = PathUtils.parent(session.path);
   if (!parent) throw new Error(getString("error-attachment-directory"));
   Zotero.launchURL(`file://${encodeURI(parent)}`);
-}
-
-function saveModalSettings(settings: SettingsModalData) {
-  return saveMarkdownSettings(settings);
 }
 
 function showModalError(error: unknown) {

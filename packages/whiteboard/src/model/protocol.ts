@@ -1,3 +1,4 @@
+import { isWhiteboardShortcuts, type WhiteboardShortcuts } from "./shortcuts";
 /**
  * postMessage protocol between the Zotero tab (parent) and the
  * whiteboard iframe (@xyflow/react host). Lives in the isolated
@@ -306,6 +307,16 @@ export interface WhiteboardLabels {
   recentColors: string;
   shortcutSelect: string;
   shortcutHand: string;
+  shortcutPan?: string;
+  shortcutNudgeUp?: string;
+  shortcutNudgeDown?: string;
+  shortcutNudgeLeft?: string;
+  shortcutNudgeRight?: string;
+  shortcutNudgeUpLarge?: string;
+  shortcutNudgeDownLarge?: string;
+  shortcutNudgeLeftLarge?: string;
+  shortcutNudgeRightLarge?: string;
+
   shortcutFreeMove?: string;
   shortcutNudge?: string;
   shortcutNudgeLarge?: string;
@@ -335,6 +346,7 @@ export interface WhiteboardInitPayload {
   snapshot?: CanvasDocument | null;
   labels?: WhiteboardLabels;
   templates?: NoteTemplate[];
+  shortcuts?: WhiteboardShortcuts;
 }
 
 export type AcademicSourceDescriptor =
@@ -523,6 +535,7 @@ export type ParentToWhiteboardMessage = WhiteboardProtocolMessage &
   (
     | { type: "init"; payload: WhiteboardInitPayload }
     | { type: "setTheme"; payload: { theme: WhiteboardTheme } }
+    | { type: "setShortcuts"; payload: { shortcuts: WhiteboardShortcuts } }
     | { type: "setSidebarFocus"; payload: { focused: boolean } }
     | { type: "setAppearance"; payload: { appearance: WhiteboardAppearance } }
     | { type: "setColorScheme"; payload: { colorScheme: ColorSchemeID } }
@@ -755,6 +768,7 @@ const activeWhiteboardToParentTypes = {
 const activeParentToWhiteboardTypes = {
   init: true,
   setTheme: true,
+  setShortcuts: true,
   setSidebarFocus: true,
   setAppearance: true,
   setColorScheme: true,
@@ -1220,6 +1234,16 @@ const whiteboardLabelStringKeys: Record<
   recentColors: true,
   shortcutSelect: true,
   shortcutHand: true,
+  shortcutPan: true,
+  shortcutNudgeUp: true,
+  shortcutNudgeDown: true,
+  shortcutNudgeLeft: true,
+  shortcutNudgeRight: true,
+  shortcutNudgeUpLarge: true,
+  shortcutNudgeDownLarge: true,
+  shortcutNudgeLeftLarge: true,
+  shortcutNudgeRightLarge: true,
+
   shortcutFreeMove: true,
   shortcutNudge: true,
   shortcutNudgeLarge: true,
@@ -1242,6 +1266,16 @@ const whiteboardLabelStringKeys: Record<
 function isWhiteboardLabels(value: unknown): value is WhiteboardLabels {
   if (!isPlainRecord(value)) return false;
   const optional = [
+    "shortcutPan",
+    "shortcutNudgeUp",
+    "shortcutNudgeDown",
+    "shortcutNudgeLeft",
+    "shortcutNudgeRight",
+    "shortcutNudgeUpLarge",
+    "shortcutNudgeDownLarge",
+    "shortcutNudgeLeftLarge",
+    "shortcutNudgeRightLarge",
+
     "openTab",
     "sidebarFocus",
     "sidebarExitFocus",
@@ -1930,6 +1964,7 @@ function validateParentToWhiteboardMessageForChannel(
             "snapshot",
             "labels",
             "templates",
+            "shortcuts",
             "colorScheme",
             "appearance",
             "editable",
@@ -1962,6 +1997,9 @@ function validateParentToWhiteboardMessageForChannel(
         (hasOwn(payload, "labels")
           ? payload.labels === undefined || isWhiteboardLabels(payload.labels)
           : !("labels" in payload)) &&
+        (!hasOwn(payload, "shortcuts") ||
+          payload.shortcuts === undefined ||
+          isWhiteboardShortcuts(payload.shortcuts)) &&
         (hasOwn(payload, "templates")
           ? payload.templates === undefined ||
             isArrayOf(payload.templates, isNoteTemplate)
@@ -1988,6 +2026,13 @@ function validateParentToWhiteboardMessageForChannel(
         isPlainRecord(payload) &&
         hasExactKeys(payload, ["theme"]) &&
         (payload.theme === "light" || payload.theme === "dark")
+      );
+    case "setShortcuts":
+      return (
+        hasOwn(data, "payload") &&
+        isPlainRecord(payload) &&
+        hasExactKeys(payload, ["shortcuts"]) &&
+        isWhiteboardShortcuts(payload.shortcuts)
       );
     case "setAppearance":
       return (

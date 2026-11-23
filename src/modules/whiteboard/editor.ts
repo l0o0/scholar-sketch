@@ -1,3 +1,4 @@
+import type { WhiteboardShortcuts } from "../../../packages/whiteboard/src/model/shortcuts";
 /**
  * Parent-side canvas: mounts a chrome:// iframe and bridges via postMessage.
  */
@@ -40,6 +41,7 @@ export interface WhiteboardHandle {
   destroy: () => void;
   setColorScheme: (colorScheme: ColorSchemeID) => void;
   setAppearance: (appearance: WhiteboardAppearance) => void;
+  setShortcuts: (shortcuts: WhiteboardShortcuts) => void;
   setTheme: (theme: WhiteboardTheme) => void;
   setSidebarFocus: (focused: boolean) => void;
   setTemplates: (templates: NoteTemplate[]) => void;
@@ -344,6 +346,7 @@ type PendingCommand = Extract<
       | "setTheme"
       | "setSidebarFocus"
       | "setAppearance"
+      | "setShortcuts"
       | "setColorScheme"
       | "loadSnapshot"
       | "command"
@@ -377,6 +380,7 @@ export function createWhiteboardEditor(
     labels?: WhiteboardLabels;
     templates?: NoteTemplate[];
     appearance?: WhiteboardAppearance;
+    shortcuts?: WhiteboardShortcuts;
     colorScheme?: ColorSchemeID;
     onChange?: (rev: number) => void;
     onSave?: () => void;
@@ -520,6 +524,7 @@ export function createWhiteboardEditor(
         message.type === "setTheme" ||
         message.type === "setSidebarFocus" ||
         message.type === "setAppearance" ||
+        message.type === "setShortcuts" ||
         message.type === "setColorScheme" ||
         message.type === "loadSnapshot"
       ) {
@@ -564,6 +569,7 @@ export function createWhiteboardEditor(
             theme: resolveEditorTheme(ownerWin),
             colorScheme: normalizeColorScheme(options.colorScheme),
             ...(options.appearance ? { appearance: options.appearance } : {}),
+            ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}),
             snapshot: pendingSnapshot,
             ...(options.labels ? { labels: options.labels } : {}),
             ...(options.templates ? { templates: options.templates } : {}),
@@ -831,6 +837,13 @@ export function createWhiteboardEditor(
         source: WHITEBOARD_MESSAGE_SOURCE,
         type: "setColorScheme",
         payload: { colorScheme },
+      });
+    },
+    setShortcuts(shortcuts) {
+      sendOrQueue({
+        source: WHITEBOARD_MESSAGE_SOURCE,
+        type: "setShortcuts",
+        payload: { shortcuts },
       });
     },
     setAppearance(appearance) {

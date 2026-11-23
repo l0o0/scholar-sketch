@@ -79,7 +79,12 @@ it("focuses eligible entries, navigates export and returns to its trigger", asyn
   window.document.body.innerHTML =
     '<main><button data-action="more"></button><div class="zotero-markdown-more-menu" hidden></div><button class="after"></button></main>';
   const root = window.document.querySelector("main")!;
-  const session: any = { view: { root }, mode: "live", surface: "tab" };
+  const session: any = {
+    view: { root },
+    win: window,
+    mode: "live",
+    surface: "tab",
+  };
   mountMoreMenu(session);
   t.after(() => {
     session.closeMoreMenu();

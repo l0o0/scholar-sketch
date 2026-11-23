@@ -1,3 +1,4 @@
+import { defaultWhiteboardShortcuts } from "./model/shortcuts";
 /**
  * iframe-side whiteboard: React + @xyflow/react.
  */
@@ -40,17 +41,7 @@ const deferredLabels = createDeferredLabels();
 let runtime: WhiteboardRuntime | null = null;
 let reactRoot: Root | null = null;
 let rev = 0;
-
-function onWindowKeyDown(event: KeyboardEvent) {
-  if (!(event.metaKey || event.ctrlKey)) return;
-  const key = event.key.toLowerCase();
-  if (key === "s") {
-    event.preventDefault();
-    postToParent({ type: "save" });
-    return;
-  }
-  // Canvas history belongs to WhiteboardApp, which knows editing/modal state.
-}
+let shortcuts = defaultWhiteboardShortcuts();
 
 function postToParent(message: WhiteboardToParentBody) {
   window.parent?.postMessage(
@@ -80,6 +71,8 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
   if (forwardAcademicParentMessage(runtime, data)) return;
   switch (data.type) {
     case "init":
+      shortcuts = data.payload.shortcuts ?? defaultWhiteboardShortcuts();
+      runtime?.setShortcuts(shortcuts);
       editable = data.payload.editable ?? true;
       runtime?.setEditable(editable);
       sidebar = data.payload.sidebar ?? false;
@@ -114,6 +107,10 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
     case "setTheme":
       applyDocumentTheme(data.payload.theme);
       runtime?.setTheme(data.payload.theme);
+      break;
+    case "setShortcuts":
+      shortcuts = data.payload.shortcuts;
+      runtime?.setShortcuts(shortcuts);
       break;
     case "setAppearance":
       applyDocumentAppearance(data.payload.appearance);
@@ -155,7 +152,6 @@ function handleParentMessage(data: ParentToWhiteboardMessage) {
       reactRoot?.unmount();
       reactRoot = null;
       window.removeEventListener("message", onWindowMessage);
-      window.removeEventListener("keydown", onWindowKeyDown);
       break;
     default:
       break;
@@ -191,7 +187,6 @@ function boot() {
   }
   applyDocumentTheme("light");
   window.addEventListener("message", onWindowMessage);
-  window.addEventListener("keydown", onWindowKeyDown);
   reactRoot = createRoot(host);
   reactRoot.render(
     <WhiteboardApp
@@ -201,10 +196,12 @@ function boot() {
       sidebarFocused={sidebarFocused}
       colorScheme={colorScheme}
       appearance={appearance}
+      shortcuts={shortcuts}
       labels={deferredLabels.current}
       initialSnapshot={pendingSnapshot ?? emptyCanvasDocument()}
       onReady={(next) => {
         runtime = next;
+        next.setShortcuts(shortcuts);
         next.setEditable(editable);
         next.setSidebar(sidebar);
         next.setSidebarFocus(sidebarFocused);
