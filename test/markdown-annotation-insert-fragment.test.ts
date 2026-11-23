@@ -61,10 +61,9 @@ test("mixed selections group by source and PDF reading order, retain links, and 
   );
 });
 
-test("single-source insertion keeps the existing fragment while mixed headings escape source titles", () => {
-  assert.equal(
-    annotationInsertFragment([entry({})]),
-    "> First passage\n\n[1](zotero://open-pdf/library/items/PDF00001?page=1&annotation=ANNO0001)\n",
+test("single-source insertion needs no heading while mixed headings escape source titles", () => {
+  assert.ok(
+    annotationInsertFragment([entry({})]).startsWith("> First passage\n\n"),
   );
   const markdown = annotationInsertFragment([
     entry({ sourceTitle: "Paper [A]\n# Heading", groupID: 42 }),

@@ -22,7 +22,10 @@ export interface MarkdownAnnotation {
 export const escapeAnnotationMarkdown = (value: string) =>
   value.replace(/([\\`*_{}[\]<>#!|])/g, "\\$1");
 
-function annotationLines(annotation: MarkdownAnnotation): string[] {
+function annotationLines(
+  annotation: MarkdownAnnotation,
+  explicitPageLink = false,
+): string[] {
   if (
     !/^[A-Za-z0-9]{8}$/.test(annotation.attachmentKey) ||
     !/^[A-Za-z0-9]{8}$/.test(annotation.key)
@@ -36,9 +39,9 @@ function annotationLines(annotation: MarkdownAnnotation): string[] {
   const scope = annotation.groupID ? `groups/${annotation.groupID}` : "library";
   const page =
     annotation.page && Number.isInteger(annotation.page) && annotation.page > 0
-      ? `page=${annotation.page}&`
-      : "";
-  const href = `zotero://open-pdf/${scope}/items/${annotation.attachmentKey}?${page}annotation=${annotation.key}`;
+      ? annotation.page
+      : undefined;
+  const href = `zotero://open-pdf/${scope}/items/${annotation.attachmentKey}?${page ? `page=${page}&` : ""}annotation=${annotation.key}`;
   const parts: string[] = [];
   if (annotation.text)
     parts.push(
@@ -50,10 +53,17 @@ function annotationLines(annotation: MarkdownAnnotation): string[] {
     );
   if (annotation.comment)
     parts.push(escapeAnnotationMarkdown(annotation.comment), "");
-  parts.push(
-    `[${escapeAnnotationMarkdown(annotation.pageLabel || "PDF")}](${href})`,
-    "",
-  );
+  let linkLabel = annotation.pageLabel || "PDF";
+  if (explicitPageLink) {
+    const pageLabel = annotation.pageLabel.trim() || (page ? String(page) : "");
+    linkLabel = pageLabel
+      ? getString("markdown-annotation-page-link", {
+          args: { page: pageLabel },
+        })
+      : `${getString("markdown-annotation-open-source")} ↗`;
+    linkLabel = linkLabel.replace(/[\r\n]+/g, " ");
+  }
+  parts.push(`[${escapeAnnotationMarkdown(linkLabel)}](${href})`, "");
   return parts;
 }
 
@@ -61,7 +71,9 @@ function annotationLines(annotation: MarkdownAnnotation): string[] {
 export function annotationMarkdownFragment(
   annotations: readonly MarkdownAnnotation[],
 ): string {
-  return annotations.flatMap(annotationLines).join("\n");
+  return annotations
+    .flatMap((annotation) => annotationLines(annotation, true))
+    .join("\n");
 }
 
 export function annotationMarkdown(

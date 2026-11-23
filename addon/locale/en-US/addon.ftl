@@ -797,6 +797,7 @@ markdown-annotation-searching = Searching annotations…
 markdown-annotation-search-failed = Search failed. Previous results are still shown.
 markdown-annotation-more-failed = Loading failed. Loaded results and selections are retained.
 markdown-annotation-open-source = Open original annotation
+markdown-annotation-page-link = Page { $page } ↗
 markdown-annotation-insert-count = Insert { $count } annotations
 markdown-annotation-library-scope = Current library
 markdown-annotation-insert-hint = Search annotations across the current library, or choose literature and PDFs to narrow the scope. Selections persist across searches, filters, and loaded pages. Review selected annotations before inserting them together. Use page links to open the original annotations.

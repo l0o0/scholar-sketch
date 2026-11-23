@@ -221,6 +221,7 @@ export type FluentMessageId =
   | 'markdown-annotation-more-failed'
   | 'markdown-annotation-no-sources'
   | 'markdown-annotation-open-source'
+  | 'markdown-annotation-page-link'
   | 'markdown-annotation-refresh-source'
   | 'markdown-annotation-remove-source'
   | 'markdown-annotation-retry-more'

@@ -348,7 +348,12 @@ test("annotation fragments preserve full-export content and group locations with
   const annotations = await readMarkdownAnnotations(f.item(2));
   const fragment = annotationMarkdownFragment(annotations);
   const full = annotationMarkdown("Reading notes", annotations);
-  assert.equal(full, `# Reading notes\n\n## Full text\n\n${fragment}`);
+  assert.ok(full.startsWith("# Reading notes\n\n## Full text\n\n"));
+  assert.ok(
+    full.includes(
+      "[iv](zotero://open-pdf/groups/42/items/PDF00002?page=4&annotation=ANNO0004)",
+    ),
+  );
   assert.match(fragment, /> A \\\*literal\\\* passage\n> \\<script\\>value/);
   assert.ok(fragment.includes("A \\[comment\\]"));
   assert.equal(/^#{1,6} /m.test(fragment), false);

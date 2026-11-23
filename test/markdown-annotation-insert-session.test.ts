@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { Window } from "happy-dom";
@@ -22,7 +23,7 @@ function deferred<T>() {
 
 let sequence = 0;
 
-function fixture(t: TestContext) {
+function fixture(t: TestContext, locale = "zh-CN") {
   const fake = createFakeZotero({
     items: [
       {
@@ -105,7 +106,33 @@ function fixture(t: TestContext) {
   });
   // This fixture extends only the native search boundary absent from Fake Zotero.
   const MetadataSearch = fake.Zotero.Search;
+  const messages = new Map(
+    Array.from(
+      readFileSync(`addon/locale/${locale}/addon.ftl`, "utf8").matchAll(
+        /^(markdown-annotation-(?:page-link|open-source)) = (.+)$/gm,
+      ),
+      ([, key, value]) => [`bamboo-${key}`, value],
+    ),
+  );
   Object.assign(fake.Zotero, {
+    ScholarSketch: {
+      data: {
+        locale: {
+          current: {
+            formatMessagesSync: ([{ id, args }]: {
+              id: string;
+              args?: { page: string };
+            }[]) => [
+              {
+                value:
+                  messages.get(id)?.replace("{ $page }", args?.page ?? "") ||
+                  id,
+              },
+            ],
+          },
+        },
+      },
+    },
     Search: class extends MetadataSearch {
       private extra: Array<[string, string]> = [];
       addCondition(field: string, operator: string, value: string): number {
@@ -266,7 +293,7 @@ test("the session inserts selected native annotations once and permits reopening
   assert.deepEqual(f.state.insertions, [
     {
       markdown:
-        "> Selected passage\n\nReview this\n\n[153](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n",
+        "> Selected passage\n\nReview this\n\n[第 153 页 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n",
       expectedValue: "# Current draft",
     },
   ]);
@@ -278,6 +305,32 @@ test("the session inserts selected native annotations once and permits reopening
   assert.equal(f.win.document.querySelector("dialog"), null);
   assert.equal(f.session.closeAnnotationInsert, undefined);
   assert.equal(f.state.insertions.length, 1);
+});
+
+test("English insertion uses a physical-page fallback and labels a page-less link by its action", async (t) => {
+  const f = fixture(t, "en-US");
+  Object.assign(f.fake.Zotero.Items.get(4)!, { annotationPageLabel: "" });
+  Object.assign(f.fake.Zotero.Items.get(8)!, {
+    annotationPageLabel: "",
+    annotationPosition: "{}",
+  });
+  await insertSessionAnnotations(f.session, () => true);
+  await f.searchQuery("passage");
+  f.action("select-results").click();
+  f.action("insert").click();
+  await setImmediate();
+  assert.equal(f.state.insertions.length, 1);
+  const { markdown } = f.state.insertions[0];
+  assert.ok(
+    markdown.includes(
+      "[Page 2 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)",
+    ),
+  );
+  assert.ok(
+    markdown.includes(
+      "[Open original annotation ↗](zotero://open-pdf/library/items/PDF00007?annotation=ANNO0008)",
+    ),
+  );
 });
 
 test("a changed document rejects insertion without replacing its new content or closing the picker", async (t) => {
