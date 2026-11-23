@@ -1233,6 +1233,43 @@ export function navigateDocumentLink(
     });
 }
 
+/** Reveal an annotation's literature item, or its standalone PDF, in Zotero. */
+export async function revealPdfAnnotationItem(href: string): Promise<void> {
+  const pdf = parsePdfDocumentLink(href);
+  if (!pdf?.annotationKey)
+    return reportDocumentLinkResult({ status: "unsupported" });
+  try {
+    const { reference } = pdf;
+    const libraryID =
+      reference.scope === "library"
+        ? Zotero.Libraries.userLibraryID
+        : Zotero.Groups.get(reference.groupID)?.libraryID;
+    const attachment = libraryID
+      ? await Zotero.Items.getByLibraryAndKeyAsync(libraryID, reference.key)
+      : false;
+    if (!attachment || !attachment.isPDFAttachment())
+      return reportDocumentLinkResult({ status: "unresolved" });
+    const parentID = attachment.parentItemID;
+    const item = parentID ? await Zotero.Items.getAsync(parentID) : attachment;
+    if (
+      !item ||
+      !itemAvailable(attachment) ||
+      item.libraryID !== attachment.libraryID ||
+      (parentID && !item.isRegularItem())
+    )
+      return reportDocumentLinkResult({ status: "unresolved" });
+    const win = Zotero.getMainWindow();
+    if (!win || win.closed)
+      return reportDocumentLinkResult({ status: "unsupported" });
+    if (!(await win.ZoteroPane.selectItem(item.id)))
+      return reportDocumentLinkResult({ status: "unresolved" });
+    win.focus();
+  } catch (error) {
+    ztoolkit.log("Could not reveal the PDF annotation source", error);
+    reportDocumentLinkResult({ status: "unresolved" });
+  }
+}
+
 /**
  * Small host-owned chooser used when a title is not unique. The entered
  * number is an explicit user choice; no candidate is opened implicitly.

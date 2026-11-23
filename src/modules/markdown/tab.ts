@@ -123,7 +123,11 @@ import { getPref, setPref } from "../../utils/prefs";
 import type { EditorOutlineItem, EditorTheme } from "./editor-protocol";
 import { mountOutlineSidebar } from "./outline-sidebar";
 import { documentSyncRegistry } from "./document-sync";
-import { navigateDocumentLink, searchDocumentLinks } from "./document-links";
+import {
+  navigateDocumentLink,
+  revealPdfAnnotationItem,
+  searchDocumentLinks,
+} from "./document-links";
 import { switchMarkdownSurface } from "./window";
 import { mountBacklinksSidebar, mountNoteBacklinks } from "./backlinks";
 import {
@@ -1285,6 +1289,7 @@ function mountEditorUI(
     root,
     currentItem: item,
     win,
+    onShowItem: revealPdfAnnotationItem,
     onOpen: (href, sourceItemID) => {
       const source = sourceItemID ? Zotero.Items.get(sourceItemID) : item;
       if (source) navigateDocumentLink(source, win, href, { onNavigateNote });

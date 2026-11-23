@@ -3,7 +3,61 @@ import test from "node:test";
 import {
   searchDocumentLinks,
   openDocumentLink,
+  revealPdfAnnotationItem,
 } from "../src/modules/markdown/document-links.ts";
+
+test("Show Item reveals the parent literature or standalone PDF in the main window", async (t) => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "Zotero");
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, "Zotero", previous);
+    else Reflect.deleteProperty(globalThis, "Zotero");
+  });
+  const parent = { id: 30, libraryID: 7, isRegularItem: () => true };
+  const groupPDF = {
+    id: 31,
+    libraryID: 7,
+    parentItemID: parent.id,
+    isPDFAttachment: () => true,
+  };
+  const standalone = { id: 12, libraryID: 1, isPDFAttachment: () => true };
+  const actions: Array<number | "focus"> = [];
+  const lookups: Array<[number, string]> = [];
+  Object.defineProperty(globalThis, "Zotero", {
+    configurable: true,
+    value: {
+      Libraries: { userLibraryID: 1 },
+      Groups: { get: (id: number) => (id === 42 ? { libraryID: 7 } : false) },
+      Items: {
+        async getByLibraryAndKeyAsync(libraryID: number, key: string) {
+          lookups.push([libraryID, key]);
+          return libraryID === 7 ? groupPDF : standalone;
+        },
+        get: (id: number) => (id === parent.id ? parent : false),
+        getAsync: async (id: number) => (id === parent.id ? parent : false),
+      },
+      getMainWindow: () => ({
+        focus: () => actions.push("focus"),
+        ZoteroPane: {
+          async selectItem(id: number) {
+            actions.push(id);
+            return true;
+          },
+        },
+      }),
+    },
+  });
+  await revealPdfAnnotationItem(
+    "zotero://open-pdf/groups/42/items/PDF00031?page=4&annotation=ANNO0001",
+  );
+  await revealPdfAnnotationItem(
+    "zotero://open-pdf/library/items/PDF00012?annotation=ANNO0002",
+  );
+  assert.deepEqual(lookups, [
+    [7, "PDF00031"],
+    [1, "PDF00012"],
+  ]);
+  assert.deepEqual(actions, [30, "focus", 12, "focus"]);
+});
 
 test("PDF links dispatch through the owning Zotero pane without leaving the process", async (t) => {
   const globals = globalThis as any;

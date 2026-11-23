@@ -6,6 +6,7 @@ import {
 import { mountPdfLinkPreview } from "./link-preview-pdf";
 import { subscribeNoteLibrary } from "./note-library";
 import { getString } from "../../utils/locale";
+import { parsePdfDocumentLink } from "./document-link-shared";
 
 export interface LinkPreviewController {
   show(target: LinkHoverTarget | null): void;
@@ -24,6 +25,7 @@ export function createLinkPreviewController(options: {
   currentItem: Zotero.Item;
   win: Window;
   onOpen(href: string, sourceItemID?: number): void;
+  onShowItem?: (href: string) => void;
   isActive?: () => boolean;
   loader?: ReturnType<typeof createLinkPreviewContentLoader>;
   mountPdf?: typeof mountPdfLinkPreview;
@@ -35,9 +37,11 @@ export function createLinkPreviewController(options: {
     ambiguous: string;
     failed: string;
     open: string;
+    showItem?: string;
+    goToAnnotation?: string;
   };
 }): LinkPreviewController {
-  const { root, currentItem, win, onOpen } = options;
+  const { root, currentItem, win, onOpen, onShowItem } = options;
   const doc = root.ownerDocument;
   const loader = options.loader ?? createLinkPreviewContentLoader();
   const labels = options.labels ?? {
@@ -70,6 +74,9 @@ export function createLinkPreviewController(options: {
 .zmd-link-preview a { color:LinkText; }
 .zmd-link-preview button { color:inherit; font:inherit; cursor:pointer; }
 .zmd-link-preview button:focus-visible { outline:2px solid Highlight; outline-offset:2px; }
+.zmd-link-preview-actions { display:flex;flex:none;gap:6px;padding:8px 10px 0; }
+.zmd-link-preview-actions button { appearance:none;display:inline-flex;flex:1;align-items:center;justify-content:center;min-height:28px;max-height:none;height:auto;margin:0;padding:3px 8px;border:1px solid color-mix(in srgb,CanvasText 18%,Canvas);border-radius:6px;background:transparent; }
+.zmd-link-preview-actions button:hover { background:color-mix(in srgb,CanvasText 7%,Canvas); }
 `;
   const header = element<HTMLElement>("header", "zmd-link-preview-header");
   header.style.cssText = "padding:12px 14px 8px;flex:none";
@@ -87,6 +94,26 @@ export function createLinkPreviewController(options: {
   open.textContent = labels.open;
   open.style.cssText =
     "flex:none;align-self:flex-end;margin:0 14px 10px;padding:2px 8px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:5px;background:transparent";
+  const annotationActions = element<HTMLElement>(
+    "div",
+    "zmd-link-preview-actions",
+  );
+  const showItem = element<HTMLButtonElement>(
+    "button",
+    "zmd-link-preview-show-item",
+  );
+  showItem.type = "button";
+  showItem.textContent =
+    options.labels?.showItem ?? getString("link-preview-show-item");
+  const goToAnnotation = element<HTMLButtonElement>(
+    "button",
+    "zmd-link-preview-go-to-annotation",
+  );
+  goToAnnotation.type = "button";
+  goToAnnotation.textContent =
+    options.labels?.goToAnnotation ??
+    getString("link-preview-go-to-annotation");
+  annotationActions.append(showItem, goToAnnotation);
   panel.append(style, header, body, open);
   (doc.body ?? doc.documentElement).append(panel);
 
@@ -121,12 +148,15 @@ export function createLinkPreviewController(options: {
     generation++;
     pending = null;
     active = null;
+    openingHref = "";
     previewItemID = undefined;
     overPanel = false;
     placement = undefined;
     releasePdf();
     panel.style.display = "none";
     body.replaceChildren();
+    annotationActions.remove();
+    panel.append(open);
   }
   function leave() {
     clearCloseTimer();
@@ -271,6 +301,10 @@ export function createLinkPreviewController(options: {
     hide();
     active = target;
     openingHref = target.href;
+    if (onShowItem && parsePdfDocumentLink(target.href)?.annotationKey) {
+      open.remove();
+      panel.insertBefore(annotationActions, header);
+    }
     title.textContent = labels.loading;
     subtitle.textContent = "";
     panel.setAttribute("aria-label", labels.loading);
@@ -355,7 +389,26 @@ export function createLinkPreviewController(options: {
     }
   });
   open.addEventListener("click", () => {
+    if (!activeSurface() || !active || !openingHref) return;
     const href = openingHref;
+    hide();
+    onOpen(href);
+  });
+  const currentAnnotationHref = () => {
+    if (!activeSurface() || annotationActions.parentElement !== panel)
+      return null;
+    const href = active?.href;
+    return href && parsePdfDocumentLink(href)?.annotationKey ? href : null;
+  };
+  showItem.addEventListener("click", () => {
+    const href = currentAnnotationHref();
+    if (!href || !onShowItem) return;
+    hide();
+    onShowItem(href);
+  });
+  goToAnnotation.addEventListener("click", () => {
+    const href = currentAnnotationHref();
+    if (!href) return;
     hide();
     onOpen(href);
   });
