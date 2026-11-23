@@ -24,7 +24,7 @@ export const escapeAnnotationMarkdown = (value: string) =>
 
 function annotationLines(
   annotation: MarkdownAnnotation,
-  explicitPageLink = false,
+  inlinePageLink = false,
 ): string[] {
   if (
     !/^[A-Za-z0-9]{8}$/.test(annotation.attachmentKey) ||
@@ -42,19 +42,8 @@ function annotationLines(
       ? annotation.page
       : undefined;
   const href = `zotero://open-pdf/${scope}/items/${annotation.attachmentKey}?${page ? `page=${page}&` : ""}annotation=${annotation.key}`;
-  const parts: string[] = [];
-  if (annotation.text)
-    parts.push(
-      escapeAnnotationMarkdown(annotation.text)
-        .split(/\r?\n/)
-        .map((line) => `> ${line}`)
-        .join("\n"),
-      "",
-    );
-  if (annotation.comment)
-    parts.push(escapeAnnotationMarkdown(annotation.comment), "");
   let linkLabel = annotation.pageLabel || "PDF";
-  if (explicitPageLink) {
+  if (inlinePageLink) {
     const pageLabel = annotation.pageLabel.trim() || (page ? String(page) : "");
     linkLabel = pageLabel
       ? getString("markdown-annotation-page-link", {
@@ -63,7 +52,23 @@ function annotationLines(
       : `${getString("markdown-annotation-open-source")} ↗`;
     linkLabel = linkLabel.replace(/[\r\n]+/g, " ");
   }
-  parts.push(`[${escapeAnnotationMarkdown(linkLabel)}](${href})`, "");
+  const link = `[${escapeAnnotationMarkdown(linkLabel)}](${href})`;
+  const text = inlinePageLink ? annotation.text.trimEnd() : annotation.text;
+  const comment =
+    inlinePageLink && !text ? annotation.comment.trimEnd() : annotation.comment;
+  const parts: string[] = [];
+  if (text) {
+    const quote = escapeAnnotationMarkdown(text)
+      .split(/\r?\n/)
+      .map((line) => `> ${line}`)
+      .join("\n");
+    parts.push(inlinePageLink ? `${quote} ${link}` : quote, "");
+  }
+  if (comment) {
+    const body = escapeAnnotationMarkdown(comment);
+    parts.push(inlinePageLink && !text ? `${body} ${link}` : body, "");
+  }
+  if (!inlinePageLink || (!text && !comment)) parts.push(link, "");
   return parts;
 }
 

@@ -63,7 +63,7 @@ test("mixed selections group by source and PDF reading order, retain links, and 
 
 test("single-source insertion needs no heading while mixed headings escape source titles", () => {
   assert.ok(
-    annotationInsertFragment([entry({})]).startsWith("> First passage\n\n"),
+    annotationInsertFragment([entry({})]).startsWith("> First passage ["),
   );
   const markdown = annotationInsertFragment([
     entry({ sourceTitle: "Paper [A]\n# Heading", groupID: 42 }),

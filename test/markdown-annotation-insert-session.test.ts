@@ -293,7 +293,7 @@ test("the session inserts selected native annotations once and permits reopening
   assert.deepEqual(f.state.insertions, [
     {
       markdown:
-        "> Selected passage\n\nReview this\n\n[第 153 页 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n",
+        "> Selected passage [第 153 页 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this\n",
       expectedValue: "# Current draft",
     },
   ]);
@@ -307,10 +307,15 @@ test("the session inserts selected native annotations once and permits reopening
   assert.equal(f.state.insertions.length, 1);
 });
 
-test("English insertion uses a physical-page fallback and labels a page-less link by its action", async (t) => {
+test("links follow the last line of a multiline excerpt or a comment-only annotation", async (t) => {
   const f = fixture(t, "en-US");
-  Object.assign(f.fake.Zotero.Items.get(4)!, { annotationPageLabel: "" });
+  Object.assign(f.fake.Zotero.Items.get(4)!, {
+    annotationText: "Selected passage\nLast line  \n\n",
+    annotationPageLabel: "",
+  });
   Object.assign(f.fake.Zotero.Items.get(8)!, {
+    annotationText: " \n",
+    annotationComment: "Review the passage\nFollow up\n\n",
     annotationPageLabel: "",
     annotationPosition: "{}",
   });
@@ -323,12 +328,12 @@ test("English insertion uses a physical-page fallback and labels a page-less lin
   const { markdown } = f.state.insertions[0];
   assert.ok(
     markdown.includes(
-      "[Page 2 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)",
+      "> Selected passage\n> Last line [Page 2 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this",
     ),
   );
   assert.ok(
     markdown.includes(
-      "[Open original annotation ↗](zotero://open-pdf/library/items/PDF00007?annotation=ANNO0008)",
+      "Review the passage\nFollow up [Open original annotation ↗](zotero://open-pdf/library/items/PDF00007?annotation=ANNO0008)",
     ),
   );
 });
