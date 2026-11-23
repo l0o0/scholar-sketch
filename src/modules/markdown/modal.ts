@@ -12,14 +12,23 @@ import {
 } from "../garden-forum";
 import {
   DEFAULT_NEW_MARKDOWN_SHORTCUT,
+  DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+  MARKDOWN_INSERT_COMMANDS,
   MARKDOWN_HEADING_SHORTCUTS,
   markdownHeadingShortcutLabel,
-  markdownAnnotationShortcutLabel,
-  markdownImageShortcutLabel,
   markdownRedoShortcutLabel,
+  markdownInsertShortcutFromKeyboardEvent,
+  validateMarkdownInsertShortcut,
+  isShortcutModifierKey,
   shortcutFromKeyboardEvent,
   shortcutKeycaps,
+  type MarkdownInsertCommand,
+  type MarkdownInsertShortcuts,
 } from "./shortcut";
+import {
+  readMarkdownInsertShortcuts,
+  writeMarkdownInsertShortcuts,
+} from "./insert-shortcut-preferences";
 import { getString } from "../../utils/locale";
 import type { FluentMessageId } from "../../../typings/i10n";
 import {
@@ -86,6 +95,7 @@ export interface SettingsModalData {
   markdownToolbarMode: MarkdownToolbarMode;
   markdownSlashSearchLanguage: SlashSearchLanguage;
   shortcutNewStandaloneMd: string;
+  markdownInsertShortcuts: MarkdownInsertShortcuts;
   whiteboardColorScheme: ColorSchemeID;
   whiteboardFontFamily: FontFamilyID;
   whiteboardBackgroundColor: string;
@@ -116,6 +126,31 @@ export interface MarkdownModalController {
   ) => void;
   close: () => void;
   destroy: () => void;
+}
+
+const INSERT_SHORTCUT_LABELS: Record<MarkdownInsertCommand, FluentMessageId> = {
+  annotation: "markdown-annotation-insert-title",
+  image: "settings-shortcut-import-image",
+  table: "tab-table",
+  task: "tab-task",
+  code: "tab-code",
+};
+
+function insertShortcutProblemText(
+  problem: NonNullable<ReturnType<typeof validateMarkdownInsertShortcut>>,
+): string {
+  if (problem.kind === "invalid") return getString("settings-shortcut-invalid");
+  if (problem.kind === "reserved")
+    return getString("settings-shortcut-reserved");
+  return getString("settings-shortcut-duplicate", {
+    args: {
+      action: getString(
+        problem.command === "new-note"
+          ? "settings-shortcut-new-standalone"
+          : INSERT_SHORTCUT_LABELS[problem.command],
+      ),
+    },
+  });
 }
 
 export function modalTitle(kind: ModalKind): string {
@@ -163,6 +198,7 @@ export function settingsFromPrefs(
       getPref("markdownSlashSearchLanguage"),
     ),
     shortcutNewStandaloneMd: String(getPref("shortcutNewStandaloneMd") || ""),
+    markdownInsertShortcuts: readMarkdownInsertShortcuts(),
     whiteboardColorScheme: normalizeColorScheme(
       getPref("whiteboardColorScheme"),
     ),
@@ -188,6 +224,7 @@ export function settingsFromPrefs(
       prefs.markdownSlashSearchLanguage,
     ),
     shortcutNewStandaloneMd: String(prefs.shortcutNewStandaloneMd || ""),
+    markdownInsertShortcuts: { ...prefs.markdownInsertShortcuts },
     whiteboardColorScheme: normalizeColorScheme(prefs.whiteboardColorScheme),
     whiteboardFontFamily: normalizeFontFamily(prefs.whiteboardFontFamily),
     whiteboardBackgroundColor: normalizeColor(prefs.whiteboardBackgroundColor),
@@ -390,6 +427,8 @@ export function createMarkdownModalController(
       shortcutNewStandaloneMd:
         payload.shortcutNewStandaloneMd ??
         String(getPref("shortcutNewStandaloneMd") || ""),
+      markdownInsertShortcuts:
+        payload.markdownInsertShortcuts ?? readMarkdownInsertShortcuts(),
       whiteboardColorScheme:
         payload.whiteboardColorScheme ??
         normalizeColorScheme(getPref("whiteboardColorScheme")),
@@ -629,6 +668,7 @@ export function createMarkdownModalController(
       list.className = "zotero-markdown-settings-shortcut-list";
       const renderRows = (kind: "markdown" | "whiteboard") => {
         list.replaceChildren();
+        let headingRow: HTMLElement | null = null;
         const rows: Array<[string, FluentMessageId]> =
           kind === "markdown"
             ? [
@@ -639,18 +679,6 @@ export function createMarkdownModalController(
                 ["Ctrl/Meta + B", "sidebar-bold"],
                 ["Ctrl/Meta + I", "sidebar-italic"],
                 ["Ctrl/Meta + K", "sidebar-link"],
-                [
-                  markdownAnnotationShortcutLabel(
-                    doc.defaultView?.navigator.platform,
-                  ),
-                  "markdown-annotation-insert-title",
-                ],
-                [
-                  markdownImageShortcutLabel(
-                    doc.defaultView?.navigator.platform,
-                  ),
-                  "settings-shortcut-import-image",
-                ],
                 ...MARKDOWN_HEADING_SHORTCUTS.map(
                   ({ level }): [string, FluentMessageId] => [
                     markdownHeadingShortcutLabel(
@@ -712,125 +740,251 @@ export function createMarkdownModalController(
             "zotero-markdown-settings-shortcut-keys",
           );
           row.append(key, textElement(doc, "span", getString(labelKey)));
+          if (labelKey === "tab-h1") headingRow = row;
           list.appendChild(row);
         }
         if (kind !== "markdown") return;
 
-        const row = doc.createElement("div");
-        row.className = "zotero-markdown-settings-shortcut-row is-editable";
-        row.appendChild(
-          textElement(
+        let stopRecording: (() => void) | undefined;
+        const closeShortcutMenus = () => {
+          for (const menu of list.querySelectorAll<HTMLElement>(
+            ".zotero-markdown-shortcut-overflow-menu",
+          ))
+            menu.hidden = true;
+          for (const trigger of list.querySelectorAll<HTMLElement>(
+            ".zotero-markdown-shortcut-overflow",
+          ))
+            trigger.setAttribute("aria-expanded", "false");
+        };
+        const editableRow = (options: {
+          id: MarkdownInsertCommand | "new-note";
+          label: FluentMessageId;
+          read: () => string;
+          write: (value: string) => void;
+          defaultValue: string;
+          validate: (value: string) => string;
+          record: (event: KeyboardEvent) => string | null;
+        }) => {
+          const label = getString(options.label);
+          const row = doc.createElement("div");
+          row.className = "zotero-markdown-settings-shortcut-row is-editable";
+          row.dataset.shortcutId = options.id;
+          row.setAttribute("role", "group");
+          row.setAttribute("aria-label", label);
+          const description = doc.createElement("div");
+          const error = textElement(
             doc,
-            "span",
-            getString("settings-shortcut-new-standalone"),
-          ),
-        );
-        const controls = doc.createElement("div");
-        controls.className = "zotero-markdown-settings-shortcut-controls";
-        const shortcutControl = doc.createElement("button");
-        shortcutControl.type = "button";
-        shortcutControl.className = "zotero-markdown-modal-shortcut-control";
-        shortcutControl.setAttribute(
-          "aria-label",
-          getString("settings-shortcut-edit-aria"),
-        );
-        const shortcutValue = doc.createElement("span");
-        shortcutValue.className = "zotero-markdown-modal-shortcut-value";
-        const renderShortcut = () => {
-          shortcutValue.replaceChildren();
-          const keycaps = shortcutKeycaps(
-            pendingSettings?.shortcutNewStandaloneMd || "",
-            doc.defaultView?.navigator?.platform,
+            "p",
+            "",
+            "zotero-markdown-modal-error",
           );
-          if (!keycaps.length)
-            shortcutValue.textContent = getString("settings-shortcut-unset");
-          else
-            for (const keycap of keycaps)
-              shortcutValue.appendChild(textElement(doc, "kbd", keycap));
-        };
-        renderShortcut();
-        shortcutControl.appendChild(shortcutValue);
-        const edit = button(
-          doc,
-          getString("settings-shortcut-edit"),
-          "shortcut-edit",
-        );
-        const overflow = doc.createElement("button");
-        overflow.type = "button";
-        overflow.className = "zotero-markdown-shortcut-overflow";
-        overflow.setAttribute(
-          "aria-label",
-          getString("settings-shortcut-more"),
-        );
-        overflow.setAttribute("aria-expanded", "false");
-        overflow.innerHTML = iconMore();
-        const overflowMenu = doc.createElement("div");
-        overflowMenu.className = "zotero-markdown-shortcut-overflow-menu";
-        overflowMenu.hidden = true;
-        const clear = button(
-          doc,
-          getString("settings-shortcut-clear"),
-          "shortcut-clear",
-        );
-        const restore = button(
-          doc,
-          getString("settings-shortcut-restore"),
-          "shortcut-restore",
-        );
-        overflowMenu.append(clear, restore);
-
-        let recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
-        const beginRecording = () => {
-          recordingPrevious = pendingSettings?.shortcutNewStandaloneMd || "";
-          shortcutControl.classList.add("is-recording");
-          shortcutControl.setAttribute("aria-live", "polite");
-          shortcutValue.textContent = getString("settings-shortcut-recording");
-          shortcutControl.focus();
-        };
-        shortcutControl.addEventListener("click", beginRecording);
-        edit.addEventListener("click", beginRecording);
-        shortcutControl.addEventListener("keydown", (event) => {
-          if (!shortcutControl.classList.contains("is-recording")) return;
-          if (event.key === "Escape") {
-            event.preventDefault();
-            if (pendingSettings)
-              pendingSettings.shortcutNewStandaloneMd = recordingPrevious;
-          } else if (event.key === "Backspace" || event.key === "Delete") {
-            event.preventDefault();
-            if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
-          } else {
-            const recorded = shortcutFromKeyboardEvent(
-              event,
-              doc.defaultView?.navigator?.platform,
+          error.dataset.shortcutError = "";
+          error.setAttribute("role", "alert");
+          error.hidden = true;
+          description.append(textElement(doc, "span", label), error);
+          row.appendChild(description);
+          const controls = doc.createElement("div");
+          controls.className = "zotero-markdown-settings-shortcut-controls";
+          const shortcutControl = doc.createElement("button");
+          shortcutControl.type = "button";
+          shortcutControl.className = "zotero-markdown-modal-shortcut-control";
+          shortcutControl.setAttribute(
+            "aria-label",
+            getString("settings-shortcut-edit-action", {
+              args: { action: label },
+            }),
+          );
+          const shortcutValue = doc.createElement("span");
+          shortcutValue.className = "zotero-markdown-modal-shortcut-value";
+          const renderShortcut = () => {
+            shortcutValue.replaceChildren();
+            const keycaps = shortcutKeycaps(
+              options.read(),
+              doc.defaultView?.navigator.platform,
             );
-            if (!recorded) return;
-            event.preventDefault();
-            if (pendingSettings)
-              pendingSettings.shortcutNewStandaloneMd = recorded;
-          }
-          shortcutControl.classList.remove("is-recording");
-          shortcutControl.removeAttribute("aria-live");
+            if (!keycaps.length)
+              shortcutValue.textContent = getString("settings-shortcut-unset");
+            else
+              for (const keycap of keycaps)
+                shortcutValue.appendChild(textElement(doc, "kbd", keycap));
+          };
           renderShortcut();
-        });
-        overflow.addEventListener("click", () => {
-          overflowMenu.hidden = !overflowMenu.hidden;
-          overflow.setAttribute("aria-expanded", String(!overflowMenu.hidden));
-        });
-        clear.addEventListener("click", () => {
-          if (pendingSettings) pendingSettings.shortcutNewStandaloneMd = "";
+          shortcutControl.appendChild(shortcutValue);
+          const showError = (message: string) => {
+            error.textContent = message;
+            error.hidden = !message;
+            if (message) shortcutControl.setAttribute("aria-invalid", "true");
+            else shortcutControl.removeAttribute("aria-invalid");
+          };
+          const setShortcut = (value: string) => {
+            const message = options.validate(value);
+            showError(message);
+            if (message) return false;
+            options.write(value);
+            renderShortcut();
+            return true;
+          };
+          const finishRecording = () => {
+            shortcutControl.classList.remove("is-recording");
+            shortcutControl.removeAttribute("aria-live");
+            renderShortcut();
+            if (stopRecording === finishRecording) stopRecording = undefined;
+          };
+          let recordingPrevious = options.read();
+          const beginRecording = () => {
+            stopRecording?.();
+            closeShortcutMenus();
+            recordingPrevious = options.read();
+            showError("");
+            shortcutControl.classList.add("is-recording");
+            shortcutControl.setAttribute("aria-live", "polite");
+            shortcutValue.textContent = getString(
+              "settings-shortcut-recording",
+            );
+            stopRecording = finishRecording;
+            shortcutControl.focus();
+          };
+          const edit = button(
+            doc,
+            getString("settings-shortcut-edit"),
+            "shortcut-edit",
+          );
+          edit.setAttribute(
+            "aria-label",
+            shortcutControl.getAttribute("aria-label")!,
+          );
+          shortcutControl.addEventListener("click", beginRecording);
+          edit.addEventListener("click", beginRecording);
+          shortcutControl.addEventListener("blur", finishRecording);
+          shortcutControl.addEventListener("keydown", (event) => {
+            if (!shortcutControl.classList.contains("is-recording")) return;
+            if (event.isComposing || event.keyCode === 229 || event.repeat)
+              return;
+            if (event.key === "Escape") {
+              event.preventDefault();
+              options.write(recordingPrevious);
+              showError("");
+            } else if (event.key === "Backspace" || event.key === "Delete") {
+              event.preventDefault();
+              setShortcut("");
+            } else {
+              const recorded = options.record(event);
+              if (!recorded) {
+                if (!isShortcutModifierKey(event.key)) {
+                  event.preventDefault();
+                  showError(getString("settings-shortcut-invalid"));
+                }
+                return;
+              }
+              event.preventDefault();
+              if (!setShortcut(recorded)) return;
+            }
+            finishRecording();
+          });
+          const overflow = doc.createElement("button");
+          overflow.type = "button";
+          overflow.className = "zotero-markdown-shortcut-overflow";
+          overflow.setAttribute(
+            "aria-label",
+            getString("settings-shortcut-more-action", {
+              args: { action: label },
+            }),
+          );
+          overflow.setAttribute("aria-expanded", "false");
+          overflow.innerHTML = iconMore();
+          const overflowMenu = doc.createElement("div");
+          overflowMenu.className = "zotero-markdown-shortcut-overflow-menu";
           overflowMenu.hidden = true;
-          renderShortcut();
-        });
-        restore.addEventListener("click", () => {
-          if (pendingSettings)
-            pendingSettings.shortcutNewStandaloneMd =
-              DEFAULT_NEW_MARKDOWN_SHORTCUT;
-          overflowMenu.hidden = true;
-          renderShortcut();
-        });
-        controls.append(shortcutControl, edit, overflow, overflowMenu);
-        row.appendChild(controls);
-        list.appendChild(row);
+          const clear = button(
+            doc,
+            getString("settings-shortcut-clear"),
+            "shortcut-clear",
+          );
+          const restore = button(
+            doc,
+            getString("settings-shortcut-restore"),
+            "shortcut-restore",
+          );
+          overflowMenu.append(clear, restore);
+          overflow.addEventListener("click", () => {
+            const open = overflowMenu.hidden;
+            closeShortcutMenus();
+            overflowMenu.hidden = !open;
+            overflow.setAttribute("aria-expanded", String(open));
+          });
+          clear.addEventListener("click", () => {
+            setShortcut("");
+            closeShortcutMenus();
+          });
+          restore.addEventListener("click", () => {
+            setShortcut(options.defaultValue);
+            closeShortcutMenus();
+          });
+          controls.append(shortcutControl, edit, overflow, overflowMenu);
+          row.appendChild(controls);
+          return row;
+        };
+        for (const command of MARKDOWN_INSERT_COMMANDS) {
+          const row = editableRow({
+            id: command,
+            label: INSERT_SHORTCUT_LABELS[command],
+            read: () => pendingSettings!.markdownInsertShortcuts[command],
+            write: (value) => {
+              pendingSettings!.markdownInsertShortcuts[command] = value;
+            },
+            defaultValue: DEFAULT_MARKDOWN_INSERT_SHORTCUTS[command],
+            validate: (value) => {
+              const problem = validateMarkdownInsertShortcut(
+                command,
+                value,
+                pendingSettings!.markdownInsertShortcuts,
+                pendingSettings!.shortcutNewStandaloneMd,
+              );
+              return problem ? insertShortcutProblemText(problem) : "";
+            },
+            record: (event) =>
+              markdownInsertShortcutFromKeyboardEvent(
+                event,
+                doc.defaultView?.navigator.platform,
+              ),
+          });
+          list.insertBefore(row, headingRow);
+        }
+        list.appendChild(
+          editableRow({
+            id: "new-note",
+            label: "settings-shortcut-new-standalone",
+            read: () => pendingSettings!.shortcutNewStandaloneMd,
+            write: (value) => {
+              pendingSettings!.shortcutNewStandaloneMd = value;
+            },
+            defaultValue: DEFAULT_NEW_MARKDOWN_SHORTCUT,
+            validate: (value) => {
+              for (const command of MARKDOWN_INSERT_COMMANDS) {
+                const problem = validateMarkdownInsertShortcut(
+                  command,
+                  pendingSettings!.markdownInsertShortcuts[command],
+                  pendingSettings!.markdownInsertShortcuts,
+                  value,
+                );
+                if (
+                  problem?.kind === "duplicate" &&
+                  problem.command === "new-note"
+                )
+                  return insertShortcutProblemText({
+                    kind: "duplicate",
+                    command,
+                  });
+              }
+              return "";
+            },
+            record: (event) =>
+              shortcutFromKeyboardEvent(
+                event,
+                doc.defaultView?.navigator.platform,
+              ),
+          }),
+        );
       };
       bindSegmentedOptions(surfaceButtons, (index) =>
         renderRows(surfaces[index][0]),
@@ -1242,6 +1396,28 @@ export function createMarkdownModalController(
     }
     if (action === "save-settings") {
       if (savingSettings) return;
+      for (const command of MARKDOWN_INSERT_COMMANDS) {
+        const problem = validateMarkdownInsertShortcut(
+          command,
+          pendingSettings!.markdownInsertShortcuts[command],
+          pendingSettings!.markdownInsertShortcuts,
+          pendingSettings!.shortcutNewStandaloneMd,
+        );
+        if (!problem) continue;
+        selectSettingsPage!("shortcuts", true);
+        const row = body.querySelector<HTMLElement>(
+          `[data-shortcut-id="${command}"]`,
+        )!;
+        const error = row.querySelector<HTMLElement>("[data-shortcut-error]")!;
+        error.textContent = insertShortcutProblemText(problem);
+        error.hidden = false;
+        const control = row.querySelector<HTMLButtonElement>(
+          ".zotero-markdown-modal-shortcut-control",
+        )!;
+        control.setAttribute("aria-invalid", "true");
+        control.focus();
+        return;
+      }
       const invalid = pendingSettings!.markdownStyles.presets.find(
         (preset) => !compileMarkdownStyleCss(preset.css).ok,
       );
@@ -1380,6 +1556,7 @@ export function createMarkdownModalController(
 
 export function applySettings(settings: SettingsModalData) {
   const values = prefsFromSettings(settings);
+  writeMarkdownInsertShortcuts(values.markdownInsertShortcuts);
   setPref("enable", values.enable);
   setPref("frontmatter", values.frontmatter);
   writeMarkdownStyleSettings(values.markdownStyles);

@@ -17,6 +17,7 @@ import type { DocumentViewState } from "./editor-view-state";
  * CodeMirror 6 in a stable Web document, and bridges via postMessage.
  */
 import { getPref } from "../../utils/prefs";
+import { readMarkdownInsertShortcuts } from "./insert-shortcut-preferences";
 import { ensureDOMGlobals } from "../../utils/dom";
 import { getString } from "../../utils/locale";
 import {
@@ -135,6 +136,7 @@ type PendingCommand = Extract<
       | "setFontSize"
       | "setAppearance"
       | "setSlashSearchLanguage"
+      | "setInsertShortcuts"
       | "setReadOnly"
       | "setMode"
       | "setImageAssets"
@@ -188,6 +190,7 @@ export function createMarkdownEditor(
     onOutlineActive?: (activeID: string | null) => void;
     onSave?: () => void;
     onInsertAnnotations?: () => void;
+    onInsertTable?: () => void;
     onPasteImage?: (payload: {
       bytes: ArrayBuffer;
       mimeType: string;
@@ -227,6 +230,7 @@ export function createMarkdownEditor(
     onOutlineActive,
     onSave,
     onInsertAnnotations,
+    onInsertTable,
     onPasteImage,
     onResolveAsset,
     onLinkSearch,
@@ -433,6 +437,7 @@ export function createMarkdownEditor(
         message.type === "setFontSize" ||
         message.type === "setAppearance" ||
         message.type === "setSlashSearchLanguage" ||
+        message.type === "setInsertShortcuts" ||
         message.type === "setReadOnly" ||
         message.type === "setMode"
       ) {
@@ -541,6 +546,8 @@ export function createMarkdownEditor(
             viewState: options.viewState,
             readOnly,
             annotationInsertion: Boolean(onInsertAnnotations),
+            tableInsertion: Boolean(onInsertTable),
+            insertShortcuts: readMarkdownInsertShortcuts(),
             fontSize: resolveFontSize(),
             appearance: resolveAppearance(),
             slashSearchLanguage: resolveSlashSearchLanguage(
@@ -786,6 +793,10 @@ export function createMarkdownEditor(
         if (!currentReadOnly && !composing) onInsertAnnotations?.();
         break;
       }
+      case "insertTable": {
+        if (!currentReadOnly && !composing) onInsertTable?.();
+        break;
+      }
       case "imageDebug": {
         const message = `[Bamboo][ImageDebug] ${data.payload.event}`;
         try {
@@ -884,6 +895,11 @@ export function createMarkdownEditor(
           Zotero.locale || "en-US",
         ),
       },
+    });
+    sendOrQueue({
+      source: EDITOR_MESSAGE_SOURCE,
+      type: "setInsertShortcuts",
+      payload: readMarkdownInsertShortcuts(),
     });
   };
   preferenceRefreshers.add(applyPreferences);

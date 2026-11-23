@@ -143,10 +143,12 @@ import { exportNoteLibrary } from "./export-notes";
 import { bindFeatureUpdates } from "../feature-updates";
 import {
   markdownHeadingShortcutLabel,
-  markdownAnnotationShortcutLabel,
-  markdownImageShortcutLabel,
+  DEFAULT_MARKDOWN_INSERT_SHORTCUTS,
+  MARKDOWN_INSERT_COMMANDS,
+  markdownShortcutLabel,
   markdownRedoShortcutLabel,
 } from "./shortcut";
+import { readMarkdownInsertShortcuts } from "./insert-shortcut-preferences";
 
 const responsiveToolbars = new WeakMap<OpenSession, ResponsiveToolbar>();
 const modeMenus = new WeakMap<OpenSession, ModeMenuController>();
@@ -840,13 +842,15 @@ function mountEditorUI(
                       "data-action": "image",
                       title: getString("tab-image-title", {
                         args: {
-                          shortcut: markdownImageShortcutLabel(
+                          shortcut: markdownShortcutLabel(
+                            DEFAULT_MARKDOWN_INSERT_SHORTCUTS.image,
                             win.navigator.platform,
                           ),
                         },
                       }),
                       "aria-label": getString("tab-image"),
-                      "data-shortcut": markdownImageShortcutLabel(
+                      "data-shortcut": markdownShortcutLabel(
+                        DEFAULT_MARKDOWN_INSERT_SHORTCUTS.image,
                         win.navigator.platform,
                       ),
                     },
@@ -863,13 +867,15 @@ function mountEditorUI(
                       "data-action": "annotation",
                       title: getString("markdown-insert-annotation-title", {
                         args: {
-                          shortcut: markdownAnnotationShortcutLabel(
+                          shortcut: markdownShortcutLabel(
+                            DEFAULT_MARKDOWN_INSERT_SHORTCUTS.annotation,
                             win.navigator.platform,
                           ),
                         },
                       }),
                       "aria-label": getString("markdown-insert-annotation"),
-                      "data-shortcut": markdownAnnotationShortcutLabel(
+                      "data-shortcut": markdownShortcutLabel(
+                        DEFAULT_MARKDOWN_INSERT_SHORTCUTS.annotation,
                         win.navigator.platform,
                       ),
                     },
@@ -889,6 +895,10 @@ function mountEditorUI(
                         },
                         attributes: {
                           "data-action": "table",
+                          "data-shortcut": markdownShortcutLabel(
+                            DEFAULT_MARKDOWN_INSERT_SHORTCUTS.table,
+                            win.navigator.platform,
+                          ),
                           title: getString("tab-table"),
                           "aria-label": getString("tab-table"),
                           "aria-haspopup": "true",
@@ -948,6 +958,10 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "task",
+                      "data-shortcut": markdownShortcutLabel(
+                        DEFAULT_MARKDOWN_INSERT_SHORTCUTS.task,
+                        win.navigator.platform,
+                      ),
                       title: getString("tab-task"),
                       "aria-label": getString("tab-task"),
                     },
@@ -962,6 +976,10 @@ function mountEditorUI(
                     },
                     attributes: {
                       "data-action": "code",
+                      "data-shortcut": markdownShortcutLabel(
+                        DEFAULT_MARKDOWN_INSERT_SHORTCUTS.code,
+                        win.navigator.platform,
+                      ),
                       title: getString("tab-code"),
                       "aria-label": getString("tab-code"),
                     },
@@ -1500,6 +1518,7 @@ function mountEditorUI(
       }
     },
     onInsertAnnotations: () => openSessionAnnotationInsert(session),
+    onInsertTable: () => executeToolbarCommand(session, "table"),
     onPasteImage: ({ bytes, mimeType }) =>
       insertImageBytes(session, new Uint8Array(bytes), mimeType),
     onResolveAsset: (reference) => {
@@ -1560,6 +1579,24 @@ function applyToolbarPreference(session: OpenSession) {
   const root = session.view?.root;
   if (!root) return;
   const toolbar = root.querySelector<HTMLElement>(".zotero-markdown-toolbar")!;
+  const bindings = readMarkdownInsertShortcuts();
+  for (const command of MARKDOWN_INSERT_COMMANDS) {
+    const button = toolbar.querySelector<HTMLButtonElement>(
+      `[data-action="${command}"]`,
+    )!;
+    const shortcut = markdownShortcutLabel(
+      bindings[command],
+      session.win.navigator.platform,
+    );
+    const label = button.getAttribute("aria-label")!;
+    button.dataset.shortcut = shortcut;
+    button.title = shortcut
+      ? getString("markdown-insert-shortcut-title", {
+          args: { action: label, shortcut },
+        })
+      : label;
+  }
+  responsiveToolbars.get(session)?.close();
   const restore = root.querySelector<HTMLButtonElement>(
     '[data-action="show-toolbar"]',
   )!;
@@ -2178,8 +2215,8 @@ export function bindTablePicker(session: OpenSession) {
   const trigger = root?.querySelector<HTMLElement>('[data-action="table"]');
   if (!root || !picker || !trigger) return;
   session.unbindTablePicker?.();
-  // Keep the shared picker outside the full-width-only table button wrapper.
-  root.querySelector(".zotero-markdown-toolbar-inner")?.append(picker);
+  // Keyboard insertion remains available when the toolbar is hidden.
+  root.append(picker);
   updateTablePickerSelection(picker, 3, 3);
 
   const close = () => {
@@ -2229,7 +2266,9 @@ export function bindTablePicker(session: OpenSession) {
       }
       const anchor = tablePickerAnchors.get(session) || trigger;
       close();
-      anchor.focus();
+      if (root.querySelector<HTMLElement>(".zotero-markdown-toolbar")?.hidden)
+        session.editor?.focus();
+      else anchor.focus();
       return;
     }
     let row = Number(active.dataset.tableRows);
@@ -2285,8 +2324,15 @@ export function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
   const picker = root?.querySelector<HTMLElement>(
     ".zotero-markdown-table-picker",
   );
+  const group = root?.querySelector<HTMLElement>(
+    '[data-toolbar-group="insert"]',
+  );
+  const groupStyle = group ? session.win.getComputedStyle(group) : null;
   const trigger =
-    anchor || root?.querySelector<HTMLElement>('[data-action="table"]');
+    anchor ||
+    (groupStyle && groupStyle.display !== "none"
+      ? group
+      : root?.querySelector<HTMLElement>('[data-action="table"]'));
   if (!root || !picker || !trigger) return;
   const opening = picker.hidden;
   closeToolbarMoreMenu(session);
@@ -2299,7 +2345,12 @@ export function toggleTablePicker(session: OpenSession, anchor?: HTMLElement) {
   tablePickerAnchors.set(session, trigger);
   picker.hidden = false;
   const bounds = root.getBoundingClientRect();
-  const anchorRect = trigger.getBoundingClientRect();
+  const hiddenToolbar = root.querySelector<HTMLElement>(
+    ".zotero-markdown-toolbar",
+  )?.hidden;
+  const anchorRect = hiddenToolbar
+    ? { left: bounds.left + 8, bottom: bounds.top + 8 }
+    : trigger.getBoundingClientRect();
   picker.style.maxWidth = `${Math.max(32, bounds.width - 16)}px`;
   picker.style.maxHeight = `${Math.max(32, bounds.bottom - anchorRect.bottom - 16)}px`;
   const rect = picker.getBoundingClientRect();

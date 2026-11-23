@@ -409,7 +409,7 @@ settings-theme = 外观
 settings-theme-system = 跟随系统
 settings-theme-light = 浅色
 settings-theme-dark = 深色
-settings-shortcut-hint = 点击快捷键可进行修改，按下完成后立即生效
+settings-shortcut-hint = 点击快捷键可进行修改，点击“完成”后生效
 settings-shortcut-new-standalone = 新建独立 Markdown 笔记
 settings-shortcut-surface = 快捷键集合
 settings-shortcut-surface-markdown = Markdown
@@ -523,6 +523,11 @@ error-image-too-large = 图片不能超过 15 MB。
 error-attachment-directory = 无法定位附件目录。
 export-html-title = 导出 HTML
 settings-shortcut-edit-aria = 编辑快捷键
+settings-shortcut-edit-action = 编辑快捷键：{ $action }
+settings-shortcut-more-action = 更多快捷键操作：{ $action }
+settings-shortcut-invalid = 请使用 Ctrl 或 Cmd 加字母、数字或支持的按键。
+settings-shortcut-reserved = 此快捷键已被编辑器或 Zotero 占用。
+settings-shortcut-duplicate = 此快捷键已分配给“{ $action }”。
 
 whiteboard-tutorial-image-title = 图片与 PDF 快照
 
@@ -763,6 +768,7 @@ annotation-export-read-only = 当前文库为只读，无法在此创建批注�
 
 markdown-insert-annotation = 批注
 markdown-insert-annotation-title = 插入批注（{ $shortcut }）
+markdown-insert-shortcut-title = { $action }（{ $shortcut }）
 markdown-annotation-insert-title = 插入批注
 markdown-annotation-insert-hint = 选择文献或 PDF 后，勾选要插入的文字批注和评论。可按附件、类型、颜色和标签筛选，插入后的页码链接可返回原批注。
 markdown-annotation-source-search = 搜索文献或 PDF 附件…

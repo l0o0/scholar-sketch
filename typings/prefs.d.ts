@@ -26,6 +26,11 @@ declare namespace _ZoteroTypes {
       "noteTemplates": string;
       "featureUpdatesSeenVersion": string;
       "shortcutNewStandaloneMd": string;
+      "shortcutInsertAnnotation": string;
+      "shortcutInsertImage": string;
+      "shortcutInsertTable": string;
+      "shortcutInsertTask": string;
+      "shortcutInsertCode": string;
       "paperPandocPath": string;
       "paperStyleID": string;
       "paperReferenceDoc": string;

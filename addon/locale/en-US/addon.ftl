@@ -409,7 +409,7 @@ settings-theme = Appearance
 settings-theme-system = System
 settings-theme-light = Light
 settings-theme-dark = Dark
-settings-shortcut-hint = Click a shortcut to edit it; changes apply immediately
+settings-shortcut-hint = Click a shortcut to edit it, then select Done to apply
 settings-shortcut-new-standalone = New standalone Markdown note
 settings-shortcut-surface = Shortcut set
 settings-shortcut-surface-markdown = Markdown
@@ -523,6 +523,11 @@ error-image-too-large = Images must be 15 MB or smaller.
 error-attachment-directory = Could not locate the attachment directory.
 export-html-title = Export HTML
 settings-shortcut-edit-aria = Edit shortcut
+settings-shortcut-edit-action = Edit shortcut: { $action }
+settings-shortcut-more-action = More shortcut actions: { $action }
+settings-shortcut-invalid = Use Ctrl or Cmd with a letter, number, or supported key.
+settings-shortcut-reserved = This shortcut is already used by the editor or Zotero.
+settings-shortcut-duplicate = This shortcut is already assigned to “{ $action }”.
 
 whiteboard-tutorial-image-title = Images & PDF snapshots
 
@@ -763,6 +768,7 @@ annotation-export-read-only = This library is read-only. Annotations cannot be s
 
 markdown-insert-annotation = Annotation
 markdown-insert-annotation-title = Insert annotations ({ $shortcut })
+markdown-insert-shortcut-title = { $action } ({ $shortcut })
 markdown-annotation-insert-title = Insert annotations
 markdown-annotation-insert-hint = Choose a paper or PDF, then select text annotations and comments. Filter by attachment, type, color or tag. Inserted page links return to the original annotations.
 markdown-annotation-source-search = Search papers or PDF attachments…
