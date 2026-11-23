@@ -409,6 +409,7 @@ settings-page-about = About
 settings-tablist-label = Settings sections
 settings-enable-editor = Open .md attachments with the Markdown editor
 settings-frontmatter = Write YAML frontmatter when creating notes
+settings-markdown-pdf-preview = Preview PDFs on hover
 settings-font-size = Editor font size
 settings-font-family = Default font
 settings-font-system = System

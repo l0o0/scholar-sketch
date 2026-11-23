@@ -116,6 +116,7 @@ export interface SettingsModalData {
   theme: AppearanceTheme;
   markdownToolbarMode: MarkdownToolbarMode;
   markdownSlashSearchLanguage: SlashSearchLanguage;
+  markdownPdfLinkPreviewEnabled: boolean;
   shortcutNewStandaloneMd: string;
   markdownInsertShortcuts: MarkdownInsertShortcuts;
   markdownCommandShortcuts: MarkdownCommandShortcuts;
@@ -264,6 +265,8 @@ export function settingsFromPrefs(
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       getPref("markdownSlashSearchLanguage"),
     ),
+    markdownPdfLinkPreviewEnabled:
+      getPref("markdown.linkPreview.pdfEnabled") !== false,
     shortcutNewStandaloneMd: String(getPref("shortcutNewStandaloneMd") || ""),
     markdownInsertShortcuts: readMarkdownInsertShortcuts(),
     markdownCommandShortcuts: readMarkdownCommandShortcuts(),
@@ -292,6 +295,7 @@ export function settingsFromPrefs(
     markdownSlashSearchLanguage: normalizeSlashSearchLanguage(
       prefs.markdownSlashSearchLanguage,
     ),
+    markdownPdfLinkPreviewEnabled: prefs.markdownPdfLinkPreviewEnabled,
     shortcutNewStandaloneMd: String(prefs.shortcutNewStandaloneMd || ""),
     markdownInsertShortcuts: { ...prefs.markdownInsertShortcuts },
     markdownCommandShortcuts: { ...prefs.markdownCommandShortcuts },
@@ -495,6 +499,9 @@ export function createMarkdownModalController(
       markdownSlashSearchLanguage:
         payload.markdownSlashSearchLanguage ??
         normalizeSlashSearchLanguage(getPref("markdownSlashSearchLanguage")),
+      markdownPdfLinkPreviewEnabled:
+        payload.markdownPdfLinkPreviewEnabled ??
+        getPref("markdown.linkPreview.pdfEnabled") !== false,
       shortcutNewStandaloneMd:
         payload.shortcutNewStandaloneMd ??
         String(getPref("shortcutNewStandaloneMd") || ""),
@@ -600,7 +607,10 @@ export function createMarkdownModalController(
 
     const renderEditor = () => {
       const heading = renderHeading(getString("settings-page-editor"));
-      const checkbox = (name: "enable" | "frontmatter", labelText: string) => {
+      const checkbox = (
+        name: "enable" | "frontmatter" | "markdownPdfLinkPreviewEnabled",
+        labelText: string,
+      ) => {
         const label = doc.createElement("label");
         label.className = "zotero-markdown-settings-check-row";
         const input = doc.createElement("input");
@@ -615,6 +625,10 @@ export function createMarkdownModalController(
       };
       checkbox("enable", getString("settings-enable-editor"));
       checkbox("frontmatter", getString("settings-frontmatter"));
+      checkbox(
+        "markdownPdfLinkPreviewEnabled",
+        getString("settings-markdown-pdf-preview"),
+      );
       const toolbarRow = doc.createElement("label");
       toolbarRow.className = "zotero-markdown-settings-row";
       toolbarRow.appendChild(
@@ -1741,6 +1755,10 @@ export function applySettings(settings: SettingsModalData, platform?: string) {
   setPref("theme", values.theme);
   setPref("markdownToolbarMode", values.markdownToolbarMode);
   setPref("markdownSlashSearchLanguage", values.markdownSlashSearchLanguage);
+  setPref(
+    "markdown.linkPreview.pdfEnabled",
+    values.markdownPdfLinkPreviewEnabled,
+  );
   setPref("shortcutNewStandaloneMd", values.shortcutNewStandaloneMd);
   setPref("whiteboardColorScheme", values.whiteboardColorScheme);
   setPref("whiteboardFontFamily", values.whiteboardFontFamily);

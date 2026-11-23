@@ -88,6 +88,8 @@ async function fixture(t: TestContext, surface: "tab" | "window") {
               ? "always"
               : prefs.get(key),
         set: (key: string, value: unknown) => prefs.set(key, value),
+        registerObserver: () => Symbol(),
+        unregisterObserver() {},
       },
       Libraries: { userLibraryID: 1 },
       Items: { get: () => item, getAll: async () => [item] },

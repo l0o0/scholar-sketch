@@ -409,6 +409,7 @@ settings-page-about = 关于
 settings-tablist-label = 设置分类
 settings-enable-editor = 使用 Markdown 编辑器打开 .md 附件
 settings-frontmatter = 新建笔记时写入 YAML frontmatter
+settings-markdown-pdf-preview = 悬停时预览 PDF
 settings-font-size = 编辑器字号
 settings-font-family = 默认字体
 settings-font-system = 系统字体

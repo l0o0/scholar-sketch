@@ -433,6 +433,7 @@ export type FluentMessageId =
   | 'settings-garden-unsaved'
   | 'settings-help-description'
   | 'settings-help-title'
+  | 'settings-markdown-pdf-preview'
   | 'settings-markdown-toolbar'
   | 'settings-markdown-toolbar-always'
   | 'settings-markdown-toolbar-auto'

@@ -17,6 +17,7 @@ declare namespace _ZoteroTypes {
       "markdownToolbarVisible": boolean;
       "markdownToolbarMode": string;
       "markdownSlashSearchLanguage": string;
+      "markdown.linkPreview.pdfEnabled": boolean;
       "whiteboardColorScheme": string;
       "whiteboardFontFamily": string;
       "whiteboardBackgroundColor": string;
