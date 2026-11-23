@@ -8,6 +8,8 @@ import {
   type FakeItem,
 } from "../packages/fake-zotero/dist/index.js";
 import { insertSessionAnnotations } from "../src/modules/markdown/annotation-insert-session.ts";
+import { mountRenderedMarkdown } from "../src/modules/markdown/preview-dom.ts";
+import { renderMarkdown } from "../src/modules/markdown/preview.ts";
 import {
   sessionRegistry,
   type OpenSession,
@@ -23,14 +25,22 @@ function deferred<T>() {
 
 let sequence = 0;
 
-function fixture(t: TestContext, locale = "zh-CN") {
+function fixture(
+  t: TestContext,
+  locale = "zh-CN",
+  secondPdfStandalone = false,
+) {
   const fake = createFakeZotero({
     items: [
       {
         id: 1,
         key: "PAPER001",
         itemType: "journalArticle",
-        fields: { title: "Research paper" },
+        fields: {
+          title: "Research paper",
+          firstCreator: locale === "zh-CN" ? "沈 和 苏" : "Smith",
+          date: locale === "zh-CN" ? "2017-06-01" : "2020-06-01",
+        },
       },
       {
         id: 2,
@@ -56,7 +66,7 @@ function fixture(t: TestContext, locale = "zh-CN") {
         annotationType: "highlight",
         annotationText: "Selected passage",
         annotationComment: "Review this",
-        annotationPageLabel: "153",
+        annotationPageLabel: "4",
         annotationPosition: '{"pageIndex":1}',
       },
       {
@@ -69,7 +79,7 @@ function fixture(t: TestContext, locale = "zh-CN") {
         id: 7,
         key: "PDF00007",
         itemType: "attachment",
-        parentID: 6,
+        parentID: secondPdfStandalone ? undefined : 6,
         attachmentContentType: "application/pdf",
         fields: { title: "Other PDF" },
       },
@@ -109,7 +119,7 @@ function fixture(t: TestContext, locale = "zh-CN") {
   const messages = new Map(
     Array.from(
       readFileSync(`addon/locale/${locale}/addon.ftl`, "utf8").matchAll(
-        /^(markdown-annotation-(?:page-link|open-source)) = (.+)$/gm,
+        /^(markdown-annotation-citation-page) = (.+)$/gm,
       ),
       ([, key, value]) => [`bamboo-${key}`, value],
     ),
@@ -293,7 +303,7 @@ test("the session inserts selected native annotations once and permits reopening
   assert.deepEqual(f.state.insertions, [
     {
       markdown:
-        "> Selected passage [第 153 页 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this\n",
+        "> Selected passage [(沈 和 苏, 2017, 第 4 页)](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this\n",
       expectedValue: "# Current draft",
     },
   ]);
@@ -307,8 +317,28 @@ test("the session inserts selected native annotations once and permits reopening
   assert.equal(f.state.insertions.length, 1);
 });
 
-test("links follow the last line of a multiline excerpt or a comment-only annotation", async (t) => {
+test("inline English citations render the printed page and retain the physical PDF location", async (t) => {
   const f = fixture(t, "en-US");
+  f.fake.Zotero.Items.get(4)!.annotationPageLabel = "iv";
+  await f.open();
+  f.action("insert").click();
+  await setImmediate();
+  assert.equal(f.state.insertions.length, 1);
+  const readingView = f.win.document.createElement("article");
+  mountRenderedMarkdown(
+    readingView as unknown as HTMLElement,
+    renderMarkdown(f.state.insertions[0].markdown),
+  );
+  const link = readingView.querySelector("blockquote a");
+  assert.equal(link?.textContent, "(Smith, 2020, p. iv)");
+  assert.equal(
+    link?.getAttribute("href"),
+    "zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004",
+  );
+});
+
+test("citations follow the last line of a multiline excerpt or a standalone PDF comment", async (t) => {
+  const f = fixture(t, "en-US", true);
   Object.assign(f.fake.Zotero.Items.get(4)!, {
     annotationText: "Selected passage\nLast line  \n\n",
     annotationPageLabel: "",
@@ -328,12 +358,12 @@ test("links follow the last line of a multiline excerpt or a comment-only annota
   const { markdown } = f.state.insertions[0];
   assert.ok(
     markdown.includes(
-      "> Selected passage\n> Last line [Page 2 ↗](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this",
+      "> Selected passage\n> Last line [(Smith, 2020, p. 2)](zotero://open-pdf/library/items/PDF00002?page=2&annotation=ANNO0004)\n\nReview this",
     ),
   );
   assert.ok(
     markdown.includes(
-      "Review the passage\nFollow up [Open original annotation ↗](zotero://open-pdf/library/items/PDF00007?annotation=ANNO0008)",
+      "Review the passage\nFollow up [(Other PDF)](zotero://open-pdf/library/items/PDF00007?annotation=ANNO0008)",
     ),
   );
 });
@@ -437,7 +467,11 @@ test("one picker collects annotations across searches and inserts grouped source
   assert.ok(markdown.includes("### Research paper"));
   assert.ok(markdown.includes("### Other paper"));
   assert.ok(markdown.includes("items/PDF00002?page=2&annotation=ANNO0004"));
-  assert.ok(markdown.includes("items/PDF00007?page=4&annotation=ANNO0008"));
+  assert.ok(
+    markdown.includes(
+      "[(Other paper, 第 4 页)](zotero://open-pdf/library/items/PDF00007?page=4&annotation=ANNO0008)",
+    ),
+  );
   assert.equal(f.win.document.querySelector("dialog"), null);
 });
 

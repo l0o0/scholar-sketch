@@ -513,7 +513,8 @@ test("library search matches native annotation fields and literal page labels wi
   );
   assert.equal(page.annotations[0].sourceKey, "PAPER010");
   assert.equal(page.annotations[0].sourceTitle, "Second paper");
-  assert.equal(page.annotations[0].sourceDetail, "Ada · 2021");
+  assert.equal(page.annotations[0].sourceCreator, "Ada");
+  assert.equal(page.annotations[0].sourceYear, "2021");
   assert.ok(
     f.searches.every(
       (search) =>

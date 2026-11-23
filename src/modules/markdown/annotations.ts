@@ -8,7 +8,8 @@ export interface MarkdownAnnotation {
   attachmentTitle: string;
   sourceKey?: string;
   sourceTitle?: string;
-  sourceDetail?: string;
+  sourceCreator?: string;
+  sourceYear?: string;
   sortIndex?: string;
   groupID?: number;
   pageLabel: string;
@@ -24,7 +25,7 @@ export const escapeAnnotationMarkdown = (value: string) =>
 
 function annotationLines(
   annotation: MarkdownAnnotation,
-  inlinePageLink = false,
+  inlineCitation = false,
 ): string[] {
   if (
     !/^[A-Za-z0-9]{8}$/.test(annotation.attachmentKey) ||
@@ -43,32 +44,40 @@ function annotationLines(
       : undefined;
   const href = `zotero://open-pdf/${scope}/items/${annotation.attachmentKey}?${page ? `page=${page}&` : ""}annotation=${annotation.key}`;
   let linkLabel = annotation.pageLabel || "PDF";
-  if (inlinePageLink) {
+  if (inlineCitation) {
     const pageLabel = annotation.pageLabel.trim() || (page ? String(page) : "");
-    linkLabel = pageLabel
-      ? getString("markdown-annotation-page-link", {
+    const label = [
+      annotation.sourceCreator?.trim() ||
+        annotation.sourceTitle?.trim() ||
+        annotation.attachmentTitle.trim() ||
+        "PDF",
+      annotation.sourceYear,
+      pageLabel &&
+        getString("markdown-annotation-citation-page", {
           args: { page: pageLabel },
-        })
-      : `${getString("markdown-annotation-open-source")} ↗`;
-    linkLabel = linkLabel.replace(/[\r\n]+/g, " ");
+        }),
+    ]
+      .filter(Boolean)
+      .join(", ");
+    linkLabel = `(${label.replace(/[\r\n]+/g, " ")})`;
   }
   const link = `[${escapeAnnotationMarkdown(linkLabel)}](${href})`;
-  const text = inlinePageLink ? annotation.text.trimEnd() : annotation.text;
+  const text = inlineCitation ? annotation.text.trimEnd() : annotation.text;
   const comment =
-    inlinePageLink && !text ? annotation.comment.trimEnd() : annotation.comment;
+    inlineCitation && !text ? annotation.comment.trimEnd() : annotation.comment;
   const parts: string[] = [];
   if (text) {
     const quote = escapeAnnotationMarkdown(text)
       .split(/\r?\n/)
       .map((line) => `> ${line}`)
       .join("\n");
-    parts.push(inlinePageLink ? `${quote} ${link}` : quote, "");
+    parts.push(inlineCitation ? `${quote} ${link}` : quote, "");
   }
   if (comment) {
     const body = escapeAnnotationMarkdown(comment);
-    parts.push(inlinePageLink && !text ? `${body} ${link}` : body, "");
+    parts.push(inlineCitation && !text ? `${body} ${link}` : body, "");
   }
-  if (!inlinePageLink || (!text && !comment)) parts.push(link, "");
+  if (!inlineCitation || (!text && !comment)) parts.push(link, "");
   return parts;
 }
 
@@ -258,13 +267,15 @@ export async function readMarkdownAnnotationItems(
     } catch {
       // A malformed position does not invalidate the native annotation-key link.
     }
-    const creator = source.isRegularItem()
-      ? String(source.getField("firstCreator") || "")
+    const regular = source.isRegularItem();
+    const creator = regular
+      ? String(source.getField("firstCreator", true) || "").trim()
       : "";
-    const year = source.isRegularItem()
-      ? String(source.getField("date") || "").match(/\b\d{4}\b/)?.[0]
-      : "";
-    const sourceDetail = [creator, year].filter(Boolean).join(" · ");
+    const year = regular
+      ? String(source.getField("year") || source.getField("date") || "").match(
+          /\b(?!0000)\d{4}\b/,
+        )?.[0]
+      : undefined;
     const attachmentTitle =
       attachment.getField("title") || attachment.attachmentFilename || "PDF";
     result.push({
@@ -273,7 +284,8 @@ export async function readMarkdownAnnotationItems(
       attachmentTitle,
       sourceKey: source.key,
       sourceTitle: source.getField("title") || attachmentTitle,
-      ...(sourceDetail ? { sourceDetail } : {}),
+      ...(creator ? { sourceCreator: creator } : {}),
+      ...(year ? { sourceYear: year } : {}),
       sortIndex: annotation.annotationSortIndex || "",
       groupID,
       page,

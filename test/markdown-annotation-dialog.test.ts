@@ -317,7 +317,8 @@ const crossSourceAnnotations = annotations.map((annotation, index) => ({
   ...annotation,
   sourceKey: index < 2 ? "PAPER001" : "PDF00002",
   sourceTitle: index < 2 ? "First paper" : "Standalone PDF",
-  sourceDetail: index < 2 ? "Researcher, 2024" : "",
+  sourceCreator: index < 2 ? "Researcher" : undefined,
+  sourceYear: index < 2 ? "2024" : undefined,
 }));
 
 function insertFixture(
@@ -457,7 +458,7 @@ test("one enabled search input searches across sources without first choosing a 
     f.dialog.querySelectorAll('input[type="checkbox"]:checked').length,
     0,
   );
-  assert.match(f.cards()[0].textContent!, /First paper.*Researcher, 2024/);
+  assert.match(f.cards()[0].textContent!, /First paper · Researcher · 2024/);
   assert.match(f.cards()[2].textContent!, /Standalone PDF/);
   assert.equal(f.dialog.querySelector("script"), null);
   f.query<HTMLButtonElement>(".ss-annotation-location").click();

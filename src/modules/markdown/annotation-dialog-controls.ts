@@ -269,7 +269,8 @@ export function createAnnotationCard(
     const source = element("span", "ss-annotation-card-source");
     source.textContent = [
       annotation.sourceTitle || annotation.attachmentTitle,
-      annotation.sourceDetail,
+      annotation.sourceCreator,
+      annotation.sourceYear,
     ]
       .filter(Boolean)
       .join(" · ");
